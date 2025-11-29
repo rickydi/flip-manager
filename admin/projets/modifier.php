@@ -92,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dateAcquisition = $_POST['date_acquisition'] ?: null;
             $dateDebutTravaux = $_POST['date_debut_travaux'] ?: null;
             $dateFinPrevue = $_POST['date_fin_prevue'] ?: null;
+            $dateVente = $_POST['date_vente'] ?: null;
             $statut = $_POST['statut'] ?? 'acquisition';
             
             $prixAchat = parseNumber($_POST['prix_achat'] ?? 0);
@@ -127,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("
                     UPDATE projets SET
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
-                        date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?,
+                        date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                         statut = ?, prix_achat = ?, notaire = ?, taxe_mutation = ?,
                         arpenteurs = ?, assurance_titre = ?,
                         taxes_municipales_annuel = ?, taxes_scolaires_annuel = ?,
@@ -142,7 +143,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $result = $stmt->execute([
                     $nom, $adresse, $ville, $codePostal,
-                    $dateAcquisition, $dateDebutTravaux, $dateFinPrevue,
+                    $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
                     $statut, $prixAchat, $notaire, $taxeMutation,
                     $arpenteurs, $assuranceTitre,
                     $taxesMunicipalesAnnuel, $taxesScolairesAnnuel,
@@ -340,17 +341,21 @@ include '../../includes/header.php';
                                 <label class="form-label">Code</label>
                                 <input type="text" class="form-control" name="code_postal" value="<?= e($projet['code_postal']) ?>">
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Achat</label>
                                 <input type="date" class="form-control" name="date_acquisition" value="<?= e($projet['date_acquisition']) ?>">
                             </div>
-                            <div class="col-4">
-                                <label class="form-label">Début travaux</label>
+                            <div class="col-3">
+                                <label class="form-label">Début trav.</label>
                                 <input type="date" class="form-control" name="date_debut_travaux" value="<?= e($projet['date_debut_travaux']) ?>">
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Fin travaux</label>
                                 <input type="date" class="form-control" name="date_fin_prevue" value="<?= e($projet['date_fin_prevue']) ?>">
+                            </div>
+                            <div class="col-3">
+                                <label class="form-label">Vendu</label>
+                                <input type="date" class="form-control" name="date_vente" value="<?= e($projet['date_vente'] ?? '') ?>">
                             </div>
                         </div>
                     </div>
