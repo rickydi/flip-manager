@@ -416,7 +416,8 @@ include '../../includes/header.php';
                             $totalPourcentage = 0;
                             $totalProfit = 0;
                             foreach ($indicateurs['investisseurs'] as $inv): 
-                                $pct = $inv['pourcentage'] ?? $inv['pourcentage_calcule'] ?? 0;
+                                // Utiliser pourcentage_calcule si pourcentage = 0
+                                $pct = !empty($inv['pourcentage']) ? $inv['pourcentage'] : ($inv['pourcentage_calcule'] ?? 0);
                                 $totalPourcentage += $pct;
                                 $totalProfit += $inv['profit_estime'];
                             ?>
