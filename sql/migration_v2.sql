@@ -9,6 +9,7 @@ ADD COLUMN IF NOT EXISTS type ENUM('investisseur', 'preteur') DEFAULT 'investiss
 ADD COLUMN IF NOT EXISTS taux_interet_defaut DECIMAL(5,2) DEFAULT 0 AFTER type,
 ADD COLUMN IF NOT EXISTS frais_dossier_defaut DECIMAL(5,2) DEFAULT 0 AFTER taux_interet_defaut;
 
--- Correction pour projet_investisseurs - ajouter colonnes alias si nécessaire
--- La colonne mise_de_fonds est utilisée pour stocker le montant
--- La colonne pourcentage_profit est utilisée pour stocker le taux d'intérêt
+-- Ajouter colonnes manquantes à projet_investisseurs
+ALTER TABLE projet_investisseurs 
+ADD COLUMN IF NOT EXISTS montant DECIMAL(12,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS taux_interet DECIMAL(5,2) DEFAULT 0;

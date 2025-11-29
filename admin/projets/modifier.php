@@ -172,9 +172,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($investisseurId && $montant > 0) {
                     try {
                         $stmt = $pdo->prepare("
-                            INSERT INTO projet_investisseurs (projet_id, investisseur_id, mise_de_fonds, pourcentage_profit)
+                            INSERT INTO projet_investisseurs (projet_id, investisseur_id, montant, taux_interet)
                             VALUES (?, ?, ?, ?)
-                            ON DUPLICATE KEY UPDATE mise_de_fonds = VALUES(mise_de_fonds)
+                            ON DUPLICATE KEY UPDATE montant = VALUES(montant), taux_interet = VALUES(taux_interet)
                         ");
                         $stmt->execute([$projetId, $investisseurId, $montant, $tauxInteret]);
                         setFlashMessage('success', 'Prêteur ajouté!');
@@ -647,8 +647,8 @@ include '../../includes/header.php';
                             <?php 
                                 $preteursData = [];
                                 foreach ($preteursProjet as $p): 
-                                    $montant = (float)($p['mise_de_fonds'] ?? 0);
-                                    $taux = (float)($p['pourcentage_profit'] ?? 10);
+                                    $montant = (float)($p['montant'] ?? $p['mise_de_fonds'] ?? 0);
+                                    $taux = (float)($p['taux_interet'] ?? $p['pourcentage_profit'] ?? 10);
                                     $totalPrets += $montant;
                                     $preteursData[] = ['montant' => $montant, 'taux' => $taux];
                                 ?>
