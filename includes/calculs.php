@@ -358,7 +358,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Coûts récurrents
     $coutsRecurrents = calculerCoutsRecurrents($projet);
     
-    // Coûts de vente
+    // Coûts de vente (sans intérêts pour l'instant)
     $coutsVente = calculerCoutsVente($projet);
     
     // Rénovation
@@ -366,7 +366,17 @@ function calculerIndicateursProjet($pdo, $projet) {
     $totalFacturesReelles = calculerTotalFacturesReelles($pdo, $projet['id']);
     $contingence = calculerContingence($totalBudgetRenovation, (float) $projet['taux_contingence']);
     
-    // Coûts fixes totaux
+    // D'abord récupérer les prêteurs pour avoir les intérêts réels
+    $mois = (int) $projet['temps_assume_mois'];
+    $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], 0, $mois);
+    
+    // Remplacer les intérêts de vente par les intérêts des prêteurs si disponibles
+    if ($dataFinancement['total_interets'] > 0) {
+        $coutsVente['interets'] = $dataFinancement['total_interets'];
+        $coutsVente['total'] = $coutsVente['commission'] + $coutsVente['interets'] + $coutsVente['quittance'];
+    }
+    
+    // Coûts fixes totaux (maintenant avec les bons intérêts)
     $coutsFixesTotaux = calculerCoutsFixesTotaux($coutsAcquisition, $coutsRecurrents, $coutsVente);
     
     // Coût total projet
@@ -376,8 +386,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     $valeurPotentielle = (float) $projet['valeur_potentielle'];
     $equitePotentielle = calculerEquitePotentielle($valeurPotentielle, $coutTotalProjet);
     
-    // Investisseurs et Prêteurs
-    $mois = (int) $projet['temps_assume_mois'];
+    // Recalculer les profits des investisseurs avec l'équité correcte
     $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], $equitePotentielle, $mois);
     
     // ROI
