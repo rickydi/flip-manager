@@ -487,12 +487,14 @@ include '../../includes/header.php';
                                 </div>
                             </div>
                             <div class="col-4">
-                                <label class="form-label">= Montant TTC</label>
+                                <label class="form-label">= Commission</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control bg-light" value="<?= number_format($commTTC, 2, ',', ' ') ?>" readonly>
+                                    <input type="text" class="form-control bg-light" value="<?= number_format($commHT, 2, ',', ' ') ?>" readonly>
                                 </div>
-                                <small class="text-muted" style="font-size:0.65rem">TPS+TVQ incluses</small>
+                                <small class="text-muted" style="font-size:0.65rem">
+                                    TPS: <?= number_format($commTPS, 2, ',', ' ') ?>$ | TVQ: <?= number_format($commTVQ, 2, ',', ' ') ?>$
+                                </small>
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Contingence</label>
