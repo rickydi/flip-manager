@@ -468,18 +468,33 @@ include '../../includes/header.php';
                     </div>
                 </div>
                 
+                <?php 
+                // Calculer le montant du courtier avec taxes
+                $commHT = (float)$projet['valeur_potentielle'] * ((float)$projet['taux_commission'] / 100);
+                $commTPS = $commHT * 0.05;
+                $commTVQ = $commHT * 0.09975;
+                $commTTC = $commHT + $commTPS + $commTVQ;
+                ?>
                 <div class="card">
                     <div class="card-header"><i class="bi bi-percent me-1"></i>Taux & Notes</div>
                     <div class="card-body">
                         <div class="row g-2">
-                            <div class="col-6">
+                            <div class="col-4">
                                 <label class="form-label">Courtier immo.</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" name="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
                                     <span class="input-group-text">%</span>
                                 </div>
                             </div>
-                            <div class="col-6">
+                            <div class="col-4">
+                                <label class="form-label">= Montant TTC</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text" class="form-control bg-light" value="<?= number_format($commTTC, 0) ?>" readonly>
+                                </div>
+                                <small class="text-muted" style="font-size:0.65rem">TPS+TVQ incluses</small>
+                            </div>
+                            <div class="col-4">
                                 <label class="form-label">Contingence</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" name="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
