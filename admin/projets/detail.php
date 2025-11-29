@@ -335,88 +335,118 @@ include '../../includes/header.php';
         </div>
     </div>
     
-    <!-- PRÊTEURS (Intérêts) -->
-    <?php if (!empty($indicateurs['preteurs'])): ?>
-        <div class="financial-section">
-            <h5><i class="bi bi-bank me-2"></i>Prêteurs (Intérêts à payer)</h5>
-            <table class="financial-table">
-                <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th class="text-end">Montant prêté</th>
-                        <th class="text-center">Taux annuel</th>
-                        <th class="text-end">Intérêts (<?= $projet['temps_assume_mois'] ?> mois)</th>
-                        <th class="text-end">Total à rembourser</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($indicateurs['preteurs'] as $p): ?>
-                        <tr>
-                            <td><strong><?= e($p['nom']) ?></strong></td>
-                            <td class="amount"><?= formatMoney($p['montant']) ?></td>
-                            <td class="text-center"><span class="badge bg-info"><?= $p['taux'] ?>%</span></td>
-                            <td class="amount text-warning"><?= formatMoney($p['interets_total']) ?></td>
-                            <td class="amount"><strong><?= formatMoney($p['total_du']) ?></strong></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <tr class="total-row">
-                        <td><strong>Total Prêts</strong></td>
-                        <td class="amount"><strong><?= formatMoney($indicateurs['total_prets']) ?></strong></td>
-                        <td></td>
-                        <td class="amount text-warning"><strong><?= formatMoney($indicateurs['total_interets']) ?></strong></td>
-                        <td class="amount"><strong><?= formatMoney($indicateurs['total_prets'] + $indicateurs['total_interets']) ?></strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    <?php endif; ?>
-    
-    <!-- INVESTISSEURS (% des profits) -->
-    <?php if (!empty($indicateurs['investisseurs'])): ?>
-        <?php 
-        $profitNet = $indicateurs['equite_potentielle'] - ($indicateurs['total_interets'] ?? 0);
-        ?>
-        <div class="financial-section">
-            <h5><i class="bi bi-people me-2"></i>Investisseurs (Partage des profits)</h5>
-            <div class="alert alert-info mb-3">
-                <strong>Profit net à partager :</strong> <?= formatMoney($profitNet) ?>
-                <small class="text-muted">(Équité <?= formatMoney($indicateurs['equite_potentielle']) ?> - Intérêts <?= formatMoney($indicateurs['total_interets'] ?? 0) ?>)</small>
+    <!-- SECTION FINANCEMENT ET PARTICIPANTS -->
+    <div class="financial-section">
+        <h5><i class="bi bi-people-fill me-2"></i>Financement et Participants</h5>
+        
+        <div class="row">
+            <!-- PRÊTEURS -->
+            <div class="col-lg-6">
+                <div class="card mb-3 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <i class="bi bi-bank me-2"></i><strong>Prêteurs</strong>
+                        <small class="float-end">Coût = Intérêts</small>
+                    </div>
+                    <?php if (!empty($indicateurs['preteurs'])): ?>
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nom</th>
+                                <th class="text-end">Montant</th>
+                                <th class="text-center">Taux</th>
+                                <th class="text-end">Intérêts</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($indicateurs['preteurs'] as $p): ?>
+                                <tr>
+                                    <td><?= e($p['nom']) ?></td>
+                                    <td class="text-end"><?= formatMoney($p['montant']) ?></td>
+                                    <td class="text-center"><span class="badge bg-warning text-dark"><?= $p['taux'] ?>%</span></td>
+                                    <td class="text-end text-danger"><?= formatMoney($p['interets_total']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot class="table-warning">
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td class="text-end"><strong><?= formatMoney($indicateurs['total_prets']) ?></strong></td>
+                                <td></td>
+                                <td class="text-end text-danger"><strong><?= formatMoney($indicateurs['total_interets']) ?></strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <?php else: ?>
+                    <div class="card-body text-center text-muted py-4">
+                        <i class="bi bi-bank" style="font-size: 2rem;"></i>
+                        <p class="mb-0 small">Aucun prêteur</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
             </div>
-            <table class="financial-table">
-                <thead>
-                    <tr>
-                        <th>Nom</th>
-                        <th class="text-end">Mise de fonds</th>
-                        <th class="text-center">% des profits</th>
-                        <th class="text-end">Profit estimé</th>
-                    </tr>
-                </thead>
-                <tbody>
+            
+            <!-- INVESTISSEURS -->
+            <div class="col-lg-6">
+                <div class="card mb-3 border-success">
+                    <div class="card-header bg-success text-white">
+                        <i class="bi bi-people me-2"></i><strong>Investisseurs</strong>
+                        <small class="float-end">Partage des profits</small>
+                    </div>
+                    <?php if (!empty($indicateurs['investisseurs'])): ?>
                     <?php 
-                    $totalPourcentage = 0;
-                    $totalProfit = 0;
-                    foreach ($indicateurs['investisseurs'] as $inv): 
-                        $pct = $inv['pourcentage'] ?? $inv['pourcentage_calcule'] ?? 0;
-                        $totalPourcentage += $pct;
-                        $totalProfit += $inv['profit_estime'];
+                    $profitNet = $indicateurs['equite_potentielle'] - ($indicateurs['total_interets'] ?? 0);
                     ?>
-                        <tr>
-                            <td><strong><?= e($inv['nom']) ?></strong></td>
-                            <td class="amount"><?= formatMoney($inv['mise_de_fonds']) ?></td>
-                            <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
-                            <td class="amount positive"><strong><?= formatMoney($inv['profit_estime']) ?></strong></td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <tr class="total-row">
-                        <td><strong>Total</strong></td>
-                        <td class="amount"><strong><?= formatMoney(array_sum(array_column($indicateurs['investisseurs'], 'mise_de_fonds'))) ?></strong></td>
-                        <td class="text-center"><strong><?= number_format($totalPourcentage, 1) ?>%</strong></td>
-                        <td class="amount positive"><strong><?= formatMoney($totalProfit) ?></strong></td>
-                    </tr>
-                </tbody>
-            </table>
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Nom</th>
+                                <th class="text-end">Mise</th>
+                                <th class="text-center">%</th>
+                                <th class="text-end">Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php 
+                            $totalPourcentage = 0;
+                            $totalProfit = 0;
+                            foreach ($indicateurs['investisseurs'] as $inv): 
+                                $pct = $inv['pourcentage'] ?? $inv['pourcentage_calcule'] ?? 0;
+                                $totalPourcentage += $pct;
+                                $totalProfit += $inv['profit_estime'];
+                            ?>
+                                <tr>
+                                    <td><?= e($inv['nom']) ?></td>
+                                    <td class="text-end"><?= formatMoney($inv['mise_de_fonds']) ?></td>
+                                    <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
+                                    <td class="text-end text-success"><?= formatMoney($inv['profit_estime']) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot class="table-success">
+                            <tr>
+                                <td><strong>Total</strong></td>
+                                <td class="text-end"><strong><?= formatMoney(array_sum(array_column($indicateurs['investisseurs'], 'mise_de_fonds'))) ?></strong></td>
+                                <td class="text-center"><strong><?= number_format($totalPourcentage, 1) ?>%</strong></td>
+                                <td class="text-end text-success"><strong><?= formatMoney($totalProfit) ?></strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <?php else: ?>
+                    <div class="card-body text-center text-muted py-4">
+                        <i class="bi bi-people" style="font-size: 2rem;"></i>
+                        <p class="mb-0 small">Aucun investisseur</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
-    <?php endif; ?>
+        
+        <div class="text-center">
+            <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>&tab=preteurs" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil me-1"></i>Gérer le financement
+            </a>
+        </div>
+    </div>
     
     <!-- Résumé financier -->
     <div class="financial-section">
