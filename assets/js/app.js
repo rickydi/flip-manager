@@ -403,3 +403,49 @@ function exportToExcel(tableId) {
 function printPage() {
     window.print();
 }
+
+/**
+ * Gestion de la taille du texte (zoom)
+ */
+let currentTextSize = parseInt(localStorage.getItem('textSize')) || 100;
+const MIN_TEXT_SIZE = 70;
+const MAX_TEXT_SIZE = 150;
+const TEXT_SIZE_STEP = 10;
+
+// Appliquer la taille sauvegardée au chargement
+document.addEventListener('DOMContentLoaded', function() {
+    applyTextSize();
+    updateTextSizeIndicator();
+});
+
+function changeTextSize(direction) {
+    currentTextSize += direction * TEXT_SIZE_STEP;
+    
+    // Limiter entre min et max
+    if (currentTextSize < MIN_TEXT_SIZE) currentTextSize = MIN_TEXT_SIZE;
+    if (currentTextSize > MAX_TEXT_SIZE) currentTextSize = MAX_TEXT_SIZE;
+    
+    applyTextSize();
+    updateTextSizeIndicator();
+    
+    // Sauvegarder la préférence
+    localStorage.setItem('textSize', currentTextSize);
+}
+
+function applyTextSize() {
+    document.documentElement.style.fontSize = currentTextSize + '%';
+}
+
+function updateTextSizeIndicator() {
+    const indicator = document.getElementById('textSizeIndicator');
+    if (indicator) {
+        indicator.textContent = currentTextSize + '%';
+    }
+}
+
+function resetTextSize() {
+    currentTextSize = 100;
+    applyTextSize();
+    updateTextSizeIndicator();
+    localStorage.setItem('textSize', currentTextSize);
+}
