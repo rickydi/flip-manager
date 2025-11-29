@@ -324,7 +324,7 @@ include '../../includes/header.php';
                             if ($cat['groupe'] !== $currentGroupe):
                                 $currentGroupe = $cat['groupe'];
                         ?>
-                            <tr style="background-color: #f8fafc;">
+                            <tr class="group-header-row">
                                 <td colspan="4"><strong><?= e(getGroupeCategorieLabel($currentGroupe)) ?></strong></td>
                             </tr>
                         <?php endif; ?>

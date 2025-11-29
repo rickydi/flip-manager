@@ -1151,3 +1151,17 @@ body {
     background-color: rgba(251, 191, 36, 0.3);
     color: var(--text-primary);
 }
+
+/* Group header row (tableau rénovation) */
+.group-header-row {
+    background-color: #f8fafc;
+}
+
+[data-theme="dark"] .group-header-row {
+    background-color: var(--bg-card-header) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .group-header-row td {
+    color: var(--text-primary) !important;
+}
