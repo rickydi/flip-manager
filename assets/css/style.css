@@ -74,6 +74,36 @@ body {
     flex: 1;
 }
 
+/* Navbar layout personnalisé - titre à gauche, menu centré */
+@media (min-width: 992px) {
+    .navbar .container-fluid {
+        display: flex;
+        align-items: center;
+    }
+    
+    .navbar .navbar-brand {
+        flex: 0 0 auto;
+        margin-right: 0;
+    }
+    
+    .navbar .navbar-collapse {
+        display: flex !important;
+        justify-content: center;
+        flex: 1;
+    }
+    
+    .navbar .navbar-nav.mx-auto {
+        position: absolute;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    .navbar .navbar-nav.ms-auto {
+        position: relative;
+        margin-left: auto !important;
+    }
+}
+
 /* Footer */
 .footer {
     margin-top: auto;
