@@ -1,10 +1,9 @@
 -- ============================================
--- Flip Manager - Script de création de la base de données
+-- Flip Manager - Script de création des tables
 -- ============================================
-
--- Création de la base de données
-CREATE DATABASE IF NOT EXISTS flip_manager CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE flip_manager;
+-- NOTE: Sur hébergement mutualisé (WHC, etc.), créez d'abord 
+-- la base de données via cPanel, puis importez ce fichier.
+-- ============================================
 
 -- ============================================
 -- Table: users (Utilisateurs)
