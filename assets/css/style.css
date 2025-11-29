@@ -835,3 +835,319 @@ body {
     background-color: var(--bg-card);
     color: var(--text-primary);
 }
+
+/* ======================= */
+/* CORRECTIONS DE CONTRASTE */
+/* ======================= */
+
+/* Textes avec classes Bootstrap explicites */
+[data-theme="dark"] .text-dark {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-black {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-body {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .text-white {
+    color: var(--text-primary) !important;
+}
+
+/* Fond blanc explicite */
+[data-theme="dark"] .bg-white {
+    background-color: var(--bg-card) !important;
+}
+
+[data-theme="dark"] .bg-light {
+    background-color: var(--bg-card-header) !important;
+}
+
+/* Lignes de tableau avec fond clair */
+[data-theme="dark"] tr[style*="background-color: #f8fafc"],
+[data-theme="dark"] tr[style*="background-color:#f8fafc"] {
+    background-color: var(--bg-table-hover) !important;
+}
+
+/* Liste groupée Bootstrap */
+[data-theme="dark"] .list-group-item {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .list-group-item:hover {
+    background-color: var(--bg-table-hover);
+}
+
+/* Pagination */
+[data-theme="dark"] .page-link {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .page-item.disabled .page-link {
+    background-color: var(--bg-card-header);
+    color: var(--text-muted);
+}
+
+/* Card footer */
+[data-theme="dark"] .card-footer {
+    background-color: var(--bg-card-header);
+    border-top-color: var(--border-color);
+}
+
+/* Accordéons */
+[data-theme="dark"] .accordion-item {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .accordion-button {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .accordion-button:not(.collapsed) {
+    background-color: var(--bg-card-header);
+}
+
+[data-theme="dark"] .accordion-body {
+    background-color: var(--bg-card);
+}
+
+/* Tables avec thead classe light */
+[data-theme="dark"] thead.thead-light th,
+[data-theme="dark"] .table thead th {
+    background-color: var(--bg-card-header) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Lignes de stats */
+[data-theme="dark"] .stats-grid .stat-card {
+    color: var(--text-primary);
+}
+
+/* Champs readonly */
+[data-theme="dark"] .form-control[readonly],
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] .form-control.bg-light {
+    background-color: var(--bg-card-header) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Boutons outline */
+[data-theme="dark"] .btn-outline-secondary {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: var(--bg-table-hover);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .btn-outline-light {
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-outline-light:hover {
+    background-color: var(--bg-table-hover);
+    color: var(--text-primary);
+}
+
+/* Textes dans les cards colorées */
+[data-theme="dark"] .card.bg-primary .text-white,
+[data-theme="dark"] .card.bg-success .text-white,
+[data-theme="dark"] .card.bg-warning .text-dark,
+[data-theme="dark"] .card.bg-danger .text-white,
+[data-theme="dark"] .card.bg-info .text-white {
+    color: inherit !important;
+}
+
+/* Card headers colorés - garder la lisibilité */
+[data-theme="dark"] .card-header.bg-primary,
+[data-theme="dark"] .card-header.bg-success,
+[data-theme="dark"] .card-header.bg-danger,
+[data-theme="dark"] .card-header.bg-info {
+    color: white !important;
+}
+
+[data-theme="dark"] .card-header.bg-warning {
+    color: #1e293b !important;
+}
+
+/* Texte des alertes - meilleur contraste */
+[data-theme="dark"] .alert a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+/* Dropdown divider */
+[data-theme="dark"] .dropdown-divider {
+    border-top-color: var(--border-color);
+}
+
+/* Popover */
+[data-theme="dark"] .popover {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .popover-header {
+    background-color: var(--bg-card-header);
+    border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .popover-body {
+    color: var(--text-primary);
+}
+
+/* Toast */
+[data-theme="dark"] .toast {
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .toast-header {
+    background-color: var(--bg-card-header);
+    border-bottom-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .toast-body {
+    color: var(--text-primary);
+}
+
+/* Offcanvas */
+[data-theme="dark"] .offcanvas {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .offcanvas-header {
+    border-bottom-color: var(--border-color);
+}
+
+/* Progress bar background */
+[data-theme="dark"] .progress {
+    background-color: var(--border-color);
+}
+
+/* Breadcrumb */
+[data-theme="dark"] .breadcrumb {
+    background-color: transparent;
+}
+
+[data-theme="dark"] .breadcrumb-item + .breadcrumb-item::before {
+    color: var(--text-muted);
+}
+
+/* Spinner */
+[data-theme="dark"] .spinner-border {
+    color: var(--primary-color);
+}
+
+/* Hr / Dividers */
+[data-theme="dark"] hr {
+    border-color: var(--border-color);
+    opacity: 1;
+}
+
+/* Code blocks */
+[data-theme="dark"] code {
+    background-color: var(--bg-card-header);
+    color: var(--danger-color);
+}
+
+[data-theme="dark"] pre {
+    background-color: var(--bg-card-header);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Small et muted text */
+[data-theme="dark"] small,
+[data-theme="dark"] .small {
+    color: var(--text-secondary);
+}
+
+/* Figure caption */
+[data-theme="dark"] .figure-caption {
+    color: var(--text-muted);
+}
+
+/* Blockquote */
+[data-theme="dark"] .blockquote-footer {
+    color: var(--text-muted);
+}
+
+/* Lead text */
+[data-theme="dark"] .lead {
+    color: var(--text-primary);
+}
+
+/* Display headings */
+[data-theme="dark"] .display-1,
+[data-theme="dark"] .display-2,
+[data-theme="dark"] .display-3,
+[data-theme="dark"] .display-4,
+[data-theme="dark"] .display-5,
+[data-theme="dark"] .display-6 {
+    color: var(--text-primary);
+}
+
+/* Headings */
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3,
+[data-theme="dark"] h4, [data-theme="dark"] h5, [data-theme="dark"] h6,
+[data-theme="dark"] .h1, [data-theme="dark"] .h2, [data-theme="dark"] .h3,
+[data-theme="dark"] .h4, [data-theme="dark"] .h5, [data-theme="dark"] .h6 {
+    color: var(--text-primary);
+}
+
+/* Labels et légendes */
+[data-theme="dark"] label {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] legend {
+    color: var(--text-primary);
+}
+
+/* Descriptions list */
+[data-theme="dark"] dt {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] dd {
+    color: var(--text-secondary);
+}
+
+/* Figure */
+[data-theme="dark"] figure {
+    color: var(--text-primary);
+}
+
+/* Mark/highlight */
+[data-theme="dark"] mark,
+[data-theme="dark"] .mark {
+    background-color: rgba(251, 191, 36, 0.3);
+    color: var(--text-primary);
+}
