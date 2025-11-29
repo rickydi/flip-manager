@@ -490,7 +490,7 @@ include '../../includes/header.php';
                                 <label class="form-label">= Montant TTC</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control bg-light" value="<?= number_format($commTTC, 0) ?>" readonly>
+                                    <input type="text" class="form-control bg-light" value="<?= number_format($commTTC, 2, ',', ' ') ?>" readonly>
                                 </div>
                                 <small class="text-muted" style="font-size:0.65rem">TPS+TVQ incluses</small>
                             </div>
