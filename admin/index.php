@@ -176,6 +176,11 @@ include '../includes/header.php';
                             <i class="bi bi-pencil me-1"></i>
                             Modifier
                         </a>
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                data-bs-toggle="modal" data-bs-target="#deleteModal<?= $projet['id'] ?>">
+                            <i class="bi bi-trash me-1"></i>
+                            Supprimer
+                        </button>
                     </div>
                 </div>
             </div>
@@ -239,5 +244,40 @@ include '../includes/header.php';
         </div>
     <?php endif; ?>
 </div>
+
+<!-- Modals de suppression -->
+<?php if (!empty($projets)): ?>
+    <?php foreach ($projets as $projet): ?>
+    <div class="modal fade" id="deleteModal<?= $projet['id'] ?>" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Supprimer le projet <strong><?= e($projet['nom']) ?></strong> ?</p>
+                    <div class="alert alert-warning mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Toutes les factures et budgets seront supprimés.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form action="/admin/projets/supprimer.php" method="POST" class="d-inline">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="projet_id" value="<?= $projet['id'] ?>">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash me-1"></i>Supprimer
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endforeach; ?>
+<?php endif; ?>
 
 <?php include '../includes/footer.php'; ?>
