@@ -341,7 +341,7 @@ include '../../includes/header.php';
                                 <input type="text" class="form-control" name="code_postal" value="<?= e($projet['code_postal']) ?>">
                             </div>
                             <div class="col-4">
-                                <label class="form-label">Acquisition</label>
+                                <label class="form-label">Achat</label>
                                 <input type="date" class="form-control" name="date_acquisition" value="<?= e($projet['date_acquisition']) ?>">
                             </div>
                             <div class="col-4">
@@ -349,7 +349,7 @@ include '../../includes/header.php';
                                 <input type="date" class="form-control" name="date_debut_travaux" value="<?= e($projet['date_debut_travaux']) ?>">
                             </div>
                             <div class="col-4">
-                                <label class="form-label">Fin prévue</label>
+                                <label class="form-label">Fin travaux</label>
                                 <input type="date" class="form-control" name="date_fin_prevue" value="<?= e($projet['date_fin_prevue']) ?>">
                             </div>
                         </div>
@@ -357,7 +357,7 @@ include '../../includes/header.php';
                 </div>
                 
                 <div class="card">
-                    <div class="card-header"><i class="bi bi-currency-dollar me-1"></i>Acquisition</div>
+                    <div class="card-header"><i class="bi bi-currency-dollar me-1"></i>Achat</div>
                     <div class="card-body">
                         <div class="row g-2">
                             <div class="col-4">
