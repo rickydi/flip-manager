@@ -89,10 +89,10 @@ include '../../includes/header.php';
     <!-- Filtres -->
     <div class="card mb-4">
         <div class="card-body">
-            <form method="GET" action="" class="row g-3">
+            <form method="GET" action="" class="row g-3" id="filterForm">
                 <div class="col-md-3">
                     <label for="projet" class="form-label">Projet</label>
-                    <select class="form-select" id="projet" name="projet">
+                    <select class="form-select auto-submit" id="projet" name="projet">
                         <option value="">Tous les projets</option>
                         <?php foreach ($projets as $projet): ?>
                             <option value="<?= $projet['id'] ?>" <?= $filtreProjet == $projet['id'] ? 'selected' : '' ?>>
@@ -103,7 +103,7 @@ include '../../includes/header.php';
                 </div>
                 <div class="col-md-3">
                     <label for="statut" class="form-label">Statut</label>
-                    <select class="form-select" id="statut" name="statut">
+                    <select class="form-select auto-submit" id="statut" name="statut">
                         <option value="">Tous les statuts</option>
                         <option value="en_attente" <?= $filtreStatut === 'en_attente' ? 'selected' : '' ?>>En attente</option>
                         <option value="approuvee" <?= $filtreStatut === 'approuvee' ? 'selected' : '' ?>>Approuvée</option>
@@ -112,7 +112,7 @@ include '../../includes/header.php';
                 </div>
                 <div class="col-md-3">
                     <label for="categorie" class="form-label">Catégorie</label>
-                    <select class="form-select" id="categorie" name="categorie">
+                    <select class="form-select auto-submit" id="categorie" name="categorie">
                         <option value="">Toutes les catégories</option>
                         <?php foreach ($categories as $cat): ?>
                             <option value="<?= $cat['id'] ?>" <?= $filtreCategorie == $cat['id'] ? 'selected' : '' ?>>
@@ -122,9 +122,6 @@ include '../../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-outline-primary me-2">
-                        <i class="bi bi-search me-1"></i>Filtrer
-                    </button>
                     <a href="/admin/factures/liste.php" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>Réinitialiser
                     </a>
@@ -132,6 +129,14 @@ include '../../includes/header.php';
             </form>
         </div>
     </div>
+    
+    <script>
+    document.querySelectorAll('.auto-submit').forEach(function(select) {
+        select.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+    </script>
     
     <!-- Liste des factures -->
     <div class="card">
