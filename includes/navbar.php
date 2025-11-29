@@ -11,6 +11,7 @@ $isAdmin = isAdmin();
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container-fluid">
+        <!-- Logo/Titre à gauche -->
         <a class="navbar-brand d-flex align-items-center" href="<?= $isAdmin ? '/admin/index.php' : '/employe/index.php' ?>">
             <i class="bi bi-house-door-fill me-2"></i>
             <?= APP_NAME ?>
@@ -21,7 +22,8 @@ $isAdmin = isAdmin();
         </button>
         
         <div class="collapse navbar-collapse" id="navbarMain">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <!-- Menu centré -->
+            <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                 <?php if ($isAdmin): ?>
                     <!-- Menu Admin -->
                     <li class="nav-item">
@@ -131,9 +133,10 @@ $isAdmin = isAdmin();
                 <?php endif; ?>
             </ul>
             
-            <!-- Boutons de zoom texte + Dark mode -->
-            <ul class="navbar-nav me-3">
-                <li class="nav-item d-flex align-items-center">
+            <!-- Contrôles à droite -->
+            <ul class="navbar-nav ms-auto">
+                <!-- Zoom + Dark mode -->
+                <li class="nav-item d-flex align-items-center me-2">
                     <button type="button" class="btn btn-outline-light btn-sm me-1" onclick="changeTextSize(-1)" title="Réduire le texte">
                         <i class="bi bi-dash-lg"></i>
                     </button>
@@ -146,10 +149,8 @@ $isAdmin = isAdmin();
                         <i class="bi bi-moon-fill" id="darkModeIcon"></i>
                     </button>
                 </li>
-            </ul>
-            
-            <!-- User menu -->
-            <ul class="navbar-nav">
+                
+                <!-- User menu -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                         <i class="bi bi-person-circle"></i>
