@@ -1229,3 +1229,20 @@ body {
 [data-theme="dark"] small.text-muted {
     color: var(--text-muted) !important;
 }
+
+/* Boutons - texte blanc garanti en dark mode */
+[data-theme="dark"] .btn-primary,
+[data-theme="dark"] .btn-success,
+[data-theme="dark"] .btn-danger,
+[data-theme="dark"] .btn-info,
+[data-theme="dark"] a.btn-primary,
+[data-theme="dark"] a.btn-success,
+[data-theme="dark"] a.btn-danger,
+[data-theme="dark"] a.btn-info {
+    color: white !important;
+}
+
+[data-theme="dark"] .btn-warning,
+[data-theme="dark"] a.btn-warning {
+    color: #1e293b !important;
+}
