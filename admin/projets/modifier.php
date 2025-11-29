@@ -482,7 +482,7 @@ include '../../includes/header.php';
                             <div class="col-4">
                                 <label class="form-label">Courtier immo.</label>
                                 <div class="input-group">
-                                    <input type="number" class="form-control" name="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
+                                    <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
                                     <span class="input-group-text">%</span>
                                 </div>
                             </div>
@@ -490,9 +490,9 @@ include '../../includes/header.php';
                                 <label class="form-label">= Commission</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control bg-light" value="<?= number_format($commHT, 2, ',', ' ') ?>" readonly>
+                                    <input type="text" class="form-control bg-light" id="comm_montant" value="<?= number_format($commHT, 2, ',', ' ') ?>" readonly>
                                 </div>
-                                <small class="text-muted" style="font-size:0.65rem">
+                                <small class="text-muted" style="font-size:0.65rem" id="comm_taxes">
                                     TPS: <?= number_format($commTPS, 2, ',', ' ') ?>$ | TVQ: <?= number_format($commTVQ, 2, ',', ' ') ?>$
                                 </small>
                             </div>
@@ -857,5 +857,41 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Calcul instantané de la commission courtier
+document.addEventListener('DOMContentLoaded', function() {
+    const tauxInput = document.getElementById('taux_commission');
+    const valeurInput = document.querySelector('input[name="valeur_potentielle"]');
+    const commMontant = document.getElementById('comm_montant');
+    const commTaxes = document.getElementById('comm_taxes');
+    
+    function calculerCommission() {
+        if (!tauxInput || !valeurInput || !commMontant) return;
+        
+        // Parser la valeur potentielle (enlever espaces et virgules)
+        let valeur = valeurInput.value.replace(/\s/g, '').replace(',', '.');
+        valeur = parseFloat(valeur) || 0;
+        
+        const taux = parseFloat(tauxInput.value) || 0;
+        
+        // Calculs
+        const commHT = valeur * (taux / 100);
+        const tps = commHT * 0.05;
+        const tvq = commHT * 0.09975;
+        
+        // Format français
+        const fmt = (n) => n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        
+        commMontant.value = fmt(commHT);
+        if (commTaxes) {
+            commTaxes.textContent = 'TPS: ' + fmt(tps) + '$ | TVQ: ' + fmt(tvq) + '$';
+        }
+    }
+    
+    if (tauxInput) tauxInput.addEventListener('input', calculerCommission);
+    if (valeurInput) valeurInput.addEventListener('input', calculerCommission);
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>
