@@ -235,9 +235,20 @@ include '../../includes/header.php';
                             <td>Intérêts (<?= $projet['temps_assume_mois'] ?> mois @ <?= $projet['taux_interet'] ?>%)</td>
                             <td class="amount"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
                         </tr>
+                        <?php 
+                        $commissionHT = $indicateurs['couts_vente']['commission'];
+                        $tpsCommission = $commissionHT * 0.05;
+                        $tvqCommission = $commissionHT * 0.09975;
+                        $commissionTTC = $commissionHT + $tpsCommission + $tvqCommission;
+                        ?>
                         <tr>
-                            <td>Commission courtier (<?= $projet['taux_commission'] ?>%)</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_vente']['commission']) ?></td>
+                            <td>
+                                Commission courtier (<?= $projet['taux_commission'] ?>%)
+                                <small class="text-muted d-block">
+                                    + TPS <?= formatMoney($tpsCommission) ?> + TVQ <?= formatMoney($tvqCommission) ?>
+                                </small>
+                            </td>
+                            <td class="amount"><?= formatMoney($commissionTTC) ?></td>
                         </tr>
                         <tr>
                             <td>Quittance</td>
