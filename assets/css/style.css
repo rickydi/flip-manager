@@ -1246,3 +1246,15 @@ body {
 [data-theme="dark"] a.btn-warning {
     color: #1e293b !important;
 }
+
+/* Card footer avec formulaires - dark mode */
+[data-theme="dark"] .card-footer .form-control,
+[data-theme="dark"] .card-footer .form-select {
+    background-color: var(--bg-input) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .card-footer.bg-light {
+    background-color: var(--bg-card-header) !important;
+}
