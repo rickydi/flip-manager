@@ -512,12 +512,39 @@ $dateFin = $projet['date_fin_prevue'] ? date('M Y', strtotime($projet['date_fin_
 
 // Calculer le milieu des travaux
 $dateMillieu = 'Mi-travaux';
+$moisProjet = (int)$projet['temps_assume_mois'];
 if ($projet['date_debut_travaux'] && $projet['date_fin_prevue']) {
     $debut = strtotime($projet['date_debut_travaux']);
     $fin = strtotime($projet['date_fin_prevue']);
     $milieu = $debut + (($fin - $debut) / 2);
     $dateMillieu = date('M Y', $milieu);
 }
+
+// Calculer les coûts progressifs avec intérêts qui s'accumulent
+$baseAchat = (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'];
+$budgetReno = $indicateurs['renovation']['budget'];
+$contingence = $indicateurs['contingence'];
+$interetsMensuel = $indicateurs['total_interets'] / max(1, $moisProjet);
+$commission = $indicateurs['couts_vente']['commission'];
+
+// Coûts récurrents mensuels
+$recurrentsMensuel = $indicateurs['couts_recurrents']['total'] / max(1, $moisProjet);
+
+// Point 1: Achat (mois 0)
+$cout0 = $baseAchat;
+
+// Point 2: Début travaux (mois 1) - 10% réno + récurrents + intérêts mois 1
+$cout1 = $baseAchat + ($budgetReno * 0.1) + ($recurrentsMensuel * 1) + ($interetsMensuel * 1);
+
+// Point 3: Mi-travaux (mois milieu) - 50% réno + récurrents + intérêts
+$moisMilieu = max(1, floor($moisProjet / 2));
+$cout2 = $baseAchat + ($budgetReno * 0.5) + ($recurrentsMensuel * $moisMilieu) + ($interetsMensuel * $moisMilieu);
+
+// Point 4: Fin travaux (mois fin) - 100% réno + récurrents + intérêts
+$cout3 = $baseAchat + $budgetReno + $contingence + ($recurrentsMensuel * $moisProjet) + ($interetsMensuel * $moisProjet);
+
+// Point 5: Vente - Ajouter commission courtier
+$cout4 = $cout3 + $commission;
 
 // Récupérer les dépenses par mois
 $depensesParMois = [];
@@ -547,17 +574,17 @@ foreach ($depensesParMois as $d) {
 Chart.defaults.color = '#666';
 Chart.defaults.font.family = "'Segoe UI', sans-serif";
 
-// Graphique 1: Timeline du projet avec dates réelles
+// Graphique 1: Timeline du projet - Coûts qui montent avec intérêts
 const dataTimeline = {
     labels: ['<?= $dateAchat ?>', '<?= $dateDebut ?>', '<?= $dateMillieu ?>', '<?= $dateFin ?>', 'Vente'],
     datasets: [{
-        label: 'Coûts cumulés',
+        label: 'Coûts cumulés (+ intérêts)',
         data: [
-            <?= (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'] ?>,
-            <?= (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'] + ($indicateurs['renovation']['budget'] * 0.1) ?>,
-            <?= (float)$projet['prix_achat'] + $indicateurs['couts_fixes_totaux'] + ($indicateurs['renovation']['budget'] * 0.5) ?>,
-            <?= $indicateurs['cout_total_projet'] ?>,
-            <?= $indicateurs['cout_total_projet'] ?>
+            <?= $cout0 ?>,
+            <?= $cout1 ?>,
+            <?= $cout2 ?>,
+            <?= $cout3 ?>,
+            <?= $cout4 ?>
         ],
         borderColor: '#e74a3b',
         backgroundColor: 'rgba(231, 74, 59, 0.1)',
