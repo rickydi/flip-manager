@@ -505,20 +505,12 @@ include '../../includes/header.php';
 </div>
 
 <?php
-// Préparer les dates pour les graphiques
-$dateAchat = $projet['date_acquisition'] ? date('M Y', strtotime($projet['date_acquisition'])) : 'Achat';
-$dateDebut = $projet['date_debut_travaux'] ? date('M Y', strtotime($projet['date_debut_travaux'])) : 'Début travaux';
-$dateFin = $projet['date_fin_prevue'] ? date('M Y', strtotime($projet['date_fin_prevue'])) : 'Fin prévue';
-
-// Calculer le milieu des travaux
-$dateMillieu = 'Mi-travaux';
+// Préparer les labels pour le graphique
+$labelAchat = 'Achat';
+$labelDebut = 'Début travaux';
+$labelFin = 'Fin travaux';
+$labelVente = 'Vendu';
 $moisProjet = (int)$projet['temps_assume_mois'];
-if ($projet['date_debut_travaux'] && $projet['date_fin_prevue']) {
-    $debut = strtotime($projet['date_debut_travaux']);
-    $fin = strtotime($projet['date_fin_prevue']);
-    $milieu = $debut + (($fin - $debut) / 2);
-    $dateMillieu = date('M Y', $milieu);
-}
 
 // Calculer les coûts progressifs avec intérêts qui s'accumulent
 $baseAchat = (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'];
@@ -576,13 +568,12 @@ Chart.defaults.font.family = "'Segoe UI', sans-serif";
 
 // Graphique 1: Timeline du projet - Coûts qui montent avec intérêts
 const dataTimeline = {
-    labels: ['<?= $dateAchat ?>', '<?= $dateDebut ?>', '<?= $dateMillieu ?>', '<?= $dateFin ?>', 'Vente'],
+    labels: ['<?= $labelAchat ?>', '<?= $labelDebut ?>', '<?= $labelFin ?>', '<?= $labelVente ?>'],
     datasets: [{
         label: 'Coûts cumulés (+ intérêts)',
         data: [
             <?= $cout0 ?>,
             <?= $cout1 ?>,
-            <?= $cout2 ?>,
             <?= $cout3 ?>,
             <?= $cout4 ?>
         ],
@@ -591,13 +582,12 @@ const dataTimeline = {
         fill: true,
         tension: 0.3,
         pointRadius: 6,
-        pointBackgroundColor: ['#4e73df', '#f6c23e', '#36b9cc', '#1cc88a', '#e74a3b'],
+        pointBackgroundColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b'],
         pointBorderColor: '#fff',
         pointBorderWidth: 2
     }, {
         label: 'Valeur potentielle',
         data: [
-            <?= $indicateurs['valeur_potentielle'] ?>,
             <?= $indicateurs['valeur_potentielle'] ?>,
             <?= $indicateurs['valeur_potentielle'] ?>,
             <?= $indicateurs['valeur_potentielle'] ?>,
@@ -644,10 +634,10 @@ const dataDepenses = {
 const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
 const depenseReelle = <?= $indicateurs['renovation']['reel'] ?>;
 const dataComparaison = {
-    labels: ['<?= $dateAchat ?>', '<?= $dateDebut ?>', '<?= $dateMillieu ?>', '<?= $dateFin ?>'],
+    labels: ['<?= $labelAchat ?>', '<?= $labelDebut ?>', '<?= $labelFin ?>'],
     datasets: [{
         label: 'Budget prévu',
-        data: [0, budgetTotal * 0.2, budgetTotal * 0.6, budgetTotal],
+        data: [0, budgetTotal * 0.5, budgetTotal],
         borderColor: '#36b9cc',
         backgroundColor: 'rgba(54, 185, 204, 0.1)',
         fill: true,
@@ -655,7 +645,7 @@ const dataComparaison = {
         borderWidth: 2
     }, {
         label: 'Dépensé réel',
-        data: [0, depenseReelle * 0.3, depenseReelle * 0.7, depenseReelle],
+        data: [0, depenseReelle * 0.5, depenseReelle],
         borderColor: '#e74a3b',
         backgroundColor: 'rgba(231, 74, 59, 0.2)',
         fill: true,
