@@ -539,48 +539,8 @@ include '../../includes/header.php';
         </div>
         
         <div class="card mb-4">
-            <div class="card-header"><i class="bi bi-bank me-2"></i>Financement</div>
+            <div class="card-header"><i class="bi bi-percent me-2"></i>Commission et Contingence</div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="preteur_id" class="form-label">Prêteur</label>
-                            <select class="form-select" id="preteur_id" name="preteur_id" onchange="updateTauxPreteur()">
-                                <option value="">-- Aucun prêteur --</option>
-                                <?php foreach ($preteurs as $preteur): ?>
-                                    <option value="<?= $preteur['id'] ?>" 
-                                            data-taux="<?= $preteur['taux_interet_defaut'] ?? 10 ?>"
-                                            <?= ($projet['preteur_id'] ?? 0) == $preteur['id'] ? 'selected' : '' ?>>
-                                        <?= e($preteur['nom']) ?> (<?= $preteur['taux_interet_defaut'] ?? 10 ?>%)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <small class="text-muted">
-                                <a href="/admin/investisseurs/liste.php">Gérer les prêteurs</a>
-                            </small>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="montant_pret" class="form-label">Montant du prêt</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="text" class="form-control money-input" id="montant_pret" name="montant_pret" 
-                                       value="<?= formatMoney($projet['montant_pret'], false) ?>">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="mb-3">
-                            <label for="taux_interet" class="form-label">Taux d'intérêt</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" id="taux_interet" name="taux_interet" 
-                                       step="0.01" value="<?= $projet['taux_interet'] ?>">
-                                <span class="input-group-text">%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
                 <div class="row">
                     <div class="col-md-4">
                         <div class="mb-3">
@@ -594,7 +554,7 @@ include '../../includes/header.php';
                     </div>
                     <div class="col-md-4">
                         <div class="mb-3">
-                            <label for="taux_contingence" class="form-label">Contingence</label>
+                            <label for="taux_contingence" class="form-label">Contingence rénovation</label>
                             <div class="input-group">
                                 <input type="number" class="form-control" id="taux_contingence" name="taux_contingence" 
                                        step="0.01" value="<?= $projet['taux_contingence'] ?>">
@@ -603,18 +563,11 @@ include '../../includes/header.php';
                         </div>
                     </div>
                 </div>
+                <small class="text-muted">
+                    <i class="bi bi-info-circle me-1"></i>Pour gérer les prêteurs, utilisez l'onglet <a href="?id=<?= $projetId ?>&tab=preteurs">Financement</a>
+                </small>
             </div>
         </div>
-        
-        <script>
-        function updateTauxPreteur() {
-            const select = document.getElementById('preteur_id');
-            const option = select.options[select.selectedIndex];
-            if (option.dataset.taux) {
-                document.getElementById('taux_interet').value = option.dataset.taux;
-            }
-        }
-        </script>
         
         <div class="card mb-4">
             <div class="card-header"><i class="bi bi-sticky me-2"></i>Notes</div>
@@ -667,7 +620,9 @@ include '../../includes/header.php';
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-list-ul me-2"></i>Prêteurs & Investisseurs</span>
                 </div>
-                <?php if (empty($preteursProjet)): ?>
+                <?php 
+                $totalPrets = 0;
+                if (empty($preteursProjet)): ?>
                     <div class="card-body">
                         <div class="text-center text-muted py-4">
                             <i class="bi bi-bank" style="font-size: 3rem;"></i>
@@ -689,8 +644,7 @@ include '../../includes/header.php';
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php 
-                                $totalPrets = 0;
+                            <?php 
                                 $preteursData = [];
                                 foreach ($preteursProjet as $p): 
                                     $montant = (float)($p['mise_de_fonds'] ?? 0);
