@@ -284,35 +284,114 @@ include '../../includes/header.php';
         </div>
     </div>
     
-    <!-- Investisseurs -->
-    <?php if (!empty($indicateurs['investisseurs'])): ?>
+    <!-- GRAPHIQUES VUE D'ENSEMBLE -->
+    <div class="financial-section">
+        <h5><i class="bi bi-pie-chart me-2"></i>Vue d'ensemble du projet</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header text-center">Répartition des coûts</div>
+                    <div class="card-body">
+                        <canvas id="chartCouts" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header text-center">Budget vs Réel (Rénovation)</div>
+                    <div class="card-body">
+                        <canvas id="chartBudget" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header text-center">Répartition des profits</div>
+                    <div class="card-body">
+                        <canvas id="chartProfits" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PRÊTEURS (Intérêts) -->
+    <?php if (!empty($indicateurs['preteurs'])): ?>
         <div class="financial-section">
-            <h5><i class="bi bi-people me-2"></i>Investisseurs</h5>
+            <h5><i class="bi bi-bank me-2"></i>Prêteurs (Intérêts à payer)</h5>
             <table class="financial-table">
                 <thead>
                     <tr>
                         <th>Nom</th>
-                        <th>Type</th>
+                        <th class="text-end">Montant prêté</th>
+                        <th class="text-center">Taux annuel</th>
+                        <th class="text-end">Intérêts (<?= $projet['temps_assume_mois'] ?> mois)</th>
+                        <th class="text-end">Total à rembourser</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($indicateurs['preteurs'] as $p): ?>
+                        <tr>
+                            <td><strong><?= e($p['nom']) ?></strong></td>
+                            <td class="amount"><?= formatMoney($p['montant']) ?></td>
+                            <td class="text-center"><span class="badge bg-info"><?= $p['taux'] ?>%</span></td>
+                            <td class="amount text-warning"><?= formatMoney($p['interets_total']) ?></td>
+                            <td class="amount"><strong><?= formatMoney($p['total_du']) ?></strong></td>
+                        </tr>
+                    <?php endforeach; ?>
+                    <tr class="total-row">
+                        <td><strong>Total Prêts</strong></td>
+                        <td class="amount"><strong><?= formatMoney($indicateurs['total_prets']) ?></strong></td>
+                        <td></td>
+                        <td class="amount text-warning"><strong><?= formatMoney($indicateurs['total_interets']) ?></strong></td>
+                        <td class="amount"><strong><?= formatMoney($indicateurs['total_prets'] + $indicateurs['total_interets']) ?></strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
+    
+    <!-- INVESTISSEURS (% des profits) -->
+    <?php if (!empty($indicateurs['investisseurs'])): ?>
+        <?php 
+        $profitNet = $indicateurs['equite_potentielle'] - ($indicateurs['total_interets'] ?? 0);
+        ?>
+        <div class="financial-section">
+            <h5><i class="bi bi-people me-2"></i>Investisseurs (Partage des profits)</h5>
+            <div class="alert alert-info mb-3">
+                <strong>Profit net à partager :</strong> <?= formatMoney($profitNet) ?>
+                <small class="text-muted">(Équité <?= formatMoney($indicateurs['equite_potentielle']) ?> - Intérêts <?= formatMoney($indicateurs['total_interets'] ?? 0) ?>)</small>
+            </div>
+            <table class="financial-table">
+                <thead>
+                    <tr>
+                        <th>Nom</th>
                         <th class="text-end">Mise de fonds</th>
-                        <th class="text-end">% Profit</th>
+                        <th class="text-center">% des profits</th>
                         <th class="text-end">Profit estimé</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php foreach ($indicateurs['investisseurs'] as $inv): ?>
+                    <?php 
+                    $totalPourcentage = 0;
+                    $totalProfit = 0;
+                    foreach ($indicateurs['investisseurs'] as $inv): 
+                        $pct = $inv['pourcentage'] ?? $inv['pourcentage_calcule'] ?? 0;
+                        $totalPourcentage += $pct;
+                        $totalProfit += $inv['profit_estime'];
+                    ?>
                         <tr>
-                            <td><?= e($inv['nom']) ?></td>
-                            <td><?= e($inv['type_investissement']) ?></td>
+                            <td><strong><?= e($inv['nom']) ?></strong></td>
                             <td class="amount"><?= formatMoney($inv['mise_de_fonds']) ?></td>
-                            <td class="amount"><?= formatPercent($inv['pourcentage_calcule']) ?></td>
-                            <td class="amount positive"><?= formatMoney($inv['profit_estime']) ?></td>
+                            <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
+                            <td class="amount positive"><strong><?= formatMoney($inv['profit_estime']) ?></strong></td>
                         </tr>
                     <?php endforeach; ?>
                     <tr class="total-row">
-                        <td colspan="2"><strong>Total</strong></td>
-                        <td class="amount"><strong><?= formatMoney($indicateurs['mise_fonds_totale']) ?></strong></td>
-                        <td class="amount"><strong>100 %</strong></td>
-                        <td class="amount positive"><strong><?= formatMoney($indicateurs['equite_potentielle']) ?></strong></td>
+                        <td><strong>Total</strong></td>
+                        <td class="amount"><strong><?= formatMoney(array_sum(array_column($indicateurs['investisseurs'], 'mise_de_fonds'))) ?></strong></td>
+                        <td class="text-center"><strong><?= number_format($totalPourcentage, 1) ?>%</strong></td>
+                        <td class="amount positive"><strong><?= formatMoney($totalProfit) ?></strong></td>
                     </tr>
                 </tbody>
             </table>
@@ -415,5 +494,83 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Données pour les graphiques
+const dataCouts = {
+    labels: ['Prix achat', 'Rénovation', 'Frais fixes', 'Contingence'],
+    datasets: [{
+        data: [
+            <?= (float)$projet['prix_achat'] ?>,
+            <?= $indicateurs['renovation']['budget'] ?>,
+            <?= $indicateurs['couts_fixes_totaux'] ?>,
+            <?= $indicateurs['contingence'] ?>
+        ],
+        backgroundColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b']
+    }]
+};
+
+const dataBudget = {
+    labels: ['Budget', 'Dépensé', 'Restant'],
+    datasets: [{
+        data: [
+            <?= $indicateurs['renovation']['budget'] ?>,
+            <?= $indicateurs['renovation']['reel'] ?>,
+            <?= max(0, $indicateurs['renovation']['ecart']) ?>
+        ],
+        backgroundColor: ['#4e73df', '#e74a3b', '#1cc88a']
+    }]
+};
+
+// Données des investisseurs pour le graphique profits
+const investisseursNoms = [<?php 
+    $noms = [];
+    foreach ($indicateurs['investisseurs'] as $inv) {
+        $noms[] = "'" . addslashes($inv['nom']) . "'";
+    }
+    echo implode(',', $noms);
+?>];
+
+const investisseursProfits = [<?php 
+    $profits = [];
+    foreach ($indicateurs['investisseurs'] as $inv) {
+        $profits[] = round($inv['profit_estime'], 2);
+    }
+    echo implode(',', $profits);
+?>];
+
+const dataProfits = {
+    labels: investisseursNoms.length > 0 ? investisseursNoms : ['Aucun investisseur'],
+    datasets: [{
+        data: investisseursProfits.length > 0 ? investisseursProfits : [1],
+        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796']
+    }]
+};
+
+// Options communes
+const optionsPie = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            position: 'bottom',
+            labels: { boxWidth: 12, padding: 8, font: { size: 11 } }
+        }
+    }
+};
+
+// Créer les graphiques
+if (document.getElementById('chartCouts')) {
+    new Chart(document.getElementById('chartCouts'), { type: 'doughnut', data: dataCouts, options: optionsPie });
+}
+if (document.getElementById('chartBudget')) {
+    new Chart(document.getElementById('chartBudget'), { type: 'pie', data: dataBudget, options: optionsPie });
+}
+if (document.getElementById('chartProfits')) {
+    new Chart(document.getElementById('chartProfits'), { type: 'doughnut', data: dataProfits, options: optionsPie });
+}
+</script>
 
 <?php include '../../includes/footer.php'; ?>

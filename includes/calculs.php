@@ -251,45 +251,97 @@ function calculerPourcentageValeur($montant, $valeurPotentielle) {
 }
 
 /**
- * Récupère les investisseurs d'un projet avec calculs
+ * Récupère les prêteurs et investisseurs d'un projet avec calculs
  * @param PDO $pdo
  * @param int $projetId
  * @param float $equitePotentielle
+ * @param int $mois - Durée du projet en mois
  * @return array
  */
-function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0) {
+function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois = 6) {
+    $preteurs = [];
+    $investisseurs = [];
+    $totalPrets = 0;
+    $totalInterets = 0;
+    $miseTotaleInvestisseurs = 0;
+    
     try {
-        // Essayer avec la nouvelle colonne 'montant'
         $stmt = $pdo->prepare("
-            SELECT pi.*, COALESCE(pi.montant, pi.mise_de_fonds) as mise_de_fonds, i.nom, i.email, i.telephone
+            SELECT pi.*, 
+                   COALESCE(pi.montant, pi.mise_de_fonds, 0) as montant_value,
+                   COALESCE(pi.taux_interet, pi.pourcentage_profit, 0) as taux_value,
+                   i.nom, i.email, i.telephone, 
+                   COALESCE(i.type, 'investisseur') as type_investisseur
             FROM projet_investisseurs pi
             JOIN investisseurs i ON pi.investisseur_id = i.id
             WHERE pi.projet_id = ?
-            ORDER BY pi.id DESC
+            ORDER BY i.type, i.nom
         ");
         $stmt->execute([$projetId]);
-        $investisseurs = $stmt->fetchAll();
+        $all = $stmt->fetchAll();
+        
+        foreach ($all as $row) {
+            $montant = (float) $row['montant_value'];
+            $taux = (float) $row['taux_value'];
+            $type = $row['type_investisseur'] ?? 'investisseur';
+            
+            if ($type === 'preteur') {
+                // Prêteur : calcul des intérêts
+                $interetsMois = $montant * ($taux / 100) / 12;
+                $interetsTotal = $interetsMois * $mois;
+                $totalDu = $montant + $interetsTotal;
+                
+                $preteurs[] = [
+                    'id' => $row['id'],
+                    'nom' => $row['nom'],
+                    'montant' => $montant,
+                    'taux' => $taux,
+                    'interets_mois' => $interetsMois,
+                    'interets_total' => $interetsTotal,
+                    'total_du' => $totalDu
+                ];
+                
+                $totalPrets += $montant;
+                $totalInterets += $interetsTotal;
+            } else {
+                // Investisseur : partage des profits en %
+                $investisseurs[] = [
+                    'id' => $row['id'],
+                    'nom' => $row['nom'],
+                    'mise_de_fonds' => $montant,
+                    'pourcentage' => $taux, // Ici taux = pourcentage des profits
+                    'profit_estime' => 0 // Sera calculé après
+                ];
+                
+                $miseTotaleInvestisseurs += $montant;
+            }
+        }
+        
+        // Calculer le profit pour chaque investisseur basé sur leur %
+        $totalPourcentage = array_sum(array_column($investisseurs, 'pourcentage'));
+        $profitApresInterets = $equitePotentielle - $totalInterets;
+        
+        foreach ($investisseurs as &$inv) {
+            if ($totalPourcentage > 0) {
+                $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
+            } else {
+                // Si pas de % défini, répartir selon mise de fonds
+                $inv['pourcentage_calcule'] = $miseTotaleInvestisseurs > 0 ? ($inv['mise_de_fonds'] / $miseTotaleInvestisseurs) * 100 : 0;
+                $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage_calcule'] / 100);
+            }
+        }
+        
     } catch (Exception $e) {
-        // Fallback si la table n'existe pas encore ou structure différente
-        $investisseurs = [];
-    }
-    
-    // Calculer la mise de fonds totale
-    $miseTotale = 0;
-    foreach ($investisseurs as $inv) {
-        $miseTotale += (float) ($inv['mise_de_fonds'] ?? $inv['montant'] ?? 0);
-    }
-    
-    // Calculer le pourcentage et profit estimé pour chaque investisseur
-    foreach ($investisseurs as &$inv) {
-        $mise = (float) ($inv['mise_de_fonds'] ?? $inv['montant'] ?? 0);
-        $inv['pourcentage_calcule'] = $miseTotale > 0 ? ($mise / $miseTotale) * 100 : 0;
-        $inv['profit_estime'] = $equitePotentielle * ($inv['pourcentage_calcule'] / 100);
+        // Table n'existe pas ou erreur
     }
     
     return [
+        'preteurs' => $preteurs,
         'investisseurs' => $investisseurs,
-        'mise_totale' => $miseTotale
+        'total_prets' => $totalPrets,
+        'total_interets' => $totalInterets,
+        'mise_totale_investisseurs' => $miseTotaleInvestisseurs,
+        'mise_totale' => $totalPrets + $miseTotaleInvestisseurs
     ];
 }
 
@@ -324,11 +376,12 @@ function calculerIndicateursProjet($pdo, $projet) {
     $valeurPotentielle = (float) $projet['valeur_potentielle'];
     $equitePotentielle = calculerEquitePotentielle($valeurPotentielle, $coutTotalProjet);
     
-    // Investisseurs
-    $dataInvestisseurs = getInvestisseursProjet($pdo, $projet['id'], $equitePotentielle);
+    // Investisseurs et Prêteurs
+    $mois = (int) $projet['temps_assume_mois'];
+    $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], $equitePotentielle, $mois);
     
     // ROI
-    $roiLeverage = calculerROILeverage($equitePotentielle, $dataInvestisseurs['mise_totale']);
+    $roiLeverage = calculerROILeverage($equitePotentielle, $dataFinancement['mise_totale']);
     $roiAllCash = calculerROIAllCash($equitePotentielle, $coutTotalProjet);
     
     // Pourcentages
@@ -361,8 +414,11 @@ function calculerIndicateursProjet($pdo, $projet) {
             'renovation' => $pctRenovation,
             'prix_achat' => $pctPrixAchat
         ],
-        'investisseurs' => $dataInvestisseurs['investisseurs'],
-        'mise_fonds_totale' => $dataInvestisseurs['mise_totale']
+        'preteurs' => $dataFinancement['preteurs'],
+        'investisseurs' => $dataFinancement['investisseurs'],
+        'total_prets' => $dataFinancement['total_prets'],
+        'total_interets' => $dataFinancement['total_interets'],
+        'mise_fonds_totale' => $dataFinancement['mise_totale']
     ];
 }
 
