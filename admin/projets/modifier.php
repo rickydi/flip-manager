@@ -473,7 +473,7 @@ include '../../includes/header.php';
                     <div class="card-body">
                         <div class="row g-2">
                             <div class="col-6">
-                                <label class="form-label">Commission</label>
+                                <label class="form-label">Courtier immo.</label>
                                 <div class="input-group">
                                     <input type="number" class="form-control" name="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
                                     <span class="input-group-text">%</span>
