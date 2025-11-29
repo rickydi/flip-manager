@@ -104,7 +104,10 @@ include '../../includes/header.php';
         <div class="row">
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header text-center">Évolution des coûts</div>
+                    <div class="card-header text-center">
+                        📈 Coûts vs Valeur
+                        <small class="d-block text-muted" style="font-size:0.7rem">Rouge = coûts cumulés, Vert = valeur de vente</small>
+                    </div>
                     <div class="card-body">
                         <canvas id="chartCouts" height="200"></canvas>
                     </div>
@@ -112,7 +115,10 @@ include '../../includes/header.php';
             </div>
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header text-center">Budget vs Réel</div>
+                    <div class="card-header text-center">
+                        💰 Dépenses mensuelles
+                        <small class="d-block text-muted" style="font-size:0.7rem">Factures approuvées par mois</small>
+                    </div>
                     <div class="card-body">
                         <canvas id="chartBudget" height="200"></canvas>
                     </div>
@@ -120,7 +126,10 @@ include '../../includes/header.php';
             </div>
             <div class="col-md-4">
                 <div class="card">
-                    <div class="card-header text-center">Scénarios ROI</div>
+                    <div class="card-header text-center">
+                        📊 Budget vs Dépensé
+                        <small class="d-block text-muted" style="font-size:0.7rem">Bleu = prévu, Rouge = réel</small>
+                    </div>
                     <div class="card-body">
                         <canvas id="chartProfits" height="200"></canvas>
                     </div>
