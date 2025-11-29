@@ -505,38 +505,66 @@ include '../../includes/header.php';
 </div>
 
 <?php
-// Préparer les labels pour le graphique
-$labelAchat = 'Achat';
-$labelDebut = 'Début travaux';
-$labelFin = 'Fin travaux';
-$labelVente = 'Vendu';
+// Calculer la durée réelle du projet en mois
 $moisProjet = (int)$projet['temps_assume_mois'];
+
+// Si date de vente ET date acquisition existent, calculer la durée réelle
+if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
+    $dateAchat = new DateTime($projet['date_acquisition']);
+    $dateVente = new DateTime($projet['date_vente']);
+    $diff = $dateAchat->diff($dateVente);
+    $moisProjet = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $moisProjet = max(1, $moisProjet);
+}
+
+// Préparer les labels mensuels (Mois 1, Mois 2, etc.)
+$labelsTimeline = [];
+$coutsTimeline = [];
 
 // Calculer les coûts progressifs avec intérêts qui s'accumulent
 $baseAchat = (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'];
 $budgetReno = $indicateurs['renovation']['budget'];
 $contingence = $indicateurs['contingence'];
-$interetsMensuel = $indicateurs['total_interets'] / max(1, $moisProjet);
+
+// Recalculer les intérêts et récurrents avec la vraie durée
+$totalPrets = $indicateurs['total_prets'] ?? 0;
+$tauxInteret = (float)($projet['taux_interet'] ?? 10);
+$interetsMensuel = $totalPrets * ($tauxInteret / 100) / 12;
+
+$recurrentsAnnuel = (float)$projet['taxes_municipales_annuel'] + (float)$projet['taxes_scolaires_annuel'] 
+    + (float)$projet['electricite_annuel'] + (float)$projet['assurances_annuel']
+    + (float)$projet['deneigement_annuel'] + (float)$projet['frais_condo_annuel'];
+$recurrentsMensuel = $recurrentsAnnuel / 12 + (float)$projet['hypotheque_mensuel'];
+
 $commission = $indicateurs['couts_vente']['commission'];
 
-// Coûts récurrents mensuels
-$recurrentsMensuel = $indicateurs['couts_recurrents']['total'] / max(1, $moisProjet);
+// Générer les points pour chaque mois
+for ($m = 0; $m <= $moisProjet; $m++) {
+    if ($m == 0) {
+        $labelsTimeline[] = 'Achat';
+    } else {
+        $labelsTimeline[] = 'Mois ' . $m;
+    }
+    
+    // Progression de la réno (linéaire sur la durée)
+    $pctReno = min(1, $m / max(1, $moisProjet - 1));
+    
+    // Coût à ce mois
+    $cout = $baseAchat 
+        + ($budgetReno * $pctReno)
+        + ($recurrentsMensuel * $m) 
+        + ($interetsMensuel * $m);
+    
+    // Au dernier mois, ajouter contingence et commission
+    if ($m == $moisProjet) {
+        $cout += $contingence + $commission;
+    }
+    
+    $coutsTimeline[] = round($cout, 2);
+}
 
-// Point 1: Achat (mois 0)
-$cout0 = $baseAchat;
-
-// Point 2: Début travaux (mois 1) - 10% réno + récurrents + intérêts mois 1
-$cout1 = $baseAchat + ($budgetReno * 0.1) + ($recurrentsMensuel * 1) + ($interetsMensuel * 1);
-
-// Point 3: Mi-travaux (mois milieu) - 50% réno + récurrents + intérêts
-$moisMilieu = max(1, floor($moisProjet / 2));
-$cout2 = $baseAchat + ($budgetReno * 0.5) + ($recurrentsMensuel * $moisMilieu) + ($interetsMensuel * $moisMilieu);
-
-// Point 4: Fin travaux (mois fin) - 100% réno + récurrents + intérêts
-$cout3 = $baseAchat + $budgetReno + $contingence + ($recurrentsMensuel * $moisProjet) + ($interetsMensuel * $moisProjet);
-
-// Point 5: Vente - Ajouter commission courtier
-$cout4 = $cout3 + $commission;
+// Valeur potentielle (ligne horizontale)
+$valeurPotentielle = $indicateurs['valeur_potentielle'];
 
 // Récupérer les dépenses par mois
 $depensesParMois = [];
@@ -566,33 +594,23 @@ foreach ($depensesParMois as $d) {
 Chart.defaults.color = '#666';
 Chart.defaults.font.family = "'Segoe UI', sans-serif";
 
-// Graphique 1: Timeline du projet - Coûts qui montent avec intérêts
+// Graphique 1: Timeline du projet - Coûts qui montent par mois
 const dataTimeline = {
-    labels: ['<?= $labelAchat ?>', '<?= $labelDebut ?>', '<?= $labelFin ?>', '<?= $labelVente ?>'],
+    labels: <?= json_encode($labelsTimeline) ?>,
     datasets: [{
-        label: 'Coûts cumulés (+ intérêts)',
-        data: [
-            <?= $cout0 ?>,
-            <?= $cout1 ?>,
-            <?= $cout3 ?>,
-            <?= $cout4 ?>
-        ],
+        label: 'Coûts cumulés',
+        data: <?= json_encode($coutsTimeline) ?>,
         borderColor: '#e74a3b',
         backgroundColor: 'rgba(231, 74, 59, 0.1)',
         fill: true,
         tension: 0.3,
-        pointRadius: 6,
-        pointBackgroundColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b'],
+        pointRadius: 4,
+        pointBackgroundColor: '#e74a3b',
         pointBorderColor: '#fff',
         pointBorderWidth: 2
     }, {
         label: 'Valeur potentielle',
-        data: [
-            <?= $indicateurs['valeur_potentielle'] ?>,
-            <?= $indicateurs['valeur_potentielle'] ?>,
-            <?= $indicateurs['valeur_potentielle'] ?>,
-            <?= $indicateurs['valeur_potentielle'] ?>
-        ],
+        data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>,
         borderColor: '#1cc88a',
         borderDash: [5, 5],
         pointRadius: 0,
@@ -634,7 +652,7 @@ const dataDepenses = {
 const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
 const depenseReelle = <?= $indicateurs['renovation']['reel'] ?>;
 const dataComparaison = {
-    labels: ['<?= $labelAchat ?>', '<?= $labelDebut ?>', '<?= $labelFin ?>'],
+    labels: ['Début', 'Milieu', 'Fin'],
     datasets: [{
         label: 'Budget prévu',
         data: [0, budgetTotal * 0.5, budgetTotal],
