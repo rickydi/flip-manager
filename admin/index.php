@@ -163,14 +163,15 @@ include '../includes/header.php';
                     </div>
                     
                     <!-- Actions -->
-                    <div class="d-flex gap-2" onclick="event.stopPropagation()">
+                    <div class="d-flex gap-2 flex-wrap" onclick="event.stopPropagation()">
                         <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-receipt me-1"></i>
-                            Factures
+                            <i class="bi bi-receipt me-1"></i>Factures
+                        </a>
+                        <a href="/admin/projets/financement.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-bank me-1"></i>Financement
                         </a>
                         <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
-                            <i class="bi bi-pencil me-1"></i>
-                            Modifier
+                            <i class="bi bi-pencil me-1"></i>Modifier
                         </a>
                         <button type="button" class="btn btn-outline-danger btn-sm" 
                                 data-bs-toggle="modal" data-bs-target="#deleteModal<?= $projet['id'] ?>">
