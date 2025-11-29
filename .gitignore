@@ -1,8 +1,8 @@
 # Flip Manager - Fichiers à ignorer par Git
 
-# Fichier de configuration (contient les identifiants BD)
-# Configuration (contient les mots de passe)
-config.php
+# Fichier de configuration
+# Note: config.php est inclus dans Git car le repo est privé
+# config.php
 
 # Fichiers uploadés
 uploads/factures/*
