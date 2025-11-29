@@ -379,8 +379,8 @@ include '../../includes/header.php';
                                 </div>
                             </div>
                             <div class="col-4">
-                                <label class="form-label">Durée (mois)</label>
-                                <input type="number" class="form-control" name="temps_assume_mois" value="<?= (int)$projet['temps_assume_mois'] ?>">
+                                <label class="form-label">Durée (mois) <small class="text-muted">auto</small></label>
+                                <input type="number" class="form-control bg-light" name="temps_assume_mois" id="duree_mois" value="<?= (int)$projet['temps_assume_mois'] ?>" readonly>
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Cession</label>
@@ -898,6 +898,40 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (tauxInput) tauxInput.addEventListener('input', calculerCommission);
     if (valeurInput) valeurInput.addEventListener('input', calculerCommission);
+    
+    // Calcul automatique de la durée en mois (achat → vente)
+    const dateAchat = document.querySelector('input[name="date_acquisition"]');
+    const dateVente = document.querySelector('input[name="date_vente"]');
+    const dateFin = document.querySelector('input[name="date_fin_prevue"]');
+    const dureeMois = document.getElementById('duree_mois');
+    
+    function calculerDuree() {
+        if (!dureeMois) return;
+        
+        const achat = dateAchat ? dateAchat.value : null;
+        // Utiliser date vente si disponible, sinon fin travaux prévue
+        const fin = (dateVente && dateVente.value) ? dateVente.value : (dateFin ? dateFin.value : null);
+        
+        if (achat && fin) {
+            const d1 = new Date(achat);
+            const d2 = new Date(fin);
+            
+            // Calcul des mois entre les deux dates
+            let mois = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+            // Si plus de 15 jours dans le dernier mois, arrondir au mois suivant
+            if (d2.getDate() > 15) mois++;
+            
+            mois = Math.max(1, mois); // Minimum 1 mois
+            dureeMois.value = mois;
+        }
+    }
+    
+    if (dateAchat) dateAchat.addEventListener('change', calculerDuree);
+    if (dateVente) dateVente.addEventListener('change', calculerDuree);
+    if (dateFin) dateFin.addEventListener('change', calculerDuree);
+    
+    // Calcul initial au chargement
+    calculerDuree();
 });
 </script>
 
