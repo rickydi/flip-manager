@@ -356,19 +356,32 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Coûts d'acquisition
     $coutsAcquisition = calculerCoutsAcquisition($projet);
     
-    // Coûts récurrents
-    $coutsRecurrents = calculerCoutsRecurrents($projet);
+    // Calculer la durée réelle si dates disponibles
+    $mois = (int) $projet['temps_assume_mois'];
+    if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
+        $dateAchat = new DateTime($projet['date_acquisition']);
+        $dateVente = new DateTime($projet['date_vente']);
+        $diff = $dateAchat->diff($dateVente);
+        $mois = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+        $mois = max(1, $mois);
+    }
+    
+    // Modifier temp_assume_mois pour le calcul des récurrents
+    $projetModifie = $projet;
+    $projetModifie['temps_assume_mois'] = $mois;
+    
+    // Coûts récurrents (avec durée réelle)
+    $coutsRecurrents = calculerCoutsRecurrents($projetModifie);
     
     // Coûts de vente (sans intérêts pour l'instant)
-    $coutsVente = calculerCoutsVente($projet);
+    $coutsVente = calculerCoutsVente($projetModifie);
     
     // Rénovation
     $totalBudgetRenovation = calculerTotalBudgetRenovation($pdo, $projet['id']);
     $totalFacturesReelles = calculerTotalFacturesReelles($pdo, $projet['id']);
     $contingence = calculerContingence($totalBudgetRenovation, (float) $projet['taux_contingence']);
     
-    // D'abord récupérer les prêteurs pour avoir les intérêts réels
-    $mois = (int) $projet['temps_assume_mois'];
+    // D'abord récupérer les prêteurs pour avoir les intérêts réels (avec durée réelle)
     $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], 0, $mois);
     
     // Remplacer les intérêts de vente par les intérêts des prêteurs si disponibles
