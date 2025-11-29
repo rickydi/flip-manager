@@ -1,0 +1,291 @@
+<?php
+/**
+ * Gestion des utilisateurs - Admin
+ * Flip Manager
+ */
+
+require_once '../../config.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/functions.php';
+
+// Vérifier que l'utilisateur est admin
+requireAdmin();
+
+$pageTitle = 'Utilisateurs';
+
+$errors = [];
+$success = '';
+
+// Traitement des actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $errors[] = 'Token de sécurité invalide.';
+    } else {
+        $action = $_POST['action'] ?? '';
+        
+        if ($action === 'creer') {
+            $nom = trim($_POST['nom'] ?? '');
+            $prenom = trim($_POST['prenom'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $role = $_POST['role'] ?? 'employe';
+            
+            if (empty($nom)) $errors[] = 'Le nom est requis.';
+            if (empty($prenom)) $errors[] = 'Le prénom est requis.';
+            if (empty($email)) $errors[] = 'L\'email est requis.';
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Email invalide.';
+            if (strlen($password) < 6) $errors[] = 'Le mot de passe doit contenir au moins 6 caractères.';
+            
+            // Vérifier que l'email n'existe pas
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+            $stmt->execute([$email]);
+            if ($stmt->fetch()) {
+                $errors[] = 'Cet email est déjà utilisé.';
+            }
+            
+            if (empty($errors)) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO users (nom, prenom, email, password, role)
+                    VALUES (?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role]);
+                setFlashMessage('success', 'Utilisateur créé avec succès.');
+                redirect('/admin/utilisateurs/liste.php');
+            }
+        } elseif ($action === 'modifier') {
+            $userId = (int)($_POST['user_id'] ?? 0);
+            $nom = trim($_POST['nom'] ?? '');
+            $prenom = trim($_POST['prenom'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $role = $_POST['role'] ?? 'employe';
+            $actif = isset($_POST['actif']) ? 1 : 0;
+            
+            if (empty($nom)) $errors[] = 'Le nom est requis.';
+            if (empty($prenom)) $errors[] = 'Le prénom est requis.';
+            if (empty($email)) $errors[] = 'L\'email est requis.';
+            
+            // Vérifier que l'email n'existe pas pour un autre utilisateur
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+            $stmt->execute([$email, $userId]);
+            if ($stmt->fetch()) {
+                $errors[] = 'Cet email est déjà utilisé.';
+            }
+            
+            if (empty($errors)) {
+                if (!empty($password)) {
+                    $stmt = $pdo->prepare("
+                        UPDATE users SET nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $userId]);
+                } else {
+                    $stmt = $pdo->prepare("
+                        UPDATE users SET nom = ?, prenom = ?, email = ?, role = ?, actif = ?
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$nom, $prenom, $email, $role, $actif, $userId]);
+                }
+                setFlashMessage('success', 'Utilisateur modifié avec succès.');
+                redirect('/admin/utilisateurs/liste.php');
+            }
+        }
+    }
+}
+
+// Récupérer les utilisateurs
+$stmt = $pdo->query("SELECT * FROM users ORDER BY role DESC, nom, prenom");
+$utilisateurs = $stmt->fetchAll();
+
+include '../../includes/header.php';
+?>
+
+<div class="container-fluid">
+    <!-- En-tête -->
+    <div class="page-header">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                <li class="breadcrumb-item active">Utilisateurs</li>
+            </ol>
+        </nav>
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-people me-2"></i>Utilisateurs</h1>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreer">
+                <i class="bi bi-plus-circle me-1"></i>Nouvel utilisateur
+            </button>
+        </div>
+    </div>
+    
+    <?php displayFlashMessage(); ?>
+    
+    <?php if (!empty($errors)): ?>
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
+    
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Email</th>
+                            <th>Rôle</th>
+                            <th>Statut</th>
+                            <th>Dernière connexion</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($utilisateurs as $user): ?>
+                            <tr>
+                                <td>
+                                    <strong><?= e($user['prenom']) ?> <?= e($user['nom']) ?></strong>
+                                </td>
+                                <td><?= e($user['email']) ?></td>
+                                <td>
+                                    <span class="badge <?= $user['role'] === 'admin' ? 'bg-primary' : 'bg-secondary' ?>">
+                                        <?= $user['role'] === 'admin' ? 'Administrateur' : 'Employé' ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge <?= $user['actif'] ? 'bg-success' : 'bg-danger' ?>">
+                                        <?= $user['actif'] ? 'Actif' : 'Inactif' ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?= $user['derniere_connexion'] ? formatDateTime($user['derniere_connexion']) : 'Jamais' ?>
+                                </td>
+                                <td class="action-buttons">
+                                    <button type="button" 
+                                            class="btn btn-outline-primary btn-sm"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#modalModifier<?= $user['id'] ?>">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            
+                            <!-- Modal Modifier -->
+                            <div class="modal fade" id="modalModifier<?= $user['id'] ?>" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST" action="">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="modifier">
+                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                            
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Modifier l'utilisateur</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="row">
+                                                    <div class="col-6 mb-3">
+                                                        <label class="form-label">Prénom *</label>
+                                                        <input type="text" class="form-control" name="prenom" 
+                                                               value="<?= e($user['prenom']) ?>" required>
+                                                    </div>
+                                                    <div class="col-6 mb-3">
+                                                        <label class="form-label">Nom *</label>
+                                                        <input type="text" class="form-control" name="nom" 
+                                                               value="<?= e($user['nom']) ?>" required>
+                                                    </div>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Email *</label>
+                                                    <input type="email" class="form-control" name="email" 
+                                                           value="<?= e($user['email']) ?>" required>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Nouveau mot de passe</label>
+                                                    <input type="password" class="form-control" name="password"
+                                                           placeholder="Laisser vide pour ne pas changer">
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Rôle</label>
+                                                    <select class="form-select" name="role">
+                                                        <option value="employe" <?= $user['role'] === 'employe' ? 'selected' : '' ?>>Employé</option>
+                                                        <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrateur</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="actif" 
+                                                           id="actif<?= $user['id'] ?>" <?= $user['actif'] ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="actif<?= $user['id'] ?>">
+                                                        Compte actif
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Créer -->
+<div class="modal fade" id="modalCreer" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="creer">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title">Nouvel utilisateur</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Prénom *</label>
+                            <input type="text" class="form-control" name="prenom" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Nom *</label>
+                            <input type="text" class="form-control" name="nom" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email *</label>
+                        <input type="email" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mot de passe *</label>
+                        <input type="password" class="form-control" name="password" required minlength="6">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rôle</label>
+                        <select class="form-select" name="role">
+                            <option value="employe">Employé</option>
+                            <option value="admin">Administrateur</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php include '../../includes/footer.php'; ?>

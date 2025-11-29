@@ -1,0 +1,415 @@
+<?php
+/**
+ * Fonctions utilitaires
+ * Flip Manager
+ */
+
+/**
+ * Échappe les caractères HTML pour éviter les attaques XSS
+ * @param string $string
+ * @return string
+ */
+function e($string) {
+    return htmlspecialchars($string ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Formate un montant en devise canadienne
+ * @param float $amount
+ * @param bool $showSymbol
+ * @return string
+ */
+function formatMoney($amount, $showSymbol = true) {
+    $formatted = number_format((float)$amount, 2, ',', ' ');
+    return $showSymbol ? $formatted . ' $' : $formatted;
+}
+
+/**
+ * Formate un pourcentage
+ * @param float $value
+ * @param int $decimals
+ * @return string
+ */
+function formatPercent($value, $decimals = 2) {
+    return number_format((float)$value, $decimals, ',', ' ') . ' %';
+}
+
+/**
+ * Formate une date en français
+ * @param string $date
+ * @param string $format
+ * @return string
+ */
+function formatDate($date, $format = 'd/m/Y') {
+    if (empty($date)) return '-';
+    $dt = new DateTime($date);
+    return $dt->format($format);
+}
+
+/**
+ * Formate une date et heure en français
+ * @param string $datetime
+ * @return string
+ */
+function formatDateTime($datetime) {
+    if (empty($datetime)) return '-';
+    $dt = new DateTime($datetime);
+    return $dt->format('d/m/Y H:i');
+}
+
+/**
+ * Génère un nom de fichier unique
+ * @param string $originalName
+ * @return string
+ */
+function generateUniqueFilename($originalName) {
+    $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+    return uniqid() . '_' . time() . '.' . strtolower($extension);
+}
+
+/**
+ * Vérifie si un fichier uploadé est valide
+ * @param array $file $_FILES array
+ * @return array ['valid' => bool, 'error' => string]
+ */
+function validateUploadedFile($file) {
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $errors = [
+            UPLOAD_ERR_INI_SIZE => 'Le fichier dépasse la taille maximale autorisée.',
+            UPLOAD_ERR_FORM_SIZE => 'Le fichier dépasse la taille maximale du formulaire.',
+            UPLOAD_ERR_PARTIAL => 'Le fichier n\'a été que partiellement téléchargé.',
+            UPLOAD_ERR_NO_FILE => 'Aucun fichier n\'a été téléchargé.',
+            UPLOAD_ERR_NO_TMP_DIR => 'Dossier temporaire manquant.',
+            UPLOAD_ERR_CANT_WRITE => 'Échec de l\'écriture du fichier.',
+            UPLOAD_ERR_EXTENSION => 'Extension PHP a arrêté l\'upload.'
+        ];
+        return ['valid' => false, 'error' => $errors[$file['error']] ?? 'Erreur inconnue.'];
+    }
+    
+    // Vérifier la taille
+    if ($file['size'] > UPLOAD_MAX_SIZE) {
+        return ['valid' => false, 'error' => 'Le fichier dépasse 5 MB.'];
+    }
+    
+    // Vérifier l'extension
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($extension, ALLOWED_EXTENSIONS)) {
+        return ['valid' => false, 'error' => 'Type de fichier non autorisé. Utilisez: ' . implode(', ', ALLOWED_EXTENSIONS)];
+    }
+    
+    // Vérifier le type MIME
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    
+    $allowedMimes = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'
+    ];
+    
+    if (!in_array($mimeType, $allowedMimes)) {
+        return ['valid' => false, 'error' => 'Type de fichier non autorisé.'];
+    }
+    
+    return ['valid' => true, 'error' => ''];
+}
+
+/**
+ * Upload un fichier
+ * @param array $file $_FILES array
+ * @param string $destination
+ * @return array ['success' => bool, 'filename' => string, 'error' => string]
+ */
+function uploadFile($file, $destination = null) {
+    $validation = validateUploadedFile($file);
+    if (!$validation['valid']) {
+        return ['success' => false, 'filename' => '', 'error' => $validation['error']];
+    }
+    
+    $destination = $destination ?? UPLOAD_PATH;
+    
+    // Créer le dossier s'il n'existe pas
+    if (!is_dir($destination)) {
+        mkdir($destination, 0755, true);
+    }
+    
+    $filename = generateUniqueFilename($file['name']);
+    $filepath = $destination . $filename;
+    
+    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+        return ['success' => true, 'filename' => $filename, 'error' => ''];
+    }
+    
+    return ['success' => false, 'filename' => '', 'error' => 'Erreur lors du déplacement du fichier.'];
+}
+
+/**
+ * Supprime un fichier uploadé
+ * @param string $filename
+ * @return bool
+ */
+function deleteUploadedFile($filename) {
+    if (empty($filename)) return true;
+    
+    $filepath = UPLOAD_PATH . $filename;
+    if (file_exists($filepath)) {
+        return unlink($filepath);
+    }
+    return true;
+}
+
+/**
+ * Récupère le libellé du statut d'un projet
+ * @param string $statut
+ * @return string
+ */
+function getStatutProjetLabel($statut) {
+    $labels = [
+        'acquisition' => 'Acquisition',
+        'renovation' => 'Rénovation',
+        'vente' => 'En vente',
+        'vendu' => 'Vendu',
+        'archive' => 'Archivé'
+    ];
+    return $labels[$statut] ?? $statut;
+}
+
+/**
+ * Récupère la classe CSS du statut d'un projet
+ * @param string $statut
+ * @return string
+ */
+function getStatutProjetClass($statut) {
+    $classes = [
+        'acquisition' => 'bg-info',
+        'renovation' => 'bg-warning',
+        'vente' => 'bg-primary',
+        'vendu' => 'bg-success',
+        'archive' => 'bg-secondary'
+    ];
+    return $classes[$statut] ?? 'bg-secondary';
+}
+
+/**
+ * Récupère le libellé du statut d'une facture
+ * @param string $statut
+ * @return string
+ */
+function getStatutFactureLabel($statut) {
+    $labels = [
+        'en_attente' => 'En attente',
+        'approuvee' => 'Approuvée',
+        'rejetee' => 'Rejetée'
+    ];
+    return $labels[$statut] ?? $statut;
+}
+
+/**
+ * Récupère la classe CSS du statut d'une facture
+ * @param string $statut
+ * @return string
+ */
+function getStatutFactureClass($statut) {
+    $classes = [
+        'en_attente' => 'bg-warning text-dark',
+        'approuvee' => 'bg-success',
+        'rejetee' => 'bg-danger'
+    ];
+    return $classes[$statut] ?? 'bg-secondary';
+}
+
+/**
+ * Récupère l'icône du statut d'une facture
+ * @param string $statut
+ * @return string
+ */
+function getStatutFactureIcon($statut) {
+    $icons = [
+        'en_attente' => '⏳',
+        'approuvee' => '✅',
+        'rejetee' => '❌'
+    ];
+    return $icons[$statut] ?? '❓';
+}
+
+/**
+ * Récupère le libellé du groupe de catégorie
+ * @param string $groupe
+ * @return string
+ */
+function getGroupeCategorieLabel($groupe) {
+    $labels = [
+        'exterieur' => 'Extérieur',
+        'finition' => 'Finition intérieure',
+        'ebenisterie' => 'Ébénisterie',
+        'electricite' => 'Électricité',
+        'plomberie' => 'Plomberie',
+        'autre' => 'Autre'
+    ];
+    return $labels[$groupe] ?? $groupe;
+}
+
+/**
+ * Affiche un message flash
+ * @param string $type success, danger, warning, info
+ * @param string $message
+ */
+function setFlashMessage($type, $message) {
+    $_SESSION['flash'] = [
+        'type' => $type,
+        'message' => $message
+    ];
+}
+
+/**
+ * Récupère et supprime le message flash
+ * @return array|null
+ */
+function getFlashMessage() {
+    if (isset($_SESSION['flash'])) {
+        $flash = $_SESSION['flash'];
+        unset($_SESSION['flash']);
+        return $flash;
+    }
+    return null;
+}
+
+/**
+ * Affiche le message flash en HTML
+ */
+function displayFlashMessage() {
+    $flash = getFlashMessage();
+    if ($flash) {
+        echo '<div class="alert alert-' . e($flash['type']) . ' alert-dismissible fade show" role="alert">';
+        echo e($flash['message']);
+        echo '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+        echo '</div>';
+    }
+}
+
+/**
+ * Redirige vers une URL
+ * @param string $url
+ */
+function redirect($url) {
+    header('Location: ' . $url);
+    exit;
+}
+
+/**
+ * Récupère tous les projets actifs
+ * @param PDO $pdo
+ * @param bool $activeOnly
+ * @return array
+ */
+function getProjets($pdo, $activeOnly = true) {
+    $sql = "SELECT * FROM projets";
+    if ($activeOnly) {
+        $sql .= " WHERE statut != 'archive'";
+    }
+    $sql .= " ORDER BY date_creation DESC";
+    
+    $stmt = $pdo->query($sql);
+    return $stmt->fetchAll();
+}
+
+/**
+ * Récupère un projet par son ID
+ * @param PDO $pdo
+ * @param int $id
+ * @return array|false
+ */
+function getProjetById($pdo, $id) {
+    $stmt = $pdo->prepare("SELECT * FROM projets WHERE id = ?");
+    $stmt->execute([$id]);
+    return $stmt->fetch();
+}
+
+/**
+ * Récupère toutes les catégories groupées
+ * @param PDO $pdo
+ * @return array
+ */
+function getCategoriesGrouped($pdo) {
+    $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre");
+    $categories = $stmt->fetchAll();
+    
+    $grouped = [];
+    foreach ($categories as $cat) {
+        $grouped[$cat['groupe']][] = $cat;
+    }
+    return $grouped;
+}
+
+/**
+ * Récupère toutes les catégories
+ * @param PDO $pdo
+ * @return array
+ */
+function getCategories($pdo) {
+    $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre");
+    return $stmt->fetchAll();
+}
+
+/**
+ * Vérifie si une facture peut être modifiée par l'employé (moins de 24h)
+ * @param string $dateCreation
+ * @return bool
+ */
+function canEditFacture($dateCreation) {
+    $created = new DateTime($dateCreation);
+    $now = new DateTime();
+    $diff = $now->getTimestamp() - $created->getTimestamp();
+    return $diff < 86400; // 24 heures
+}
+
+/**
+ * Récupère le nombre de factures en attente
+ * @param PDO $pdo
+ * @return int
+ */
+function getFacturesEnAttenteCount($pdo) {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM factures WHERE statut = 'en_attente'");
+    return (int) $stmt->fetchColumn();
+}
+
+/**
+ * Pagination - calcule l'offset
+ * @param int $page
+ * @param int $perPage
+ * @return int
+ */
+function getOffset($page, $perPage = 20) {
+    return max(0, ($page - 1) * $perPage);
+}
+
+/**
+ * Génère les liens de pagination
+ * @param int $currentPage
+ * @param int $totalPages
+ * @param string $baseUrl
+ * @return string HTML
+ */
+function generatePagination($currentPage, $totalPages, $baseUrl) {
+    if ($totalPages <= 1) return '';
+    
+    $html = '<nav><ul class="pagination justify-content-center">';
+    
+    // Previous
+    if ($currentPage > 1) {
+        $html .= '<li class="page-item"><a class="page-link" href="' . $baseUrl . '?page=' . ($currentPage - 1) . '">Précédent</a></li>';
+    }
+    
+    // Pages
+    for ($i = max(1, $currentPage - 2); $i <= min($totalPages, $currentPage + 2); $i++) {
+        $active = $i === $currentPage ? 'active' : '';
+        $html .= '<li class="page-item ' . $active . '"><a class="page-link" href="' . $baseUrl . '?page=' . $i . '">' . $i . '</a></li>';
+    }
+    
+    // Next
+    if ($currentPage < $totalPages) {
+        $html .= '<li class="page-item"><a class="page-link" href="' . $baseUrl . '?page=' . ($currentPage + 1) . '">Suivant</a></li>';
+    }
+    
+    $html .= '</ul></nav>';
+    return $html;
+}

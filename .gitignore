@@ -1,0 +1,54 @@
+# Flip Manager - Fichiers à ignorer par Git
+
+# Fichier de configuration (contient les identifiants BD)
+# Configuration (contient les mots de passe)
+config.php
+
+# Fichiers uploadés
+uploads/factures/*
+!uploads/factures/.gitkeep
+
+# Logs
+*.log
+error_log
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Fichiers IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Cache
+.cache/
+cache/
+
+# Environnement local
+.env
+.env.local
+.env.*.local
+
+# Node modules (si utilisé pour build)
+node_modules/
+
+# Backup files
+*.bak
+*.backup
+
+# Archives
+*.zip
+*.tar.gz
+*.rar

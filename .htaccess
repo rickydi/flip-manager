@@ -1,0 +1,67 @@
+# Flip Manager - Configuration Apache
+
+# Activer la réécriture d'URL
+RewriteEngine On
+
+# Rediriger vers HTTPS (décommenter si SSL activé)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Empêcher l'accès direct aux fichiers sensibles
+<FilesMatch "^(config\.php|\.htaccess|\.gitignore)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protéger le dossier includes
+<IfModule mod_rewrite.c>
+    RewriteRule ^includes/ - [F,L]
+    RewriteRule ^sql/ - [F,L]
+</IfModule>
+
+# Empêcher le listage des répertoires
+Options -Indexes
+
+# Protéger les fichiers uploadés (autoriser seulement les images et PDF)
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|htm|html|shtml|sh|cgi)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Configuration des types MIME
+AddType application/pdf .pdf
+AddType image/jpeg .jpg .jpeg
+AddType image/png .png
+AddType image/gif .gif
+
+# Configuration du cache pour les assets statiques
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+</IfModule>
+
+# Compression GZIP
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
+</IfModule>
+
+# Limite de taille des uploads (5MB)
+php_value upload_max_filesize 5M
+php_value post_max_size 6M
+
+# Sécurité supplémentaire
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+</IfModule>

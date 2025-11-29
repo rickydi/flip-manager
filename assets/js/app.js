@@ -1,0 +1,337 @@
+/**
+ * Flip Manager - JavaScript personnalisé
+ */
+
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // Initialisation des tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Gestion de l'upload de fichiers avec drag & drop
+    initUploadZone();
+    
+    // Calcul automatique des taxes
+    initTaxCalculation();
+    
+    // Confirmation de suppression
+    initDeleteConfirmation();
+    
+    // Auto-dismiss des alertes
+    initAlertAutoDismiss();
+    
+});
+
+/**
+ * Initialisation de la zone d'upload avec drag & drop
+ */
+function initUploadZone() {
+    const uploadZone = document.querySelector('.upload-zone');
+    const fileInput = document.getElementById('fichier');
+    
+    if (!uploadZone || !fileInput) return;
+    
+    // Click pour ouvrir le sélecteur de fichiers
+    uploadZone.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    // Drag & Drop
+    uploadZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('dragover');
+    });
+    
+    uploadZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+    });
+    
+    uploadZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length) {
+            fileInput.files = e.dataTransfer.files;
+            updateFilePreview(e.dataTransfer.files[0]);
+        }
+    });
+    
+    // Changement de fichier
+    fileInput.addEventListener('change', function() {
+        if (this.files.length) {
+            updateFilePreview(this.files[0]);
+        }
+    });
+}
+
+/**
+ * Met à jour l'aperçu du fichier uploadé
+ */
+function updateFilePreview(file) {
+    const uploadZone = document.querySelector('.upload-zone');
+    const fileNameEl = uploadZone.querySelector('.file-name');
+    const iconEl = uploadZone.querySelector('i');
+    
+    if (fileNameEl) {
+        fileNameEl.textContent = file.name;
+    } else {
+        const newFileNameEl = document.createElement('div');
+        newFileNameEl.className = 'file-name';
+        newFileNameEl.textContent = file.name;
+        uploadZone.appendChild(newFileNameEl);
+    }
+    
+    // Changer l'icône selon le type
+    if (iconEl) {
+        if (file.type === 'application/pdf') {
+            iconEl.className = 'bi bi-file-earmark-pdf';
+            iconEl.style.color = '#ef4444';
+        } else if (file.type.startsWith('image/')) {
+            iconEl.className = 'bi bi-file-earmark-image';
+            iconEl.style.color = '#22c55e';
+        }
+    }
+    
+    // Afficher un aperçu pour les images
+    if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            let preview = uploadZone.querySelector('.preview-img');
+            if (!preview) {
+                preview = document.createElement('img');
+                preview.className = 'preview-img facture-preview mt-2';
+                uploadZone.appendChild(preview);
+            }
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+/**
+ * Initialisation du calcul automatique des taxes
+ */
+function initTaxCalculation() {
+    const montantInput = document.getElementById('montant_avant_taxes');
+    const tpsInput = document.getElementById('tps');
+    const tvqInput = document.getElementById('tvq');
+    const totalDisplay = document.getElementById('montant_total_display');
+    const totalInput = document.getElementById('montant_total');
+    
+    if (!montantInput) return;
+    
+    montantInput.addEventListener('input', calculateTaxes);
+    
+    // Si les champs TPS/TVQ sont modifiables, recalculer le total
+    if (tpsInput) {
+        tpsInput.addEventListener('input', calculateTotal);
+    }
+    if (tvqInput) {
+        tvqInput.addEventListener('input', calculateTotal);
+    }
+    
+    function calculateTaxes() {
+        const montant = parseFloat(montantInput.value) || 0;
+        const tps = montant * 0.05;
+        const tvq = montant * 0.09975;
+        
+        if (tpsInput) tpsInput.value = tps.toFixed(2);
+        if (tvqInput) tvqInput.value = tvq.toFixed(2);
+        
+        calculateTotal();
+    }
+    
+    function calculateTotal() {
+        const montant = parseFloat(montantInput.value) || 0;
+        const tps = parseFloat(tpsInput?.value) || 0;
+        const tvq = parseFloat(tvqInput?.value) || 0;
+        const total = montant + tps + tvq;
+        
+        if (totalDisplay) {
+            totalDisplay.textContent = formatMoney(total);
+        }
+        if (totalInput) {
+            totalInput.value = total.toFixed(2);
+        }
+    }
+}
+
+/**
+ * Formate un montant en devise
+ */
+function formatMoney(amount) {
+    return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD'
+    }).format(amount);
+}
+
+/**
+ * Initialisation des confirmations de suppression
+ */
+function initDeleteConfirmation() {
+    document.querySelectorAll('[data-confirm]').forEach(function(element) {
+        element.addEventListener('click', function(e) {
+            const message = this.dataset.confirm || 'Êtes-vous sûr de vouloir effectuer cette action?';
+            if (!confirm(message)) {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    // Formulaires de suppression
+    document.querySelectorAll('form[data-confirm-delete]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('Êtes-vous sûr de vouloir supprimer cet élément? Cette action est irréversible.')) {
+                e.preventDefault();
+            }
+        });
+    });
+}
+
+/**
+ * Auto-dismiss des alertes après 5 secondes
+ */
+function initAlertAutoDismiss() {
+    document.querySelectorAll('.alert-dismissible').forEach(function(alert) {
+        setTimeout(function() {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+}
+
+/**
+ * Validation du formulaire de facture
+ */
+function validateFactureForm() {
+    const form = document.getElementById('factureForm');
+    if (!form) return true;
+    
+    let isValid = true;
+    const errors = [];
+    
+    // Vérifier les champs requis
+    const requiredFields = form.querySelectorAll('[required]');
+    requiredFields.forEach(function(field) {
+        if (!field.value.trim()) {
+            isValid = false;
+            field.classList.add('is-invalid');
+            errors.push(field.dataset.errorMessage || 'Ce champ est requis');
+        } else {
+            field.classList.remove('is-invalid');
+        }
+    });
+    
+    // Vérifier le montant
+    const montant = parseFloat(document.getElementById('montant_avant_taxes')?.value);
+    if (isNaN(montant) || montant <= 0) {
+        isValid = false;
+        document.getElementById('montant_avant_taxes')?.classList.add('is-invalid');
+        errors.push('Le montant doit être supérieur à 0');
+    }
+    
+    if (!isValid) {
+        alert('Veuillez corriger les erreurs suivantes:\n' + errors.join('\n'));
+    }
+    
+    return isValid;
+}
+
+/**
+ * Formatage automatique des montants dans les champs
+ */
+function formatMoneyInput(input) {
+    input.addEventListener('blur', function() {
+        const value = parseFloat(this.value);
+        if (!isNaN(value)) {
+            this.value = value.toFixed(2);
+        }
+    });
+}
+
+// Appliquer le formatage aux champs de montant
+document.querySelectorAll('input[type="number"][step="0.01"]').forEach(formatMoneyInput);
+
+/**
+ * Toggle password visibility
+ */
+function togglePasswordVisibility(inputId, buttonId) {
+    const input = document.getElementById(inputId);
+    const button = document.getElementById(buttonId);
+    
+    if (!input || !button) return;
+    
+    button.addEventListener('click', function() {
+        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        if (icon) {
+            icon.className = type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+        }
+    });
+}
+
+/**
+ * Filtrage de table
+ */
+function initTableFilter() {
+    const filterInput = document.getElementById('tableFilter');
+    const table = document.querySelector('.table-filterable');
+    
+    if (!filterInput || !table) return;
+    
+    filterInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase();
+        const rows = table.querySelectorAll('tbody tr');
+        
+        rows.forEach(function(row) {
+            const text = row.textContent.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    });
+}
+
+/**
+ * Sélection de tous les checkboxes
+ */
+function initSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    if (!selectAllCheckbox) return;
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = selectAllCheckbox.checked;
+        });
+    });
+}
+
+/**
+ * Export vers Excel (simulation)
+ */
+function exportToExcel(tableId) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    
+    // Créer un formulaire pour soumettre la demande d'export
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/admin/rapports/factures-excel.php';
+    
+    // Ajouter les données si nécessaire
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+/**
+ * Impression de la page
+ */
+function printPage() {
+    window.print();
+}
