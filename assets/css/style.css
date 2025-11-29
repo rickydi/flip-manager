@@ -1165,3 +1165,67 @@ body {
 [data-theme="dark"] .group-header-row td {
     color: var(--text-primary) !important;
 }
+
+/* Tables génériques - cellules en dark mode */
+[data-theme="dark"] tbody tr td {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] tbody {
+    color: var(--text-primary);
+}
+
+/* Input-group dans les tableaux */
+[data-theme="dark"] .table .input-group-text {
+    background-color: var(--bg-card-header) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .table .form-control {
+    background-color: var(--bg-input) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Budget input spécifique */
+[data-theme="dark"] .budget-input {
+    background-color: var(--bg-input) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Table hover background fix */
+[data-theme="dark"] .table-hover > tbody > tr:hover > * {
+    background-color: var(--bg-table-hover) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Table-dark headers */
+[data-theme="dark"] .table-dark th,
+[data-theme="dark"] thead.table-dark th {
+    color: white !important;
+}
+
+/* Fix pour compact-form */
+[data-theme="dark"] .compact-form .form-label {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .compact-form .form-control,
+[data-theme="dark"] .compact-form .form-select {
+    background-color: var(--bg-input) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .compact-form .input-group-text {
+    background-color: var(--bg-card-header) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Text muted global fix */
+[data-theme="dark"] .text-muted,
+[data-theme="dark"] small.text-muted {
+    color: var(--text-muted) !important;
+}
