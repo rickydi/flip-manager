@@ -237,8 +237,8 @@ INSERT INTO categories (nom, groupe, ordre) VALUES
 -- Mot de passe: admin123 (à changer en production!)
 -- ============================================
 INSERT INTO users (nom, prenom, email, password, role, actif) VALUES
-('Admin', 'System', 'admin@flipmanager.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1);
+('Admin', 'System', 'admin@flipmanager.com', '$2y$10$F5lt64CSNE00wsePJ6Rzd.BkcJx7nqKIMgfu9GcOxAJc7MRSC4joS', 'admin', 1);
 
 -- Mot de passe: employe123
 INSERT INTO users (nom, prenom, email, password, role, actif) VALUES
-('Employé', 'Test', 'employe@flipmanager.com', '$2y$10$HfzIhGCCaxqyaIdGgjARSuOKAcm1Uy82YfLuNaajn6JrjLWy9Sj/W', 'employe', 1);
+('Employé', 'Test', 'employe@flipmanager.com', '$2y$10$lO3Aya9N/0SaNwZNsBRmce2oFJ0Xag4s1Xd2KTm8yAdgu8kjnMmn6', 'employe', 1);

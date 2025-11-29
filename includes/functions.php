@@ -20,8 +20,26 @@ function e($string) {
  * @return string
  */
 function formatMoney($amount, $showSymbol = true) {
-    $formatted = number_format((float)$amount, 2, ',', ' ');
-    return $showSymbol ? $formatted . ' $' : $formatted;
+    $num = (float)$amount;
+    if ($showSymbol) {
+        return number_format($num, 2, ',', ' ') . ' $';
+    }
+    // Sans symbole - format pour les inputs (sans espaces)
+    return $num == floor($num) ? number_format($num, 0, '', '') : number_format($num, 2, '.', '');
+}
+
+/**
+ * Parse un nombre depuis un input (gère les formats avec virgule ou point)
+ * @param mixed $value
+ * @return float
+ */
+function parseNumber($value) {
+    if (is_numeric($value)) {
+        return (float)$value;
+    }
+    // Remplacer la virgule par un point et enlever les espaces
+    $value = str_replace([' ', ','], ['', '.'], $value);
+    return (float)$value;
 }
 
 /**
@@ -284,6 +302,13 @@ function displayFlashMessage() {
         echo '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
         echo '</div>';
     }
+}
+
+/**
+ * Alias pour displayFlashMessage
+ */
+function displayFlashMessages() {
+    displayFlashMessage();
 }
 
 /**
