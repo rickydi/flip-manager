@@ -26,6 +26,16 @@ $pageTitle = $projet['nom'];
 // Calculer tous les indicateurs
 $indicateurs = calculerIndicateursProjet($pdo, $projet);
 
+// Calculer la durée réelle (même logique que dans calculs.php)
+$dureeReelle = (int)$projet['temps_assume_mois'];
+if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
+    $dateAchat = new DateTime($projet['date_acquisition']);
+    $dateVente = new DateTime($projet['date_vente']);
+    $diff = $dateAchat->diff($dateVente);
+    $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $dureeReelle = max(1, $dureeReelle);
+}
+
 // Récupérer les catégories avec budgets et dépenses
 $categories = getCategories($pdo);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
@@ -178,7 +188,7 @@ include '../../includes/header.php';
             
             <!-- Coûts récurrents -->
             <div class="financial-section">
-                <h5><i class="bi bi-arrow-repeat me-2"></i>Coûts récurrents (<?= $projet['temps_assume_mois'] ?> mois)</h5>
+                <h5><i class="bi bi-arrow-repeat me-2"></i>Coûts récurrents (<?= $dureeReelle ?> mois)</h5>
                 <table class="financial-table">
                     <thead>
                         <tr>
@@ -238,7 +248,7 @@ include '../../includes/header.php';
                 <table class="financial-table">
                     <tbody>
                         <tr>
-                            <td>Intérêts (<?= $projet['temps_assume_mois'] ?> mois @ <?= $projet['taux_interet'] ?>%)</td>
+                            <td>Intérêts (<?= $dureeReelle ?> mois @ <?= $projet['taux_interet'] ?>%)</td>
                             <td class="amount"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
                         </tr>
                         <?php 
