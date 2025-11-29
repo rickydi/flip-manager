@@ -98,6 +98,37 @@ include '../../includes/header.php';
         </div>
     </div>
     
+    <!-- GRAPHIQUES VUE D'ENSEMBLE -->
+    <div class="financial-section">
+        <h5><i class="bi bi-graph-up me-2"></i>Vue d'ensemble du projet</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header text-center">Évolution des coûts</div>
+                    <div class="card-body">
+                        <canvas id="chartCouts" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header text-center">Budget vs Réel</div>
+                    <div class="card-body">
+                        <canvas id="chartBudget" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header text-center">Scénarios ROI</div>
+                    <div class="card-body">
+                        <canvas id="chartProfits" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <div class="row">
         <!-- Colonne gauche -->
         <div class="col-lg-6">
@@ -280,37 +311,6 @@ include '../../includes/header.php';
                         </tr>
                     </tbody>
                 </table>
-            </div>
-        </div>
-    </div>
-    
-    <!-- GRAPHIQUES VUE D'ENSEMBLE -->
-    <div class="financial-section">
-        <h5><i class="bi bi-pie-chart me-2"></i>Vue d'ensemble du projet</h5>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header text-center">Répartition des coûts</div>
-                    <div class="card-body">
-                        <canvas id="chartCouts" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header text-center">Budget vs Réel (Rénovation)</div>
-                    <div class="card-body">
-                        <canvas id="chartBudget" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header text-center">Répartition des profits</div>
-                    <div class="card-body">
-                        <canvas id="chartProfits" height="200"></canvas>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
