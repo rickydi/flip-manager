@@ -285,7 +285,9 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
             $taux = (float) $row['taux_value'];
             $type = $row['type_investisseur'] ?? 'investisseur';
             
-            if ($type === 'preteur') {
+            // Si taux > 0, c'est un prêteur (paie des intérêts)
+            // Peu importe le "type" défini
+            if ($taux > 0 && $montant > 0) {
                 // Prêteur : calcul des intérêts
                 $interetsMois = $montant * ($taux / 100) / 12;
                 $interetsTotal = $interetsMois * $mois;
@@ -303,14 +305,14 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
                 
                 $totalPrets += $montant;
                 $totalInterets += $interetsTotal;
-            } else {
-                // Investisseur : partage des profits en %
+            } elseif ($montant > 0) {
+                // Investisseur sans intérêt : partage des profits
                 $investisseurs[] = [
                     'id' => $row['id'],
                     'nom' => $row['nom'],
                     'mise_de_fonds' => $montant,
-                    'pourcentage' => $taux, // Ici taux = pourcentage des profits
-                    'profit_estime' => 0 // Sera calculé après
+                    'pourcentage' => $taux,
+                    'profit_estime' => 0
                 ];
                 
                 $miseTotaleInvestisseurs += $montant;
