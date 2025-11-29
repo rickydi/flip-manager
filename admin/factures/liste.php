@@ -184,6 +184,10 @@ include '../../includes/header.php';
                                                 <i class="bi bi-file-earmark"></i>
                                             </a>
                                         <?php endif; ?>
+                                        <a href="/admin/factures/modifier.php?id=<?= $facture['id'] ?>" 
+                                           class="btn btn-outline-primary btn-sm" title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
                                         <?php if ($facture['statut'] === 'en_attente'): ?>
                                             <a href="/admin/factures/approuver.php?action=approuver&id=<?= $facture['id'] ?>" 
                                                class="btn btn-success btn-sm" title="Approuver">
