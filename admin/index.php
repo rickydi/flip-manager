@@ -167,9 +167,6 @@ include '../includes/header.php';
                         <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-receipt me-1"></i>Factures
                         </a>
-                        <a href="/admin/projets/financement.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-bank me-1"></i>Financement
-                        </a>
                         <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-pencil me-1"></i>Modifier
                         </a>

@@ -39,14 +39,23 @@ $stmt = $pdo->prepare("
 $stmt->execute([$projetId]);
 $categories = $stmt->fetchAll();
 
-// Récupérer les prêteurs disponibles (tous les investisseurs si la colonne type n'existe pas)
+// Récupérer les prêteurs disponibles
+$stmt = $pdo->query("SELECT * FROM investisseurs ORDER BY nom");
+$tousInvestisseurs = $stmt->fetchAll();
+
+// Récupérer les prêteurs liés à ce projet
 try {
-    $stmt = $pdo->query("SELECT * FROM investisseurs WHERE type = 'preteur' ORDER BY nom");
-    $preteurs = $stmt->fetchAll();
+    $stmt = $pdo->prepare("
+        SELECT pi.*, i.nom as investisseur_nom 
+        FROM projet_investisseurs pi
+        JOIN investisseurs i ON pi.investisseur_id = i.id
+        WHERE pi.projet_id = ?
+        ORDER BY i.nom
+    ");
+    $stmt->execute([$projetId]);
+    $preteursProjet = $stmt->fetchAll();
 } catch (Exception $e) {
-    // Si la colonne type n'existe pas, prendre tous les investisseurs
-    $stmt = $pdo->query("SELECT * FROM investisseurs ORDER BY nom");
-    $preteurs = $stmt->fetchAll();
+    $preteursProjet = [];
 }
 
 // Grouper par catégorie
@@ -151,6 +160,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect('/admin/projets/modifier.php?id=' . $projetId);
                 }
             }
+        } elseif ($action === 'preteurs') {
+            // Gestion des prêteurs
+            $subAction = $_POST['sub_action'] ?? '';
+            
+            if ($subAction === 'ajouter') {
+                $investisseurId = (int)($_POST['investisseur_id'] ?? 0);
+                $montant = parseNumber($_POST['montant_pret'] ?? 0);
+                $tauxInteret = parseNumber($_POST['taux_interet_pret'] ?? 10);
+                
+                if ($investisseurId && $montant > 0) {
+                    try {
+                        $stmt = $pdo->prepare("
+                            INSERT INTO projet_investisseurs (projet_id, investisseur_id, mise_de_fonds, pourcentage_profit)
+                            VALUES (?, ?, ?, ?)
+                            ON DUPLICATE KEY UPDATE mise_de_fonds = VALUES(mise_de_fonds)
+                        ");
+                        $stmt->execute([$projetId, $investisseurId, $montant, $tauxInteret]);
+                        setFlashMessage('success', 'Prêteur ajouté!');
+                    } catch (Exception $e) {
+                        setFlashMessage('danger', 'Erreur: ' . $e->getMessage());
+                    }
+                }
+            } elseif ($subAction === 'supprimer') {
+                $preteurId = (int)($_POST['preteur_id'] ?? 0);
+                if ($preteurId) {
+                    $stmt = $pdo->prepare("DELETE FROM projet_investisseurs WHERE id = ? AND projet_id = ?");
+                    $stmt->execute([$preteurId, $projetId]);
+                    setFlashMessage('success', 'Prêteur supprimé.');
+                }
+            }
+            redirect('/admin/projets/modifier.php?id=' . $projetId . '&tab=preteurs');
+            
         } elseif ($action === 'budgets') {
             // Mise à jour des budgets
             $budgets = $_POST['budget'] ?? [];
@@ -236,6 +277,12 @@ include '../../includes/header.php';
             <a class="nav-link <?= $tab === 'general' ? 'active' : '' ?>" 
                href="?id=<?= $projetId ?>&tab=general">
                 <i class="bi bi-gear me-1"></i>Général
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= $tab === 'preteurs' ? 'active' : '' ?>" 
+               href="?id=<?= $projetId ?>&tab=preteurs">
+                <i class="bi bi-bank me-1"></i>Prêteurs
             </a>
         </li>
         <li class="nav-item">
@@ -585,6 +632,124 @@ include '../../includes/header.php';
             </button>
         </div>
     </form>
+    
+    <?php elseif ($tab === 'preteurs'): ?>
+    <!-- Onglet Prêteurs -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-list-ul me-2"></i>Prêteurs du projet
+                </div>
+                <?php if (empty($preteursProjet)): ?>
+                    <div class="card-body">
+                        <p class="text-muted mb-0">Aucun prêteur configuré.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Prêteur</th>
+                                    <th class="text-end">Montant</th>
+                                    <th class="text-center">Taux</th>
+                                    <th class="text-end">Intérêts/mois</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php 
+                                $totalPrets = 0;
+                                $totalInteretsMois = 0;
+                                foreach ($preteursProjet as $p): 
+                                    $montant = (float)($p['mise_de_fonds'] ?? 0);
+                                    $taux = (float)($p['pourcentage_profit'] ?? 10);
+                                    $interetsMois = $montant * ($taux / 100) / 12;
+                                    $totalPrets += $montant;
+                                    $totalInteretsMois += $interetsMois;
+                                ?>
+                                    <tr>
+                                        <td><strong><?= e($p['investisseur_nom']) ?></strong></td>
+                                        <td class="text-end"><?= formatMoney($montant) ?></td>
+                                        <td class="text-center"><?= $taux ?>%</td>
+                                        <td class="text-end"><?= formatMoney($interetsMois) ?></td>
+                                        <td>
+                                            <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
+                                                <?php csrfField(); ?>
+                                                <input type="hidden" name="action" value="preteurs">
+                                                <input type="hidden" name="sub_action" value="supprimer">
+                                                <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th>Total</th>
+                                    <th class="text-end"><?= formatMoney($totalPrets) ?></th>
+                                    <th></th>
+                                    <th class="text-end"><?= formatMoney($totalInteretsMois) ?></th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-plus-circle me-2"></i>Ajouter un prêteur
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="action" value="preteurs">
+                        <input type="hidden" name="sub_action" value="ajouter">
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Prêteur *</label>
+                            <select class="form-select" name="investisseur_id" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($tousInvestisseurs as $inv): ?>
+                                    <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small class="text-muted">
+                                <a href="/admin/investisseurs/liste.php">Gérer les prêteurs/investisseurs</a>
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Montant du prêt *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control money-input" name="montant_pret" required placeholder="0">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Taux d'intérêt annuel</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="taux_interet_pret" value="10" placeholder="10">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-plus-circle me-1"></i>Ajouter
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <?php elseif ($tab === 'budgets'): ?>
     <!-- Onglet Budgets -->
