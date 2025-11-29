@@ -54,24 +54,24 @@ include '../../includes/header.php';
                 <li class="breadcrumb-item active"><?= e($projet['nom']) ?></li>
             </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1><?= e($projet['nom']) ?></h1>
+                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                    <h1 class="mb-0"><?= e($projet['nom']) ?></h1>
+                    <span class="badge <?= getStatutProjetClass($projet['statut']) ?>">
+                        <?= getStatutProjetLabel($projet['statut']) ?>
+                    </span>
+                    <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-pencil me-1"></i>Modifier
+                    </a>
+                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-printer me-1"></i>Imprimer
+                    </button>
+                </div>
                 <p class="text-muted mb-0">
                     <i class="bi bi-geo-alt me-1"></i>
                     <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?>
-                    <span class="badge ms-2 <?= getStatutProjetClass($projet['statut']) ?>">
-                        <?= getStatutProjetLabel($projet['statut']) ?>
-                    </span>
                 </p>
-            </div>
-            <div>
-                <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary">
-                    <i class="bi bi-pencil me-1"></i>Modifier
-                </a>
-                <button onclick="window.print()" class="btn btn-outline-secondary">
-                    <i class="bi bi-printer me-1"></i>Imprimer
-                </button>
             </div>
         </div>
     </div>
