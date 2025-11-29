@@ -495,38 +495,72 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<!-- Chart.js CDN -->
+<?php
+// Préparer les dates pour les graphiques
+$dateAchat = $projet['date_acquisition'] ? date('M Y', strtotime($projet['date_acquisition'])) : 'Achat';
+$dateDebut = $projet['date_debut_travaux'] ? date('M Y', strtotime($projet['date_debut_travaux'])) : 'Début travaux';
+$dateFin = $projet['date_fin_prevue'] ? date('M Y', strtotime($projet['date_fin_prevue'])) : 'Fin prévue';
+
+// Calculer le milieu des travaux
+$dateMillieu = 'Mi-travaux';
+if ($projet['date_debut_travaux'] && $projet['date_fin_prevue']) {
+    $debut = strtotime($projet['date_debut_travaux']);
+    $fin = strtotime($projet['date_fin_prevue']);
+    $milieu = $debut + (($fin - $debut) / 2);
+    $dateMillieu = date('M Y', $milieu);
+}
+
+// Récupérer les dépenses par mois
+$depensesParMois = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT DATE_FORMAT(date_facture, '%Y-%m') as mois, SUM(montant_total) as total
+        FROM factures 
+        WHERE projet_id = ? AND statut = 'approuvee'
+        GROUP BY DATE_FORMAT(date_facture, '%Y-%m')
+        ORDER BY mois
+    ");
+    $stmt->execute([$projetId]);
+    $depensesParMois = $stmt->fetchAll();
+} catch (Exception $e) {}
+
+$moisLabels = [];
+$moisData = [];
+foreach ($depensesParMois as $d) {
+    $moisLabels[] = date('M Y', strtotime($d['mois'] . '-01'));
+    $moisData[] = (float)$d['total'];
+}
+?>
+<!-- Chart.js CDN + Adapter pour les dates -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // Style actions/trading avec lignes
 Chart.defaults.color = '#666';
 Chart.defaults.font.family = "'Segoe UI', sans-serif";
 
-// Graphique 1: Évolution de la valeur du projet (style action)
-const dataValeur = {
-    labels: ['Achat', '+ Frais', '+ Réno', '+ Conting.', 'Valeur finale', 'Profit'],
+// Graphique 1: Timeline du projet avec dates réelles
+const dataTimeline = {
+    labels: ['<?= $dateAchat ?>', '<?= $dateDebut ?>', '<?= $dateMillieu ?>', '<?= $dateFin ?>', 'Vente'],
     datasets: [{
         label: 'Coûts cumulés',
         data: [
-            <?= (float)$projet['prix_achat'] ?>,
             <?= (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'] ?>,
-            <?= (float)$projet['prix_achat'] + $indicateurs['couts_fixes_totaux'] + $indicateurs['renovation']['budget'] ?>,
+            <?= (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'] + ($indicateurs['renovation']['budget'] * 0.1) ?>,
+            <?= (float)$projet['prix_achat'] + $indicateurs['couts_fixes_totaux'] + ($indicateurs['renovation']['budget'] * 0.5) ?>,
             <?= $indicateurs['cout_total_projet'] ?>,
-            <?= $indicateurs['valeur_potentielle'] ?>,
-            <?= $indicateurs['valeur_potentielle'] ?>
+            <?= $indicateurs['cout_total_projet'] ?>
         ],
         borderColor: '#e74a3b',
         backgroundColor: 'rgba(231, 74, 59, 0.1)',
         fill: true,
         tension: 0.3,
-        pointRadius: 5,
-        pointBackgroundColor: '#e74a3b',
+        pointRadius: 6,
+        pointBackgroundColor: ['#4e73df', '#f6c23e', '#36b9cc', '#1cc88a', '#e74a3b'],
         pointBorderColor: '#fff',
         pointBorderWidth: 2
     }, {
         label: 'Valeur potentielle',
         data: [
-            <?= $indicateurs['valeur_potentielle'] ?>,
             <?= $indicateurs['valeur_potentielle'] ?>,
             <?= $indicateurs['valeur_potentielle'] ?>,
             <?= $indicateurs['valeur_potentielle'] ?>,
@@ -540,52 +574,59 @@ const dataValeur = {
     }]
 };
 
-// Graphique 2: Progression rénovation (style ligne)
-const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
-const depense = <?= $indicateurs['renovation']['reel'] ?>;
-const progression = Math.min(100, (depense / budgetTotal) * 100);
-
-const dataReno = {
-    labels: ['0%', '25%', '50%', '75%', '100%'],
+// Graphique 2: Dépenses par mois (données réelles des factures)
+<?php if (!empty($moisLabels)): ?>
+const dataDepenses = {
+    labels: <?= json_encode($moisLabels) ?>,
     datasets: [{
-        label: 'Budget',
-        data: [0, budgetTotal*0.25, budgetTotal*0.5, budgetTotal*0.75, budgetTotal],
-        borderColor: '#36b9cc',
-        backgroundColor: 'rgba(54, 185, 204, 0.1)',
-        fill: true,
-        tension: 0,
-        pointRadius: 3
-    }, {
-        label: 'Dépensé',
-        data: [0, Math.min(depense, budgetTotal*0.25), Math.min(depense, budgetTotal*0.5), Math.min(depense, budgetTotal*0.75), depense],
+        label: 'Dépenses',
+        data: <?= json_encode($moisData) ?>,
         borderColor: '#f6c23e',
         backgroundColor: 'rgba(246, 194, 62, 0.3)',
         fill: true,
-        tension: 0,
-        pointRadius: 4,
-        pointBackgroundColor: '#f6c23e'
-    }]
-};
-
-// Graphique 3: ROI comparatif (style action)
-const dataROI = {
-    labels: ['Scénario pessimiste', 'All Cash', 'Avec Leverage', 'Scénario optimiste'],
-    datasets: [{
-        label: 'ROI %',
-        data: [
-            Math.max(0, <?= $indicateurs['roi_all_cash'] ?> * 0.5),
-            <?= $indicateurs['roi_all_cash'] ?>,
-            <?= $indicateurs['roi_leverage'] ?>,
-            <?= $indicateurs['roi_leverage'] ?> * 1.3
-        ],
-        borderColor: '#4e73df',
-        backgroundColor: 'rgba(78, 115, 223, 0.2)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 6,
-        pointBackgroundColor: ['#e74a3b', '#f6c23e', '#1cc88a', '#4e73df'],
+        tension: 0.3,
+        pointRadius: 5,
+        pointBackgroundColor: '#f6c23e',
         pointBorderColor: '#fff',
         pointBorderWidth: 2
+    }]
+};
+<?php else: ?>
+const dataDepenses = {
+    labels: ['Aucune facture'],
+    datasets: [{
+        label: 'Dépenses',
+        data: [0],
+        borderColor: '#ccc',
+        backgroundColor: 'rgba(200, 200, 200, 0.2)',
+        fill: true
+    }]
+};
+<?php endif; ?>
+
+// Graphique 3: Prévision vs Réel
+const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
+const depenseReelle = <?= $indicateurs['renovation']['reel'] ?>;
+const dataComparaison = {
+    labels: ['<?= $dateAchat ?>', '<?= $dateDebut ?>', '<?= $dateMillieu ?>', '<?= $dateFin ?>'],
+    datasets: [{
+        label: 'Budget prévu',
+        data: [0, budgetTotal * 0.2, budgetTotal * 0.6, budgetTotal],
+        borderColor: '#36b9cc',
+        backgroundColor: 'rgba(54, 185, 204, 0.1)',
+        fill: true,
+        tension: 0.3,
+        borderWidth: 2
+    }, {
+        label: 'Dépensé réel',
+        data: [0, depenseReelle * 0.3, depenseReelle * 0.7, depenseReelle],
+        borderColor: '#e74a3b',
+        backgroundColor: 'rgba(231, 74, 59, 0.2)',
+        fill: true,
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 5,
+        pointBackgroundColor: '#e74a3b'
     }]
 };
 
@@ -595,55 +636,32 @@ const optionsLine = {
     maintainAspectRatio: false,
     interaction: { intersect: false, mode: 'index' },
     plugins: {
-        legend: { position: 'top', labels: { boxWidth: 12 } },
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
         tooltip: {
             backgroundColor: 'rgba(0,0,0,0.85)',
-            titleFont: { size: 13 },
-            bodyFont: { size: 12 },
             callbacks: {
                 label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('fr-CA') + ' $'
             }
         }
     },
     scales: {
-        x: { grid: { color: 'rgba(0,0,0,0.03)' } },
+        x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { size: 10 } } },
         y: {
             grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: val => (val/1000).toFixed(0) + 'k$' }
-        }
-    }
-};
-
-const optionsROI = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-        legend: { display: false },
-        tooltip: {
-            callbacks: {
-                label: ctx => 'ROI: ' + ctx.parsed.y.toFixed(1) + '%'
-            }
-        }
-    },
-    scales: {
-        x: { grid: { display: false } },
-        y: {
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: val => val + '%' },
-            beginAtZero: true
+            ticks: { callback: val => (val/1000).toFixed(0) + 'k$', font: { size: 10 } }
         }
     }
 };
 
 // Créer les graphiques
 if (document.getElementById('chartCouts')) {
-    new Chart(document.getElementById('chartCouts'), { type: 'line', data: dataValeur, options: optionsLine });
+    new Chart(document.getElementById('chartCouts'), { type: 'line', data: dataTimeline, options: optionsLine });
 }
 if (document.getElementById('chartBudget')) {
-    new Chart(document.getElementById('chartBudget'), { type: 'line', data: dataReno, options: optionsLine });
+    new Chart(document.getElementById('chartBudget'), { type: 'line', data: dataDepenses, options: optionsLine });
 }
 if (document.getElementById('chartProfits')) {
-    new Chart(document.getElementById('chartProfits'), { type: 'line', data: dataROI, options: optionsROI });
+    new Chart(document.getElementById('chartProfits'), { type: 'line', data: dataComparaison, options: optionsLine });
 }
 </script>
 
