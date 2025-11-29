@@ -39,6 +39,16 @@ $stmt = $pdo->prepare("
 $stmt->execute([$projetId]);
 $categories = $stmt->fetchAll();
 
+// Récupérer les prêteurs disponibles (tous les investisseurs si la colonne type n'existe pas)
+try {
+    $stmt = $pdo->query("SELECT * FROM investisseurs WHERE type = 'preteur' ORDER BY nom");
+    $preteurs = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Si la colonne type n'existe pas, prendre tous les investisseurs
+    $stmt = $pdo->query("SELECT * FROM investisseurs ORDER BY nom");
+    $preteurs = $stmt->fetchAll();
+}
+
 // Grouper par catégorie
 $categoriesGroupees = [];
 foreach ($categories as $cat) {
@@ -485,7 +495,25 @@ include '../../includes/header.php';
             <div class="card-header"><i class="bi bi-bank me-2"></i>Financement</div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="preteur_id" class="form-label">Prêteur</label>
+                            <select class="form-select" id="preteur_id" name="preteur_id" onchange="updateTauxPreteur()">
+                                <option value="">-- Aucun prêteur --</option>
+                                <?php foreach ($preteurs as $preteur): ?>
+                                    <option value="<?= $preteur['id'] ?>" 
+                                            data-taux="<?= $preteur['taux_interet_defaut'] ?? 10 ?>"
+                                            <?= ($projet['preteur_id'] ?? 0) == $preteur['id'] ? 'selected' : '' ?>>
+                                        <?= e($preteur['nom']) ?> (<?= $preteur['taux_interet_defaut'] ?? 10 ?>%)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small class="text-muted">
+                                <a href="/admin/investisseurs/liste.php">Gérer les prêteurs</a>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label for="montant_pret" class="form-label">Montant du prêt</label>
                             <div class="input-group">
@@ -495,7 +523,7 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label for="taux_interet" class="form-label">Taux d'intérêt</label>
                             <div class="input-group">
@@ -505,9 +533,11 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
                         <div class="mb-3">
-                            <label for="taux_commission" class="form-label">Commission</label>
+                            <label for="taux_commission" class="form-label">Commission courtier</label>
                             <div class="input-group">
                                 <input type="number" class="form-control" id="taux_commission" name="taux_commission" 
                                        step="0.01" value="<?= $projet['taux_commission'] ?>">
@@ -515,7 +545,7 @@ include '../../includes/header.php';
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label for="taux_contingence" class="form-label">Contingence</label>
                             <div class="input-group">
@@ -528,6 +558,16 @@ include '../../includes/header.php';
                 </div>
             </div>
         </div>
+        
+        <script>
+        function updateTauxPreteur() {
+            const select = document.getElementById('preteur_id');
+            const option = select.options[select.selectedIndex];
+            if (option.dataset.taux) {
+                document.getElementById('taux_interet').value = option.dataset.taux;
+            }
+        }
+        </script>
         
         <div class="card mb-4">
             <div class="card-header"><i class="bi bi-sticky me-2"></i>Notes</div>
