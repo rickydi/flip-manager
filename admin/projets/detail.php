@@ -498,147 +498,130 @@ include '../../includes/header.php';
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Style trading/finance
+// Style actions/trading avec lignes
 Chart.defaults.color = '#666';
 Chart.defaults.font.family = "'Segoe UI', sans-serif";
 
-// Graphique 1: Répartition des coûts (barres horizontales)
-const dataCouts = {
-    labels: ['Prix d\'achat', 'Rénovation', 'Frais fixes', 'Contingence'],
+// Graphique 1: Évolution de la valeur du projet (style action)
+const dataValeur = {
+    labels: ['Achat', '+ Frais', '+ Réno', '+ Conting.', 'Valeur finale', 'Profit'],
     datasets: [{
-        label: 'Montant ($)',
+        label: 'Coûts cumulés',
         data: [
             <?= (float)$projet['prix_achat'] ?>,
-            <?= $indicateurs['renovation']['budget'] ?>,
-            <?= $indicateurs['couts_fixes_totaux'] ?>,
-            <?= $indicateurs['contingence'] ?>
+            <?= (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'] ?>,
+            <?= (float)$projet['prix_achat'] + $indicateurs['couts_fixes_totaux'] + $indicateurs['renovation']['budget'] ?>,
+            <?= $indicateurs['cout_total_projet'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>
         ],
-        backgroundColor: [
-            'rgba(78, 115, 223, 0.8)',
-            'rgba(246, 194, 62, 0.8)',
-            'rgba(28, 200, 138, 0.8)',
-            'rgba(231, 74, 59, 0.8)'
+        borderColor: '#e74a3b',
+        backgroundColor: 'rgba(231, 74, 59, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 5,
+        pointBackgroundColor: '#e74a3b',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+    }, {
+        label: 'Valeur potentielle',
+        data: [
+            <?= $indicateurs['valeur_potentielle'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>,
+            <?= $indicateurs['valeur_potentielle'] ?>
         ],
-        borderColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b'],
-        borderWidth: 2,
-        borderRadius: 4
+        borderColor: '#1cc88a',
+        borderDash: [5, 5],
+        pointRadius: 0,
+        fill: false
     }]
 };
 
-// Graphique 2: Comparaison Budget vs Réel
-const dataBudget = {
-    labels: ['Rénovation'],
-    datasets: [
-        {
-            label: 'Budget',
-            data: [<?= $indicateurs['renovation']['budget'] ?>],
-            backgroundColor: 'rgba(54, 185, 204, 0.7)',
-            borderColor: '#36b9cc',
-            borderWidth: 2,
-            borderRadius: 4
-        },
-        {
-            label: 'Dépensé',
-            data: [<?= $indicateurs['renovation']['reel'] ?>],
-            backgroundColor: 'rgba(231, 74, 59, 0.7)',
-            borderColor: '#e74a3b',
-            borderWidth: 2,
-            borderRadius: 4
-        }
-    ]
-};
+// Graphique 2: Progression rénovation (style ligne)
+const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
+const depense = <?= $indicateurs['renovation']['reel'] ?>;
+const progression = Math.min(100, (depense / budgetTotal) * 100);
 
-// Graphique 3: Profits par investisseur
-const investisseursNoms = [<?php 
-    $noms = [];
-    foreach ($indicateurs['investisseurs'] as $inv) {
-        $noms[] = "'" . addslashes($inv['nom']) . "'";
-    }
-    echo implode(',', $noms);
-?>];
-
-const investisseursProfits = [<?php 
-    $profits = [];
-    foreach ($indicateurs['investisseurs'] as $inv) {
-        $profits[] = round($inv['profit_estime'], 2);
-    }
-    echo implode(',', $profits);
-?>];
-
-const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'];
-const dataProfits = {
-    labels: investisseursNoms.length > 0 ? investisseursNoms : ['N/A'],
+const dataReno = {
+    labels: ['0%', '25%', '50%', '75%', '100%'],
     datasets: [{
-        label: 'Profit estimé ($)',
-        data: investisseursProfits.length > 0 ? investisseursProfits : [0],
-        backgroundColor: investisseursNoms.map((_, i) => colors[i % colors.length] + 'cc'),
-        borderColor: investisseursNoms.map((_, i) => colors[i % colors.length]),
-        borderWidth: 2,
-        borderRadius: 4
+        label: 'Budget',
+        data: [0, budgetTotal*0.25, budgetTotal*0.5, budgetTotal*0.75, budgetTotal],
+        borderColor: '#36b9cc',
+        backgroundColor: 'rgba(54, 185, 204, 0.1)',
+        fill: true,
+        tension: 0,
+        pointRadius: 3
+    }, {
+        label: 'Dépensé',
+        data: [0, Math.min(depense, budgetTotal*0.25), Math.min(depense, budgetTotal*0.5), Math.min(depense, budgetTotal*0.75), depense],
+        borderColor: '#f6c23e',
+        backgroundColor: 'rgba(246, 194, 62, 0.3)',
+        fill: true,
+        tension: 0,
+        pointRadius: 4,
+        pointBackgroundColor: '#f6c23e'
     }]
 };
 
-// Options style trading
-const optionsBar = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y',
-    plugins: {
-        legend: { display: false },
-        tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            titleFont: { size: 14 },
-            bodyFont: { size: 13 },
-            callbacks: {
-                label: ctx => ' ' + ctx.parsed.x.toLocaleString('fr-CA') + ' $'
-            }
-        }
-    },
-    scales: {
-        x: {
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { 
-                callback: val => (val/1000) + 'k$',
-                font: { size: 11 }
-            }
-        },
-        y: {
-            grid: { display: false },
-            ticks: { font: { size: 12, weight: 'bold' } }
-        }
-    }
+// Graphique 3: ROI comparatif (style action)
+const dataROI = {
+    labels: ['Scénario pessimiste', 'All Cash', 'Avec Leverage', 'Scénario optimiste'],
+    datasets: [{
+        label: 'ROI %',
+        data: [
+            Math.max(0, <?= $indicateurs['roi_all_cash'] ?> * 0.5),
+            <?= $indicateurs['roi_all_cash'] ?>,
+            <?= $indicateurs['roi_leverage'] ?>,
+            <?= $indicateurs['roi_leverage'] ?> * 1.3
+        ],
+        borderColor: '#4e73df',
+        backgroundColor: 'rgba(78, 115, 223, 0.2)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 6,
+        pointBackgroundColor: ['#e74a3b', '#f6c23e', '#1cc88a', '#4e73df'],
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+    }]
 };
 
-const optionsBarVertical = {
+// Options style trading/actions
+const optionsLine = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
     plugins: {
-        legend: { position: 'top' },
+        legend: { position: 'top', labels: { boxWidth: 12 } },
         tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            titleFont: { size: 13 },
+            bodyFont: { size: 12 },
             callbacks: {
                 label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('fr-CA') + ' $'
             }
         }
     },
     scales: {
-        x: { grid: { display: false } },
+        x: { grid: { color: 'rgba(0,0,0,0.03)' } },
         y: {
             grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: val => (val/1000) + 'k$' }
+            ticks: { callback: val => (val/1000).toFixed(0) + 'k$' }
         }
     }
 };
 
-const optionsProfits = {
+const optionsROI = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
         legend: { display: false },
         tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.8)',
             callbacks: {
-                label: ctx => ctx.label + ': ' + ctx.parsed.y.toLocaleString('fr-CA') + ' $'
+                label: ctx => 'ROI: ' + ctx.parsed.y.toFixed(1) + '%'
             }
         }
     },
@@ -646,7 +629,7 @@ const optionsProfits = {
         x: { grid: { display: false } },
         y: {
             grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: val => (val/1000) + 'k$' },
+            ticks: { callback: val => val + '%' },
             beginAtZero: true
         }
     }
@@ -654,13 +637,13 @@ const optionsProfits = {
 
 // Créer les graphiques
 if (document.getElementById('chartCouts')) {
-    new Chart(document.getElementById('chartCouts'), { type: 'bar', data: dataCouts, options: optionsBar });
+    new Chart(document.getElementById('chartCouts'), { type: 'line', data: dataValeur, options: optionsLine });
 }
 if (document.getElementById('chartBudget')) {
-    new Chart(document.getElementById('chartBudget'), { type: 'bar', data: dataBudget, options: optionsBarVertical });
+    new Chart(document.getElementById('chartBudget'), { type: 'line', data: dataReno, options: optionsLine });
 }
 if (document.getElementById('chartProfits')) {
-    new Chart(document.getElementById('chartProfits'), { type: 'bar', data: dataProfits, options: optionsProfits });
+    new Chart(document.getElementById('chartProfits'), { type: 'line', data: dataROI, options: optionsROI });
 }
 </script>
 
