@@ -80,18 +80,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Récupérer les investisseurs et prêteurs
-$stmt = $pdo->query("
-    SELECT i.*, 
-           (SELECT COUNT(*) FROM projet_investisseurs WHERE investisseur_id = i.id) as nb_projets,
-           (SELECT SUM(montant) FROM projet_investisseurs WHERE investisseur_id = i.id) as total_investi
-    FROM investisseurs i 
-    ORDER BY i.type, i.nom
-");
-$all = $stmt->fetchAll();
+try {
+    $stmt = $pdo->query("
+        SELECT i.*, 
+               (SELECT COUNT(*) FROM projet_investisseurs WHERE investisseur_id = i.id) as nb_projets,
+               (SELECT COALESCE(SUM(COALESCE(montant, mise_de_fonds)), 0) FROM projet_investisseurs WHERE investisseur_id = i.id) as total_investi
+        FROM investisseurs i 
+        ORDER BY i.nom
+    ");
+    $all = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Si la colonne type n'existe pas encore
+    $stmt = $pdo->query("SELECT * FROM investisseurs ORDER BY nom");
+    $all = $stmt->fetchAll();
+}
 
-// Séparer par type
-$investisseurs = array_filter($all, fn($i) => $i['type'] === 'investisseur');
-$preteurs = array_filter($all, fn($i) => $i['type'] === 'preteur');
+// Séparer par type (si la colonne existe)
+$investisseurs = array_filter($all, fn($i) => ($i['type'] ?? 'investisseur') === 'investisseur');
+$preteurs = array_filter($all, fn($i) => ($i['type'] ?? '') === 'preteur');
 
 include '../../includes/header.php';
 ?>
