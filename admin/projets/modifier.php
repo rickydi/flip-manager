@@ -197,9 +197,14 @@ include '../../includes/header.php';
         </nav>
         <div class="d-flex justify-content-between align-items-center">
             <h1><i class="bi bi-pencil me-2"></i><?= e($projet['nom']) ?></h1>
-            <a href="/admin/projets/detail.php?id=<?= $projetId ?>" class="btn btn-primary">
-                <i class="bi bi-eye me-1"></i>Voir détails
-            </a>
+            <div>
+                <a href="/admin/projets/detail.php?id=<?= $projetId ?>" class="btn btn-primary me-2">
+                    <i class="bi bi-eye me-1"></i>Voir détails
+                </a>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="bi bi-trash me-1"></i>Supprimer
+                </button>
+            </div>
         </div>
     </div>
     
@@ -583,6 +588,37 @@ include '../../includes/header.php';
         </div>
     </form>
     <?php endif; ?>
+</div>
+
+<!-- Modal de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le projet <strong><?= e($projet['nom']) ?></strong> ?</p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Attention :</strong> Cette action est irréversible. Toutes les factures et budgets associés seront également supprimés.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="/admin/projets/supprimer.php" method="POST" class="d-inline">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="projet_id" value="<?= $projetId ?>">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Supprimer définitivement
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php include '../../includes/footer.php'; ?>
