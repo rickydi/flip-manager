@@ -258,25 +258,31 @@ function calculerPourcentageValeur($montant, $valeurPotentielle) {
  * @return array
  */
 function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0) {
-    $stmt = $pdo->prepare("
-        SELECT pi.*, i.nom, i.email, i.telephone
-        FROM projet_investisseurs pi
-        JOIN investisseurs i ON pi.investisseur_id = i.id
-        WHERE pi.projet_id = ?
-        ORDER BY pi.mise_de_fonds DESC
-    ");
-    $stmt->execute([$projetId]);
-    $investisseurs = $stmt->fetchAll();
+    try {
+        // Essayer avec la nouvelle colonne 'montant'
+        $stmt = $pdo->prepare("
+            SELECT pi.*, COALESCE(pi.montant, pi.mise_de_fonds) as mise_de_fonds, i.nom, i.email, i.telephone
+            FROM projet_investisseurs pi
+            JOIN investisseurs i ON pi.investisseur_id = i.id
+            WHERE pi.projet_id = ?
+            ORDER BY pi.id DESC
+        ");
+        $stmt->execute([$projetId]);
+        $investisseurs = $stmt->fetchAll();
+    } catch (Exception $e) {
+        // Fallback si la table n'existe pas encore ou structure différente
+        $investisseurs = [];
+    }
     
     // Calculer la mise de fonds totale
     $miseTotale = 0;
     foreach ($investisseurs as $inv) {
-        $miseTotale += (float) $inv['mise_de_fonds'];
+        $miseTotale += (float) ($inv['mise_de_fonds'] ?? $inv['montant'] ?? 0);
     }
     
     // Calculer le pourcentage et profit estimé pour chaque investisseur
     foreach ($investisseurs as &$inv) {
-        $mise = (float) $inv['mise_de_fonds'];
+        $mise = (float) ($inv['mise_de_fonds'] ?? $inv['montant'] ?? 0);
         $inv['pourcentage_calcule'] = $miseTotale > 0 ? ($mise / $miseTotale) * 100 : 0;
         $inv['profit_estime'] = $equitePotentielle * ($inv['pourcentage_calcule'] / 100);
     }
