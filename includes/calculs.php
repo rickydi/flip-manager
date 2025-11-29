@@ -95,8 +95,9 @@ function calculerCoutsVente($projet) {
     // Commission courtier
     $commission = $valeur * ($tauxCommission / 100);
     
-    // Intérêts sur le prêt
-    $interets = $montantPret * ($tauxInteret / 100) * ($mois / 12);
+    // Intérêts sur le prêt (composés mensuellement)
+    $tauxMensuel = $tauxInteret / 100 / 12;
+    $interets = $montantPret * (pow(1 + $tauxMensuel, $mois) - 1);
     
     // Quittance (généralement 0 ou fixe)
     $quittance = 0;
@@ -287,10 +288,11 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
             
             // Si taux > 0, c'est un prêteur (paie des intérêts)
             if ($taux > 0) {
-                // Prêteur : calcul des intérêts
-                $interetsMois = $montant * ($taux / 100) / 12;
-                $interetsTotal = $interetsMois * $mois;
+                // Prêteur : calcul des intérêts composés mensuellement
+                $tauxMensuel = $taux / 100 / 12;
+                $interetsTotal = $montant * (pow(1 + $tauxMensuel, $mois) - 1);
                 $totalDu = $montant + $interetsTotal;
+                $interetsMois = $mois > 0 ? $interetsTotal / $mois : 0;
                 
                 $preteurs[] = [
                     'id' => $row['id'],

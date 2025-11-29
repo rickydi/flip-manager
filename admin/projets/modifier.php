@@ -614,7 +614,9 @@ include '../../includes/header.php';
                             </thead>
                             <tbody>
                             <?php foreach ($listePreteurs as $p): 
-                                $interets = $p['montant_calc'] * ($p['taux_calc'] / 100) * ($dureeReelle / 12);
+                                // Intérêts composés mensuellement
+                                $tauxMensuel = $p['taux_calc'] / 100 / 12;
+                                $interets = $p['montant_calc'] * (pow(1 + $tauxMensuel, $dureeReelle) - 1);
                             ?>
                                 <tr>
                                     <td><?= e($p['investisseur_nom']) ?></td>
@@ -682,7 +684,8 @@ include '../../includes/header.php';
                             <?php 
                             $totalInterets = 0;
                             foreach ($listePreteurs as $p) {
-                                $totalInterets += $p['montant_calc'] * ($p['taux_calc'] / 100) * ($dureeReelle / 12);
+                                $tauxMensuel = $p['taux_calc'] / 100 / 12;
+                                $totalInterets += $p['montant_calc'] * (pow(1 + $tauxMensuel, $dureeReelle) - 1);
                             }
                             echo formatMoney($totalInterets);
                             ?>
