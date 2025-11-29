@@ -103,7 +103,7 @@ include '../includes/header.php';
         <?php foreach ($projets as $projet): 
             $indicateurs = calculerIndicateursProjet($pdo, $projet);
         ?>
-            <div class="card projet-card">
+            <div class="card projet-card" style="cursor: pointer;" onclick="window.location='/admin/projets/detail.php?id=<?= $projet['id'] ?>'">
                 <div class="card-header">
                     <div>
                         <h5 class="mb-0"><?= e($projet['nom']) ?></h5>
@@ -163,11 +163,7 @@ include '../includes/header.php';
                     </div>
                     
                     <!-- Actions -->
-                    <div class="d-flex gap-2">
-                        <a href="/admin/projets/detail.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-eye me-1"></i>
-                            Voir détails
-                        </a>
+                    <div class="d-flex gap-2" onclick="event.stopPropagation()">
                         <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
                             <i class="bi bi-receipt me-1"></i>
                             Factures

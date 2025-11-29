@@ -31,23 +31,11 @@ $isAdmin = isAdmin();
                         </a>
                     </li>
                     
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle <?= strpos($currentUri, '/admin/projets/') !== false ? 'active' : '' ?>" 
-                           href="#" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <a class="nav-link <?= strpos($currentUri, '/admin/projets/') !== false ? 'active' : '' ?>" 
+                           href="/admin/projets/liste.php">
                             <i class="bi bi-building"></i> Projets
                         </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item" href="/admin/projets/liste.php">
-                                    <i class="bi bi-list-ul"></i> Liste des projets
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/admin/projets/nouveau.php">
-                                    <i class="bi bi-plus-circle"></i> Nouveau projet
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     
                     <li class="nav-item dropdown">
