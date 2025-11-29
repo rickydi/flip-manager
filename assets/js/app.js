@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
     
+    // Initialisation Flatpickr pour les dates
+    initDatePickers();
+    
+    // Initialisation des champs monétaires
+    initMoneyInputs();
+    
     // Gestion de l'upload de fichiers avec drag & drop
     initUploadZone();
     
@@ -23,6 +29,66 @@ document.addEventListener('DOMContentLoaded', function() {
     initAlertAutoDismiss();
     
 });
+
+/**
+ * Initialisation des date pickers avec Flatpickr
+ */
+function initDatePickers() {
+    if (typeof flatpickr === 'undefined') return;
+    
+    // Configuration française
+    flatpickr.localize(flatpickr.l10ns.fr);
+    
+    // Initialiser tous les champs de type date
+    document.querySelectorAll('input[type="date"]').forEach(function(input) {
+        flatpickr(input, {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            locale: "fr",
+            allowInput: true
+        });
+    });
+}
+
+/**
+ * Initialisation des champs monétaires
+ */
+function initMoneyInputs() {
+    document.querySelectorAll('.money-input').forEach(function(input) {
+        // Au focus, sélectionner tout le contenu
+        input.addEventListener('focus', function() {
+            this.select();
+        });
+        
+        // Nettoyer la valeur à la saisie
+        input.addEventListener('input', function() {
+            // Garder seulement les chiffres et le point/virgule
+            let value = this.value.replace(/[^\d.,]/g, '');
+            // Remplacer la virgule par un point
+            value = value.replace(',', '.');
+            // Garder un seul point décimal
+            const parts = value.split('.');
+            if (parts.length > 2) {
+                value = parts[0] + '.' + parts.slice(1).join('');
+            }
+            this.value = value;
+        });
+        
+        // Formater au blur
+        input.addEventListener('blur', function() {
+            let value = parseFloat(this.value) || 0;
+            // Si c'est un nombre entier, ne pas afficher les décimales
+            if (value === Math.floor(value) && value > 0) {
+                this.value = Math.floor(value);
+            } else if (value > 0) {
+                this.value = value.toFixed(2);
+            } else {
+                this.value = '';
+            }
+        });
+    });
+}
 
 /**
  * Initialisation de la zone d'upload avec drag & drop
