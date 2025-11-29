@@ -127,7 +127,7 @@ include '../../includes/header.php';
                             <?php foreach ($projets as $projet): 
                                 $indicateurs = calculerIndicateursProjet($pdo, $projet);
                             ?>
-                                <tr>
+                                <tr style="cursor: pointer;" onclick="window.location='/admin/projets/detail.php?id=<?= $projet['id'] ?>'">
                                     <td>
                                         <strong><?= e($projet['nom']) ?></strong>
                                         <br>
@@ -157,7 +157,7 @@ include '../../includes/header.php';
                                             <?= formatMoney($indicateurs['equite_potentielle']) ?>
                                         </strong>
                                     </td>
-                                    <td class="action-buttons">
+                                    <td class="action-buttons" onclick="event.stopPropagation()">
                                         <a href="/admin/projets/detail.php?id=<?= $projet['id'] ?>" 
                                            class="btn btn-outline-primary btn-sm"
                                            title="Voir détails">
