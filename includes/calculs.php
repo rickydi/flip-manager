@@ -364,7 +364,11 @@ function calculerIndicateursProjet($pdo, $projet) {
         $dateAchat = new DateTime($projet['date_acquisition']);
         $dateVente = new DateTime($projet['date_vente']);
         $diff = $dateAchat->diff($dateVente);
-        $mois = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+        $mois = ($diff->y * 12) + $diff->m;
+        // Ajouter 1 mois seulement si jour fin > jour début
+        if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+            $mois++;
+        }
         $mois = max(1, $mois);
     }
     

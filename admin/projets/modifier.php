@@ -241,13 +241,21 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateAchat = new DateTime($projet['date_acquisition']);
     $dateVente = new DateTime($projet['date_vente']);
     $diff = $dateAchat->diff($dateVente);
-    $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $dureeReelle = ($diff->y * 12) + $diff->m;
+    // Ajouter 1 mois seulement si jour fin > jour début
+    if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+        $dureeReelle++;
+    }
     $dureeReelle = max(1, $dureeReelle);
 } elseif (!empty($projet['date_fin_prevue']) && !empty($projet['date_acquisition'])) {
     $dateAchat = new DateTime($projet['date_acquisition']);
     $dateFin = new DateTime($projet['date_fin_prevue']);
     $diff = $dateAchat->diff($dateFin);
-    $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $dureeReelle = ($diff->y * 12) + $diff->m;
+    // Ajouter 1 mois seulement si jour fin > jour début
+    if ((int)$dateFin->format('d') > (int)$dateAchat->format('d')) {
+        $dureeReelle++;
+    }
     $dureeReelle = max(1, $dureeReelle);
 }
 
@@ -937,8 +945,12 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Calcul des mois entre les deux dates
             let mois = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
-            // Si plus de 15 jours dans le dernier mois, arrondir au mois suivant
-            if (d2.getDate() > 15) mois++;
+            
+            // Ajouter 1 mois seulement si le jour de fin est APRES le jour de début
+            // (ex: 15/01 → 20/02 = 1 mois + fraction = arrondi à 2)
+            if (d2.getDate() > d1.getDate()) {
+                mois++;
+            }
             
             mois = Math.max(1, mois); // Minimum 1 mois
             dureeMois.value = mois;
