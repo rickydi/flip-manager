@@ -498,33 +498,57 @@ include '../../includes/header.php';
 <!-- Chart.js CDN -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Données pour les graphiques
+// Style trading/finance
+Chart.defaults.color = '#666';
+Chart.defaults.font.family = "'Segoe UI', sans-serif";
+
+// Graphique 1: Répartition des coûts (barres horizontales)
 const dataCouts = {
-    labels: ['Prix achat', 'Rénovation', 'Frais fixes', 'Contingence'],
+    labels: ['Prix d\'achat', 'Rénovation', 'Frais fixes', 'Contingence'],
     datasets: [{
+        label: 'Montant ($)',
         data: [
             <?= (float)$projet['prix_achat'] ?>,
             <?= $indicateurs['renovation']['budget'] ?>,
             <?= $indicateurs['couts_fixes_totaux'] ?>,
             <?= $indicateurs['contingence'] ?>
         ],
-        backgroundColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b']
-    }]
-};
-
-const dataBudget = {
-    labels: ['Budget', 'Dépensé', 'Restant'],
-    datasets: [{
-        data: [
-            <?= $indicateurs['renovation']['budget'] ?>,
-            <?= $indicateurs['renovation']['reel'] ?>,
-            <?= max(0, $indicateurs['renovation']['ecart']) ?>
+        backgroundColor: [
+            'rgba(78, 115, 223, 0.8)',
+            'rgba(246, 194, 62, 0.8)',
+            'rgba(28, 200, 138, 0.8)',
+            'rgba(231, 74, 59, 0.8)'
         ],
-        backgroundColor: ['#4e73df', '#e74a3b', '#1cc88a']
+        borderColor: ['#4e73df', '#f6c23e', '#1cc88a', '#e74a3b'],
+        borderWidth: 2,
+        borderRadius: 4
     }]
 };
 
-// Données des investisseurs pour le graphique profits
+// Graphique 2: Comparaison Budget vs Réel
+const dataBudget = {
+    labels: ['Rénovation'],
+    datasets: [
+        {
+            label: 'Budget',
+            data: [<?= $indicateurs['renovation']['budget'] ?>],
+            backgroundColor: 'rgba(54, 185, 204, 0.7)',
+            borderColor: '#36b9cc',
+            borderWidth: 2,
+            borderRadius: 4
+        },
+        {
+            label: 'Dépensé',
+            data: [<?= $indicateurs['renovation']['reel'] ?>],
+            backgroundColor: 'rgba(231, 74, 59, 0.7)',
+            borderColor: '#e74a3b',
+            borderWidth: 2,
+            borderRadius: 4
+        }
+    ]
+};
+
+// Graphique 3: Profits par investisseur
 const investisseursNoms = [<?php 
     $noms = [];
     foreach ($indicateurs['investisseurs'] as $inv) {
@@ -541,35 +565,102 @@ const investisseursProfits = [<?php
     echo implode(',', $profits);
 ?>];
 
+const colors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796'];
 const dataProfits = {
-    labels: investisseursNoms.length > 0 ? investisseursNoms : ['Aucun investisseur'],
+    labels: investisseursNoms.length > 0 ? investisseursNoms : ['N/A'],
     datasets: [{
-        data: investisseursProfits.length > 0 ? investisseursProfits : [1],
-        backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796']
+        label: 'Profit estimé ($)',
+        data: investisseursProfits.length > 0 ? investisseursProfits : [0],
+        backgroundColor: investisseursNoms.map((_, i) => colors[i % colors.length] + 'cc'),
+        borderColor: investisseursNoms.map((_, i) => colors[i % colors.length]),
+        borderWidth: 2,
+        borderRadius: 4
     }]
 };
 
-// Options communes
-const optionsPie = {
+// Options style trading
+const optionsBar = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleFont: { size: 14 },
+            bodyFont: { size: 13 },
+            callbacks: {
+                label: ctx => ' ' + ctx.parsed.x.toLocaleString('fr-CA') + ' $'
+            }
+        }
+    },
+    scales: {
+        x: {
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { 
+                callback: val => (val/1000) + 'k$',
+                font: { size: 11 }
+            }
+        },
+        y: {
+            grid: { display: false },
+            ticks: { font: { size: 12, weight: 'bold' } }
+        }
+    }
+};
+
+const optionsBarVertical = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-        legend: {
-            position: 'bottom',
-            labels: { boxWidth: 12, padding: 8, font: { size: 11 } }
+        legend: { position: 'top' },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            callbacks: {
+                label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('fr-CA') + ' $'
+            }
+        }
+    },
+    scales: {
+        x: { grid: { display: false } },
+        y: {
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { callback: val => (val/1000) + 'k$' }
+        }
+    }
+};
+
+const optionsProfits = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            callbacks: {
+                label: ctx => ctx.label + ': ' + ctx.parsed.y.toLocaleString('fr-CA') + ' $'
+            }
+        }
+    },
+    scales: {
+        x: { grid: { display: false } },
+        y: {
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { callback: val => (val/1000) + 'k$' },
+            beginAtZero: true
         }
     }
 };
 
 // Créer les graphiques
 if (document.getElementById('chartCouts')) {
-    new Chart(document.getElementById('chartCouts'), { type: 'doughnut', data: dataCouts, options: optionsPie });
+    new Chart(document.getElementById('chartCouts'), { type: 'bar', data: dataCouts, options: optionsBar });
 }
 if (document.getElementById('chartBudget')) {
-    new Chart(document.getElementById('chartBudget'), { type: 'pie', data: dataBudget, options: optionsPie });
+    new Chart(document.getElementById('chartBudget'), { type: 'bar', data: dataBudget, options: optionsBarVertical });
 }
 if (document.getElementById('chartProfits')) {
-    new Chart(document.getElementById('chartProfits'), { type: 'doughnut', data: dataProfits, options: optionsPie });
+    new Chart(document.getElementById('chartProfits'), { type: 'bar', data: dataProfits, options: optionsProfits });
 }
 </script>
 
