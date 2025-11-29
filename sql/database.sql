@@ -41,6 +41,7 @@ CREATE TABLE projets (
     
     -- Financier - Acquisition
     prix_achat DECIMAL(12,2) DEFAULT 0,
+    cession DECIMAL(10,2) DEFAULT 0,
     notaire DECIMAL(10,2) DEFAULT 0,
     taxe_mutation DECIMAL(10,2) DEFAULT 0,
     arpenteurs DECIMAL(10,2) DEFAULT 0,

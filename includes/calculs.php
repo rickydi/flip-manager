@@ -11,11 +11,13 @@
  */
 function calculerCoutsAcquisition($projet) {
     return [
+        'cession' => (float) ($projet['cession'] ?? 0),
         'notaire' => (float) $projet['notaire'],
         'taxe_mutation' => (float) $projet['taxe_mutation'],
         'arpenteurs' => (float) $projet['arpenteurs'],
         'assurance_titre' => (float) $projet['assurance_titre'],
-        'total' => (float) $projet['notaire'] + 
+        'total' => (float) ($projet['cession'] ?? 0) +
+                   (float) $projet['notaire'] + 
                    (float) $projet['taxe_mutation'] + 
                    (float) $projet['arpenteurs'] + 
                    (float) $projet['assurance_titre']

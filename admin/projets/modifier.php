@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statut = $_POST['statut'] ?? 'acquisition';
             
             $prixAchat = parseNumber($_POST['prix_achat'] ?? 0);
+            $cession = parseNumber($_POST['cession'] ?? 0);
             $notaire = parseNumber($_POST['notaire'] ?? 0);
             $taxeMutation = parseNumber($_POST['taxe_mutation'] ?? 0);
             $arpenteurs = parseNumber($_POST['arpenteurs'] ?? 0);
@@ -129,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UPDATE projets SET
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
                         date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
-                        statut = ?, prix_achat = ?, notaire = ?, taxe_mutation = ?,
+                        statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?,
                         arpenteurs = ?, assurance_titre = ?,
                         taxes_municipales_annuel = ?, taxes_scolaires_annuel = ?,
                         electricite_annuel = ?, assurances_annuel = ?,
@@ -144,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $result = $stmt->execute([
                     $nom, $adresse, $ville, $codePostal,
                     $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
-                    $statut, $prixAchat, $notaire, $taxeMutation,
+                    $statut, $prixAchat, $cession, $notaire, $taxeMutation,
                     $arpenteurs, $assuranceTitre,
                     $taxesMunicipalesAnnuel, $taxesScolairesAnnuel,
                     $electriciteAnnuel, $assurancesAnnuel,
@@ -381,25 +382,31 @@ include '../../includes/header.php';
                                 <label class="form-label">Durée (mois)</label>
                                 <input type="number" class="form-control" name="temps_assume_mois" value="<?= (int)$projet['temps_assume_mois'] ?>">
                             </div>
-                            <div class="col-3">
+                            <div class="col-4">
+                                <label class="form-label">Cession</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="cession" value="<?= formatMoney($projet['cession'] ?? 0, false) ?>">
+                                </div>
+                            </div>
+                            <div class="col-4">
                                 <label class="form-label">Notaire</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="notaire" value="<?= formatMoney($projet['notaire'], false) ?>">
                                 </div>
                             </div>
-                            <div class="col-3">
+                            <div class="col-4">
                                 <label class="form-label">Mutation</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
                                 </div>
                             </div>
-                            <div class="col-3">
+                            <div class="col-4">
                                 <label class="form-label">Arpenteurs</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="arpenteurs" value="<?= formatMoney($projet['arpenteurs'], false) ?>">
                                 </div>
                             </div>
-                            <div class="col-3">
+                            <div class="col-4">
                                 <label class="form-label">Ass. titre</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="assurance_titre" value="<?= formatMoney($projet['assurance_titre'], false) ?>">

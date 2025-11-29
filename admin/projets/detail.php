@@ -146,6 +146,12 @@ include '../../includes/header.php';
                 <h5><i class="bi bi-cart me-2"></i>Coûts d'acquisition</h5>
                 <table class="financial-table">
                     <tbody>
+                        <?php if ($indicateurs['couts_acquisition']['cession'] > 0): ?>
+                        <tr>
+                            <td>Achat de cession</td>
+                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['cession']) ?></td>
+                        </tr>
+                        <?php endif; ?>
                         <tr>
                             <td>Notaire</td>
                             <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
