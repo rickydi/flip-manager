@@ -140,27 +140,32 @@ CREATE TABLE factures (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Table: investisseurs (Investisseurs)
+-- Table: investisseurs (Investisseurs et Prêteurs)
 -- ============================================
 CREATE TABLE investisseurs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nom VARCHAR(255) NOT NULL,
     email VARCHAR(255),
     telephone VARCHAR(20),
+    type ENUM('investisseur', 'preteur') DEFAULT 'investisseur',
+    taux_interet_defaut DECIMAL(5,2) DEFAULT 0,
+    frais_dossier_defaut DECIMAL(5,2) DEFAULT 0,
     notes TEXT NULL,
     actif TINYINT(1) DEFAULT 1,
     date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- Table: projet_investisseurs (Lien projet-investisseur)
+-- Table: projet_investisseurs (Lien projet-investisseur/prêteur)
 -- ============================================
 CREATE TABLE projet_investisseurs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     projet_id INT NOT NULL,
     investisseur_id INT NOT NULL,
-    mise_de_fonds DECIMAL(12,2) DEFAULT 0,
+    montant DECIMAL(12,2) DEFAULT 0,
     pourcentage_profit DECIMAL(5,2) DEFAULT 0,
+    taux_interet DECIMAL(5,2) DEFAULT 0,
+    frais_dossier DECIMAL(5,2) DEFAULT 0,
     type_investissement ENUM('comptant', 'prive', 'banque', 'materiel') DEFAULT 'comptant',
     notes TEXT NULL,
     
