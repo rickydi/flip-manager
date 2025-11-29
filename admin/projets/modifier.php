@@ -502,232 +502,250 @@ include '../../includes/header.php';
     </form>
     
     <?php elseif ($tab === 'preteurs'): ?>
-    <!-- Onglet Financement -->
+    <!-- Onglet Financement - PRÊTEURS vs INVESTISSEURS -->
     
-    <!-- Simulateur de durée -->
-    <div class="card mb-4 bg-light">
-        <div class="card-body">
-            <div class="row align-items-center">
-                <div class="col-md-3">
-                    <h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Simulateur</h5>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label mb-1">Durée du projet : <strong id="dureeLabel"><?= $projet['temps_assume_mois'] ?> mois</strong></label>
-                    <input type="range" class="form-range" id="dureeSlider" min="1" max="12" value="<?= $projet['temps_assume_mois'] ?>" oninput="updateCalculs()">
-                    <div class="d-flex justify-content-between small text-muted">
-                        <span>1 mois</span>
-                        <span>6 mois</span>
-                        <span>12 mois</span>
-                    </div>
-                </div>
-                <div class="col-md-3 text-end">
-                    <div class="h4 text-danger mb-0" id="totalInteretsDuree">0 $</div>
-                    <small class="text-muted">Intérêts totaux</small>
-                </div>
+    <!-- Explications -->
+    <div class="alert alert-info mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="bi bi-bank me-1"></i> PRÊTEUR</h6>
+                <small>Prête de l'argent → Reçoit des <strong>INTÉRÊTS</strong> (= coût pour le projet)</small>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="bi bi-people me-1"></i> INVESTISSEUR</h6>
+                <small>Met de l'argent "à risque" → Reçoit un <strong>% DES PROFITS</strong> (= partage des gains)</small>
             </div>
         </div>
     </div>
     
+    <?php 
+    // Séparer les prêteurs des investisseurs
+    $listePreteurs = [];
+    $listeInvestisseurs = [];
+    $totalPrets = 0;
+    $totalInvest = 0;
+    
+    foreach ($preteursProjet as $p) {
+        $montant = (float)($p['montant'] ?? $p['mise_de_fonds'] ?? 0);
+        $taux = (float)($p['taux_interet'] ?? $p['pourcentage_profit'] ?? 0);
+        
+        if ($taux > 0) {
+            // Prêteur (a un taux d'intérêt)
+            $listePreteurs[] = array_merge($p, ['montant_calc' => $montant, 'taux_calc' => $taux]);
+            $totalPrets += $montant;
+        } else {
+            // Investisseur (pas de taux = partage profits)
+            $listeInvestisseurs[] = array_merge($p, ['montant_calc' => $montant, 'pct_calc' => $taux]);
+            $totalInvest += $montant;
+        }
+    }
+    ?>
+    
     <div class="row">
-        <div class="col-lg-8">
-            <!-- Liste des prêteurs/investisseurs -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-list-ul me-2"></i>Prêteurs & Investisseurs</span>
+        <!-- COLONNE PRÊTEURS -->
+        <div class="col-lg-6">
+            <div class="card mb-4 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <i class="bi bi-bank me-2"></i><strong>PRÊTEURS</strong>
+                    <small class="float-end">Coût = Intérêts</small>
                 </div>
-                <?php 
-                $totalPrets = 0;
-                if (empty($preteursProjet)): ?>
-                    <div class="card-body">
-                        <div class="text-center text-muted py-4">
-                            <i class="bi bi-bank" style="font-size: 3rem;"></i>
-                            <p class="mt-2 mb-0">Aucun prêteur ou investisseur configuré.</p>
-                        </div>
+                
+                <?php if (empty($listePreteurs)): ?>
+                    <div class="card-body text-center text-muted py-4">
+                        <i class="bi bi-bank" style="font-size: 2rem;"></i>
+                        <p class="mb-0 small">Aucun prêteur</p>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0" id="tableFinancement">
-                            <thead>
+                        <table class="table table-sm mb-0" id="tablePreteurs">
+                            <thead class="table-light">
                                 <tr>
                                     <th>Nom</th>
                                     <th class="text-end">Montant</th>
                                     <th class="text-center">Taux</th>
-                                    <th class="text-end">Intérêts/mois</th>
-                                    <th class="text-end">Intérêts (durée)</th>
-                                    <th class="text-end">Total dû</th>
+                                    <th class="text-end">Intérêts</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($listePreteurs as $p): 
+                                $interets = $p['montant_calc'] * ($p['taux_calc'] / 100) * ($projet['temps_assume_mois'] / 12);
+                            ?>
+                                <tr>
+                                    <td><?= e($p['investisseur_nom']) ?></td>
+                                    <td class="text-end"><?= formatMoney($p['montant_calc']) ?></td>
+                                    <td class="text-center"><span class="badge bg-warning text-dark"><?= $p['taux_calc'] ?>%</span></td>
+                                    <td class="text-end text-danger"><?= formatMoney($interets) ?></td>
+                                    <td>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="preteurs">
+                                            <input type="hidden" name="sub_action" value="supprimer">
+                                            <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+                
+                <!-- Formulaire ajout prêteur -->
+                <div class="card-footer bg-light">
+                    <form method="POST" class="row g-2 align-items-end">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="action" value="preteurs">
+                        <input type="hidden" name="sub_action" value="ajouter">
+                        <div class="col-4">
+                            <label class="form-label small mb-0">Personne</label>
+                            <select class="form-select form-select-sm" name="investisseur_id" required>
+                                <option value="">Choisir...</option>
+                                <?php foreach ($tousInvestisseurs as $inv): ?>
+                                    <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small mb-0">Montant $</label>
+                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0">
+                        </div>
+                        <div class="col-3">
+                            <label class="form-label small mb-0">Taux %</label>
+                            <input type="text" class="form-control form-control-sm" name="taux_interet_pret" value="10" required>
+                        </div>
+                        <div class="col-2">
+                            <button type="submit" class="btn btn-warning btn-sm w-100">+</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Total prêteurs -->
+            <div class="card bg-warning text-dark mb-4">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between">
+                        <span>Total prêts :</span>
+                        <strong><?= formatMoney($totalPrets) ?></strong>
+                    </div>
+                    <div class="d-flex justify-content-between text-danger">
+                        <span>Intérêts (<?= $projet['temps_assume_mois'] ?> mois) :</span>
+                        <strong>
+                            <?php 
+                            $totalInterets = 0;
+                            foreach ($listePreteurs as $p) {
+                                $totalInterets += $p['montant_calc'] * ($p['taux_calc'] / 100) * ($projet['temps_assume_mois'] / 12);
+                            }
+                            echo formatMoney($totalInterets);
+                            ?>
+                        </strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- COLONNE INVESTISSEURS -->
+        <div class="col-lg-6">
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-people me-2"></i><strong>INVESTISSEURS</strong>
+                    <small class="float-end">Partage des profits</small>
+                </div>
+                
+                <?php if (empty($listeInvestisseurs)): ?>
+                    <div class="card-body text-center text-muted py-4">
+                        <i class="bi bi-people" style="font-size: 2rem;"></i>
+                        <p class="mb-0 small">Aucun investisseur</p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nom</th>
+                                    <th class="text-end">Mise</th>
+                                    <th class="text-center">% Profits</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                             <?php 
-                                $preteursData = [];
-                                foreach ($preteursProjet as $p): 
-                                    $montant = (float)($p['montant'] ?? $p['mise_de_fonds'] ?? 0);
-                                    $taux = (float)($p['taux_interet'] ?? $p['pourcentage_profit'] ?? 10);
-                                    $totalPrets += $montant;
-                                    $preteursData[] = ['montant' => $montant, 'taux' => $taux];
-                                ?>
-                                    <tr data-montant="<?= $montant ?>" data-taux="<?= $taux ?>">
-                                        <td><strong><?= e($p['investisseur_nom']) ?></strong></td>
-                                        <td class="text-end"><?= formatMoney($montant) ?></td>
-                                        <td class="text-center"><span class="badge bg-info"><?= $taux ?>%</span></td>
-                                        <td class="text-end interets-mois">-</td>
-                                        <td class="text-end interets-duree">-</td>
-                                        <td class="text-end total-du fw-bold">-</td>
-                                        <td>
-                                            <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
-                                                <?php csrfField(); ?>
-                                                <input type="hidden" name="action" value="preteurs">
-                                                <input type="hidden" name="sub_action" value="supprimer">
-                                                <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                            <tfoot class="table-dark">
+                            $totalPctInvest = 0;
+                            foreach ($listeInvestisseurs as $inv): 
+                                $pct = $totalInvest > 0 ? ($inv['montant_calc'] / $totalInvest) * 100 : 0;
+                                $totalPctInvest += $pct;
+                            ?>
                                 <tr>
-                                    <th>TOTAL</th>
-                                    <th class="text-end"><?= formatMoney($totalPrets) ?></th>
-                                    <th></th>
-                                    <th class="text-end" id="footInteretsMois">-</th>
-                                    <th class="text-end" id="footInteretsDuree">-</th>
-                                    <th class="text-end" id="footTotalDu">-</th>
-                                    <th></th>
+                                    <td><?= e($inv['investisseur_nom']) ?></td>
+                                    <td class="text-end"><?= formatMoney($inv['montant_calc']) ?></td>
+                                    <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
+                                    <td>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="preteurs">
+                                            <input type="hidden" name="sub_action" value="supprimer">
+                                            <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
-                            </tfoot>
+                            <?php endforeach; ?>
+                            </tbody>
                         </table>
                     </div>
                 <?php endif; ?>
-            </div>
-            
-            <!-- Résumé visuel -->
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="card text-center bg-primary text-white">
-                        <div class="card-body">
-                            <h3 class="mb-0"><?= formatMoney($totalPrets) ?></h3>
-                            <small>Capital emprunté</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center bg-warning text-dark">
-                        <div class="card-body">
-                            <h3 class="mb-0" id="resumeInterets">0 $</h3>
-                            <small>Intérêts à payer</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card text-center bg-danger text-white">
-                        <div class="card-body">
-                            <h3 class="mb-0" id="resumeTotal">0 $</h3>
-                            <small>Total à rembourser</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-lg-4">
-            <!-- Formulaire ajout -->
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <i class="bi bi-plus-circle me-2"></i>Ajouter
-                </div>
-                <div class="card-body">
-                    <form method="POST">
+                
+                <!-- Formulaire ajout investisseur -->
+                <div class="card-footer bg-light">
+                    <form method="POST" class="row g-2 align-items-end">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Prêteur / Investisseur *</label>
-                            <select class="form-select" name="investisseur_id" required>
-                                <option value="">Sélectionner...</option>
+                        <input type="hidden" name="taux_interet_pret" value="0">
+                        <div class="col-6">
+                            <label class="form-label small mb-0">Personne</label>
+                            <select class="form-select form-select-sm" name="investisseur_id" required>
+                                <option value="">Choisir...</option>
                                 <?php foreach ($tousInvestisseurs as $inv): ?>
                                     <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
                                 <?php endforeach; ?>
                             </select>
-                            <small class="text-muted">
-                                <a href="/admin/investisseurs/liste.php" target="_blank">+ Ajouter nouveau</a>
-                            </small>
                         </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Montant *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="text" class="form-control money-input" name="montant_pret" required placeholder="0">
-                            </div>
+                        <div class="col-4">
+                            <label class="form-label small mb-0">Mise $</label>
+                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0">
                         </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label">Taux d'intérêt annuel</label>
-                            <div class="input-group">
-                                <input type="text" class="form-control" name="taux_interet_pret" value="10" placeholder="10">
-                                <span class="input-group-text">%</span>
-                            </div>
+                        <div class="col-2">
+                            <button type="submit" class="btn btn-success btn-sm w-100">+</button>
                         </div>
-                        
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="bi bi-plus-circle me-1"></i>Ajouter
-                        </button>
                     </form>
+                    <small class="text-muted">% calculé automatiquement selon la mise</small>
+                </div>
+            </div>
+            
+            <!-- Total investisseurs -->
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body py-2">
+                    <div class="d-flex justify-content-between">
+                        <span>Total mises :</span>
+                        <strong><?= formatMoney($totalInvest) ?></strong>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
-    <script>
-    function updateCalculs() {
-        const duree = parseInt(document.getElementById('dureeSlider').value);
-        document.getElementById('dureeLabel').textContent = duree + ' mois';
-        
-        const rows = document.querySelectorAll('#tableFinancement tbody tr');
-        let totalInteretsMois = 0;
-        let totalInteretsDuree = 0;
-        let totalDu = 0;
-        let totalCapital = 0;
-        
-        rows.forEach(row => {
-            const montant = parseFloat(row.dataset.montant) || 0;
-            const taux = parseFloat(row.dataset.taux) || 0;
-            
-            const interetsMois = montant * (taux / 100) / 12;
-            const interetsDuree = interetsMois * duree;
-            const du = montant + interetsDuree;
-            
-            row.querySelector('.interets-mois').textContent = formatMoney(interetsMois);
-            row.querySelector('.interets-duree').textContent = formatMoney(interetsDuree);
-            row.querySelector('.total-du').textContent = formatMoney(du);
-            
-            totalInteretsMois += interetsMois;
-            totalInteretsDuree += interetsDuree;
-            totalDu += du;
-            totalCapital += montant;
-        });
-        
-        document.getElementById('footInteretsMois').textContent = formatMoney(totalInteretsMois);
-        document.getElementById('footInteretsDuree').textContent = formatMoney(totalInteretsDuree);
-        document.getElementById('footTotalDu').textContent = formatMoney(totalDu);
-        
-        document.getElementById('totalInteretsDuree').textContent = formatMoney(totalInteretsDuree);
-        document.getElementById('resumeInterets').textContent = formatMoney(totalInteretsDuree);
-        document.getElementById('resumeTotal').textContent = formatMoney(totalDu);
-    }
-    
-    function formatMoney(value) {
-        return value.toLocaleString('fr-CA', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' $';
-    }
-    
-    // Initialiser les calculs au chargement
-    document.addEventListener('DOMContentLoaded', updateCalculs);
-    </script>
+    <!-- Lien pour ajouter des personnes -->
+    <div class="text-center">
+        <a href="/admin/investisseurs/liste.php" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-person-plus me-1"></i>Gérer la liste des personnes
+        </a>
+    </div>
     
     <?php elseif ($tab === 'budgets'): ?>
     <!-- Onglet Budgets - COMPACT -->
