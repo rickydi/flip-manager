@@ -51,6 +51,12 @@ $isAdmin = isAdmin();
                         </a>
                         <ul class="dropdown-menu">
                             <li>
+                                <a class="dropdown-item" href="/admin/factures/nouvelle.php">
+                                    <i class="bi bi-plus-circle"></i> Nouvelle facture
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
                                 <a class="dropdown-item" href="/admin/factures/liste.php">
                                     <i class="bi bi-list-ul"></i> Toutes les factures
                                 </a>
