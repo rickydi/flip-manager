@@ -13,6 +13,30 @@ requireAdmin();
 $pageTitle = 'Nouvelle facture';
 $errors = [];
 
+// Liste des fournisseurs suggérés
+$fournisseursSuggeres = [
+    'Réno Dépot',
+    'Rona',
+    'BMR',
+    'Patrick Morin',
+    'Home Depot',
+    'J-Jodoin',
+    'Ly Granite',
+    'COMMONWEALTH',
+    'CJP',
+    'Richelieu',
+    'Canac',
+    'IKEA',
+    'Lowes',
+    'Canadian Tire'
+];
+
+// Récupérer les fournisseurs utilisés récemment (pour auto-complétion)
+$stmt = $pdo->query("SELECT DISTINCT fournisseur FROM factures ORDER BY fournisseur ASC LIMIT 50");
+$fournisseursUtilises = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$tousLesFournisseurs = array_unique(array_merge($fournisseursSuggeres, $fournisseursUtilises));
+sort($tousLesFournisseurs);
+
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
 
@@ -149,8 +173,15 @@ include '../../includes/header.php';
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Fournisseur *</label>
-                        <input type="text" class="form-control" name="fournisseur" required 
-                               placeholder="Ex: Rona, BMR, Home Depot...">
+                        <input type="text" class="form-control" name="fournisseur" id="fournisseur" required 
+                               list="listeFournisseurs" autocomplete="off"
+                               placeholder="Tapez ou sélectionnez un fournisseur...">
+                        <datalist id="listeFournisseurs">
+                            <?php foreach ($tousLesFournisseurs as $f): ?>
+                                <option value="<?= e($f) ?>">
+                            <?php endforeach; ?>
+                        </datalist>
+                        <small class="text-muted">Tapez pour rechercher ou entrez un nouveau fournisseur</small>
                     </div>
                     
                     <div class="col-md-6 mb-3">
@@ -194,12 +225,17 @@ include '../../includes/header.php';
                 </div>
                 
                 <div class="mb-3">
-                    <div class="alert alert-info mb-0">
-                        <strong>Total : </strong><span id="totalFacture">0,00 $</span>
-                        <button type="button" class="btn btn-sm btn-outline-primary ms-3" onclick="calculerTaxesAuto()">
-                            <i class="bi bi-calculator"></i> Calculer taxes automatiquement
-                        </button>
+                    <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
+                        <div>
+                            <strong>Total : </strong><span id="totalFacture">0,00 $</span>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="sansTaxes()">
+                                <i class="bi bi-x-circle me-1"></i>Sans taxes
+                            </button>
+                        </div>
                     </div>
+                    <small class="text-muted">Les taxes sont calculées automatiquement. Utilisez "Sans taxes" pour les cas particuliers.</small>
                 </div>
                 
                 <div class="mb-3">
@@ -234,13 +270,33 @@ include '../../includes/header.php';
 </div>
 
 <script>
+let taxesActives = true;
+
 function calculerTaxesAuto() {
+    if (!taxesActives) return;
+    
     const montant = parseFloat(document.getElementById('montantAvantTaxes').value.replace(',', '.').replace(/\s/g, '')) || 0;
     const tps = (montant * 0.05).toFixed(2);
     const tvq = (montant * 0.09975).toFixed(2);
     document.getElementById('tps').value = tps;
     document.getElementById('tvq').value = tvq;
     calculerTotal();
+}
+
+function sansTaxes() {
+    taxesActives = false;
+    document.getElementById('tps').value = '0';
+    document.getElementById('tvq').value = '0';
+    document.getElementById('tps').classList.add('bg-light');
+    document.getElementById('tvq').classList.add('bg-light');
+    calculerTotal();
+}
+
+function activerTaxes() {
+    taxesActives = true;
+    document.getElementById('tps').classList.remove('bg-light');
+    document.getElementById('tvq').classList.remove('bg-light');
+    calculerTaxesAuto();
 }
 
 function calculerTotal() {
@@ -251,7 +307,25 @@ function calculerTotal() {
     document.getElementById('totalFacture').textContent = total.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
 }
 
-document.getElementById('montantAvantTaxes').addEventListener('input', calculerTotal);
+// Calcul automatique des taxes quand on modifie le montant
+document.getElementById('montantAvantTaxes').addEventListener('input', calculerTaxesAuto);
+
+// Réactiver les taxes si on modifie manuellement
+document.getElementById('tps').addEventListener('focus', function() {
+    if (!taxesActives) {
+        taxesActives = true;
+        this.classList.remove('bg-light');
+        document.getElementById('tvq').classList.remove('bg-light');
+    }
+});
+document.getElementById('tvq').addEventListener('focus', function() {
+    if (!taxesActives) {
+        taxesActives = true;
+        this.classList.remove('bg-light');
+        document.getElementById('tps').classList.remove('bg-light');
+    }
+});
+
 document.getElementById('tps').addEventListener('input', calculerTotal);
 document.getElementById('tvq').addEventListener('input', calculerTotal);
 </script>
