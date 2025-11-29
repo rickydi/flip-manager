@@ -265,7 +265,7 @@ include '../../includes/header.php';
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-pencil me-2"></i><?= e($projet['nom']) ?></h1>
+            <h1><a href="/admin/projets/detail.php?id=<?= $projetId ?>" class="text-decoration-none text-dark"><i class="bi bi-pencil me-2"></i><?= e($projet['nom']) ?></a></h1>
             <div>
                 <a href="/admin/projets/detail.php?id=<?= $projetId ?>" class="btn btn-primary me-2">
                     <i class="bi bi-eye me-1"></i>Voir détails
