@@ -804,60 +804,127 @@ include '../../includes/header.php';
     </div>
     
     <?php elseif ($tab === 'budgets'): ?>
-    <!-- Onglet Budgets - COMPACT -->
-    <style>
-        .budget-item { margin-bottom: 0.4rem; }
-        .budget-item label { font-size: 0.75rem; color: #666; margin-bottom: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .budget-item .form-control { font-size: 0.85rem; padding: 0.25rem 0.4rem; }
-        .budget-item .input-group-text { font-size: 0.75rem; padding: 0.25rem 0.4rem; }
-        .budget-card .card-header { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
-        .budget-card .card-body { padding: 0.5rem; }
-        .budget-card { margin-bottom: 0.75rem !important; }
-    </style>
-    <form method="POST" action="">
-        <?php csrfField(); ?>
-        <input type="hidden" name="action" value="budgets">
-        
-        <div class="row">
-        <?php 
-        $colIndex = 0;
-        foreach ($categoriesGroupees as $groupe => $cats): 
-        ?>
-            <div class="col-lg-4 col-md-6">
-                <div class="card budget-card">
-                    <div class="card-header"><i class="bi bi-folder me-1"></i><?= $groupeLabels[$groupe] ?? ucfirst($groupe) ?></div>
-                    <div class="card-body">
-                        <div class="row g-1">
-                            <?php foreach ($cats as $cat): ?>
-                            <div class="col-6 budget-item">
-                                <label title="<?= e($cat['nom']) ?>"><?= e($cat['nom']) ?></label>
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" 
-                                           name="budget[<?= $cat['id'] ?>]" 
-                                           value="<?= formatMoney($cat['montant_extrapole'], false) ?>">
-                                </div>
-                            </div>
-                            <?php endforeach; ?>
+    <!-- Onglet Budgets - TABLEAU UNIQUE -->
+    <?php
+    $totalBudget = 0;
+    foreach ($categories as $cat) {
+        $totalBudget += (float)$cat['montant_extrapole'];
+    }
+    $contingence = $totalBudget * ((float)$projet['taux_contingence'] / 100);
+    ?>
+    
+    <!-- TOTAL EN HAUT - STICKY -->
+    <div class="card bg-primary text-white mb-3 sticky-top" style="top: 60px; z-index: 100;">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <i class="bi bi-calculator fs-4"></i>
+                </div>
+                <div class="col">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="opacity-75">Total Budget Rénovation</small>
+                            <h4 class="mb-0" id="totalBudget"><?= formatMoney($totalBudget) ?></h4>
+                        </div>
+                        <div class="text-end">
+                            <small class="opacity-75">+ Contingence <?= $projet['taux_contingence'] ?>%</small>
+                            <h5 class="mb-0" id="totalContingence"><?= formatMoney($contingence) ?></h5>
+                        </div>
+                        <div class="text-end border-start ps-3 ms-3">
+                            <small class="opacity-75">Grand Total</small>
+                            <h4 class="mb-0" id="grandTotal"><?= formatMoney($totalBudget + $contingence) ?></h4>
                         </div>
                     </div>
                 </div>
             </div>
-        <?php 
-        $colIndex++;
-        endforeach; 
-        ?>
+        </div>
+    </div>
+    
+    <form method="POST" action="" id="formBudgets">
+        <?php csrfField(); ?>
+        <input type="hidden" name="action" value="budgets">
+        
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <?php 
+                $currentGroupe = '';
+                foreach ($categories as $cat): 
+                    if ($cat['groupe'] !== $currentGroupe):
+                        $currentGroupe = $cat['groupe'];
+                ?>
+                <thead class="table-dark">
+                    <tr>
+                        <th colspan="2" class="py-2">
+                            <i class="bi bi-folder me-1"></i><?= $groupeLabels[$currentGroupe] ?? ucfirst($currentGroupe) ?>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php endif; ?>
+                    <tr>
+                        <td class="ps-3" style="width: 70%"><?= e($cat['nom']) ?></td>
+                        <td style="width: 30%">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">$</span>
+                                <input type="text" 
+                                       class="form-control budget-input" 
+                                       name="budget[<?= $cat['id'] ?>]" 
+                                       value="<?= formatMoney($cat['montant_extrapole'], false) ?>"
+                                       data-id="<?= $cat['id'] ?>">
+                            </div>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
         </div>
         
-        <div class="d-flex justify-content-between mt-2">
-            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary btn-sm">
+        <div class="d-flex justify-content-between mt-3">
+            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Retour
             </a>
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-circle me-1"></i>Enregistrer
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="bi bi-check-circle me-1"></i>Enregistrer les budgets
             </button>
         </div>
     </form>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('.budget-input');
+        const totalEl = document.getElementById('totalBudget');
+        const contingenceEl = document.getElementById('totalContingence');
+        const grandTotalEl = document.getElementById('grandTotal');
+        const tauxContingence = <?= (float)$projet['taux_contingence'] ?>;
+        
+        function parseValue(str) {
+            return parseFloat(str.replace(/\s/g, '').replace(',', '.')) || 0;
+        }
+        
+        function formatMoney(val) {
+            return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+        }
+        
+        function updateTotal() {
+            let total = 0;
+            inputs.forEach(input => {
+                total += parseValue(input.value);
+            });
+            
+            const contingence = total * (tauxContingence / 100);
+            const grandTotal = total + contingence;
+            
+            totalEl.textContent = formatMoney(total);
+            contingenceEl.textContent = formatMoney(contingence);
+            grandTotalEl.textContent = formatMoney(grandTotal);
+        }
+        
+        inputs.forEach(input => {
+            input.addEventListener('input', updateTotal);
+            input.addEventListener('change', updateTotal);
+        });
+    });
+    </script>
     <?php endif; ?>
 </div>
 
