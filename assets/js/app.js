@@ -39,14 +39,16 @@ function initDatePickers() {
     // Configuration française
     flatpickr.localize(flatpickr.l10ns.fr);
     
-    // Initialiser tous les champs de type date
-    document.querySelectorAll('input[type="date"]').forEach(function(input) {
+    // Initialiser tous les champs avec classe date-picker ou type date
+    const dateFields = document.querySelectorAll('.date-picker, input[type="date"]');
+    dateFields.forEach(function(input) {
         flatpickr(input, {
             dateFormat: "Y-m-d",
             altInput: true,
             altFormat: "d/m/Y",
             locale: "fr",
-            allowInput: true
+            allowInput: true,
+            clickOpens: true
         });
     });
 }
