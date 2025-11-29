@@ -235,6 +235,22 @@ foreach ($categories as $cat) {
     $categoriesGroupees[$cat['groupe']][] = $cat;
 }
 
+// Calculer la durée réelle (comme dans calculs.php)
+$dureeReelle = (int)$projet['temps_assume_mois'];
+if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
+    $dateAchat = new DateTime($projet['date_acquisition']);
+    $dateVente = new DateTime($projet['date_vente']);
+    $diff = $dateAchat->diff($dateVente);
+    $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $dureeReelle = max(1, $dureeReelle);
+} elseif (!empty($projet['date_fin_prevue']) && !empty($projet['date_acquisition'])) {
+    $dateAchat = new DateTime($projet['date_acquisition']);
+    $dateFin = new DateTime($projet['date_fin_prevue']);
+    $diff = $dateAchat->diff($dateFin);
+    $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $dureeReelle = max(1, $dureeReelle);
+}
+
 $pageTitle = 'Modifier: ' . $projet['nom'];
 include '../../includes/header.php';
 ?>
@@ -598,7 +614,7 @@ include '../../includes/header.php';
                             </thead>
                             <tbody>
                             <?php foreach ($listePreteurs as $p): 
-                                $interets = $p['montant_calc'] * ($p['taux_calc'] / 100) * ($projet['temps_assume_mois'] / 12);
+                                $interets = $p['montant_calc'] * ($p['taux_calc'] / 100) * ($dureeReelle / 12);
                             ?>
                                 <tr>
                                     <td><?= e($p['investisseur_nom']) ?></td>
@@ -661,12 +677,12 @@ include '../../includes/header.php';
                         <strong><?= formatMoney($totalPrets) ?></strong>
                     </div>
                     <div class="d-flex justify-content-between text-danger">
-                        <span>Intérêts (<?= $projet['temps_assume_mois'] ?> mois) :</span>
+                        <span>Intérêts (<?= $dureeReelle ?> mois) :</span>
                         <strong>
                             <?php 
                             $totalInterets = 0;
                             foreach ($listePreteurs as $p) {
-                                $totalInterets += $p['montant_calc'] * ($p['taux_calc'] / 100) * ($projet['temps_assume_mois'] / 12);
+                                $totalInterets += $p['montant_calc'] * ($p['taux_calc'] / 100) * ($dureeReelle / 12);
                             }
                             echo formatMoney($totalInterets);
                             ?>
