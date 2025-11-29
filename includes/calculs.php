@@ -268,28 +268,25 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
     $miseTotaleInvestisseurs = 0;
     
     try {
+        // Requête simplifiée - utilise seulement les colonnes qui existent
         $stmt = $pdo->prepare("
-            SELECT pi.*, 
-                   COALESCE(pi.montant, pi.mise_de_fonds, 0) as montant_value,
-                   COALESCE(pi.taux_interet, pi.pourcentage_profit, 0) as taux_value,
-                   i.nom, i.email, i.telephone, 
-                   COALESCE(i.type, 'investisseur') as type_investisseur
+            SELECT pi.id, pi.projet_id, pi.investisseur_id,
+                   pi.montant, pi.taux_interet,
+                   i.nom, i.email, i.telephone
             FROM projet_investisseurs pi
             JOIN investisseurs i ON pi.investisseur_id = i.id
             WHERE pi.projet_id = ?
-            ORDER BY i.type, i.nom
+            ORDER BY i.nom
         ");
         $stmt->execute([$projetId]);
         $all = $stmt->fetchAll();
         
         foreach ($all as $row) {
-            $montant = (float) $row['montant_value'];
-            $taux = (float) $row['taux_value'];
-            $type = $row['type_investisseur'] ?? 'investisseur';
+            $montant = (float) ($row['montant'] ?? 0);
+            $taux = (float) ($row['taux_interet'] ?? 0);
             
             // Si taux > 0, c'est un prêteur (paie des intérêts)
-            // Peu importe le "type" défini
-            if ($taux > 0 && $montant > 0) {
+            if ($taux > 0) {
                 // Prêteur : calcul des intérêts
                 $interetsMois = $montant * ($taux / 100) / 12;
                 $interetsTotal = $interetsMois * $mois;
