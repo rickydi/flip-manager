@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $dateAcquisition = $_POST['date_acquisition'] ?: null;
         $dateDebutTravaux = $_POST['date_debut_travaux'] ?: null;
         $dateFinPrevue = $_POST['date_fin_prevue'] ?: null;
+        $dateVente = $_POST['date_vente'] ?: null;
         
         $statut = $_POST['statut'] ?? 'acquisition';
         
@@ -61,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("
                 INSERT INTO projets (
                     nom, adresse, ville, code_postal,
-                    date_acquisition, date_debut_travaux, date_fin_prevue,
+                    date_acquisition, date_debut_travaux, date_fin_prevue, date_vente,
                     statut, prix_achat, notaire, taxe_mutation, arpenteurs, assurance_titre,
                     taxes_municipales_annuel, taxes_scolaires_annuel, electricite_annuel,
                     assurances_annuel, deneigement_annuel, frais_condo_annuel,
@@ -69,12 +70,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     temps_assume_mois, valeur_potentielle,
                     taux_commission, taux_contingence, taux_interet, montant_pret,
                     notes
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
             
             $result = $stmt->execute([
                 $nom, $adresse, $ville, $codePostal,
-                $dateAcquisition, $dateDebutTravaux, $dateFinPrevue,
+                $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
                 $statut, $prixAchat, $notaire, $taxeMutation, $arpenteurs, $assuranceTitre,
                 $taxesMunicipalesAnnuel, $taxesScolairesAnnuel, $electriciteAnnuel,
                 $assurancesAnnuel, $deneigementAnnuel, $fraisCondoAnnuel,
@@ -170,25 +171,28 @@ include '../../includes/header.php';
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="mb-3">
-                            <label for="date_acquisition" class="form-label">Date d'acquisition</label>
-                            <input type="text" class="form-control date-picker" id="date_acquisition" name="date_acquisition" 
-                                   placeholder="Cliquez pour choisir">
+                            <label for="date_acquisition" class="form-label">Date d'achat</label>
+                            <input type="date" class="form-control" id="date_acquisition" name="date_acquisition">
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="mb-3">
-                            <label for="date_debut_travaux" class="form-label">Début des travaux</label>
-                            <input type="text" class="form-control date-picker" id="date_debut_travaux" name="date_debut_travaux" 
-                                   placeholder="Cliquez pour choisir">
+                            <label for="date_debut_travaux" class="form-label">Début travaux</label>
+                            <input type="date" class="form-control" id="date_debut_travaux" name="date_debut_travaux">
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="mb-3">
-                            <label for="date_fin_prevue" class="form-label">Fin prévue</label>
-                            <input type="text" class="form-control date-picker" id="date_fin_prevue" name="date_fin_prevue" 
-                                   placeholder="Cliquez pour choisir">
+                            <label for="date_fin_prevue" class="form-label">Fin travaux</label>
+                            <input type="date" class="form-control" id="date_fin_prevue" name="date_fin_prevue">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="date_vente" class="form-label">Vendu</label>
+                            <input type="date" class="form-control" id="date_vente" name="date_vente">
                         </div>
                     </div>
                 </div>
