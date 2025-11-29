@@ -131,7 +131,7 @@ $isAdmin = isAdmin();
                 <?php endif; ?>
             </ul>
             
-            <!-- Boutons de zoom texte -->
+            <!-- Boutons de zoom texte + Dark mode -->
             <ul class="navbar-nav me-3">
                 <li class="nav-item d-flex align-items-center">
                     <button type="button" class="btn btn-outline-light btn-sm me-1" onclick="changeTextSize(-1)" title="Réduire le texte">
@@ -140,6 +140,10 @@ $isAdmin = isAdmin();
                     <span class="text-light small mx-1" id="textSizeIndicator">100%</span>
                     <button type="button" class="btn btn-outline-light btn-sm ms-1" onclick="changeTextSize(1)" title="Agrandir le texte">
                         <i class="bi bi-plus-lg"></i>
+                    </button>
+                    <span class="text-secondary mx-2">|</span>
+                    <button type="button" class="dark-mode-toggle" onclick="toggleDarkMode()" title="Mode sombre/clair" id="darkModeBtn">
+                        <i class="bi bi-moon-fill" id="darkModeIcon"></i>
                     </button>
                 </li>
             </ul>
