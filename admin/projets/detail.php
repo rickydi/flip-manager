@@ -562,10 +562,10 @@ include '../../includes/header.php';
                         <td class="text-center">-</td>
                         <td class="text-end">-</td>
                     </tr>
-                    <tr class="table-secondary">
+                    <tr style="background-color:#1e3a5f;color:#fff">
                         <td><strong>COÛT TOTAL</strong></td>
                         <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_projet']) ?></strong></td>
-                        <td class="text-center <?= $diffTotal >= 0 ? 'text-success' : 'text-danger' ?>">
+                        <td class="text-center" style="color:<?= $diffTotal >= 0 ? '#1cc88a' : '#e74a3b' ?>">
                             <strong><?= $diffTotal >= 0 ? '+' : '' ?><?= formatMoney($diffTotal) ?></strong>
                         </td>
                         <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_reel']) ?></strong></td>
@@ -579,15 +579,15 @@ include '../../includes/header.php';
                         <td class="text-center">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
                     </tr>
-                    <tr class="table-primary">
+                    <tr style="background-color:#198754;color:#fff">
                         <td><strong>ÉQUITÉ</strong></td>
-                        <td class="text-end <?= $indicateurs['equite_potentielle'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                        <td class="text-end">
                             <strong><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
                         </td>
-                        <td class="text-center <?= $diffEquite >= 0 ? 'text-success' : 'text-danger' ?>">
+                        <td class="text-center" style="color:<?= $diffEquite >= 0 ? '#90EE90' : '#ffcccc' ?>">
                             <strong><?= $diffEquite >= 0 ? '+' : '' ?><?= formatMoney($diffEquite) ?></strong>
                         </td>
-                        <td class="text-end <?= $indicateurs['equite_reelle'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                        <td class="text-end">
                             <strong><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
                         </td>
                     </tr>
