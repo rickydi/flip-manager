@@ -52,12 +52,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $email = $username . '@local.flip';
             }
             
+            $estContremaitre = isset($_POST['est_contremaitre']) ? 1 : 0;
+            
             if (empty($errors)) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (username, nom, prenom, email, password, role, taux_horaire)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (username, nom, prenom, email, password, role, taux_horaire, est_contremaitre)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire]);
+                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire, $estContremaitre]);
                 setFlashMessage('success', 'Utilisateur créé avec succès. Identifiant: ' . $username);
                 redirect('/admin/utilisateurs/liste.php');
             }
@@ -71,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $role = $_POST['role'] ?? 'employe';
             $actif = isset($_POST['actif']) ? 1 : 0;
             $tauxHoraire = parseNumber($_POST['taux_horaire'] ?? 0);
+            $estContremaitre = isset($_POST['est_contremaitre']) ? 1 : 0;
             
             if (empty($nom)) $errors[] = 'Le nom est requis.';
             if (empty($prenom)) $errors[] = 'Le prénom est requis.';
@@ -94,16 +97,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 if (!empty($password)) {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?
+                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $userId]);
+                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $estContremaitre, $userId]);
                 } else {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?
+                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$username, $nom, $prenom, $email, $role, $actif, $tauxHoraire, $userId]);
+                    $stmt->execute([$username, $nom, $prenom, $email, $role, $actif, $tauxHoraire, $estContremaitre, $userId]);
                 }
                 setFlashMessage('success', 'Utilisateur modifié avec succès.');
                 redirect('/admin/utilisateurs/liste.php');
@@ -197,6 +200,9 @@ include '../../includes/header.php';
                                     <span class="badge <?= $user['role'] === 'admin' ? 'bg-primary' : 'bg-secondary' ?>">
                                         <?= $user['role'] === 'admin' ? 'Administrateur' : 'Employé' ?>
                                     </span>
+                                    <?php if (!empty($user['est_contremaitre'])): ?>
+                                        <span class="badge bg-info">Contremaître</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if (($user['taux_horaire'] ?? 0) > 0): ?>
@@ -294,11 +300,18 @@ include '../../includes/header.php';
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div class="form-check">
+                                                <div class="form-check mb-2">
                                                     <input class="form-check-input" type="checkbox" name="actif" 
                                                            id="actif<?= $user['id'] ?>" <?= $user['actif'] ? 'checked' : '' ?>>
                                                     <label class="form-check-label" for="actif<?= $user['id'] ?>">
                                                         Compte actif
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="est_contremaitre" 
+                                                           id="contremaitre<?= $user['id'] ?>" <?= !empty($user['est_contremaitre']) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="contremaitre<?= $user['id'] ?>">
+                                                        <i class="bi bi-person-badge me-1"></i>Contremaître (peut saisir les heures des autres)
                                                     </label>
                                                 </div>
                                             </div>
@@ -371,6 +384,12 @@ include '../../includes/header.php';
                                 <span class="input-group-text">$/h</span>
                             </div>
                         </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="est_contremaitre" id="contremaitreNouveau">
+                        <label class="form-check-label" for="contremaitreNouveau">
+                            <i class="bi bi-person-badge me-1"></i>Contremaître (peut saisir les heures des autres)
+                        </label>
                     </div>
                 </div>
                 <div class="modal-footer">

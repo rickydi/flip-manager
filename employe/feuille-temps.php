@@ -1,6 +1,6 @@
 <?php
 /**
- * Feuille de temps - Employé
+ * Feuille de temps - Employé / Contremaître
  * Flip Manager
  */
 
@@ -13,10 +13,19 @@ requireLogin();
 $pageTitle = 'Feuille de temps';
 $userId = getCurrentUserId();
 
-// Récupérer le taux horaire de l'utilisateur
-$stmt = $pdo->prepare("SELECT taux_horaire FROM users WHERE id = ?");
+// Récupérer les infos de l'utilisateur connecté
+$stmt = $pdo->prepare("SELECT taux_horaire, est_contremaitre FROM users WHERE id = ?");
 $stmt->execute([$userId]);
-$tauxHoraire = (float)$stmt->fetchColumn();
+$currentUser = $stmt->fetch();
+$tauxHoraire = (float)$currentUser['taux_horaire'];
+$estContremaitre = !empty($currentUser['est_contremaitre']);
+
+// Si contremaître, récupérer la liste des employés
+$employes = [];
+if ($estContremaitre) {
+    $stmt = $pdo->query("SELECT id, CONCAT(prenom, ' ', nom) as nom_complet, taux_horaire FROM users WHERE actif = 1 ORDER BY prenom, nom");
+    $employes = $stmt->fetchAll();
+}
 
 $errors = [];
 
@@ -32,6 +41,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dateTravail = $_POST['date_travail'] ?? '';
             $heures = parseNumber($_POST['heures'] ?? 0);
             $description = trim($_POST['description'] ?? '');
+            
+            // Déterminer pour quel employé on saisit
+            $targetUserId = $userId;
+            $targetTauxHoraire = $tauxHoraire;
+            
+            if ($estContremaitre && !empty($_POST['employe_id'])) {
+                $targetUserId = (int)$_POST['employe_id'];
+                // Récupérer le taux horaire de l'employé cible
+                $stmt = $pdo->prepare("SELECT taux_horaire FROM users WHERE id = ? AND actif = 1");
+                $stmt->execute([$targetUserId]);
+                $targetTauxHoraire = (float)$stmt->fetchColumn();
+            }
             
             // Validations
             if ($projetId <= 0) $errors[] = 'Veuillez sélectionner un projet.';
@@ -53,17 +74,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     INSERT INTO heures_travaillees (projet_id, user_id, date_travail, heures, taux_horaire, description)
                     VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$projetId, $userId, $dateTravail, $heures, $tauxHoraire, $description]);
+                $stmt->execute([$projetId, $targetUserId, $dateTravail, $heures, $targetTauxHoraire, $description]);
                 
-                setFlashMessage('success', 'Heures enregistrées avec succès (' . $heures . 'h à ' . formatMoney($tauxHoraire) . '/h = ' . formatMoney($heures * $tauxHoraire) . ')');
+                if ($targetUserId === $userId) {
+                    setFlashMessage('success', 'Heures enregistrées avec succès (' . $heures . 'h)');
+                } else {
+                    // Récupérer le nom de l'employé pour le message
+                    $stmt = $pdo->prepare("SELECT CONCAT(prenom, ' ', nom) FROM users WHERE id = ?");
+                    $stmt->execute([$targetUserId]);
+                    $nomEmploye = $stmt->fetchColumn();
+                    setFlashMessage('success', 'Heures enregistrées pour ' . $nomEmploye . ' (' . $heures . 'h)');
+                }
                 redirect('/employe/feuille-temps.php');
             }
         } elseif ($action === 'supprimer') {
             $id = (int)($_POST['temps_id'] ?? 0);
             
-            // Vérifier que l'entrée appartient à l'utilisateur et est en attente
-            $stmt = $pdo->prepare("SELECT id FROM heures_travaillees WHERE id = ? AND user_id = ? AND statut = 'en_attente'");
-            $stmt->execute([$id, $userId]);
+            // Le contremaître peut supprimer les entrées des autres aussi
+            if ($estContremaitre) {
+                $stmt = $pdo->prepare("SELECT id FROM heures_travaillees WHERE id = ? AND statut = 'en_attente'");
+                $stmt->execute([$id]);
+            } else {
+                $stmt = $pdo->prepare("SELECT id FROM heures_travaillees WHERE id = ? AND user_id = ? AND statut = 'en_attente'");
+                $stmt->execute([$id, $userId]);
+            }
             
             if ($stmt->fetch()) {
                 $stmt = $pdo->prepare("DELETE FROM heures_travaillees WHERE id = ?");
@@ -80,19 +114,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Récupérer les projets actifs
 $projets = getProjets($pdo, true);
 
-// Récupérer les entrées de temps de l'utilisateur (30 derniers jours)
-$stmt = $pdo->prepare("
-    SELECT h.*, p.nom as projet_nom
-    FROM heures_travaillees h
-    JOIN projets p ON h.projet_id = p.id
-    WHERE h.user_id = ?
-    ORDER BY h.date_travail DESC, h.date_creation DESC
-    LIMIT 50
-");
-$stmt->execute([$userId]);
+// Récupérer les entrées de temps
+if ($estContremaitre) {
+    // Le contremaître voit toutes les entrées récentes
+    $stmt = $pdo->prepare("
+        SELECT h.*, p.nom as projet_nom, CONCAT(u.prenom, ' ', u.nom) as employe_nom, u.id as employe_id
+        FROM heures_travaillees h
+        JOIN projets p ON h.projet_id = p.id
+        JOIN users u ON h.user_id = u.id
+        ORDER BY h.date_travail DESC, h.date_creation DESC
+        LIMIT 100
+    ");
+    $stmt->execute();
+} else {
+    // L'employé normal voit seulement ses entrées
+    $stmt = $pdo->prepare("
+        SELECT h.*, p.nom as projet_nom
+        FROM heures_travaillees h
+        JOIN projets p ON h.projet_id = p.id
+        WHERE h.user_id = ?
+        ORDER BY h.date_travail DESC, h.date_creation DESC
+        LIMIT 50
+    ");
+    $stmt->execute([$userId]);
+}
 $mesHeures = $stmt->fetchAll();
 
-// Calculer les totaux
+// Calculer les totaux (seulement pour ses propres heures, pas les autres)
 $stmt = $pdo->prepare("
     SELECT 
         SUM(heures) as total_heures,
@@ -113,15 +161,22 @@ include '../includes/header.php';
     <div class="page-header">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <h1><i class="bi bi-clock-history me-2"></i>Feuille de temps</h1>
-                <p class="text-muted mb-0">
-                    Votre taux horaire : 
-                    <?php if ($tauxHoraire > 0): ?>
-                        <strong><?= formatMoney($tauxHoraire) ?>/h</strong>
-                    <?php else: ?>
-                        <span class="text-danger">Non défini - Contactez l'admin</span>
+                <h1>
+                    <i class="bi bi-clock-history me-2"></i>Feuille de temps
+                    <?php if ($estContremaitre): ?>
+                        <span class="badge bg-info">Contremaître</span>
                     <?php endif; ?>
-                </p>
+                </h1>
+                <?php if (!$estContremaitre): ?>
+                    <p class="text-muted mb-0">
+                        Votre taux horaire : 
+                        <?php if ($tauxHoraire > 0): ?>
+                            <strong><?= formatMoney($tauxHoraire) ?>/h</strong>
+                        <?php else: ?>
+                            <span class="text-danger">Non défini - Contactez l'admin</span>
+                        <?php endif; ?>
+                    </p>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -138,25 +193,32 @@ include '../includes/header.php';
         </div>
     <?php endif; ?>
     
-    <!-- Stats -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">Total heures</div>
-            <div class="stat-value"><?= number_format($totaux['total_heures'] ?? 0, 1) ?>h</div>
+    <!-- Stats (seulement pour ses propres heures, sans $$ si contremaître pour éviter confusion) -->
+    <?php if (!$estContremaitre): ?>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total heures</div>
+                <div class="stat-value"><?= number_format($totaux['total_heures'] ?? 0, 1) ?>h</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="stat-label">En attente</div>
+                <div class="stat-value"><?= number_format($totaux['heures_attente'] ?? 0, 1) ?>h</div>
+            </div>
+            <div class="stat-card success">
+                <div class="stat-label">Approuvées</div>
+                <div class="stat-value"><?= number_format($totaux['heures_approuvees'] ?? 0, 1) ?>h</div>
+            </div>
+            <div class="stat-card primary">
+                <div class="stat-label">Valeur totale</div>
+                <div class="stat-value"><?= formatMoney($totaux['total_montant'] ?? 0) ?></div>
+            </div>
         </div>
-        <div class="stat-card warning">
-            <div class="stat-label">En attente</div>
-            <div class="stat-value"><?= number_format($totaux['heures_attente'] ?? 0, 1) ?>h</div>
+    <?php else: ?>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            En tant que contremaître, vous pouvez saisir les heures pour tous les employés.
         </div>
-        <div class="stat-card success">
-            <div class="stat-label">Approuvées</div>
-            <div class="stat-value"><?= number_format($totaux['heures_approuvees'] ?? 0, 1) ?>h</div>
-        </div>
-        <div class="stat-card primary">
-            <div class="stat-label">Valeur totale</div>
-            <div class="stat-value"><?= formatMoney($totaux['total_montant'] ?? 0) ?></div>
-        </div>
-    </div>
+    <?php endif; ?>
     
     <div class="row">
         <!-- Formulaire de saisie -->
@@ -169,6 +231,19 @@ include '../includes/header.php';
                     <form method="POST" action="">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="ajouter">
+                        
+                        <?php if ($estContremaitre): ?>
+                            <div class="mb-3">
+                                <label class="form-label">Employé *</label>
+                                <select class="form-select" name="employe_id" required>
+                                    <?php foreach ($employes as $emp): ?>
+                                        <option value="<?= $emp['id'] ?>" <?= $emp['id'] == $userId ? 'selected' : '' ?>>
+                                            <?= e($emp['nom_complet']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        <?php endif; ?>
                         
                         <div class="mb-3">
                             <label class="form-label">Projet *</label>
@@ -201,14 +276,14 @@ include '../includes/header.php';
                                       placeholder="Travaux effectués..."></textarea>
                         </div>
                         
-                        <?php if ($tauxHoraire > 0): ?>
+                        <?php if (!$estContremaitre && $tauxHoraire > 0): ?>
                             <div class="alert alert-info small mb-3">
                                 <i class="bi bi-info-circle me-1"></i>
                                 8h = <?= formatMoney(8 * $tauxHoraire) ?>
                             </div>
                         <?php endif; ?>
                         
-                        <button type="submit" class="btn btn-primary w-100" <?= $tauxHoraire <= 0 ? 'disabled' : '' ?>>
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="bi bi-check-lg me-1"></i>Enregistrer
                         </button>
                     </form>
@@ -220,14 +295,17 @@ include '../includes/header.php';
         <div class="col-lg-8">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-list-ul me-2"></i>Mes dernières entrées</span>
+                    <span>
+                        <i class="bi bi-list-ul me-2"></i>
+                        <?= $estContremaitre ? 'Dernières entrées (tous employés)' : 'Mes dernières entrées' ?>
+                    </span>
                 </div>
                 <div class="card-body p-0">
                     <?php if (empty($mesHeures)): ?>
                         <div class="empty-state py-5">
                             <i class="bi bi-clock"></i>
                             <h4>Aucune entrée de temps</h4>
-                            <p>Commencez par ajouter vos heures de travail.</p>
+                            <p>Commencez par ajouter des heures de travail.</p>
                         </div>
                     <?php else: ?>
                         <div class="table-responsive">
@@ -235,9 +313,14 @@ include '../includes/header.php';
                                 <thead>
                                     <tr>
                                         <th>Date</th>
+                                        <?php if ($estContremaitre): ?>
+                                            <th>Employé</th>
+                                        <?php endif; ?>
                                         <th>Projet</th>
                                         <th>Heures</th>
-                                        <th>Montant</th>
+                                        <?php if (!$estContremaitre): ?>
+                                            <th>Montant</th>
+                                        <?php endif; ?>
                                         <th>Statut</th>
                                         <th></th>
                                     </tr>
@@ -246,6 +329,9 @@ include '../includes/header.php';
                                     <?php foreach ($mesHeures as $h): ?>
                                         <tr>
                                             <td><?= formatDate($h['date_travail']) ?></td>
+                                            <?php if ($estContremaitre): ?>
+                                                <td><strong><?= e($h['employe_nom']) ?></strong></td>
+                                            <?php endif; ?>
                                             <td>
                                                 <strong><?= e($h['projet_nom']) ?></strong>
                                                 <?php if (!empty($h['description'])): ?>
@@ -253,7 +339,9 @@ include '../includes/header.php';
                                                 <?php endif; ?>
                                             </td>
                                             <td><strong><?= number_format($h['heures'], 1) ?>h</strong></td>
-                                            <td><?= formatMoney($h['heures'] * $h['taux_horaire']) ?></td>
+                                            <?php if (!$estContremaitre): ?>
+                                                <td><?= formatMoney($h['heures'] * $h['taux_horaire']) ?></td>
+                                            <?php endif; ?>
                                             <td>
                                                 <span class="badge <?= getStatutFactureClass($h['statut']) ?>">
                                                     <?= getStatutFactureLabel($h['statut']) ?>
@@ -261,15 +349,17 @@ include '../includes/header.php';
                                             </td>
                                             <td>
                                                 <?php if ($h['statut'] === 'en_attente'): ?>
-                                                    <form method="POST" action="" class="d-inline" 
-                                                          onsubmit="return confirm('Supprimer cette entrée ?');">
-                                                        <?php csrfField(); ?>
-                                                        <input type="hidden" name="action" value="supprimer">
-                                                        <input type="hidden" name="temps_id" value="<?= $h['id'] ?>">
-                                                        <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                            <i class="bi bi-trash"></i>
-                                                        </button>
-                                                    </form>
+                                                    <?php if (!$estContremaitre || $h['user_id'] == $userId || $estContremaitre): ?>
+                                                        <form method="POST" action="" class="d-inline" 
+                                                              onsubmit="return confirm('Supprimer cette entrée ?');">
+                                                            <?php csrfField(); ?>
+                                                            <input type="hidden" name="action" value="supprimer">
+                                                            <input type="hidden" name="temps_id" value="<?= $h['id'] ?>">
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    <?php endif; ?>
                                                 <?php endif; ?>
                                             </td>
                                         </tr>
