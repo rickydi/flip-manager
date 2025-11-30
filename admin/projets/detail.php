@@ -785,33 +785,85 @@ const dataDepenses = {
 };
 <?php endif; ?>
 
-// Graphique 3: Budget vs Dépensé avec dates réelles
+// Graphique 3: Budget vs Dépensé avec suivi journalier
 <?php
 $dateDebut = !empty($projet['date_acquisition']) ? $projet['date_acquisition'] : date('Y-m-d');
 $dateFin = !empty($projet['date_vente']) ? $projet['date_vente'] : date('Y-m-d', strtotime('+' . $moisProjet . ' months', strtotime($dateDebut)));
-$dateMilieu = date('Y-m-d', strtotime($dateDebut) + (strtotime($dateFin) - strtotime($dateDebut)) / 2);
+$budgetTotal = $indicateurs['renovation']['budget'] ?: 1;
+
+// Récupérer les dépenses cumulées par jour
+$depensesCumulees = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT date_facture as jour, SUM(montant_total) as total
+        FROM factures 
+        WHERE projet_id = ? AND statut = 'approuvee'
+        GROUP BY date_facture
+        ORDER BY date_facture
+    ");
+    $stmt->execute([$projetId]);
+    $cumul = 0;
+    foreach ($stmt->fetchAll() as $row) {
+        $cumul += (float)$row['total'];
+        $depensesCumulees[$row['jour']] = $cumul;
+    }
+} catch (Exception $e) {}
+
+// Générer les points pour le graphique
+$jourLabels = [];
+$dataExtrapole = [];
+$dataReel = [];
+$dateStart = new DateTime($dateDebut);
+$dateEnd = new DateTime($dateFin);
+$joursTotal = max(1, $dateStart->diff($dateEnd)->days);
+$dernierCumul = 0;
+
+$interval = new DateInterval('P7D'); // Interval de 7 jours pour lisibilité
+$period = new DatePeriod($dateStart, $interval, $dateEnd);
+$points = iterator_to_array($period);
+$points[] = $dateEnd; // Ajouter la date de fin
+
+foreach ($points as $date) {
+    $dateStr = $date->format('Y-m-d');
+    $joursEcoules = $dateStart->diff($date)->days;
+    $pctProgression = $joursEcoules / $joursTotal;
+    
+    $jourLabels[] = $date->format('d M');
+    $dataExtrapole[] = round($budgetTotal * $pctProgression, 2);
+    
+    // Trouver le cumul réel le plus proche
+    foreach ($depensesCumulees as $jour => $cumul) {
+        if ($jour <= $dateStr) {
+            $dernierCumul = $cumul;
+        }
+    }
+    $dataReel[] = $dernierCumul;
+}
+
+// Ajouter les heures travaillées au dernier point
+$dataReel[count($dataReel) - 1] += $indicateurs['main_doeuvre']['cout'];
 ?>
-const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
-const depenseReelle = <?= $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'] ?>;
 const dataComparaison = {
-    labels: ['<?= date('M Y', strtotime($dateDebut)) ?>', '<?= date('M Y', strtotime($dateMilieu)) ?>', '<?= date('M Y', strtotime($dateFin)) ?>'],
+    labels: <?= json_encode($jourLabels) ?>,
     datasets: [{
-        label: 'Budget prévu',
-        data: [0, budgetTotal * 0.5, budgetTotal],
+        label: 'Extrapolation',
+        data: <?= json_encode($dataExtrapole) ?>,
         borderColor: '#36b9cc',
         backgroundColor: 'rgba(54, 185, 204, 0.1)',
         fill: true,
         tension: 0.3,
-        borderWidth: 2
+        borderWidth: 2,
+        pointRadius: 2
     }, {
-        label: 'Dépensé réel',
-        data: [0, depenseReelle * 0.5, depenseReelle],
+        label: 'Réel cumulé',
+        data: <?= json_encode($dataReel) ?>,
         borderColor: '#e74a3b',
         backgroundColor: 'rgba(231, 74, 59, 0.2)',
         fill: true,
-        tension: 0.3,
+        tension: 0,
         borderWidth: 2,
-        pointRadius: 5,
+        stepped: true,
+        pointRadius: 3,
         pointBackgroundColor: '#e74a3b'
     }]
 };
