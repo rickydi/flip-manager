@@ -11,8 +11,11 @@ require_once '../../includes/functions.php';
 // Vérifier que l'utilisateur est admin
 requireAdmin();
 
-// Répondre aux requêtes AJAX pour le comptage
-if (isset($_GET['check_count']) && !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+// Répondre aux requêtes AJAX pour le comptage (sans vérification header)
+if (isset($_GET['check_count'])) {
+    header('Content-Type: text/plain');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    
     $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
     $filtreStatut = isset($_GET['statut']) ? $_GET['statut'] : '';
     $filtreCategorie = isset($_GET['categorie']) ? (int)$_GET['categorie'] : 0;
@@ -258,32 +261,37 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<!-- Auto-refresh toutes les 10 secondes (vérification simple) -->
+<!-- Auto-refresh toutes les 10 secondes -->
 <script>
 (function() {
-    const REFRESH_INTERVAL = 10000; // 10 secondes
-    let lastCount = <?= $totalFactures ?>;
-    let checkUrl = window.location.origin + '/admin/factures/liste.php?check_count=1&projet=<?= $filtreProjet ?>&statut=<?= rawurlencode($filtreStatut) ?>&categorie=<?= $filtreCategorie ?>&_=' + Date.now();
+    var lastCount = <?= (int)$totalFactures ?>;
+    var baseUrl = '/admin/factures/liste.php?check_count=1';
     
-    console.log('Auto-refresh activé: vérification toutes les 10 sec');
+    console.log('[Auto-refresh] Démarré - count initial: ' + lastCount);
     
-    setInterval(function() {
-        // Utiliser XMLHttpRequest pour meilleure compatibilité
-        let xhr = new XMLHttpRequest();
-        xhr.open('GET', checkUrl + '&t=' + Date.now(), true);
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        xhr.onreadystatechange = function() {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                let newCount = parseInt(xhr.responseText.trim());
-                console.log('Vérification: actuel=' + lastCount + ', serveur=' + newCount);
+    function checkForUpdates() {
+        var url = baseUrl + '&t=' + new Date().getTime();
+        
+        fetch(url)
+            .then(function(response) { 
+                return response.text(); 
+            })
+            .then(function(text) {
+                var newCount = parseInt(text.trim(), 10);
+                console.log('[Auto-refresh] Serveur: ' + newCount + ' | Local: ' + lastCount);
+                
                 if (!isNaN(newCount) && newCount !== lastCount) {
-                    console.log('Changement détecté! Rechargement...');
-                    location.reload();
+                    console.log('[Auto-refresh] CHANGEMENT! Rechargement...');
+                    window.location.reload();
                 }
-            }
-        };
-        xhr.send();
-    }, REFRESH_INTERVAL);
+            })
+            .catch(function(err) {
+                console.log('[Auto-refresh] Erreur:', err);
+            });
+    }
+    
+    // Vérifier toutes les 10 secondes
+    setInterval(checkForUpdates, 10000);
 })();
 </script>
 
