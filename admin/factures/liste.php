@@ -90,8 +90,14 @@ $factures = $stmt->fetchAll();
 $projets = getProjets($pdo, false);
 $categories = getCategories($pdo);
 
+// Meta refresh pour auto-reload
+$refreshInterval = 15; // secondes
+
 include '../../includes/header.php';
 ?>
+
+<!-- Auto-refresh simple via meta tag -->
+<meta http-equiv="refresh" content="<?= $refreshInterval ?>">
 
 <div class="container-fluid">
     <!-- En-tête -->
@@ -261,38 +267,6 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<!-- Auto-refresh toutes les 10 secondes -->
-<script>
-(function() {
-    var lastCount = <?= (int)$totalFactures ?>;
-    var baseUrl = '/admin/factures/liste.php?check_count=1';
-    
-    console.log('[Auto-refresh] Démarré - count initial: ' + lastCount);
-    
-    function checkForUpdates() {
-        var url = baseUrl + '&t=' + new Date().getTime();
-        
-        fetch(url)
-            .then(function(response) { 
-                return response.text(); 
-            })
-            .then(function(text) {
-                var newCount = parseInt(text.trim(), 10);
-                console.log('[Auto-refresh] Serveur: ' + newCount + ' | Local: ' + lastCount);
-                
-                if (!isNaN(newCount) && newCount !== lastCount) {
-                    console.log('[Auto-refresh] CHANGEMENT! Rechargement...');
-                    window.location.reload();
-                }
-            })
-            .catch(function(err) {
-                console.log('[Auto-refresh] Erreur:', err);
-            });
-    }
-    
-    // Vérifier toutes les 10 secondes
-    setInterval(checkForUpdates, 10000);
-})();
-</script>
+<!-- Info: Page auto-refresh toutes les 15 secondes -->
 
 <?php include '../../includes/footer.php'; ?>
