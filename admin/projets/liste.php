@@ -148,9 +148,12 @@ include '../../includes/header.php';
                                     <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
                                     <td class="text-end"><?= formatMoney($projet['valeur_potentielle']) ?></td>
                                     <td class="text-end">
-                                        <?= formatMoney($indicateurs['renovation']['reel']) ?>
+                                        <?= formatMoney($indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout']) ?>
                                         <br>
                                         <small class="text-muted">/ <?= formatMoney($indicateurs['renovation']['budget']) ?></small>
+                                        <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
+                                            <br><small class="text-info"><i class="bi bi-person-fill"></i> <?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></small>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-end">
                                         <strong class="<?= $indicateurs['equite_potentielle'] >= 0 ? 'text-success' : 'text-danger' ?>">
