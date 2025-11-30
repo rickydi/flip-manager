@@ -715,11 +715,11 @@ $valeurPotentielle = $indicateurs['valeur_potentielle'];
 // Récupérer les dépenses par mois (factures + main d'œuvre)
 $depensesParMois = [];
 try {
-    // Factures par mois
+    // Factures par mois (inclut en_attente et approuvées)
     $stmt = $pdo->prepare("
         SELECT DATE_FORMAT(date_facture, '%Y-%m') as mois, SUM(montant_total) as total
         FROM factures 
-        WHERE projet_id = ? AND statut = 'approuvee'
+        WHERE projet_id = ? AND statut != 'rejetee'
         GROUP BY DATE_FORMAT(date_facture, '%Y-%m')
     ");
     $stmt->execute([$projetId]);
@@ -825,7 +825,7 @@ try {
     $stmt = $pdo->prepare("
         SELECT date_facture as jour, SUM(montant_total) as total
         FROM factures 
-        WHERE projet_id = ? AND statut = 'approuvee'
+        WHERE projet_id = ? AND statut != 'rejetee'
         GROUP BY date_facture
         ORDER BY date_facture
     ");
