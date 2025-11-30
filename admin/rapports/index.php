@@ -297,6 +297,60 @@ include '../../includes/header.php';
                     </a>
                 </div>
             </form>
+            
+            <!-- Sections à afficher -->
+            <hr class="my-3">
+            <div class="row">
+                <div class="col-12">
+                    <label class="form-label fw-bold"><i class="bi bi-eye me-1"></i>Sections à afficher :</label>
+                </div>
+                <div class="col-md-12">
+                    <div class="d-flex flex-wrap gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showResume" checked data-section="section-resume">
+                            <label class="form-check-label" for="showResume">Résumé global</label>
+                        </div>
+                        <?php if ($filtreProjet > 0): ?>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showFinancier" checked data-section="section-financier">
+                            <label class="form-check-label" for="showFinancier">Résumé financier</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showAcquisition" checked data-section="section-acquisition">
+                            <label class="form-check-label" for="showAcquisition">Coûts acquisition</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showRecurrents" checked data-section="section-recurrents">
+                            <label class="form-check-label" for="showRecurrents">Coûts récurrents</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showVente" checked data-section="section-vente">
+                            <label class="form-check-label" for="showVente">Coûts de vente / Intérêts</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showPreteurs" checked data-section="section-preteurs">
+                            <label class="form-check-label" for="showPreteurs">Prêteurs</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showInvestisseurs" checked data-section="section-investisseurs">
+                            <label class="form-check-label" for="showInvestisseurs">Investisseurs</label>
+                        </div>
+                        <?php endif; ?>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showProjets" checked data-section="section-projets">
+                            <label class="form-check-label" for="showProjets">Coûts par projet</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showCategories" checked data-section="section-categories">
+                            <label class="form-check-label" for="showCategories">Dépenses par catégorie</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showEmployes" checked data-section="section-employes">
+                            <label class="form-check-label" for="showEmployes">Heures par employé</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -304,6 +358,17 @@ include '../../includes/header.php';
     document.querySelectorAll('.auto-submit').forEach(function(element) {
         element.addEventListener('change', function() {
             document.getElementById('filterForm').submit();
+        });
+    });
+    
+    // Gestion des sections à afficher
+    document.querySelectorAll('.section-toggle').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            var sectionId = this.getAttribute('data-section');
+            var section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = this.checked ? '' : 'none';
+            }
         });
     });
     </script>
@@ -324,7 +389,7 @@ include '../../includes/header.php';
         </div>
         
         <!-- Résumé global -->
-        <div class="row mb-4">
+        <div class="row mb-4" id="section-resume">
             <div class="col-md-4">
                 <div class="card bg-primary text-white">
                     <div class="card-body text-center">
@@ -353,7 +418,7 @@ include '../../includes/header.php';
         
         <?php if ($projet && $indicateurs): ?>
         <!-- Résumé financier du projet sélectionné -->
-        <div class="card mb-4">
+        <div class="card mb-4" id="section-financier">
             <div class="card-header">
                 <i class="bi bi-calculator me-2"></i>Résumé financier - <?= e($projet['nom']) ?>
                 <small class="text-muted float-end"><?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?></small>
@@ -362,6 +427,7 @@ include '../../includes/header.php';
                 <div class="row">
                     <!-- Colonne gauche: Coûts -->
                     <div class="col-md-6">
+                        <div id="section-acquisition">
                         <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-cart me-1"></i>Coûts d'acquisition</h6>
                         <table class="table table-sm">
                             <tr>
@@ -389,7 +455,9 @@ include '../../includes/header.php';
                                 <td class="text-end"><strong><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></strong></td>
                             </tr>
                         </table>
+                        </div>
                         
+                        <div id="section-recurrents">
                         <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-arrow-repeat me-1"></i>Coûts récurrents (<?= $dureeReelle ?> mois)</h6>
                         <table class="table table-sm">
                             <tr>
@@ -421,10 +489,12 @@ include '../../includes/header.php';
                                 <td class="text-end"><strong><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></strong></td>
                             </tr>
                         </table>
+                        </div>
                     </div>
                     
                     <!-- Colonne droite: Vente et résumé -->
                     <div class="col-md-6">
+                        <div id="section-vente">
                         <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-shop me-1"></i>Coûts de vente</h6>
                         <table class="table table-sm">
                             <tr>
@@ -444,6 +514,7 @@ include '../../includes/header.php';
                                 <td class="text-end"><strong><?= formatMoney($indicateurs['couts_vente']['total']) ?></strong></td>
                             </tr>
                         </table>
+                        </div>
                         
                         <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-graph-up me-1"></i>Résumé du projet</h6>
                         <table class="table table-sm">
@@ -487,7 +558,7 @@ include '../../includes/header.php';
                 <hr>
                 <div class="row">
                     <?php if (!empty($indicateurs['preteurs'])): ?>
-                    <div class="col-md-6">
+                    <div class="col-md-6" id="section-preteurs">
                         <h6><i class="bi bi-bank me-1"></i>Prêteurs</h6>
                         <table class="table table-sm">
                             <thead>
@@ -521,7 +592,7 @@ include '../../includes/header.php';
                     <?php endif; ?>
                     
                     <?php if (!empty($indicateurs['investisseurs'])): ?>
-                    <div class="col-md-6">
+                    <div class="col-md-6" id="section-investisseurs">
                         <h6><i class="bi bi-people me-1"></i>Investisseurs</h6>
                         <table class="table table-sm">
                             <thead>
@@ -554,7 +625,7 @@ include '../../includes/header.php';
         <?php endif; ?>
         
         <!-- Rapport par projet -->
-        <div class="card mb-4">
+        <div class="card mb-4" id="section-projets">
             <div class="card-header">
                 <i class="bi bi-building me-2"></i>Coûts par projet
             </div>
@@ -607,7 +678,7 @@ include '../../includes/header.php';
         </div>
         
         <!-- Rapport par catégorie -->
-        <div class="card mb-4">
+        <div class="card mb-4" id="section-categories">
             <div class="card-header">
                 <i class="bi bi-tags me-2"></i>Dépenses par catégorie
             </div>
@@ -649,7 +720,7 @@ include '../../includes/header.php';
         </div>
         
         <!-- Rapport par employé -->
-        <div class="card mb-4">
+        <div class="card mb-4" id="section-employes">
             <div class="card-header">
                 <i class="bi bi-people me-2"></i>Heures par employé
             </div>
