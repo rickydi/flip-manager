@@ -131,6 +131,9 @@ foreach ($heures as $h) {
 include '../../includes/header.php';
 ?>
 
+<!-- Auto-refresh toutes les 15 secondes -->
+<meta http-equiv="refresh" content="15">
+
 <div class="container-fluid">
     <div class="page-header">
         <nav aria-label="breadcrumb">
