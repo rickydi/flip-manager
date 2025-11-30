@@ -51,6 +51,39 @@ include '../includes/header.php';
 ?>
 
 <div class="container-fluid">
+    <!-- ========================================== -->
+    <!-- INTERFACE MOBILE - Deux gros boutons -->
+    <!-- ========================================== -->
+    <div class="d-md-none mobile-action-menu">
+        <div class="text-center mb-4">
+            <h4 class="mb-1"><i class="bi bi-person-circle me-2"></i>Bonjour, <?= e(getCurrentUserName()) ?></h4>
+            <p class="text-muted small mb-0">Que souhaitez-vous faire?</p>
+        </div>
+        
+        <div class="d-grid gap-3">
+            <a href="/employe/nouvelle-facture.php" class="btn btn-primary btn-lg py-4">
+                <i class="bi bi-receipt" style="font-size: 2.5rem;"></i>
+                <div class="mt-2 fw-bold" style="font-size: 1.2rem;">Ajouter une facture</div>
+            </a>
+            <a href="/employe/feuille-temps.php" class="btn btn-success btn-lg py-4">
+                <i class="bi bi-clock-history" style="font-size: 2.5rem;"></i>
+                <div class="mt-2 fw-bold" style="font-size: 1.2rem;">Ajouter des heures</div>
+            </a>
+        </div>
+        
+        <hr class="my-4">
+        
+        <div class="d-flex justify-content-center gap-3">
+            <a href="/employe/mes-factures.php" class="btn btn-outline-secondary">
+                <i class="bi bi-list me-1"></i>Mes factures
+            </a>
+        </div>
+    </div>
+    
+    <!-- ========================================== -->
+    <!-- INTERFACE DESKTOP - Dashboard complet -->
+    <!-- ========================================== -->
+    <div class="d-none d-md-block">
     <!-- En-tête -->
     <div class="page-header">
         <h1><i class="bi bi-speedometer2 me-2"></i>Tableau de bord</h1>
@@ -187,6 +220,32 @@ include '../includes/header.php';
             <?php endif; ?>
         </div>
     </div>
+    </div><!-- Fin interface desktop -->
 </div>
+
+<style>
+/* Style pour l'interface mobile */
+.mobile-action-menu {
+    padding: 1.5rem 0;
+    min-height: calc(100vh - 120px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.mobile-action-menu .btn-lg {
+    border-radius: 1rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobile-action-menu .btn-lg:active {
+    transform: scale(0.98);
+}
+
+[data-theme="dark"] .mobile-action-menu .btn-lg {
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+</style>
 
 <?php include '../includes/footer.php'; ?>
