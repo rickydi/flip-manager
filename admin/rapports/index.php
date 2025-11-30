@@ -7,6 +7,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/calculs.php';
 
 requireAdmin();
 
@@ -176,6 +177,26 @@ if ($filtreGroupe !== '') {
     $nomFiltreCategorie = $groupes[$filtreGroupe] ?? $filtreGroupe;
 }
 
+// Si un projet est sélectionné, charger les indicateurs financiers détaillés
+$indicateurs = null;
+$projet = null;
+if ($filtreProjet > 0) {
+    $projet = getProjetById($pdo, $filtreProjet);
+    if ($projet) {
+        $indicateurs = calculerIndicateursProjet($pdo, $projet);
+        
+        // Calculer la durée réelle
+        $dureeReelle = (int)$projet['temps_assume_mois'];
+        if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
+            $dateAchat = new DateTime($projet['date_acquisition']);
+            $dateVente = new DateTime($projet['date_vente']);
+            $diff = $dateAchat->diff($dateVente);
+            $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+            $dureeReelle = max(1, $dureeReelle);
+        }
+    }
+}
+
 include '../../includes/header.php';
 ?>
 
@@ -329,6 +350,208 @@ include '../../includes/header.php';
                 </div>
             </div>
         </div>
+        
+        <?php if ($projet && $indicateurs): ?>
+        <!-- Résumé financier du projet sélectionné -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-calculator me-2"></i>Résumé financier - <?= e($projet['nom']) ?>
+                <small class="text-muted float-end"><?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?></small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <!-- Colonne gauche: Coûts -->
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-cart me-1"></i>Coûts d'acquisition</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>Prix d'achat</td>
+                                <td class="text-end"><strong><?= formatMoney($projet['prix_achat']) ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td>Notaire</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Taxe de mutation</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Arpenteurs</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['arpenteurs']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Assurance titre</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['assurance_titre']) ?></td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <td><strong>Total acquisition</strong></td>
+                                <td class="text-end"><strong><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></strong></td>
+                            </tr>
+                        </table>
+                        
+                        <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-arrow-repeat me-1"></i>Coûts récurrents (<?= $dureeReelle ?> mois)</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>Taxes municipales</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Taxes scolaires</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Électricité</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Assurances</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Déneigement</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Hypothèque</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <td><strong>Total récurrents</strong></td>
+                                <td class="text-end"><strong><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Colonne droite: Vente et résumé -->
+                    <div class="col-md-6">
+                        <h6 class="border-bottom pb-2 mb-3"><i class="bi bi-shop me-1"></i>Coûts de vente</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>Intérêts (<?= $dureeReelle ?> mois @ <?= $projet['taux_interet'] ?>%)</td>
+                                <td class="text-end"><strong class="text-danger"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td>Commission courtier (<?= $projet['taux_commission'] ?>% + taxes)</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['commission'] * 1.14975) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Quittance</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <td><strong>Total vente</strong></td>
+                                <td class="text-end"><strong><?= formatMoney($indicateurs['couts_vente']['total']) ?></strong></td>
+                            </tr>
+                        </table>
+                        
+                        <h6 class="border-bottom pb-2 mb-3 mt-4"><i class="bi bi-graph-up me-1"></i>Résumé du projet</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>Prix d'achat</td>
+                                <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Rénovation (budget)</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['renovation']['budget']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Contingence (<?= $projet['taux_contingence'] ?>%)</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['contingence']) ?></td>
+                            </tr>
+                            <tr>
+                                <td>Coûts fixes totaux</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_fixes_totaux']) ?></td>
+                            </tr>
+                            <tr class="table-primary">
+                                <td><strong>Coût total projet</strong></td>
+                                <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_projet']) ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td>Valeur potentielle</td>
+                                <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
+                            </tr>
+                            <tr class="<?= $indicateurs['equite_potentielle'] >= 0 ? 'table-success' : 'table-danger' ?>">
+                                <td><strong>Équité potentielle (profit)</strong></td>
+                                <td class="text-end"><strong><?= formatMoney($indicateurs['equite_potentielle']) ?></strong></td>
+                            </tr>
+                            <tr>
+                                <td>ROI @ Leverage</td>
+                                <td class="text-end"><strong><?= formatPercent($indicateurs['roi_leverage']) ?></strong></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <?php if (!empty($indicateurs['preteurs']) || !empty($indicateurs['investisseurs'])): ?>
+                <hr>
+                <div class="row">
+                    <?php if (!empty($indicateurs['preteurs'])): ?>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-bank me-1"></i>Prêteurs</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th class="text-end">Montant</th>
+                                    <th class="text-center">Taux</th>
+                                    <th class="text-end">Intérêts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($indicateurs['preteurs'] as $p): ?>
+                                    <tr>
+                                        <td><?= e($p['nom']) ?></td>
+                                        <td class="text-end"><?= formatMoney($p['montant']) ?></td>
+                                        <td class="text-center"><?= $p['taux'] ?>%</td>
+                                        <td class="text-end text-danger"><?= formatMoney($p['interets_total']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-warning">
+                                    <td><strong>Total</strong></td>
+                                    <td class="text-end"><strong><?= formatMoney($indicateurs['total_prets']) ?></strong></td>
+                                    <td></td>
+                                    <td class="text-end text-danger"><strong><?= formatMoney($indicateurs['total_interets']) ?></strong></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if (!empty($indicateurs['investisseurs'])): ?>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-people me-1"></i>Investisseurs</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th class="text-end">Mise</th>
+                                    <th class="text-center">%</th>
+                                    <th class="text-end">Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($indicateurs['investisseurs'] as $inv): 
+                                    $pct = !empty($inv['pourcentage']) ? $inv['pourcentage'] : ($inv['pourcentage_calcule'] ?? 0);
+                                ?>
+                                    <tr>
+                                        <td><?= e($inv['nom']) ?></td>
+                                        <td class="text-end"><?= formatMoney($inv['mise_de_fonds']) ?></td>
+                                        <td class="text-center"><?= number_format($pct, 1) ?>%</td>
+                                        <td class="text-end text-success"><?= formatMoney($inv['profit_estime']) ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <!-- Rapport par projet -->
         <div class="card mb-4">
