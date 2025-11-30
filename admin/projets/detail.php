@@ -127,7 +127,7 @@ include '../../includes/header.php';
                 <div class="card">
                     <div class="card-header text-center">
                         💰 Dépenses mensuelles
-                        <small class="d-block text-muted" style="font-size:0.7rem">Factures approuvées par mois</small>
+                        <small class="d-block text-muted" style="font-size:0.7rem">Factures + main d'œuvre par mois</small>
                     </div>
                     <div class="card-body">
                         <canvas id="chartBudget" height="200"></canvas>
@@ -678,25 +678,44 @@ for ($m = 0; $m <= $moisProjet; $m++) {
 // Valeur potentielle (ligne horizontale)
 $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
-// Récupérer les dépenses par mois
+// Récupérer les dépenses par mois (factures + main d'œuvre)
 $depensesParMois = [];
 try {
+    // Factures par mois
     $stmt = $pdo->prepare("
         SELECT DATE_FORMAT(date_facture, '%Y-%m') as mois, SUM(montant_total) as total
         FROM factures 
         WHERE projet_id = ? AND statut = 'approuvee'
         GROUP BY DATE_FORMAT(date_facture, '%Y-%m')
-        ORDER BY mois
     ");
     $stmt->execute([$projetId]);
-    $depensesParMois = $stmt->fetchAll();
+    foreach ($stmt->fetchAll() as $row) {
+        $depensesParMois[$row['mois']] = (float)$row['total'];
+    }
+    
+    // Ajouter les heures par mois
+    $stmt = $pdo->prepare("
+        SELECT DATE_FORMAT(date_travail, '%Y-%m') as mois, SUM(heures * taux_horaire) as total
+        FROM heures_travaillees 
+        WHERE projet_id = ? AND statut = 'approuvee'
+        GROUP BY DATE_FORMAT(date_travail, '%Y-%m')
+    ");
+    $stmt->execute([$projetId]);
+    foreach ($stmt->fetchAll() as $row) {
+        if (isset($depensesParMois[$row['mois']])) {
+            $depensesParMois[$row['mois']] += (float)$row['total'];
+        } else {
+            $depensesParMois[$row['mois']] = (float)$row['total'];
+        }
+    }
+    ksort($depensesParMois);
 } catch (Exception $e) {}
 
 $moisLabels = [];
 $moisData = [];
-foreach ($depensesParMois as $d) {
-    $moisLabels[] = date('M Y', strtotime($d['mois'] . '-01'));
-    $moisData[] = (float)$d['total'];
+foreach ($depensesParMois as $mois => $total) {
+    $moisLabels[] = date('M Y', strtotime($mois . '-01'));
+    $moisData[] = $total;
 }
 ?>
 <!-- Chart.js CDN + Adapter pour les dates -->
