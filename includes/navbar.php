@@ -11,9 +11,8 @@ $isAdmin = isAdmin();
 
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container-fluid">
-        <!-- Logo/Titre à gauche -->
-        <a class="navbar-brand d-flex align-items-center" href="<?= $isAdmin ? '/admin/index.php' : '/employe/index.php' ?>">
-            <i class="bi bi-house-door-fill me-2"></i>
+        <!-- Titre à gauche -->
+        <a class="navbar-brand" href="<?= $isAdmin ? '/admin/index.php' : '/employe/index.php' ?>">
             <?= APP_NAME ?>
         </a>
         
