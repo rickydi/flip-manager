@@ -124,13 +124,13 @@ function calculerTotalBudgetRenovation($pdo, $projetId) {
 }
 
 /**
- * Calcule le total des factures réelles (approuvées)
+ * Calcule le total des factures réelles (approuvées ET en attente - seules les rejetées sont exclues)
  * @param PDO $pdo
  * @param int $projetId
  * @return float
  */
 function calculerTotalFacturesReelles($pdo, $projetId) {
-    $stmt = $pdo->prepare("SELECT SUM(montant_total) as total FROM factures WHERE projet_id = ? AND statut = 'approuvee'");
+    $stmt = $pdo->prepare("SELECT SUM(montant_total) as total FROM factures WHERE projet_id = ? AND statut != 'rejetee'");
     $stmt->execute([$projetId]);
     $result = $stmt->fetch();
     return (float) ($result['total'] ?? 0);
@@ -161,7 +161,7 @@ function calculerCoutMainDoeuvre($pdo, $projetId) {
 }
 
 /**
- * Calcule les dépenses réelles par catégorie
+ * Calcule les dépenses réelles par catégorie (approuvées ET en attente - seules les rejetées sont exclues)
  * @param PDO $pdo
  * @param int $projetId
  * @return array
@@ -170,7 +170,7 @@ function calculerDepensesParCategorie($pdo, $projetId) {
     $stmt = $pdo->prepare("
         SELECT categorie_id, SUM(montant_total) as total 
         FROM factures 
-        WHERE projet_id = ? AND statut = 'approuvee'
+        WHERE projet_id = ? AND statut != 'rejetee'
         GROUP BY categorie_id
     ");
     $stmt->execute([$projetId]);

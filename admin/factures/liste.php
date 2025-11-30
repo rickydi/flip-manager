@@ -11,6 +11,24 @@ require_once '../../includes/functions.php';
 // Vérifier que l'utilisateur est admin
 requireAdmin();
 
+// Répondre aux requêtes AJAX pour le comptage
+if (isset($_GET['check_count']) && !empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+    $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
+    $filtreStatut = isset($_GET['statut']) ? $_GET['statut'] : '';
+    $filtreCategorie = isset($_GET['categorie']) ? (int)$_GET['categorie'] : 0;
+    
+    $where = "WHERE 1=1";
+    $params = [];
+    if ($filtreProjet > 0) { $where .= " AND projet_id = ?"; $params[] = $filtreProjet; }
+    if ($filtreStatut !== '') { $where .= " AND statut = ?"; $params[] = $filtreStatut; }
+    if ($filtreCategorie > 0) { $where .= " AND categorie_id = ?"; $params[] = $filtreCategorie; }
+    
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM factures $where");
+    $stmt->execute($params);
+    echo $stmt->fetchColumn();
+    exit;
+}
+
 $pageTitle = 'Factures';
 
 // Pagination
@@ -239,5 +257,48 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Auto-refresh toutes les 30 secondes -->
+<script>
+(function() {
+    let lastCount = <?= $totalFactures ?>;
+    let refreshInterval = 30000; // 30 secondes
+    
+    // Vérifier les nouvelles factures périodiquement
+    setInterval(function() {
+        fetch('/admin/factures/liste.php?check_count=1&projet=<?= $filtreProjet ?>&statut=<?= urlencode($filtreStatut) ?>&categorie=<?= $filtreCategorie ?>', {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(r => r.text())
+        .then(count => {
+            let newCount = parseInt(count);
+            if (!isNaN(newCount) && newCount !== lastCount) {
+                // Afficher notification
+                if (newCount > lastCount) {
+                    showNewFactureNotification(newCount - lastCount);
+                }
+                // Rafraîchir la page
+                location.reload();
+            }
+        })
+        .catch(() => {}); // Ignorer les erreurs
+    }, refreshInterval);
+    
+    function showNewFactureNotification(count) {
+        // Notification sonore optionnelle
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification('Flip Manager', {
+                body: count + ' nouvelle(s) facture(s) ajoutée(s)',
+                icon: '/assets/img/logo.png'
+            });
+        }
+    }
+    
+    // Demander permission de notification
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+})();
+</script>
 
 <?php include '../../includes/footer.php'; ?>
