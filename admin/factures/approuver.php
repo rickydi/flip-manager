@@ -127,6 +127,9 @@ $factures = $stmt->fetchAll();
 include '../../includes/header.php';
 ?>
 
+<!-- Auto-refresh toutes les 15 secondes -->
+<meta http-equiv="refresh" content="15">
+
 <div class="container-fluid">
     <!-- En-tête -->
     <div class="page-header">

@@ -44,6 +44,9 @@ $depenses = calculerDepensesParCategorie($pdo, $projetId);
 include '../../includes/header.php';
 ?>
 
+<!-- Auto-refresh toutes les 30 secondes -->
+<meta http-equiv="refresh" content="30">
+
 <div class="container-fluid">
     <!-- En-tête -->
     <div class="page-header">
