@@ -40,38 +40,15 @@ $isAdmin = isAdmin();
                         </a>
                     </li>
                     
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle <?= strpos($currentUri, '/admin/factures/') !== false ? 'active' : '' ?>" 
-                           href="#" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <?php $countEnAttente = getFacturesEnAttenteCount($pdo); ?>
+                        <a class="nav-link <?= strpos($currentUri, '/admin/factures/') !== false ? 'active' : '' ?>" 
+                           href="/admin/factures/liste.php">
                             <i class="bi bi-receipt"></i> Factures
-                            <?php 
-                            $countEnAttente = getFacturesEnAttenteCount($pdo);
-                            if ($countEnAttente > 0): 
-                            ?>
+                            <?php if ($countEnAttente > 0): ?>
                                 <span class="badge bg-danger"><?= $countEnAttente ?></span>
                             <?php endif; ?>
                         </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item" href="/admin/factures/nouvelle.php">
-                                    <i class="bi bi-plus-circle"></i> Nouvelle facture
-                                </a>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item" href="/admin/factures/liste.php">
-                                    <i class="bi bi-list-ul"></i> Toutes les factures
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item" href="/admin/factures/approuver.php">
-                                    <i class="bi bi-check2-square"></i> À approuver
-                                    <?php if ($countEnAttente > 0): ?>
-                                        <span class="badge bg-danger"><?= $countEnAttente ?></span>
-                                    <?php endif; ?>
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     
                     <li class="nav-item">
