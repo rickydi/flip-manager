@@ -611,24 +611,191 @@ body {
     cursor: help;
 }
 
-/* Print styles */
+/* Print styles - Format 8.5x11 */
 @media print {
+    /* Masquer les éléments non imprimables */
     .navbar,
     .footer,
+    .no-print,
     .btn,
-    .action-buttons {
+    .action-buttons,
+    .nav-tabs,
+    .breadcrumb,
+    form {
         display: none !important;
     }
     
-    .main-content {
-        margin-top: 0;
-        padding: 0;
+    /* Reset des marges pour la page */
+    @page {
+        size: letter portrait;
+        margin: 0.5in;
     }
     
-    .card {
-        box-shadow: none;
-        border: 1px solid #ddd;
+    html, body {
+        font-size: 11pt;
+        color: #000 !important;
+        background: #fff !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
+    
+    .main-content {
+        margin-top: 0 !important;
+        padding: 0 !important;
+    }
+    
+    .container-fluid {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    /* En-tête du rapport */
+    .print-header {
+        display: block !important;
+        text-align: center;
+        border-bottom: 2px solid #000;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .print-header h2 {
+        font-size: 16pt;
+        font-weight: bold;
+        margin-bottom: 0.25rem;
+    }
+    
+    .print-header p {
+        font-size: 10pt;
+        margin: 0;
+    }
+    
+    /* Cards */
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+        background: #fff !important;
+        page-break-inside: avoid;
+        margin-bottom: 1rem !important;
+    }
+    
+    .card-header {
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        font-weight: bold;
+        padding: 0.5rem !important;
+        font-size: 11pt;
+    }
+    
+    .card-body {
+        padding: 0 !important;
+        background: #fff !important;
+    }
+    
+    /* Cards colorées - résumé */
+    .card.bg-primary,
+    .card.bg-success,
+    .card.bg-info,
+    .card.bg-warning {
+        background: #f8f8f8 !important;
+        border: 1px solid #ccc !important;
+    }
+    
+    .card.bg-primary .card-body,
+    .card.bg-success .card-body,
+    .card.bg-info .card-body,
+    .card.bg-warning .card-body {
+        color: #000 !important;
+    }
+    
+    .card.bg-primary h3,
+    .card.bg-success h3,
+    .card.bg-info h3,
+    .card.bg-warning h3,
+    .card.bg-primary h6,
+    .card.bg-success h6,
+    .card.bg-info h6,
+    .card.bg-warning h6 {
+        color: #000 !important;
+    }
+    
+    .text-white {
+        color: #000 !important;
+    }
+    
+    /* Tables */
+    .table {
+        font-size: 10pt;
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+        border: 1px solid #ccc !important;
+        padding: 0.25rem 0.5rem !important;
+        color: #000 !important;
+        background: #fff !important;
+    }
+    
+    .table th {
+        background: #f0f0f0 !important;
+        font-weight: bold;
+    }
+    
+    .table tfoot tr,
+    .table-dark {
+        background: #e0e0e0 !important;
+        color: #000 !important;
+    }
+    
+    .table-dark th,
+    .table-dark td {
+        background: #e0e0e0 !important;
+        color: #000 !important;
+    }
+    
+    /* Badges */
+    .badge {
+        border: 1px solid #999;
+        background: #f0f0f0 !important;
+        color: #000 !important;
+        font-weight: normal;
+    }
+    
+    /* Textes */
+    .text-muted {
+        color: #666 !important;
+    }
+    
+    strong {
+        font-weight: bold;
+    }
+    
+    /* Page breaks */
+    .page-break {
+        page-break-after: always;
+    }
+    
+    /* Grille responsive */
+    .row {
+        display: flex !important;
+        flex-wrap: wrap !important;
+    }
+    
+    .col-md-4 {
+        flex: 0 0 33.333% !important;
+        max-width: 33.333% !important;
+    }
+    
+    /* Masquer la table responsive wrapper */
+    .table-responsive {
+        overflow: visible !important;
+    }
+}
+
+/* En-tête du rapport - masqué par défaut, visible à l'impression */
+.print-header {
+    display: none;
 }
 
 /* ======================= */
