@@ -137,6 +137,30 @@ function calculerTotalFacturesReelles($pdo, $projetId) {
 }
 
 /**
+ * Calcule le coût total de la main d'œuvre (heures travaillées approuvées)
+ * @param PDO $pdo
+ * @param int $projetId
+ * @return array
+ */
+function calculerCoutMainDoeuvre($pdo, $projetId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT SUM(heures) as total_heures, SUM(heures * taux_horaire) as total_cout 
+            FROM heures_travaillees 
+            WHERE projet_id = ? AND statut = 'approuvee'
+        ");
+        $stmt->execute([$projetId]);
+        $result = $stmt->fetch();
+        return [
+            'heures' => (float) ($result['total_heures'] ?? 0),
+            'cout' => (float) ($result['total_cout'] ?? 0)
+        ];
+    } catch (Exception $e) {
+        return ['heures' => 0, 'cout' => 0];
+    }
+}
+
+/**
  * Calcule les dépenses réelles par catégorie
  * @param PDO $pdo
  * @param int $projetId
@@ -418,8 +442,25 @@ function calculerIndicateursProjet($pdo, $projet) {
     $pctRenovation = calculerPourcentageValeur($totalBudgetRenovation, $valeurPotentielle);
     $pctPrixAchat = calculerPourcentageValeur((float) $projet['prix_achat'], $valeurPotentielle);
     
-    // Progression du budget de rénovation
-    $progressionBudget = $totalBudgetRenovation > 0 ? ($totalFacturesReelles / $totalBudgetRenovation) * 100 : 0;
+    // Main d'œuvre
+    $mainDoeuvre = calculerCoutMainDoeuvre($pdo, $projet['id']);
+    
+    // Coût total incluant main d'œuvre
+    $coutTotalProjet = $coutTotalProjet + $mainDoeuvre['cout'];
+    
+    // Recalculer l'équité avec la main d'œuvre
+    $equitePotentielle = calculerEquitePotentielle($valeurPotentielle, $coutTotalProjet);
+    
+    // Recalculer les profits des investisseurs avec l'équité correcte
+    $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], $equitePotentielle, $mois);
+    
+    // Recalculer les ROI
+    $roiLeverage = calculerROILeverage($equitePotentielle, $dataFinancement['mise_totale']);
+    $roiAllCash = calculerROIAllCash($equitePotentielle, $coutTotalProjet);
+    
+    // Progression du budget de rénovation (factures + main d'œuvre)
+    $totalReelAvecMO = $totalFacturesReelles + $mainDoeuvre['cout'];
+    $progressionBudget = $totalBudgetRenovation > 0 ? ($totalReelAvecMO / $totalBudgetRenovation) * 100 : 0;
     
     return [
         'couts_acquisition' => $coutsAcquisition,
@@ -429,8 +470,12 @@ function calculerIndicateursProjet($pdo, $projet) {
         'renovation' => [
             'budget' => $totalBudgetRenovation,
             'reel' => $totalFacturesReelles,
-            'ecart' => $totalBudgetRenovation - $totalFacturesReelles,
+            'ecart' => $totalBudgetRenovation - $totalReelAvecMO,
             'progression' => $progressionBudget
+        ],
+        'main_doeuvre' => [
+            'heures' => $mainDoeuvre['heures'],
+            'cout' => $mainDoeuvre['cout']
         ],
         'contingence' => $contingence,
         'cout_total_projet' => $coutTotalProjet,

@@ -291,8 +291,8 @@ include '../../includes/header.php';
                 <!-- Barre de progression -->
                 <div class="mb-3">
                     <div class="d-flex justify-content-between mb-1">
-                        <span>Progression</span>
-                        <span><?= formatMoney($indicateurs['renovation']['reel']) ?> / <?= formatMoney($indicateurs['renovation']['budget']) ?></span>
+                        <span>Progression (factures + main d'œuvre)</span>
+                        <span><?= formatMoney($indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout']) ?> / <?= formatMoney($indicateurs['renovation']['budget']) ?></span>
                     </div>
                     <div class="progress-custom">
                         <div class="progress-bar <?= $indicateurs['renovation']['progression'] > 100 ? 'bg-danger' : 'bg-success' ?>" 
@@ -337,10 +337,20 @@ include '../../includes/header.php';
                             </td>
                         </tr>
                         <?php endforeach; ?>
+                        <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
+                        <tr class="table-info">
+                            <td><i class="bi bi-person-fill me-1"></i><strong>Main d'œuvre interne</strong>
+                                <small class="text-muted d-block"><?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?> heures</small>
+                            </td>
+                            <td class="amount">-</td>
+                            <td class="amount"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
+                            <td class="amount">-</td>
+                        </tr>
+                        <?php endif; ?>
                         <tr class="total-row">
                             <td><strong>Total rénovation</strong></td>
                             <td class="amount"><strong><?= formatMoney($indicateurs['renovation']['budget']) ?></strong></td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['renovation']['reel']) ?></strong></td>
+                            <td class="amount"><strong><?= formatMoney($indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout']) ?></strong></td>
                             <td class="amount <?= $indicateurs['renovation']['ecart'] >= 0 ? 'positive' : 'negative' ?>">
                                 <strong><?= formatMoney($indicateurs['renovation']['ecart']) ?></strong>
                             </td>
@@ -498,10 +508,18 @@ include '../../includes/header.php';
                         </tr>
                         <tr>
                             <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Somme de tous les budgets extrapolés par catégorie">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Rénovation
+                                <i class="bi bi-info-circle text-muted me-1"></i>Rénovation (budget)
                             </td>
                             <td class="amount"><?= formatMoney($indicateurs['renovation']['budget']) ?></td>
                         </tr>
+                        <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
+                        <tr>
+                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?> heures travaillées × taux horaire">
+                                <i class="bi bi-person-fill text-muted me-1"></i>Main d'œuvre
+                            </td>
+                            <td class="amount"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
+                        </tr>
+                        <?php endif; ?>
                         <tr>
                             <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Rénovation × <?= $projet['taux_contingence'] ?>%&#10;&#10;<?= formatMoney($indicateurs['renovation']['budget']) ?> × <?= $projet['taux_contingence'] ?>% = <?= formatMoney($indicateurs['contingence']) ?>">
                                 <i class="bi bi-info-circle text-muted me-1"></i>Contingence (<?= $projet['taux_contingence'] ?>%)
