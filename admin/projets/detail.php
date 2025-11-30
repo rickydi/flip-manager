@@ -762,7 +762,7 @@ const dataDepenses = {
 
 // Graphique 3: Prévision vs Réel
 const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
-const depenseReelle = <?= $indicateurs['renovation']['reel'] ?>;
+const depenseReelle = <?= $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'] ?>;
 const dataComparaison = {
     labels: ['Début', 'Milieu', 'Fin'],
     datasets: [{
