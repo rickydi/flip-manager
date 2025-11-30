@@ -131,8 +131,28 @@ foreach ($heures as $h) {
 include '../../includes/header.php';
 ?>
 
-<!-- Auto-refresh toutes les 15 secondes -->
-<meta http-equiv="refresh" content="15">
+<!-- Auto-refresh intelligent: pause si modal ouvert -->
+<script>
+(function() {
+    var refreshTime = 15000; // 15 secondes
+    var timer;
+    
+    function scheduleRefresh() {
+        timer = setTimeout(function() {
+            // Ne pas rafraîchir si un modal est ouvert
+            var modalOpen = document.querySelector('.modal.show');
+            if (!modalOpen) {
+                window.location.reload();
+            } else {
+                // Réessayer dans 5 secondes
+                scheduleRefresh();
+            }
+        }, refreshTime);
+    }
+    
+    scheduleRefresh();
+})();
+</script>
 
 <div class="container-fluid">
     <div class="page-header">
