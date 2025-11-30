@@ -785,11 +785,16 @@ const dataDepenses = {
 };
 <?php endif; ?>
 
-// Graphique 3: Prévision vs Réel
+// Graphique 3: Budget vs Dépensé avec dates réelles
+<?php
+$dateDebut = !empty($projet['date_acquisition']) ? $projet['date_acquisition'] : date('Y-m-d');
+$dateFin = !empty($projet['date_vente']) ? $projet['date_vente'] : date('Y-m-d', strtotime('+' . $moisProjet . ' months', strtotime($dateDebut)));
+$dateMilieu = date('Y-m-d', strtotime($dateDebut) + (strtotime($dateFin) - strtotime($dateDebut)) / 2);
+?>
 const budgetTotal = <?= $indicateurs['renovation']['budget'] ?: 1 ?>;
 const depenseReelle = <?= $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'] ?>;
 const dataComparaison = {
-    labels: ['Début', 'Milieu', 'Fin'],
+    labels: ['<?= date('M Y', strtotime($dateDebut)) ?>', '<?= date('M Y', strtotime($dateMilieu)) ?>', '<?= date('M Y', strtotime($dateFin)) ?>'],
     datasets: [{
         label: 'Budget prévu',
         data: [0, budgetTotal * 0.5, budgetTotal],
