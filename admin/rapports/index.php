@@ -307,45 +307,45 @@ include '../../includes/header.php';
                 <div class="col-md-12">
                     <div class="d-flex flex-wrap gap-3">
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showResume" checked data-section="section-resume">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showResume" data-section="section-resume">
                             <label class="form-check-label" for="showResume">Résumé global</label>
                         </div>
                         <?php if ($filtreProjet > 0): ?>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showFinancier" checked data-section="section-financier">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showFinancier" data-section="section-financier">
                             <label class="form-check-label" for="showFinancier">Résumé financier</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showAcquisition" checked data-section="section-acquisition">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showAcquisition" data-section="section-acquisition">
                             <label class="form-check-label" for="showAcquisition">Coûts acquisition</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showRecurrents" checked data-section="section-recurrents">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showRecurrents" data-section="section-recurrents">
                             <label class="form-check-label" for="showRecurrents">Coûts récurrents</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showVente" checked data-section="section-vente">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showVente" data-section="section-vente">
                             <label class="form-check-label" for="showVente">Coûts de vente / Intérêts</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showPreteurs" checked data-section="section-preteurs">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showPreteurs" data-section="section-preteurs">
                             <label class="form-check-label" for="showPreteurs">Prêteurs</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showInvestisseurs" checked data-section="section-investisseurs">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showInvestisseurs" data-section="section-investisseurs">
                             <label class="form-check-label" for="showInvestisseurs">Investisseurs</label>
                         </div>
                         <?php endif; ?>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showProjets" checked data-section="section-projets">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showProjets" data-section="section-projets">
                             <label class="form-check-label" for="showProjets">Coûts par projet</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showCategories" checked data-section="section-categories">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showCategories" data-section="section-categories">
                             <label class="form-check-label" for="showCategories">Dépenses par catégorie</label>
                         </div>
                         <div class="form-check">
-                            <input class="form-check-input section-toggle" type="checkbox" id="showEmployes" checked data-section="section-employes">
+                            <input class="form-check-input section-toggle" type="checkbox" id="showEmployes" data-section="section-employes">
                             <label class="form-check-label" for="showEmployes">Heures par employé</label>
                         </div>
                     </div>
@@ -363,6 +363,14 @@ include '../../includes/header.php';
     
     // Gestion des sections à afficher
     document.querySelectorAll('.section-toggle').forEach(function(checkbox) {
+        // Cacher toutes les sections au chargement
+        var sectionId = checkbox.getAttribute('data-section');
+        var section = document.getElementById(sectionId);
+        if (section) {
+            section.style.display = 'none';
+        }
+        
+        // Événement de changement
         checkbox.addEventListener('change', function() {
             var sectionId = this.getAttribute('data-section');
             var section = document.getElementById(sectionId);
