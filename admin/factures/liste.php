@@ -171,6 +171,7 @@ include '../../includes/header.php';
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
+                                <th style="width:50px"></th>
                                 <th>Date</th>
                                 <th>Projet</th>
                                 <th>Fournisseur</th>
@@ -178,47 +179,50 @@ include '../../includes/header.php';
                                 <th>Employé</th>
                                 <th class="text-end">Montant</th>
                                 <th class="text-center">Statut</th>
-                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($factures as $facture): ?>
-                                <tr>
+                            <?php foreach ($factures as $facture): 
+                                $isImage = $facture['fichier'] && preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier']);
+                                $isPdf = $facture['fichier'] && preg_match('/\.pdf$/i', $facture['fichier']);
+                                $isRemboursement = $facture['montant_total'] < 0;
+                            ?>
+                                <tr onclick="window.location='/admin/factures/modifier.php?id=<?= $facture['id'] ?>'" style="cursor:pointer" class="<?= $isRemboursement ? 'table-success' : '' ?>">
+                                    <td class="text-center" onclick="event.stopPropagation()">
+                                        <?php if ($isImage): ?>
+                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank">
+                                                <img src="/uploads/factures/<?= e($facture['fichier']) ?>" 
+                                                     alt="Facture" 
+                                                     style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
+                                            </a>
+                                        <?php elseif ($isPdf): ?>
+                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank" class="text-danger">
+                                                <i class="bi bi-file-pdf" style="font-size:1.5rem"></i>
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="text-muted"><i class="bi bi-image" style="font-size:1.2rem"></i></span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= formatDate($facture['date_facture']) ?></td>
                                     <td><?= e($facture['projet_nom']) ?></td>
-                                    <td><?= e($facture['fournisseur']) ?></td>
+                                    <td>
+                                        <?= e($facture['fournisseur']) ?>
+                                        <?php if ($isRemboursement): ?>
+                                            <span class="badge bg-success ms-1">Remb.</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?= e($facture['categorie_nom']) ?></td>
                                     <td><?= e($facture['employe_nom']) ?></td>
-                                    <td class="text-end"><strong><?= formatMoney($facture['montant_total']) ?></strong></td>
+                                    <td class="text-end">
+                                        <strong class="<?= $isRemboursement ? 'text-success' : '' ?>">
+                                            <?= $isRemboursement ? '+' : '' ?><?= formatMoney(abs($facture['montant_total'])) ?>
+                                        </strong>
+                                    </td>
                                     <td class="text-center">
                                         <span class="badge <?= getStatutFactureClass($facture['statut']) ?>">
                                             <?= getStatutFactureIcon($facture['statut']) ?>
                                             <?= getStatutFactureLabel($facture['statut']) ?>
                                         </span>
-                                    </td>
-                                    <td class="action-buttons">
-                                        <?php if ($facture['fichier']): ?>
-                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" 
-                                               target="_blank" 
-                                               class="btn btn-outline-secondary btn-sm"
-                                               title="Voir fichier">
-                                                <i class="bi bi-file-earmark"></i>
-                                            </a>
-                                        <?php endif; ?>
-                                        <a href="/admin/factures/modifier.php?id=<?= $facture['id'] ?>" 
-                                           class="btn btn-outline-primary btn-sm" title="Modifier">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <?php if ($facture['statut'] === 'en_attente'): ?>
-                                            <a href="/admin/factures/approuver.php?action=approuver&id=<?= $facture['id'] ?>" 
-                                               class="btn btn-success btn-sm" title="Approuver">
-                                                <i class="bi bi-check-lg"></i>
-                                            </a>
-                                            <a href="/admin/factures/approuver.php?action=rejeter&id=<?= $facture['id'] ?>" 
-                                               class="btn btn-danger btn-sm" title="Rejeter">
-                                                <i class="bi bi-x-lg"></i>
-                                            </a>
-                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

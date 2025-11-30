@@ -98,6 +98,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($errors)) {
             $montantTotal = $montantAvantTaxes + $tps + $tvq;
             
+            // Si remboursement, inverser les montants (valeurs négatives)
+            if (isset($_POST['is_remboursement'])) {
+                $montantAvantTaxes = -abs($montantAvantTaxes);
+                $tps = -abs($tps);
+                $tvq = -abs($tvq);
+                $montantTotal = -abs($montantTotal);
+            }
+            
             $stmt = $pdo->prepare("
                 INSERT INTO factures (
                     projet_id, categorie_id, user_id, fournisseur, description,
@@ -241,6 +249,18 @@ include '../includes/header.php';
                     
                     <!-- Colonne droite -->
                     <div class="col-md-6">
+                        <!-- Type de facture -->
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_remboursement" name="is_remboursement" 
+                                       <?= isset($_POST['is_remboursement']) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="is_remboursement">
+                                    <i class="bi bi-arrow-return-left text-success me-1"></i>
+                                    <strong>Remboursement</strong> <small class="text-muted">(réduit le coût du projet)</small>
+                                </label>
+                            </div>
+                        </div>
+                        
                         <!-- Montants -->
                         <div class="row mb-3">
                             <div class="col-12">
