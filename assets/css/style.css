@@ -76,13 +76,19 @@ body {
 
 /* Aligner le logo de la navbar avec le contenu */
 .navbar .navbar-brand {
-    margin-left: 0.5rem;
+    margin-left: calc(1.5rem - 12px);
     display: flex;
     align-items: center;
 }
 
 .navbar .navbar-brand i {
     line-height: 1;
+}
+
+@media (max-width: 768px) {
+    .navbar .navbar-brand {
+        margin-left: calc(1rem - 12px);
+    }
 }
 
 
