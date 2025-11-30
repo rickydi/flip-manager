@@ -293,13 +293,18 @@ include '../includes/header.php';
                         </div>
                         
                         <div class="mb-3">
-                            <div class="card bg-light">
-                                <div class="card-body text-center">
-                                    <h5 class="card-title mb-0">TOTAL</h5>
-                                    <h2 class="mb-0 text-primary" id="montant_total_display">0,00 $</h2>
-                                    <input type="hidden" id="montant_total" name="montant_total" value="0">
+                            <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
+                                <div>
+                                    <strong>Total : </strong><span id="montant_total_display">0,00 $</span>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="sansTaxes()">
+                                        <i class="bi bi-x-circle me-1"></i>Sans taxes
+                                    </button>
                                 </div>
                             </div>
+                            <small class="text-muted">Les taxes sont calculées automatiquement. Utilisez "Sans taxes" pour les cas particuliers.</small>
+                            <input type="hidden" id="montant_total" name="montant_total" value="0">
                         </div>
                         
                         <!-- Upload fichier -->
@@ -345,5 +350,63 @@ include '../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+let taxesActives = true;
+
+function calculerTaxesAuto() {
+    if (!taxesActives) return;
+    
+    const montant = parseFloat(document.getElementById('montant_avant_taxes').value) || 0;
+    const tps = (montant * 0.05).toFixed(2);
+    const tvq = (montant * 0.09975).toFixed(2);
+    document.getElementById('tps').value = tps;
+    document.getElementById('tvq').value = tvq;
+    calculerTotal();
+}
+
+function sansTaxes() {
+    taxesActives = false;
+    document.getElementById('tps').value = '0';
+    document.getElementById('tvq').value = '0';
+    document.getElementById('tps').classList.add('bg-light');
+    document.getElementById('tvq').classList.add('bg-light');
+    calculerTotal();
+}
+
+function calculerTotal() {
+    const montant = parseFloat(document.getElementById('montant_avant_taxes').value) || 0;
+    const tps = parseFloat(document.getElementById('tps').value) || 0;
+    const tvq = parseFloat(document.getElementById('tvq').value) || 0;
+    const total = montant + tps + tvq;
+    document.getElementById('montant_total_display').textContent = total.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+    document.getElementById('montant_total').value = total;
+}
+
+// Calcul automatique des taxes quand on modifie le montant
+document.getElementById('montant_avant_taxes').addEventListener('input', calculerTaxesAuto);
+
+// Réactiver les taxes si on modifie manuellement
+document.getElementById('tps').addEventListener('focus', function() {
+    if (!taxesActives) {
+        taxesActives = true;
+        this.classList.remove('bg-light');
+        document.getElementById('tvq').classList.remove('bg-light');
+    }
+});
+document.getElementById('tvq').addEventListener('focus', function() {
+    if (!taxesActives) {
+        taxesActives = true;
+        this.classList.remove('bg-light');
+        document.getElementById('tps').classList.remove('bg-light');
+    }
+});
+
+document.getElementById('tps').addEventListener('input', calculerTotal);
+document.getElementById('tvq').addEventListener('input', calculerTotal);
+
+// Calcul initial
+calculerTotal();
+</script>
 
 <?php include '../includes/footer.php'; ?>
