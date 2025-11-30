@@ -22,6 +22,30 @@ $categoriesGrouped = getCategoriesGrouped($pdo);
 // Projet pré-sélectionné
 $projetIdSelected = isset($_GET['projet_id']) ? (int)$_GET['projet_id'] : 0;
 
+// Liste des fournisseurs suggérés
+$fournisseursSuggeres = [
+    'Réno Dépot',
+    'Rona',
+    'BMR',
+    'Patrick Morin',
+    'Home Depot',
+    'J-Jodoin',
+    'Ly Granite',
+    'COMMONWEALTH',
+    'CJP',
+    'Richelieu',
+    'Canac',
+    'IKEA',
+    'Lowes',
+    'Canadian Tire'
+];
+
+// Récupérer les fournisseurs utilisés récemment
+$stmt = $pdo->query("SELECT DISTINCT fournisseur FROM factures ORDER BY fournisseur ASC LIMIT 50");
+$fournisseursUtilises = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$tousLesFournisseurs = array_unique(array_merge($fournisseursSuggeres, $fournisseursUtilises));
+sort($tousLesFournisseurs);
+
 $errors = [];
 $success = false;
 
@@ -164,8 +188,16 @@ include '../includes/header.php';
                                    id="fournisseur" 
                                    name="fournisseur" 
                                    value="<?= e($_POST['fournisseur'] ?? '') ?>"
-                                   placeholder="Nom du fournisseur"
+                                   list="listeFournisseurs"
+                                   autocomplete="off"
+                                   placeholder="Tapez ou sélectionnez un fournisseur..."
                                    required>
+                            <datalist id="listeFournisseurs">
+                                <?php foreach ($tousLesFournisseurs as $f): ?>
+                                    <option value="<?= e($f) ?>">
+                                <?php endforeach; ?>
+                            </datalist>
+                            <small class="text-muted">Tapez pour rechercher ou entrez un nouveau fournisseur</small>
                         </div>
                         
                         <!-- Catégorie -->
