@@ -250,10 +250,24 @@ include '../../includes/header.php';
                 
                 <div class="mb-3">
                     <label class="form-label">Photo/PDF de la facture</label>
-                    <?php if ($facture['fichier']): ?>
-                        <div class="mb-2">
+                    <?php if ($facture['fichier']): 
+                        $isImage = preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier']);
+                        $isPdf = preg_match('/\.pdf$/i', $facture['fichier']);
+                    ?>
+                        <div class="mb-2 d-flex align-items-center gap-3">
+                            <?php if ($isImage): ?>
+                                <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank">
+                                    <img src="/uploads/factures/<?= e($facture['fichier']) ?>" 
+                                         alt="Facture" 
+                                         style="max-width:150px;max-height:150px;object-fit:contain;border-radius:8px;border:2px solid #ddd">
+                                </a>
+                            <?php elseif ($isPdf): ?>
+                                <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank" class="text-danger">
+                                    <i class="bi bi-file-pdf" style="font-size:4rem"></i>
+                                </a>
+                            <?php endif; ?>
                             <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-file-earmark me-1"></i>Voir fichier actuel
+                                <i class="bi bi-eye me-1"></i>Voir en grand
                             </a>
                         </div>
                     <?php endif; ?>

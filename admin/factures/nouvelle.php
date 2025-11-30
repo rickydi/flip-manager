@@ -69,6 +69,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Calculer le total
         $montantTotal = $montantAvantTaxes + $tps + $tvq;
         
+        // Si remboursement, inverser les montants (valeurs négatives)
+        if (isset($_POST['is_remboursement'])) {
+            $montantAvantTaxes = -abs($montantAvantTaxes);
+            $tps = -abs($tps);
+            $tvq = -abs($tvq);
+            $montantTotal = -abs($montantTotal);
+        }
+        
         // Upload de fichier
         $fichier = null;
         if (isset($_FILES['fichier']) && $_FILES['fichier']['error'] !== UPLOAD_ERR_NO_FILE) {
@@ -195,6 +203,17 @@ include '../../includes/header.php';
                     <label class="form-label">Description</label>
                     <textarea class="form-control" name="description" rows="2" 
                               placeholder="Description des achats..."></textarea>
+                </div>
+                
+                <!-- Type de facture -->
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="is_remboursement" name="is_remboursement">
+                        <label class="form-check-label" for="is_remboursement">
+                            <i class="bi bi-arrow-return-left text-success me-1"></i>
+                            <strong>Remboursement</strong> <small class="text-muted">(réduit le coût du projet)</small>
+                        </label>
+                    </div>
                 </div>
                 
                 <div class="row">
