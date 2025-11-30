@@ -182,22 +182,21 @@ include '../includes/header.php';
                         
                         <!-- Fournisseur -->
                         <div class="mb-3">
-                            <label for="fournisseur" class="form-label">Fournisseur *</label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="fournisseur" 
-                                   name="fournisseur" 
-                                   value="<?= e($_POST['fournisseur'] ?? '') ?>"
-                                   list="listeFournisseurs"
-                                   autocomplete="off"
-                                   placeholder="Tapez ou sélectionnez un fournisseur..."
-                                   required>
-                            <datalist id="listeFournisseurs">
+                            <label for="fournisseur_select" class="form-label">Fournisseur *</label>
+                            <select class="form-select" id="fournisseur_select" onchange="fournisseurSelectChange(this)">
+                                <option value="">Sélectionner un fournisseur...</option>
                                 <?php foreach ($tousLesFournisseurs as $f): ?>
-                                    <option value="<?= e($f) ?>">
+                                    <option value="<?= e($f) ?>" <?= ($_POST['fournisseur'] ?? '') === $f ? 'selected' : '' ?>><?= e($f) ?></option>
                                 <?php endforeach; ?>
-                            </datalist>
-                            <small class="text-muted">Tapez pour rechercher ou entrez un nouveau fournisseur</small>
+                                <option value="__autre__">➕ Autre (nouveau fournisseur)</option>
+                            </select>
+                            <input type="text" 
+                                   class="form-control mt-2" 
+                                   id="fournisseur_autre" 
+                                   name="fournisseur_autre"
+                                   style="display: none;"
+                                   placeholder="Entrez le nom du nouveau fournisseur...">
+                            <input type="hidden" id="fournisseur" name="fournisseur" value="<?= e($_POST['fournisseur'] ?? '') ?>" required>
                         </div>
                         
                         <!-- Catégorie -->
@@ -407,6 +406,53 @@ document.getElementById('tvq').addEventListener('input', calculerTotal);
 
 // Calcul initial
 calculerTotal();
+
+// Gestion du fournisseur
+function fournisseurSelectChange(select) {
+    const autreInput = document.getElementById('fournisseur_autre');
+    const fournisseurHidden = document.getElementById('fournisseur');
+    
+    if (select.value === '__autre__') {
+        autreInput.style.display = 'block';
+        autreInput.focus();
+        autreInput.required = true;
+        fournisseurHidden.value = '';
+    } else {
+        autreInput.style.display = 'none';
+        autreInput.required = false;
+        autreInput.value = '';
+        fournisseurHidden.value = select.value;
+    }
+}
+
+// Synchroniser l'input "autre" avec le champ hidden
+document.getElementById('fournisseur_autre').addEventListener('input', function() {
+    document.getElementById('fournisseur').value = this.value;
+});
+
+// Initialiser si un fournisseur est déjà sélectionné
+(function() {
+    const select = document.getElementById('fournisseur_select');
+    const fournisseurValue = document.getElementById('fournisseur').value;
+    
+    if (fournisseurValue) {
+        // Vérifier si le fournisseur est dans la liste
+        let found = false;
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value === fournisseurValue) {
+                select.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+        if (!found && fournisseurValue !== '') {
+            // Fournisseur personnalisé, afficher le champ "autre"
+            select.value = '__autre__';
+            document.getElementById('fournisseur_autre').style.display = 'block';
+            document.getElementById('fournisseur_autre').value = fournisseurValue;
+        }
+    }
+})();
 </script>
 
 <?php include '../includes/footer.php'; ?>
