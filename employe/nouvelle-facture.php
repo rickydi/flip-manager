@@ -220,12 +220,12 @@ include '../includes/header.php';
                         <!-- Date de la facture -->
                         <div class="mb-3">
                             <label for="date_facture" class="form-label">Date de la facture *</label>
-                            <input type="text" 
-                                   class="form-control flatpickr-date" 
+                            <input type="date" 
+                                   class="form-control" 
                                    id="date_facture" 
                                    name="date_facture" 
                                    value="<?= e($_POST['date_facture'] ?? date('Y-m-d')) ?>"
-                                   placeholder="Sélectionner une date..."
+                                   max="<?= date('Y-m-d') ?>"
                                    required>
                         </div>
                         
@@ -455,14 +455,6 @@ document.getElementById('fournisseur_autre').addEventListener('input', function(
     }
 })();
 
-// Initialiser Flatpickr pour le champ date
-flatpickr('#date_facture', {
-    dateFormat: 'Y-m-d',
-    defaultDate: '<?= e($_POST['date_facture'] ?? date('Y-m-d')) ?>',
-    locale: 'fr',
-    allowInput: true,
-    disableMobile: false
-});
 </script>
 
 <?php include '../includes/footer.php'; ?>
