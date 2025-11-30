@@ -45,6 +45,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ");
             $stmt->execute([$adminId]);
             setFlashMessage('success', 'Toutes les heures en attente ont été approuvées.');
+        } elseif ($action === 'modifier' && $heureId > 0) {
+            $dateTravail = $_POST['date_travail'] ?? '';
+            $heuresNb = parseNumber($_POST['heures'] ?? 0);
+            $description = trim($_POST['description'] ?? '');
+            $tauxHoraire = parseNumber($_POST['taux_horaire'] ?? 0);
+            
+            if ($heuresNb > 0 && $heuresNb <= 24 && !empty($dateTravail)) {
+                $stmt = $pdo->prepare("
+                    UPDATE heures_travaillees 
+                    SET date_travail = ?, heures = ?, description = ?, taux_horaire = ?
+                    WHERE id = ?
+                ");
+                $stmt->execute([$dateTravail, $heuresNb, $description, $tauxHoraire, $heureId]);
+                setFlashMessage('success', 'Entrée modifiée.');
+            } else {
+                setFlashMessage('danger', 'Données invalides.');
+            }
+        } elseif ($action === 'supprimer' && $heureId > 0) {
+            $stmt = $pdo->prepare("DELETE FROM heures_travaillees WHERE id = ?");
+            $stmt->execute([$heureId]);
+            setFlashMessage('success', 'Entrée supprimée.');
         }
         redirect('/admin/temps/liste.php');
     }
@@ -274,6 +295,19 @@ include '../../includes/header.php';
                                                 </button>
                                             </form>
                                         <?php endif; ?>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                                data-bs-toggle="modal" data-bs-target="#modalModifier<?= $h['id'] ?>" title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="POST" action="" class="d-inline" 
+                                              onsubmit="return confirm('Supprimer cette entrée ?');">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="supprimer">
+                                            <input type="hidden" name="heure_id" value="<?= $h['id'] ?>">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -284,5 +318,63 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Modales de modification -->
+<?php foreach ($heures as $h): ?>
+<div class="modal fade" id="modalModifier<?= $h['id'] ?>" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="modifier">
+                <input type="hidden" name="heure_id" value="<?= $h['id'] ?>">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title">Modifier l'entrée de temps</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Employé</label>
+                        <input type="text" class="form-control" value="<?= e($h['employe_nom']) ?>" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Projet</label>
+                        <input type="text" class="form-control" value="<?= e($h['projet_nom']) ?>" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" name="date_travail" 
+                               value="<?= $h['date_travail'] ?>" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Heures *</label>
+                            <input type="number" step="0.5" min="0.5" max="24" class="form-control" 
+                                   name="heures" value="<?= $h['heures'] ?>" required>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Taux horaire</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" min="0" class="form-control" 
+                                       name="taux_horaire" value="<?= $h['taux_horaire'] ?>">
+                                <span class="input-group-text">$/h</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="2"><?= e($h['description'] ?? '') ?></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endforeach; ?>
 
 <?php include '../../includes/footer.php'; ?>
