@@ -253,12 +253,6 @@ include '../includes/header.php';
 <div class="container-fluid">
     <?php displayFlashMessage(); ?>
     
-    <!-- Header moderne -->
-    <div class="dashboard-header">
-        <h1>👋 Bienvenue, <?= e($_SESSION['user_prenom'] ?? 'Admin') ?></h1>
-        <p>Voici un aperçu de vos projets de flip immobilier</p>
-    </div>
-    
     <!-- Statistiques -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
