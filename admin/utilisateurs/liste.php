@@ -26,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($action === 'creer') {
             $nom = trim($_POST['nom'] ?? '');
             $prenom = trim($_POST['prenom'] ?? '');
+            $username = trim(strtolower($_POST['username'] ?? ''));
             $email = trim($_POST['email'] ?? '');
             $password = $_POST['password'] ?? '';
             $role = $_POST['role'] ?? 'employe';
@@ -33,30 +34,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($nom)) $errors[] = 'Le nom est requis.';
             if (empty($prenom)) $errors[] = 'Le prénom est requis.';
-            if (empty($email)) $errors[] = 'L\'email est requis.';
-            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'Email invalide.';
-            if (strlen($password) < 6) $errors[] = 'Le mot de passe doit contenir au moins 6 caractères.';
+            if (empty($username)) $errors[] = 'L\'identifiant est requis.';
+            if (!preg_match('/^[a-z0-9_]+$/', $username)) $errors[] = 'L\'identifiant ne peut contenir que des lettres minuscules, chiffres et underscores.';
+            if (strlen($password) < 4) $errors[] = 'Le mot de passe doit contenir au moins 4 caractères.';
             
-            // Vérifier que l'email n'existe pas
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
-            $stmt->execute([$email]);
-            if ($stmt->fetch()) {
-                $errors[] = 'Cet email est déjà utilisé.';
+            // Vérifier que l'username n'existe pas
+            if (!empty($username)) {
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+                $stmt->execute([$username]);
+                if ($stmt->fetch()) {
+                    $errors[] = 'Cet identifiant est déjà utilisé.';
+                }
+            }
+            
+            // Générer un email bidon si vide
+            if (empty($email)) {
+                $email = $username . '@local.flip';
             }
             
             if (empty($errors)) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (nom, prenom, email, password, role, taux_horaire)
-                    VALUES (?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (username, nom, prenom, email, password, role, taux_horaire)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire]);
-                setFlashMessage('success', 'Utilisateur créé avec succès.');
+                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire]);
+                setFlashMessage('success', 'Utilisateur créé avec succès. Identifiant: ' . $username);
                 redirect('/admin/utilisateurs/liste.php');
             }
         } elseif ($action === 'modifier') {
             $userId = (int)($_POST['user_id'] ?? 0);
             $nom = trim($_POST['nom'] ?? '');
             $prenom = trim($_POST['prenom'] ?? '');
+            $username = trim(strtolower($_POST['username'] ?? ''));
             $email = trim($_POST['email'] ?? '');
             $password = $_POST['password'] ?? '';
             $role = $_POST['role'] ?? 'employe';
@@ -65,28 +74,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($nom)) $errors[] = 'Le nom est requis.';
             if (empty($prenom)) $errors[] = 'Le prénom est requis.';
-            if (empty($email)) $errors[] = 'L\'email est requis.';
+            if (empty($username)) $errors[] = 'L\'identifiant est requis.';
+            if (!preg_match('/^[a-z0-9_]+$/', $username)) $errors[] = 'L\'identifiant ne peut contenir que des lettres minuscules, chiffres et underscores.';
             
-            // Vérifier que l'email n'existe pas pour un autre utilisateur
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
-            $stmt->execute([$email, $userId]);
-            if ($stmt->fetch()) {
-                $errors[] = 'Cet email est déjà utilisé.';
+            // Vérifier que l'username n'existe pas pour un autre utilisateur
+            if (!empty($username)) {
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
+                $stmt->execute([$username, $userId]);
+                if ($stmt->fetch()) {
+                    $errors[] = 'Cet identifiant est déjà utilisé.';
+                }
+            }
+            
+            // Générer un email bidon si vide
+            if (empty($email)) {
+                $email = $username . '@local.flip';
             }
             
             if (empty($errors)) {
                 if (!empty($password)) {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?
+                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $userId]);
+                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $userId]);
                 } else {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?
+                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$nom, $prenom, $email, $role, $actif, $tauxHoraire, $userId]);
+                    $stmt->execute([$username, $nom, $prenom, $email, $role, $actif, $tauxHoraire, $userId]);
                 }
                 setFlashMessage('success', 'Utilisateur modifié avec succès.');
                 redirect('/admin/utilisateurs/liste.php');
@@ -137,8 +154,8 @@ include '../../includes/header.php';
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
+                            <th>Identifiant</th>
                             <th>Nom</th>
-                            <th>Email</th>
                             <th>Rôle</th>
                             <th>Taux horaire</th>
                             <th>Statut</th>
@@ -150,9 +167,11 @@ include '../../includes/header.php';
                         <?php foreach ($utilisateurs as $user): ?>
                             <tr>
                                 <td>
+                                    <code><?= e($user['username'] ?? '-') ?></code>
+                                </td>
+                                <td>
                                     <strong><?= e($user['prenom']) ?> <?= e($user['nom']) ?></strong>
                                 </td>
-                                <td><?= e($user['email']) ?></td>
                                 <td>
                                     <span class="badge <?= $user['role'] === 'admin' ? 'bg-primary' : 'bg-secondary' ?>">
                                         <?= $user['role'] === 'admin' ? 'Administrateur' : 'Employé' ?>
@@ -197,6 +216,13 @@ include '../../includes/header.php';
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
                                             <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Identifiant (login) *</label>
+                                                    <input type="text" class="form-control" name="username" 
+                                                           value="<?= e($user['username'] ?? '') ?>" required
+                                                           pattern="[a-z0-9_]+" title="Lettres minuscules, chiffres et _ uniquement">
+                                                    <small class="text-muted">Lettres minuscules, chiffres et _ uniquement</small>
+                                                </div>
                                                 <div class="row">
                                                     <div class="col-6 mb-3">
                                                         <label class="form-label">Prénom *</label>
@@ -210,9 +236,9 @@ include '../../includes/header.php';
                                                     </div>
                                                 </div>
                                                 <div class="mb-3">
-                                                    <label class="form-label">Email *</label>
+                                                    <label class="form-label">Email <small class="text-muted">(optionnel)</small></label>
                                                     <input type="email" class="form-control" name="email" 
-                                                           value="<?= e($user['email']) ?>" required>
+                                                           value="<?= e($user['email']) ?>">
                                                 </div>
                                                 <div class="mb-3">
                                                     <label class="form-label">Nouveau mot de passe</label>
@@ -273,6 +299,12 @@ include '../../includes/header.php';
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Identifiant (login) *</label>
+                        <input type="text" class="form-control" name="username" required
+                               pattern="[a-z0-9_]+" title="Lettres minuscules, chiffres et _ uniquement">
+                        <small class="text-muted">Lettres minuscules, chiffres et _ uniquement</small>
+                    </div>
                     <div class="row">
                         <div class="col-6 mb-3">
                             <label class="form-label">Prénom *</label>
@@ -284,12 +316,12 @@ include '../../includes/header.php';
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Email *</label>
-                        <input type="email" class="form-control" name="email" required>
+                        <label class="form-label">Email <small class="text-muted">(optionnel)</small></label>
+                        <input type="email" class="form-control" name="email">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Mot de passe *</label>
-                        <input type="password" class="form-control" name="password" required minlength="6">
+                        <input type="password" class="form-control" name="password" required minlength="4">
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">

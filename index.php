@@ -21,13 +21,13 @@ $error = '';
 
 // Traitement du formulaire de connexion
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email'] ?? '');
+    $identifier = trim($_POST['identifier'] ?? '');
     $password = $_POST['password'] ?? '';
     
-    if (empty($email) || empty($password)) {
+    if (empty($identifier) || empty($password)) {
         $error = 'Veuillez remplir tous les champs.';
     } else {
-        $user = verifyCredentials($pdo, $email, $password);
+        $user = verifyCredentials($pdo, $identifier, $password);
         
         if ($user) {
             loginUser($user);
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('/employe/index.php');
             }
         } else {
-            $error = 'Email ou mot de passe incorrect.';
+            $error = 'Identifiant ou mot de passe incorrect.';
         }
     }
 }
@@ -79,17 +79,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <form method="POST" action="">
                 <div class="mb-3">
-                    <label for="email" class="form-label">Adresse email</label>
+                    <label for="identifier" class="form-label">Identifiant</label>
                     <div class="input-group">
                         <span class="input-group-text">
-                            <i class="bi bi-envelope"></i>
+                            <i class="bi bi-person"></i>
                         </span>
-                        <input type="email" 
+                        <input type="text" 
                                class="form-control form-control-lg" 
-                               id="email" 
-                               name="email" 
-                               placeholder="votre@email.com"
-                               value="<?= e($_POST['email'] ?? '') ?>"
+                               id="identifier" 
+                               name="identifier" 
+                               placeholder="Nom d'utilisateur ou email"
+                               value="<?= e($_POST['identifier'] ?? '') ?>"
                                required 
                                autofocus>
                     </div>
