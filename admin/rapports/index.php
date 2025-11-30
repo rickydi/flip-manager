@@ -14,11 +14,24 @@ $pageTitle = 'Rapports';
 
 // Filtres
 $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
+$filtreCategorie = isset($_GET['categorie']) ? (int)$_GET['categorie'] : 0;
+$filtreGroupe = isset($_GET['groupe']) ? $_GET['groupe'] : '';
 $dateDebut = isset($_GET['date_debut']) ? $_GET['date_debut'] : date('Y-m-01'); // Premier jour du mois
 $dateFin = isset($_GET['date_fin']) ? $_GET['date_fin'] : date('Y-m-d'); // Aujourd'hui
 
-// Récupérer les projets pour le filtre
+// Récupérer les projets et catégories pour les filtres
 $projets = getProjets($pdo, false);
+$categories = getCategories($pdo);
+
+// Liste des groupes de catégories
+$groupes = [
+    'exterieur' => 'Extérieur',
+    'finition' => 'Finition intérieure',
+    'ebenisterie' => 'Ébénisterie',
+    'electricite' => 'Électricité',
+    'plomberie' => 'Plomberie',
+    'autre' => 'Autre'
+];
 
 // Construire les conditions WHERE
 $whereFactures = "WHERE f.statut = 'approuvee'";
@@ -43,6 +56,15 @@ if ($dateFin) {
     $params[] = $dateFin;
 }
 
+// Construire les filtres additionnels pour les factures
+$filtreFacturesAdd = "";
+if ($filtreCategorie > 0) {
+    $filtreFacturesAdd .= " AND f.categorie_id = $filtreCategorie";
+}
+if ($filtreGroupe !== '') {
+    $filtreFacturesAdd .= " AND c.groupe = '$filtreGroupe'";
+}
+
 // 1. Rapport par projet
 $sqlProjet = "
     SELECT p.id, p.nom, p.adresse,
@@ -51,7 +73,11 @@ $sqlProjet = "
     LEFT JOIN factures f ON f.projet_id = p.id AND f.statut = 'approuvee'
         " . ($dateDebut ? "AND f.date_facture >= '$dateDebut'" : "") . "
         " . ($dateFin ? "AND f.date_facture <= '$dateFin'" : "") . "
+        " . ($filtreCategorie > 0 ? "AND f.categorie_id = $filtreCategorie" : "") . "
+    " . ($filtreGroupe !== '' ? "LEFT JOIN categories c ON f.categorie_id = c.id" : "") . "
     " . ($filtreProjet > 0 ? "WHERE p.id = $filtreProjet" : "") . "
+    " . ($filtreGroupe !== '' && $filtreProjet == 0 ? "WHERE c.groupe = '$filtreGroupe'" : "") . "
+    " . ($filtreGroupe !== '' && $filtreProjet > 0 ? "AND c.groupe = '$filtreGroupe'" : "") . "
     GROUP BY p.id, p.nom, p.adresse
     ORDER BY p.nom
 ";
@@ -89,6 +115,9 @@ $sqlCategorie = "
         " . ($dateDebut ? "AND f.date_facture >= '$dateDebut'" : "") . "
         " . ($dateFin ? "AND f.date_facture <= '$dateFin'" : "") . "
         " . ($filtreProjet > 0 ? "AND f.projet_id = $filtreProjet" : "") . "
+    WHERE 1=1
+    " . ($filtreCategorie > 0 ? "AND c.id = $filtreCategorie" : "") . "
+    " . ($filtreGroupe !== '' ? "AND c.groupe = '$filtreGroupe'" : "") . "
     GROUP BY c.id, c.nom, c.groupe
     HAVING total > 0
     ORDER BY total DESC
@@ -131,6 +160,20 @@ if ($filtreProjet > 0) {
             break;
         }
     }
+}
+
+// Nom de la catégorie/groupe filtré
+$nomFiltreCategorie = '';
+if ($filtreCategorie > 0) {
+    foreach ($categories as $c) {
+        if ($c['id'] == $filtreCategorie) {
+            $nomFiltreCategorie = $c['nom'];
+            break;
+        }
+    }
+}
+if ($filtreGroupe !== '') {
+    $nomFiltreCategorie = $groupes[$filtreGroupe] ?? $filtreGroupe;
 }
 
 include '../../includes/header.php';
@@ -184,7 +227,7 @@ include '../../includes/header.php';
     <div class="card mb-4 no-print">
         <div class="card-body">
             <form method="GET" action="" class="row g-3" id="filterForm">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="projet" class="form-label">Projet</label>
                     <select class="form-select auto-submit" id="projet" name="projet">
                         <option value="">Tous les projets</option>
@@ -195,19 +238,41 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label for="groupe" class="form-label">Type de dépense</label>
+                    <select class="form-select auto-submit" id="groupe" name="groupe">
+                        <option value="">Tous les types</option>
+                        <?php foreach ($groupes as $key => $label): ?>
+                            <option value="<?= $key ?>" <?= $filtreGroupe === $key ? 'selected' : '' ?>>
+                                <?= e($label) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="categorie" class="form-label">Catégorie</label>
+                    <select class="form-select auto-submit" id="categorie" name="categorie">
+                        <option value="">Toutes</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= $cat['id'] ?>" <?= $filtreCategorie == $cat['id'] ? 'selected' : '' ?>>
+                                <?= e($cat['nom']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label for="date_debut" class="form-label">Date début</label>
                     <input type="date" class="form-control auto-submit" id="date_debut" name="date_debut" 
                            value="<?= e($dateDebut) ?>">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="date_fin" class="form-label">Date fin</label>
                     <input type="date" class="form-control auto-submit" id="date_fin" name="date_fin" 
                            value="<?= e($dateFin) ?>">
                 </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <a href="/admin/rapports/index.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-x-circle me-1"></i>Réinitialiser
+                <div class="col-md-1 d-flex align-items-end">
+                    <a href="/admin/rapports/index.php" class="btn btn-outline-secondary" title="Réinitialiser">
+                        <i class="bi bi-x-circle"></i>
                     </a>
                 </div>
             </form>
@@ -229,6 +294,9 @@ include '../../includes/header.php';
             <h2><?= APP_NAME ?> - Rapport</h2>
             <p>
                 <strong>Projet:</strong> <?= e($nomProjetFiltre) ?><br>
+                <?php if ($nomFiltreCategorie): ?>
+                    <strong>Filtre:</strong> <?= e($nomFiltreCategorie) ?><br>
+                <?php endif; ?>
                 <strong>Période:</strong> <?= formatDate($dateDebut) ?> au <?= formatDate($dateFin) ?><br>
                 <strong>Généré le:</strong> <?= formatDateTime(date('Y-m-d H:i:s')) ?>
             </p>
