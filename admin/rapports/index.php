@@ -59,19 +59,23 @@ $rapportProjets = $pdo->query($sqlProjet)->fetchAll();
 
 // Ajouter les heures par projet
 foreach ($rapportProjets as &$projet) {
-    $stmt = $pdo->prepare("
-        SELECT COALESCE(SUM(h.heures * u.taux_horaire), 0) as cout_main_oeuvre,
-               COALESCE(SUM(h.heures), 0) as total_heures
-        FROM heures h
-        JOIN users u ON h.user_id = u.id
-        WHERE h.projet_id = ? AND h.statut = 'approuve'
-        " . ($dateDebut ? "AND h.date_travail >= '$dateDebut'" : "") . "
-        " . ($dateFin ? "AND h.date_travail <= '$dateFin'" : "") . "
-    ");
-    $stmt->execute([$projet['id']]);
-    $heures = $stmt->fetch();
-    $projet['cout_main_oeuvre'] = $heures['cout_main_oeuvre'] ?? 0;
-    $projet['total_heures'] = $heures['total_heures'] ?? 0;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COALESCE(SUM(h.heures * h.taux_horaire), 0) as cout_main_oeuvre,
+                   COALESCE(SUM(h.heures), 0) as total_heures
+            FROM heures_travaillees h
+            WHERE h.projet_id = ? AND h.statut = 'approuvee'
+            " . ($dateDebut ? "AND h.date_travail >= '$dateDebut'" : "") . "
+            " . ($dateFin ? "AND h.date_travail <= '$dateFin'" : "") . "
+        ");
+        $stmt->execute([$projet['id']]);
+        $heures = $stmt->fetch();
+        $projet['cout_main_oeuvre'] = $heures['cout_main_oeuvre'] ?? 0;
+        $projet['total_heures'] = $heures['total_heures'] ?? 0;
+    } catch (Exception $e) {
+        $projet['cout_main_oeuvre'] = 0;
+        $projet['total_heures'] = 0;
+    }
     $projet['total_global'] = $projet['total_factures'] + $projet['cout_main_oeuvre'];
 }
 unset($projet);
@@ -92,22 +96,26 @@ $sqlCategorie = "
 $rapportCategories = $pdo->query($sqlCategorie)->fetchAll();
 
 // 3. Rapport par employé (heures)
-$sqlEmployes = "
-    SELECT CONCAT(u.prenom, ' ', u.nom) as employe,
-           u.taux_horaire,
-           COALESCE(SUM(h.heures), 0) as total_heures,
-           COALESCE(SUM(h.heures * u.taux_horaire), 0) as cout_total
-    FROM users u
-    LEFT JOIN heures h ON h.user_id = u.id AND h.statut = 'approuve'
-        " . ($dateDebut ? "AND h.date_travail >= '$dateDebut'" : "") . "
-        " . ($dateFin ? "AND h.date_travail <= '$dateFin'" : "") . "
-        " . ($filtreProjet > 0 ? "AND h.projet_id = $filtreProjet" : "") . "
-    WHERE u.actif = 1
-    GROUP BY u.id, u.prenom, u.nom, u.taux_horaire
-    HAVING total_heures > 0
-    ORDER BY total_heures DESC
-";
-$rapportEmployes = $pdo->query($sqlEmployes)->fetchAll();
+try {
+    $sqlEmployes = "
+        SELECT CONCAT(u.prenom, ' ', u.nom) as employe,
+               u.taux_horaire,
+               COALESCE(SUM(h.heures), 0) as total_heures,
+               COALESCE(SUM(h.heures * h.taux_horaire), 0) as cout_total
+        FROM users u
+        LEFT JOIN heures_travaillees h ON h.user_id = u.id AND h.statut = 'approuvee'
+            " . ($dateDebut ? "AND h.date_travail >= '$dateDebut'" : "") . "
+            " . ($dateFin ? "AND h.date_travail <= '$dateFin'" : "") . "
+            " . ($filtreProjet > 0 ? "AND h.projet_id = $filtreProjet" : "") . "
+        WHERE u.actif = 1
+        GROUP BY u.id, u.prenom, u.nom, u.taux_horaire
+        HAVING total_heures > 0
+        ORDER BY total_heures DESC
+    ";
+    $rapportEmployes = $pdo->query($sqlEmployes)->fetchAll();
+} catch (Exception $e) {
+    $rapportEmployes = [];
+}
 
 // Totaux globaux
 $totalFactures = array_sum(array_column($rapportProjets, 'total_factures'));
