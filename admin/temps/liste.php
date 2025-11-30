@@ -182,7 +182,7 @@ include '../../includes/header.php';
             <form method="GET" action="/admin/temps/liste.php" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="form-label">Statut</label>
-                    <select class="form-select" name="statut">
+                    <select class="form-select" name="statut" onchange="this.form.submit()">
                         <option value="">Tous</option>
                         <option value="en_attente" <?= $filtreStatut === 'en_attente' ? 'selected' : '' ?>>En attente</option>
                         <option value="approuvee" <?= $filtreStatut === 'approuvee' ? 'selected' : '' ?>>Approuvées</option>
@@ -191,7 +191,7 @@ include '../../includes/header.php';
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Projet</label>
-                    <select class="form-select" name="projet">
+                    <select class="form-select" name="projet" onchange="this.form.submit()">
                         <option value="">Tous les projets</option>
                         <?php foreach ($projets as $p): ?>
                             <option value="<?= $p['id'] ?>" <?= $filtreProjet == $p['id'] ? 'selected' : '' ?>>
@@ -200,9 +200,9 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <label class="form-label">Employé</label>
-                    <select class="form-select" name="employe">
+                    <select class="form-select" name="employe" onchange="this.form.submit()">
                         <option value="">Tous</option>
                         <?php foreach ($employes as $emp): ?>
                             <option value="<?= $emp['id'] ?>" <?= $filtreEmploye == $emp['id'] ? 'selected' : '' ?>>
@@ -211,16 +211,10 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">&nbsp;</label>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-funnel"></i> Filtrer
-                        </button>
-                        <a href="/admin/temps/liste.php" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-circle"></i> Reset
-                        </a>
-                    </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <a href="/admin/temps/liste.php" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-x-circle"></i> Reset
+                    </a>
                 </div>
             </form>
         </div>
