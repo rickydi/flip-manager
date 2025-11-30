@@ -481,115 +481,143 @@ include '../../includes/header.php';
         </div>
     </div>
     
-    <!-- Résumé financier -->
+    <!-- Résumé financier comparatif -->
     <div class="financial-section">
-        <h5><i class="bi bi-calculator me-2"></i>Résumé financier <small class="text-muted fw-normal">(survolez pour voir les formules)</small></h5>
-        <div class="row">
-            <div class="col-md-6">
-                <table class="financial-table">
-                    <tbody>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Montant payé pour acquérir la propriété">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Prix d'achat
-                            </td>
-                            <td class="amount"><?= formatMoney($projet['prix_achat']) ?></td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Notaire + Taxe mutation + Arpenteurs + Assurance titre&#10;&#10;<?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?> + <?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?> + <?= formatMoney($indicateurs['couts_acquisition']['arpenteurs']) ?> + <?= formatMoney($indicateurs['couts_acquisition']['assurance_titre']) ?>">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Coûts d'acquisition
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="(Taxes mun. + Taxes scol. + Électricité + Assurances + Déneigement + Condo) × (<?= $dureeReelle ?> mois / 12) + Hypothèque × <?= $dureeReelle ?> mois">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Coûts récurrents
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Intérêts (composés) + Commission courtier + Quittance&#10;&#10;Intérêts = Montant × ((1 + Taux/12)^Mois - 1)&#10;Commission = Valeur × <?= $projet['taux_commission'] ?>% + TPS + TVQ">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Coûts de vente
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Somme de tous les budgets extrapolés par catégorie">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Rénovation (budget)
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['renovation']['budget']) ?></td>
-                        </tr>
-                        <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?> heures travaillées × taux horaire">
-                                <i class="bi bi-person-fill text-muted me-1"></i>Main d'œuvre
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Rénovation × <?= $projet['taux_contingence'] ?>%&#10;&#10;<?= formatMoney($indicateurs['renovation']['budget']) ?> × <?= $projet['taux_contingence'] ?>% = <?= formatMoney($indicateurs['contingence']) ?>">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Contingence (<?= $projet['taux_contingence'] ?>%)
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['contingence']) ?></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Prix d'achat + Coûts acquisition + Coûts récurrents + Coûts vente + Rénovation + Contingence">
-                                <i class="bi bi-info-circle text-white me-1"></i><strong>Coût total projet</strong>
-                            </td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['cout_total_projet']) ?></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="col-md-6">
-                <table class="financial-table">
-                    <tbody>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Prix de vente estimé ou réel de la propriété">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Valeur potentielle
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Tous les coûts additionnés (voir colonne gauche)">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Coût total projet
-                            </td>
-                            <td class="amount negative">- <?= formatMoney($indicateurs['cout_total_projet']) ?></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Valeur potentielle - Coût total projet&#10;&#10;<?= formatMoney($indicateurs['valeur_potentielle']) ?> - <?= formatMoney($indicateurs['cout_total_projet']) ?> = <?= formatMoney($indicateurs['equite_potentielle']) ?>&#10;&#10;C'est le PROFIT estimé avant répartition">
-                                <i class="bi bi-info-circle text-white me-1"></i><strong>Équité potentielle</strong>
-                            </td>
-                            <td class="amount <?= $indicateurs['equite_potentielle'] >= 0 ? 'positive' : 'negative' ?>">
-                                <strong><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2">&nbsp;</td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="Total des montants investis (prêteurs + investisseurs)&#10;&#10;Utilisé pour calculer le ROI avec leverage">
-                                <i class="bi bi-info-circle text-muted me-1"></i>Mise de fonds totale
-                            </td>
-                            <td class="amount"><?= formatMoney($indicateurs['mise_fonds_totale']) ?></td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="(Équité potentielle / Mise de fonds totale) × 100&#10;&#10;(<?= formatMoney($indicateurs['equite_potentielle']) ?> / <?= formatMoney($indicateurs['mise_fonds_totale']) ?>) × 100 = <?= number_format($indicateurs['roi_leverage'], 2) ?>%&#10;&#10;Rendement sur l'argent réellement investi">
-                                <i class="bi bi-info-circle text-muted me-1"></i><strong>ROI (leverage)</strong>
-                            </td>
-                            <td class="amount <?= $indicateurs['roi_leverage'] >= 0 ? 'positive' : 'negative' ?>">
-                                <strong><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="tooltip-cell" data-bs-toggle="tooltip" data-bs-placement="right" title="(Équité potentielle / Coût total projet) × 100&#10;&#10;(<?= formatMoney($indicateurs['equite_potentielle']) ?> / <?= formatMoney($indicateurs['cout_total_projet']) ?>) × 100 = <?= number_format($indicateurs['roi_all_cash'], 2) ?>%&#10;&#10;Rendement si vous aviez payé tout en argent comptant">
-                                <i class="bi bi-info-circle text-muted me-1"></i><strong>ROI (all cash)</strong>
-                            </td>
-                            <td class="amount"><?= formatPercent($indicateurs['roi_all_cash']) ?></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <h5><i class="bi bi-calculator me-2"></i>Résumé financier - Extrapolé vs Réel</h5>
+        
+        <?php
+        // Calculer le réel des factures + main d'œuvre
+        $renoReel = $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'];
+        $diffReno = $indicateurs['renovation']['budget'] - $renoReel;
+        $diffTotal = $indicateurs['cout_total_projet'] - $indicateurs['cout_total_reel'];
+        $diffEquite = $indicateurs['equite_reelle'] - $indicateurs['equite_potentielle'];
+        ?>
+        
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th></th>
+                        <th class="text-end text-info">📊 Extrapolé</th>
+                        <th class="text-center" style="width: 100px;">Écart</th>
+                        <th class="text-end text-success">✓ Réel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Prix d'achat</td>
+                        <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
+                    </tr>
+                    <tr>
+                        <td>Coûts d'acquisition</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
+                    </tr>
+                    <tr>
+                        <td>Coûts récurrents</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
+                    </tr>
+                    <tr>
+                        <td>Coûts de vente</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
+                    </tr>
+                    <tr class="table-warning">
+                        <td><strong>Rénovation</strong></td>
+                        <td class="text-end"><strong><?= formatMoney($indicateurs['renovation']['budget']) ?></strong></td>
+                        <td class="text-center <?= $diffReno >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= $diffReno >= 0 ? '+' : '' ?><?= formatMoney($diffReno) ?></strong>
+                        </td>
+                        <td class="text-end"><strong><?= formatMoney($renoReel) ?></strong></td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4"><small>- Budget prévu</small></td>
+                        <td class="text-end"><small><?= formatMoney($indicateurs['renovation']['budget']) ?></small></td>
+                        <td></td>
+                        <td class="text-end"><small>-</small></td>
+                    </tr>
+                    <tr>
+                        <td class="ps-4"><small>- Factures réelles</small></td>
+                        <td class="text-end"><small>-</small></td>
+                        <td></td>
+                        <td class="text-end"><small><?= formatMoney($indicateurs['renovation']['reel']) ?></small></td>
+                    </tr>
+                    <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
+                    <tr>
+                        <td class="ps-4"><small>- Main d'œuvre</small></td>
+                        <td class="text-end"><small>-</small></td>
+                        <td></td>
+                        <td class="text-end"><small><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></small></td>
+                    </tr>
+                    <?php endif; ?>
+                    <tr>
+                        <td>Contingence (<?= $projet['taux_contingence'] ?>%)</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['contingence']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end">-</td>
+                    </tr>
+                    <tr class="table-secondary">
+                        <td><strong>COÛT TOTAL</strong></td>
+                        <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_projet']) ?></strong></td>
+                        <td class="text-center <?= $diffTotal >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= $diffTotal >= 0 ? '+' : '' ?><?= formatMoney($diffTotal) ?></strong>
+                        </td>
+                        <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_reel']) ?></strong></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="bg-light"></td>
+                    </tr>
+                    <tr>
+                        <td>Valeur potentielle</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
+                    </tr>
+                    <tr class="table-primary">
+                        <td><strong>ÉQUITÉ</strong></td>
+                        <td class="text-end <?= $indicateurs['equite_potentielle'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
+                        </td>
+                        <td class="text-center <?= $diffEquite >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= $diffEquite >= 0 ? '+' : '' ?><?= formatMoney($diffEquite) ?></strong>
+                        </td>
+                        <td class="text-end <?= $indicateurs['equite_reelle'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4" class="bg-light"></td>
+                    </tr>
+                    <tr>
+                        <td>Mise de fonds totale</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['mise_fonds_totale']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['mise_fonds_totale']) ?></td>
+                    </tr>
+                    <tr>
+                        <td><strong>ROI @ Leverage</strong></td>
+                        <td class="text-end <?= $indicateurs['roi_leverage'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
+                        </td>
+                        <td class="text-center">-</td>
+                        <td class="text-end <?= $indicateurs['roi_leverage_reel'] >= 0 ? 'text-success' : 'text-danger' ?>">
+                            <strong><?= formatPercent($indicateurs['roi_leverage_reel']) ?></strong>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>ROI All Cash</strong></td>
+                        <td class="text-end"><?= formatPercent($indicateurs['roi_all_cash']) ?></td>
+                        <td class="text-center">-</td>
+                        <td class="text-end"><?= formatPercent($indicateurs['roi_all_cash_reel']) ?></td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
     </div>
     
