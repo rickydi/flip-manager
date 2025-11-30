@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Filtres
 $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
-$filtreStatut = $_GET['statut'] ?? 'en_attente';
+$filtreStatut = $_GET['statut'] ?? '';  // Par défaut: afficher toutes les entrées
 $filtreEmploye = isset($_GET['employe']) ? (int)$_GET['employe'] : 0;
 
 // Récupérer les projets pour le filtre
