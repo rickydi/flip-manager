@@ -94,9 +94,15 @@ include '../../includes/header.php';
             <div class="stat-label">Valeur potentielle</div>
             <div class="stat-value"><?= formatMoney($indicateurs['valeur_potentielle']) ?></div>
         </div>
-        <div class="stat-card success">
+        <div class="stat-card warning">
             <div class="stat-label">Équité potentielle</div>
             <div class="stat-value"><?= formatMoney($indicateurs['equite_potentielle']) ?></div>
+            <small class="text-muted">Budget prévu</small>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-label">Équité réelle</div>
+            <div class="stat-value"><?= formatMoney($indicateurs['equite_reelle']) ?></div>
+            <small class="text-muted">Dépenses réelles</small>
         </div>
         <div class="stat-card info">
             <div class="stat-label">ROI @ Leverage</div>

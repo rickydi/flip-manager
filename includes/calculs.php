@@ -462,6 +462,19 @@ function calculerIndicateursProjet($pdo, $projet) {
     $totalReelAvecMO = $totalFacturesReelles + $mainDoeuvre['cout'];
     $progressionBudget = $totalBudgetRenovation > 0 ? ($totalReelAvecMO / $totalBudgetRenovation) * 100 : 0;
     
+    // ÉQUITÉ RÉELLE basée sur les dépenses réelles
+    $coutTotalReel = (float) $projet['prix_achat'] 
+        + $coutsAcquisition['total'] 
+        + $coutsRecurrents['total'] 
+        + $coutsVente['total']
+        + $totalFacturesReelles  // Factures réelles au lieu du budget
+        + $mainDoeuvre['cout'];   // Main d'œuvre
+    $equiteReelle = $valeurPotentielle - $coutTotalReel;
+    
+    // ROI réels
+    $roiLeverageReel = $dataFinancement['mise_totale'] > 0 ? ($equiteReelle / $dataFinancement['mise_totale']) * 100 : 0;
+    $roiAllCashReel = $coutTotalReel > 0 ? ($equiteReelle / $coutTotalReel) * 100 : 0;
+    
     return [
         'couts_acquisition' => $coutsAcquisition,
         'couts_recurrents' => $coutsRecurrents,
@@ -481,8 +494,12 @@ function calculerIndicateursProjet($pdo, $projet) {
         'cout_total_projet' => $coutTotalProjet,
         'valeur_potentielle' => $valeurPotentielle,
         'equite_potentielle' => $equitePotentielle,
+        'equite_reelle' => $equiteReelle,
+        'cout_total_reel' => $coutTotalReel,
         'roi_leverage' => $roiLeverage,
         'roi_all_cash' => $roiAllCash,
+        'roi_leverage_reel' => $roiLeverageReel,
+        'roi_all_cash_reel' => $roiAllCashReel,
         'pourcentages' => [
             'couts_fixes' => $pctCoutsFixes,
             'renovation' => $pctRenovation,
