@@ -132,8 +132,8 @@ include '../../includes/header.php';
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header text-center">
-                        💰 Dépenses mensuelles
-                        <small class="d-block text-muted" style="font-size:0.7rem">Factures + main d'œuvre par mois</small>
+                        ⏱️ Temps de travail
+                        <small class="d-block text-muted" style="font-size:0.7rem">Heures travaillées par mois</small>
                     </div>
                     <div class="card-body">
                         <canvas id="chartBudget" height="200"></canvas>
@@ -712,45 +712,32 @@ for ($m = 0; $m <= $moisProjet; $m++) {
 // Valeur potentielle (ligne horizontale)
 $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
-// Récupérer les dépenses par mois (factures + main d'œuvre)
-$depensesParMois = [];
+// Récupérer les heures travaillées par mois
+$heuresParMois = [];
 try {
-    // Factures par mois (inclut en_attente et approuvées)
     $stmt = $pdo->prepare("
-        SELECT DATE_FORMAT(date_facture, '%Y-%m') as mois, SUM(montant_total) as total
-        FROM factures 
-        WHERE projet_id = ? AND statut != 'rejetee'
-        GROUP BY DATE_FORMAT(date_facture, '%Y-%m')
-    ");
-    $stmt->execute([$projetId]);
-    foreach ($stmt->fetchAll() as $row) {
-        $depensesParMois[$row['mois']] = (float)$row['total'];
-    }
-    
-    // Ajouter les heures par mois
-    $stmt = $pdo->prepare("
-        SELECT DATE_FORMAT(date_travail, '%Y-%m') as mois, SUM(heures * taux_horaire) as total
+        SELECT DATE_FORMAT(date_travail, '%Y-%m') as mois, SUM(heures) as total_heures
         FROM heures_travaillees 
         WHERE projet_id = ? AND statut = 'approuvee'
         GROUP BY DATE_FORMAT(date_travail, '%Y-%m')
+        ORDER BY mois
     ");
     $stmt->execute([$projetId]);
     foreach ($stmt->fetchAll() as $row) {
-        if (isset($depensesParMois[$row['mois']])) {
-            $depensesParMois[$row['mois']] += (float)$row['total'];
-        } else {
-            $depensesParMois[$row['mois']] = (float)$row['total'];
-        }
+        $heuresParMois[$row['mois']] = (float)$row['total_heures'];
     }
-    ksort($depensesParMois);
 } catch (Exception $e) {}
 
 $moisLabels = [];
 $moisData = [];
-foreach ($depensesParMois as $mois => $total) {
+foreach ($heuresParMois as $mois => $heures) {
     $moisLabels[] = date('M Y', strtotime($mois . '-01'));
-    $moisData[] = $total;
+    $moisData[] = $heures;
 }
+
+// Calculer les heures totales et le temps prévu en heures
+$heuresTotal = array_sum($heuresParMois);
+$heuresPrevues = $dureeReelle * 4 * 40; // Estimation: 4 semaines * 40h/semaine par mois
 ?>
 <!-- Chart.js CDN + Adapter pour les dates -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -783,28 +770,28 @@ const dataTimeline = {
     }]
 };
 
-// Graphique 2: Dépenses par mois (données réelles des factures)
+// Graphique 2: Heures travaillées par mois
 <?php if (!empty($moisLabels)): ?>
-const dataDepenses = {
+const dataHeures = {
     labels: <?= json_encode($moisLabels) ?>,
     datasets: [{
-        label: 'Dépenses',
+        label: 'Heures travaillées',
         data: <?= json_encode($moisData) ?>,
-        borderColor: '#f6c23e',
-        backgroundColor: 'rgba(246, 194, 62, 0.3)',
+        borderColor: '#4e73df',
+        backgroundColor: 'rgba(78, 115, 223, 0.3)',
         fill: true,
         tension: 0.3,
         pointRadius: 5,
-        pointBackgroundColor: '#f6c23e',
+        pointBackgroundColor: '#4e73df',
         pointBorderColor: '#fff',
         pointBorderWidth: 2
     }]
 };
 <?php else: ?>
-const dataDepenses = {
-    labels: ['Aucune facture'],
+const dataHeures = {
+    labels: ['Aucune heure'],
     datasets: [{
-        label: 'Dépenses',
+        label: 'Heures',
         data: [0],
         borderColor: '#ccc',
         backgroundColor: 'rgba(200, 200, 200, 0.2)',
@@ -923,8 +910,30 @@ const optionsLine = {
 if (document.getElementById('chartCouts')) {
     new Chart(document.getElementById('chartCouts'), { type: 'line', data: dataTimeline, options: optionsLine });
 }
+// Options pour heures (pas de $)
+const optionsHeures = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { intersect: false, mode: 'index' },
+    plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
+        tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            callbacks: {
+                label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' h'
+            }
+        }
+    },
+    scales: {
+        x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { size: 10 } } },
+        y: {
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            ticks: { callback: val => val + 'h', font: { size: 10 } }
+        }
+    }
+};
 if (document.getElementById('chartBudget')) {
-    new Chart(document.getElementById('chartBudget'), { type: 'line', data: dataDepenses, options: optionsLine });
+    new Chart(document.getElementById('chartBudget'), { type: 'bar', data: dataHeures, options: optionsHeures });
 }
 if (document.getElementById('chartProfits')) {
     new Chart(document.getElementById('chartProfits'), { type: 'line', data: dataComparaison, options: optionsLine });
