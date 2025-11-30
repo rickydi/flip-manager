@@ -99,20 +99,48 @@ include '../../includes/header.php';
 ?>
 
 <div class="container-fluid">
-    <div class="page-header">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item active">Catégories</li>
-            </ol>
-        </nav>
-        <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-tags me-2"></i>Gestion des catégories</h1>
+    <!-- En-tête -->
+    <div class="page-header d-flex justify-content-between align-items-start flex-wrap">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                    <li class="breadcrumb-item active">Administration</li>
+                </ol>
+            </nav>
+            <h1><i class="bi bi-gear me-2"></i>Administration</h1>
+        </div>
+        <div class="d-flex gap-2 mt-2 mt-md-0">
+            <a href="/admin/utilisateurs/liste.php" class="btn btn-outline-secondary">
+                <i class="bi bi-person-badge me-1"></i>Utilisateurs
+            </a>
+            <a href="/admin/rapports/index.php" class="btn btn-outline-secondary">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addModal">
                 <i class="bi bi-plus-circle me-1"></i>Nouvelle catégorie
             </button>
         </div>
     </div>
+    
+    <!-- Sous-navigation Administration -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" href="/admin/utilisateurs/liste.php">
+                <i class="bi bi-person-badge me-1"></i>Utilisateurs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" href="/admin/categories/liste.php">
+                <i class="bi bi-tags me-1"></i>Catégories
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="/admin/rapports/index.php">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
+        </li>
+    </ul>
     
     <?php displayFlashMessages(); ?>
     

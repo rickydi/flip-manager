@@ -71,31 +71,11 @@ $isAdmin = isAdmin();
                         </a>
                     </li>
                     
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
+                    <li class="nav-item">
+                        <a class="nav-link <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false ? 'active' : '' ?>" 
+                           href="/admin/utilisateurs/liste.php">
                             <i class="bi bi-gear"></i> Administration
                         </a>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <a class="dropdown-item <?= strpos($currentUri, '/admin/utilisateurs/') !== false ? 'active' : '' ?>" 
-                                   href="/admin/utilisateurs/liste.php">
-                                    <i class="bi bi-person-badge"></i> Utilisateurs
-                                </a>
-                            </li>
-                            <li>
-                                <a class="dropdown-item <?= strpos($currentUri, '/admin/categories/') !== false ? 'active' : '' ?>" 
-                                   href="/admin/categories/liste.php">
-                                    <i class="bi bi-tags"></i> Catégories
-                                </a>
-                            </li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li>
-                                <a class="dropdown-item <?= strpos($currentUri, '/admin/rapports/') !== false ? 'active' : '' ?>" 
-                                   href="/admin/rapports/index.php">
-                                    <i class="bi bi-file-earmark-bar-graph"></i> Rapports
-                                </a>
-                            </li>
-                        </ul>
                     </li>
                     
                 <?php else: ?>
