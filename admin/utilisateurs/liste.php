@@ -108,6 +108,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 setFlashMessage('success', 'Utilisateur modifié avec succès.');
                 redirect('/admin/utilisateurs/liste.php');
             }
+        } elseif ($action === 'supprimer') {
+            $userId = (int)($_POST['user_id'] ?? 0);
+            $currentUserId = getCurrentUserId();
+            
+            // Ne pas supprimer soi-même
+            if ($userId === $currentUserId) {
+                $errors[] = 'Vous ne pouvez pas supprimer votre propre compte.';
+            } else {
+                // Vérifier que l'utilisateur existe
+                $stmt = $pdo->prepare("SELECT id FROM users WHERE id = ?");
+                $stmt->execute([$userId]);
+                if ($stmt->fetch()) {
+                    // Supprimer l'utilisateur
+                    $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+                    $stmt->execute([$userId]);
+                    setFlashMessage('success', 'Utilisateur supprimé.');
+                } else {
+                    setFlashMessage('danger', 'Utilisateur introuvable.');
+                }
+                redirect('/admin/utilisateurs/liste.php');
+            }
         }
     }
 }
@@ -199,6 +220,17 @@ include '../../includes/header.php';
                                             data-bs-target="#modalModifier<?= $user['id'] ?>">
                                         <i class="bi bi-pencil"></i>
                                     </button>
+                                    <?php if ($user['id'] !== getCurrentUserId()): ?>
+                                        <form method="POST" action="" class="d-inline" 
+                                              onsubmit="return confirm('Supprimer cet utilisateur ?\n\n<?= e($user['prenom']) ?> <?= e($user['nom']) ?>');">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="supprimer">
+                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                             
