@@ -16,7 +16,7 @@
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/light.css" rel="stylesheet">
     
     <!-- Custom CSS -->
-    <link href="/assets/css/style.css" rel="stylesheet">
+    <link href="/assets/css/style.css?v=<?= date('YmdHi') ?>" rel="stylesheet">
     
     <?php if (isset($extraCss)): ?>
         <?= $extraCss ?>
