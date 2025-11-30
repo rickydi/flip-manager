@@ -64,15 +64,15 @@ include '../../includes/header.php';
                     <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-pencil me-1"></i>Modifier
                     </a>
-                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-printer me-1"></i>Imprimer
-                    </button>
                 </div>
                 <p class="text-muted mb-0">
                     <i class="bi bi-geo-alt me-1"></i>
                     <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?>
                 </p>
             </div>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-printer me-1"></i>Imprimer
+            </button>
         </div>
     </div>
     
