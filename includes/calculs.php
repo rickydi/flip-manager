@@ -137,7 +137,7 @@ function calculerTotalFacturesReelles($pdo, $projetId) {
 }
 
 /**
- * Calcule le coût total de la main d'œuvre (heures travaillées approuvées)
+ * Calcule le coût total de la main d'œuvre (heures travaillées approuvées ET en attente - seules les rejetées sont exclues)
  * @param PDO $pdo
  * @param int $projetId
  * @return array
@@ -147,7 +147,7 @@ function calculerCoutMainDoeuvre($pdo, $projetId) {
         $stmt = $pdo->prepare("
             SELECT SUM(heures) as total_heures, SUM(heures * taux_horaire) as total_cout 
             FROM heures_travaillees 
-            WHERE projet_id = ? AND statut = 'approuvee'
+            WHERE projet_id = ? AND statut != 'rejetee'
         ");
         $stmt->execute([$projetId]);
         $result = $stmt->fetch();

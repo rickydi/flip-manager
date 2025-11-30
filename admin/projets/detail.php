@@ -715,13 +715,13 @@ for ($m = 0; $m <= $moisProjet; $m++) {
 // Valeur potentielle (ligne horizontale)
 $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
-// Récupérer les heures travaillées par mois
+// Récupérer les heures travaillées par mois (approuvées ET en attente)
 $heuresParMois = [];
 try {
     $stmt = $pdo->prepare("
         SELECT DATE_FORMAT(date_travail, '%Y-%m') as mois, SUM(heures) as total_heures
         FROM heures_travaillees 
-        WHERE projet_id = ? AND statut = 'approuvee'
+        WHERE projet_id = ? AND statut != 'rejetee'
         GROUP BY DATE_FORMAT(date_travail, '%Y-%m')
         ORDER BY mois
     ");
