@@ -75,10 +75,15 @@ body {
 }
 
 /* Aligner le logo de la navbar avec le contenu */
+.navbar > .container-fluid {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
 .navbar .navbar-brand {
-    margin-left: calc(1.5rem - 12px);
     display: flex;
     align-items: center;
+    margin-left: 0;
 }
 
 .navbar .navbar-brand i {
@@ -86,8 +91,9 @@ body {
 }
 
 @media (max-width: 768px) {
-    .navbar .navbar-brand {
-        margin-left: calc(1rem - 12px);
+    .navbar > .container-fluid {
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
 }
 
