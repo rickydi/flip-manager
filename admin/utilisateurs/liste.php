@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $email = trim($_POST['email'] ?? '');
             $password = $_POST['password'] ?? '';
             $role = $_POST['role'] ?? 'employe';
+            $tauxHoraire = parseNumber($_POST['taux_horaire'] ?? 0);
             
             if (empty($nom)) $errors[] = 'Le nom est requis.';
             if (empty($prenom)) $errors[] = 'Le prénom est requis.';
@@ -45,10 +46,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($errors)) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (nom, prenom, email, password, role)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO users (nom, prenom, email, password, role, taux_horaire)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role]);
+                $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire]);
                 setFlashMessage('success', 'Utilisateur créé avec succès.');
                 redirect('/admin/utilisateurs/liste.php');
             }
@@ -60,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $password = $_POST['password'] ?? '';
             $role = $_POST['role'] ?? 'employe';
             $actif = isset($_POST['actif']) ? 1 : 0;
+            $tauxHoraire = parseNumber($_POST['taux_horaire'] ?? 0);
             
             if (empty($nom)) $errors[] = 'Le nom est requis.';
             if (empty($prenom)) $errors[] = 'Le prénom est requis.';
@@ -75,16 +77,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 if (!empty($password)) {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?
+                        UPDATE users SET nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $userId]);
+                    $stmt->execute([$nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $userId]);
                 } else {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET nom = ?, prenom = ?, email = ?, role = ?, actif = ?
+                        UPDATE users SET nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$nom, $prenom, $email, $role, $actif, $userId]);
+                    $stmt->execute([$nom, $prenom, $email, $role, $actif, $tauxHoraire, $userId]);
                 }
                 setFlashMessage('success', 'Utilisateur modifié avec succès.');
                 redirect('/admin/utilisateurs/liste.php');
@@ -138,6 +140,7 @@ include '../../includes/header.php';
                             <th>Nom</th>
                             <th>Email</th>
                             <th>Rôle</th>
+                            <th>Taux horaire</th>
                             <th>Statut</th>
                             <th>Dernière connexion</th>
                             <th></th>
@@ -154,6 +157,13 @@ include '../../includes/header.php';
                                     <span class="badge <?= $user['role'] === 'admin' ? 'bg-primary' : 'bg-secondary' ?>">
                                         <?= $user['role'] === 'admin' ? 'Administrateur' : 'Employé' ?>
                                     </span>
+                                </td>
+                                <td>
+                                    <?php if (($user['taux_horaire'] ?? 0) > 0): ?>
+                                        <strong><?= formatMoney($user['taux_horaire']) ?></strong>/h
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <span class="badge <?= $user['actif'] ? 'bg-success' : 'bg-danger' ?>">
@@ -209,12 +219,22 @@ include '../../includes/header.php';
                                                     <input type="password" class="form-control" name="password"
                                                            placeholder="Laisser vide pour ne pas changer">
                                                 </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Rôle</label>
-                                                    <select class="form-select" name="role">
-                                                        <option value="employe" <?= $user['role'] === 'employe' ? 'selected' : '' ?>>Employé</option>
-                                                        <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrateur</option>
-                                                    </select>
+                                                <div class="row">
+                                                    <div class="col-6 mb-3">
+                                                        <label class="form-label">Rôle</label>
+                                                        <select class="form-select" name="role">
+                                                            <option value="employe" <?= $user['role'] === 'employe' ? 'selected' : '' ?>>Employé</option>
+                                                            <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrateur</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-6 mb-3">
+                                                        <label class="form-label">Taux horaire</label>
+                                                        <div class="input-group">
+                                                            <input type="number" step="0.01" min="0" class="form-control" 
+                                                                   name="taux_horaire" value="<?= formatMoney($user['taux_horaire'] ?? 0, false) ?>">
+                                                            <span class="input-group-text">$/h</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 <div class="form-check">
                                                     <input class="form-check-input" type="checkbox" name="actif" 
@@ -271,12 +291,22 @@ include '../../includes/header.php';
                         <label class="form-label">Mot de passe *</label>
                         <input type="password" class="form-control" name="password" required minlength="6">
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Rôle</label>
-                        <select class="form-select" name="role">
-                            <option value="employe">Employé</option>
-                            <option value="admin">Administrateur</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Rôle</label>
+                            <select class="form-select" name="role">
+                                <option value="employe">Employé</option>
+                                <option value="admin">Administrateur</option>
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Taux horaire</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" min="0" class="form-control" 
+                                       name="taux_horaire" value="0">
+                                <span class="input-group-text">$/h</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">

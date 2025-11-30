@@ -81,6 +81,19 @@ $isAdmin = isAdmin();
                         </a>
                     </li>
                     
+                    <li class="nav-item">
+                        <a class="nav-link <?= strpos($currentUri, '/admin/temps/') !== false ? 'active' : '' ?>" 
+                           href="/admin/temps/liste.php">
+                            <i class="bi bi-clock-history"></i> Temps
+                            <?php 
+                            $countHeuresAttente = getHeuresEnAttenteCount($pdo);
+                            if ($countHeuresAttente > 0): 
+                            ?>
+                                <span class="badge bg-warning text-dark"><?= $countHeuresAttente ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
+                    
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-gear"></i> Administration
@@ -128,6 +141,13 @@ $isAdmin = isAdmin();
                         <a class="nav-link <?= strpos($currentUri, '/employe/mes-factures.php') !== false ? 'active' : '' ?>" 
                            href="/employe/mes-factures.php">
                             <i class="bi bi-receipt"></i> Mes factures
+                        </a>
+                    </li>
+                    
+                    <li class="nav-item">
+                        <a class="nav-link <?= strpos($currentUri, '/employe/feuille-temps.php') !== false ? 'active' : '' ?>" 
+                           href="/employe/feuille-temps.php">
+                            <i class="bi bi-clock-history"></i> Temps
                         </a>
                     </li>
                 <?php endif; ?>

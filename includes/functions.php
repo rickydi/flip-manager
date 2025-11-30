@@ -398,6 +398,74 @@ function getFacturesEnAttenteCount($pdo) {
 }
 
 /**
+ * Récupère le nombre d'heures en attente d'approbation
+ * @param PDO $pdo
+ * @return int
+ */
+function getHeuresEnAttenteCount($pdo) {
+    try {
+        $stmt = $pdo->query("SELECT COUNT(*) FROM heures_travaillees WHERE statut = 'en_attente'");
+        return (int) $stmt->fetchColumn();
+    } catch (Exception $e) {
+        return 0; // Table pas encore créée
+    }
+}
+
+/**
+ * Récupère le coût total de la main d'œuvre pour un projet (heures approuvées)
+ * @param PDO $pdo
+ * @param int $projetId
+ * @return array ['heures' => float, 'cout' => float]
+ */
+function getCoutMainOeuvre($pdo, $projetId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT 
+                COALESCE(SUM(heures), 0) as total_heures,
+                COALESCE(SUM(heures * taux_horaire), 0) as total_cout
+            FROM heures_travaillees 
+            WHERE projet_id = ? AND statut = 'approuvee'
+        ");
+        $stmt->execute([$projetId]);
+        $result = $stmt->fetch();
+        return [
+            'heures' => (float)$result['total_heures'],
+            'cout' => (float)$result['total_cout']
+        ];
+    } catch (Exception $e) {
+        return ['heures' => 0, 'cout' => 0];
+    }
+}
+
+/**
+ * Récupère les heures par employé pour un projet
+ * @param PDO $pdo
+ * @param int $projetId
+ * @return array
+ */
+function getHeuresParEmploye($pdo, $projetId) {
+    try {
+        $stmt = $pdo->prepare("
+            SELECT 
+                u.id as user_id,
+                CONCAT(u.prenom, ' ', u.nom) as employe_nom,
+                SUM(h.heures) as total_heures,
+                SUM(h.heures * h.taux_horaire) as total_cout,
+                COUNT(*) as nb_entrees
+            FROM heures_travaillees h
+            JOIN users u ON h.user_id = u.id
+            WHERE h.projet_id = ? AND h.statut = 'approuvee'
+            GROUP BY u.id, u.prenom, u.nom
+            ORDER BY total_heures DESC
+        ");
+        $stmt->execute([$projetId]);
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        return [];
+    }
+}
+
+/**
  * Pagination - calcule l'offset
  * @param int $page
  * @param int $perPage
