@@ -183,10 +183,10 @@ include '../../includes/header.php';
     <!-- Filtres -->
     <div class="card mb-4 no-print">
         <div class="card-body">
-            <form method="GET" action="" class="row g-3">
+            <form method="GET" action="" class="row g-3" id="filterForm">
                 <div class="col-md-4">
                     <label for="projet" class="form-label">Projet</label>
-                    <select class="form-select" id="projet" name="projet">
+                    <select class="form-select auto-submit" id="projet" name="projet">
                         <option value="">Tous les projets</option>
                         <?php foreach ($projets as $projet): ?>
                             <option value="<?= $projet['id'] ?>" <?= $filtreProjet == $projet['id'] ? 'selected' : '' ?>>
@@ -197,25 +197,30 @@ include '../../includes/header.php';
                 </div>
                 <div class="col-md-3">
                     <label for="date_debut" class="form-label">Date début</label>
-                    <input type="date" class="form-control" id="date_debut" name="date_debut" 
+                    <input type="date" class="form-control auto-submit" id="date_debut" name="date_debut" 
                            value="<?= e($dateDebut) ?>">
                 </div>
                 <div class="col-md-3">
                     <label for="date_fin" class="form-label">Date fin</label>
-                    <input type="date" class="form-control" id="date_fin" name="date_fin" 
+                    <input type="date" class="form-control auto-submit" id="date_fin" name="date_fin" 
                            value="<?= e($dateFin) ?>">
                 </div>
-                <div class="col-md-2 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-funnel me-1"></i>Filtrer
-                    </button>
+                <div class="col-md-2 d-flex align-items-end">
                     <a href="/admin/rapports/index.php" class="btn btn-outline-secondary">
-                        <i class="bi bi-x-circle"></i>
+                        <i class="bi bi-x-circle me-1"></i>Réinitialiser
                     </a>
                 </div>
             </form>
         </div>
     </div>
+    
+    <script>
+    document.querySelectorAll('.auto-submit').forEach(function(element) {
+        element.addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+    </script>
     
     <!-- Zone imprimable -->
     <div id="rapport-imprimable">
