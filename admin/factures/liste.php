@@ -258,46 +258,32 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<!-- Auto-refresh toutes les 30 secondes -->
+<!-- Auto-refresh toutes les 10 secondes (vérification simple) -->
 <script>
 (function() {
+    const REFRESH_INTERVAL = 10000; // 10 secondes
     let lastCount = <?= $totalFactures ?>;
-    let refreshInterval = 30000; // 30 secondes
+    let checkUrl = window.location.origin + '/admin/factures/liste.php?check_count=1&projet=<?= $filtreProjet ?>&statut=<?= rawurlencode($filtreStatut) ?>&categorie=<?= $filtreCategorie ?>&_=' + Date.now();
     
-    // Vérifier les nouvelles factures périodiquement
+    console.log('Auto-refresh activé: vérification toutes les 10 sec');
+    
     setInterval(function() {
-        fetch('/admin/factures/liste.php?check_count=1&projet=<?= $filtreProjet ?>&statut=<?= urlencode($filtreStatut) ?>&categorie=<?= $filtreCategorie ?>', {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        })
-        .then(r => r.text())
-        .then(count => {
-            let newCount = parseInt(count);
-            if (!isNaN(newCount) && newCount !== lastCount) {
-                // Afficher notification
-                if (newCount > lastCount) {
-                    showNewFactureNotification(newCount - lastCount);
+        // Utiliser XMLHttpRequest pour meilleure compatibilité
+        let xhr = new XMLHttpRequest();
+        xhr.open('GET', checkUrl + '&t=' + Date.now(), true);
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                let newCount = parseInt(xhr.responseText.trim());
+                console.log('Vérification: actuel=' + lastCount + ', serveur=' + newCount);
+                if (!isNaN(newCount) && newCount !== lastCount) {
+                    console.log('Changement détecté! Rechargement...');
+                    location.reload();
                 }
-                // Rafraîchir la page
-                location.reload();
             }
-        })
-        .catch(() => {}); // Ignorer les erreurs
-    }, refreshInterval);
-    
-    function showNewFactureNotification(count) {
-        // Notification sonore optionnelle
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification('Flip Manager', {
-                body: count + ' nouvelle(s) facture(s) ajoutée(s)',
-                icon: '/assets/img/logo.png'
-            });
-        }
-    }
-    
-    // Demander permission de notification
-    if ('Notification' in window && Notification.permission === 'default') {
-        Notification.requestPermission();
-    }
+        };
+        xhr.send();
+    }, REFRESH_INTERVAL);
 })();
 </script>
 
