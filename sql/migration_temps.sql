@@ -3,6 +3,9 @@
 -- Flip Manager
 -- ============================================
 
+-- Sélectionner la base de données
+USE evorenoc_flip_manager;
+
 -- Ajouter le taux horaire aux utilisateurs
 ALTER TABLE users ADD COLUMN taux_horaire DECIMAL(10,2) DEFAULT 0 AFTER role;
 
