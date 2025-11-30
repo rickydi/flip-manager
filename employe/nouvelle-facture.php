@@ -220,17 +220,12 @@ include '../includes/header.php';
                         <!-- Date de la facture -->
                         <div class="mb-3">
                             <label for="date_facture" class="form-label">Date de la facture *</label>
-                            <div class="input-group" style="cursor: pointer;" onclick="document.getElementById('date_facture').showPicker()">
-                                <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
-                                <input type="date" 
-                                       class="form-control" 
-                                       id="date_facture" 
-                                       name="date_facture" 
-                                       value="<?= e($_POST['date_facture'] ?? date('Y-m-d')) ?>"
-                                       max="<?= date('Y-m-d') ?>"
-                                       style="cursor: pointer;"
-                                       required>
-                            </div>
+                            <input type="date" 
+                                   class="form-control" 
+                                   id="date_facture" 
+                                   name="date_facture" 
+                                   value="<?= e($_POST['date_facture'] ?? date('Y-m-d')) ?>"
+                                   required>
                         </div>
                         
                         <!-- Description -->
