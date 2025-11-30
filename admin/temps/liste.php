@@ -179,7 +179,7 @@ include '../../includes/header.php';
     <!-- Filtres -->
     <div class="card mb-3">
         <div class="card-body">
-            <form method="GET" action="" class="row g-3">
+            <form method="GET" action="/admin/temps/liste.php" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="form-label">Statut</label>
                     <select class="form-select" name="statut">
@@ -211,11 +211,16 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="bi bi-filter"></i> Filtrer
-                    </button>
-                    <a href="/admin/temps/liste.php" class="btn btn-outline-secondary">Reset</a>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-funnel"></i> Filtrer
+                        </button>
+                        <a href="/admin/temps/liste.php" class="btn btn-outline-secondary">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </a>
+                    </div>
                 </div>
             </form>
         </div>
