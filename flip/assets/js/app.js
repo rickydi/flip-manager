@@ -458,67 +458,11 @@ function resetTextSize() {
 
 /**
  * =============================================
- * DARK MODE
+ * DARK MODE - Activé par défaut
  * =============================================
  */
 
-// Appliquer le dark mode sauvegardé au chargement (avant DOMContentLoaded pour éviter le flash)
+// Forcer le dark mode par défaut
 (function() {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    }
+    document.documentElement.setAttribute('data-theme', 'dark');
 })();
-
-// Met à jour l'icône du bouton
-document.addEventListener('DOMContentLoaded', function() {
-    updateDarkModeIcon();
-});
-
-/**
- * Bascule entre mode clair et sombre
- */
-function toggleDarkMode() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
-    
-    updateDarkModeIcon();
-}
-
-/**
- * Met à jour l'icône du bouton dark mode
- */
-function updateDarkModeIcon() {
-    const icon = document.getElementById('darkModeIcon');
-    const btn = document.getElementById('darkModeBtn');
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    
-    if (icon) {
-        icon.className = isDark ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
-    }
-    
-    if (btn) {
-        btn.title = isDark ? 'Passer en mode clair' : 'Passer en mode sombre';
-    }
-}
-
-/**
- * Définit explicitement un thème
- */
-function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-    updateDarkModeIcon();
-}
-
-/**
- * Vérifie si le mode sombre est actif
- */
-function isDarkMode() {
-    return document.documentElement.getAttribute('data-theme') === 'dark';
-}

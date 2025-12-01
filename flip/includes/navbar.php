@@ -17,12 +17,6 @@ $isAdmin = isAdmin();
             <span class="d-none d-sm-inline"><?= APP_NAME ?></span>
         </a>
 
-        <!-- Contrôles rapides sur mobile (avant toggler) -->
-        <div class="d-flex d-lg-none align-items-center me-2">
-            <button type="button" class="dark-mode-toggle" onclick="toggleDarkMode()" title="Mode sombre/clair" style="font-size:1rem;">
-                <i class="bi bi-moon-fill"></i>
-            </button>
-        </div>
 
         <button class="navbar-toggler py-1 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
             <span class="navbar-toggler-icon"></span>
@@ -119,20 +113,6 @@ $isAdmin = isAdmin();
 
             <!-- Contrôles à droite -->
             <ul class="navbar-nav ms-auto">
-                <!-- Dark mode sur écrans moyens (lg-xl) -->
-                <li class="nav-item d-none d-lg-flex d-xxl-none align-items-center me-1">
-                    <button type="button" class="dark-mode-toggle" onclick="toggleDarkMode()" title="Mode sombre/clair">
-                        <i class="bi bi-moon-fill"></i>
-                    </button>
-                </li>
-
-                <!-- Dark mode - grands écrans -->
-                <li class="nav-item d-none d-xxl-flex align-items-center me-2">
-                    <button type="button" class="dark-mode-toggle" onclick="toggleDarkMode()" title="Mode sombre/clair" id="darkModeBtn">
-                        <i class="bi bi-moon-fill" id="darkModeIcon"></i>
-                    </button>
-                </li>
-
                 <!-- User menu -->
                 <li class="nav-item dropdown">
                     <?php
