@@ -5,7 +5,7 @@
  */
 
 // Mode debug (désactiver en production)
-define('DEBUG_MODE', false);
+define('DEBUG_MODE', true);
 
 if (DEBUG_MODE) {
     error_reporting(E_ALL);
