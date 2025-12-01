@@ -136,7 +136,7 @@ include '../../includes/header.php';
                 <div class="card">
                     <div class="card-header text-center">
                         ⏱️ Temps de travail
-                        <small class="d-block text-muted" style="font-size:0.7rem">Heures travaillées par mois</small>
+                        <small class="d-block text-muted" style="font-size:0.7rem">Heures travaillées par jour</small>
                     </div>
                     <div class="card-body">
                         <canvas id="chartBudget" height="200"></canvas>
@@ -715,27 +715,27 @@ for ($m = 0; $m <= $moisProjet; $m++) {
 // Valeur potentielle (ligne horizontale)
 $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
-// Récupérer les heures travaillées par mois (approuvées ET en attente)
-$heuresParMois = [];
+// Récupérer les heures travaillées par jour (approuvées ET en attente)
+$heuresParJour = [];
 try {
     $stmt = $pdo->prepare("
-        SELECT DATE_FORMAT(date_travail, '%Y-%m') as mois, SUM(heures) as total_heures
+        SELECT date_travail as jour, SUM(heures) as total_heures
         FROM heures_travaillees 
         WHERE projet_id = ? AND statut != 'rejetee'
-        GROUP BY DATE_FORMAT(date_travail, '%Y-%m')
-        ORDER BY mois
+        GROUP BY date_travail
+        ORDER BY date_travail
     ");
     $stmt->execute([$projetId]);
     foreach ($stmt->fetchAll() as $row) {
-        $heuresParMois[$row['mois']] = (float)$row['total_heures'];
+        $heuresParJour[$row['jour']] = (float)$row['total_heures'];
     }
 } catch (Exception $e) {}
 
-$moisLabels = [];
-$moisData = [];
-foreach ($heuresParMois as $mois => $heures) {
-    $moisLabels[] = date('M Y', strtotime($mois . '-01'));
-    $moisData[] = $heures;
+$jourLabelsHeures = [];
+$jourDataHeures = [];
+foreach ($heuresParJour as $jour => $heures) {
+    $jourLabelsHeures[] = date('d M', strtotime($jour));
+    $jourDataHeures[] = $heures;
 }
 
 // Calculer les heures totales et le temps prévu en heures
@@ -773,21 +773,16 @@ const dataTimeline = {
     }]
 };
 
-// Graphique 2: Heures travaillées par mois
-<?php if (!empty($moisLabels)): ?>
+// Graphique 2: Heures travaillées par jour
+<?php if (!empty($jourLabelsHeures)): ?>
 const dataHeures = {
-    labels: <?= json_encode($moisLabels) ?>,
+    labels: <?= json_encode($jourLabelsHeures) ?>,
     datasets: [{
         label: 'Heures travaillées',
-        data: <?= json_encode($moisData) ?>,
+        data: <?= json_encode($jourDataHeures) ?>,
         borderColor: '#4e73df',
-        backgroundColor: 'rgba(78, 115, 223, 0.3)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 5,
-        pointBackgroundColor: '#4e73df',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2
+        backgroundColor: 'rgba(78, 115, 223, 0.5)',
+        borderWidth: 1
     }]
 };
 <?php else: ?>
@@ -797,8 +792,7 @@ const dataHeures = {
         label: 'Heures',
         data: [0],
         borderColor: '#ccc',
-        backgroundColor: 'rgba(200, 200, 200, 0.2)',
-        fill: true
+        backgroundColor: 'rgba(200, 200, 200, 0.2)'
     }]
 };
 <?php endif; ?>
