@@ -70,7 +70,7 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
                             </div>
                             
                             <div class="d-flex justify-content-between">
-                                <a href="/admin/factures/approuver.php" class="btn btn-outline-secondary">Annuler</a>
+                                <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-secondary">Annuler</a>
                                 <button type="submit" class="btn btn-danger">
                                     <i class="bi bi-x-circle me-1"></i>Confirmer le rejet
                                 </button>
@@ -135,8 +135,8 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/admin/factures/liste.php">Factures</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/factures/liste.php') ?>">Factures</a></li>
                 <li class="breadcrumb-item active">À approuver</li>
             </ol>
         </nav>

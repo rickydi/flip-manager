@@ -43,13 +43,13 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item active">Projets</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
             <h1><i class="bi bi-building me-2"></i>Projets</h1>
-            <a href="/admin/projets/nouveau.php" class="btn btn-primary">
+            <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>
                 Nouveau projet
             </a>
@@ -87,7 +87,7 @@ include '../../includes/header.php';
                         <i class="bi bi-search me-1"></i>
                         Filtrer
                     </button>
-                    <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
+                    <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>
                         Réinitialiser
                     </a>
@@ -161,12 +161,12 @@ include '../../includes/header.php';
                                         </strong>
                                     </td>
                                     <td class="action-buttons" onclick="event.stopPropagation()">
-                                        <a href="/admin/projets/detail.php?id=<?= $projet['id'] ?>" 
+                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $projet['id'] ?>') ?>" 
                                            class="btn btn-outline-primary btn-sm"
                                            title="Voir détails">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" 
+                                        <a href="<?= url('/admin/projets/modifier.php?id=<?= $projet['id'] ?>') ?>" 
                                            class="btn btn-outline-secondary btn-sm"
                                            title="Modifier">
                                             <i class="bi bi-pencil"></i>

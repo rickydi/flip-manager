@@ -106,7 +106,7 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item active">Investisseurs & Prêteurs</li>
             </ol>
         </nav>

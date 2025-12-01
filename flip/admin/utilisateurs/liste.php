@@ -149,17 +149,17 @@ include '../../includes/header.php';
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                    <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                     <li class="breadcrumb-item active">Administration</li>
                 </ol>
             </nav>
             <h1><i class="bi bi-gear me-2"></i>Administration</h1>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
-            <a href="/admin/categories/liste.php" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/categories/liste.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-tags me-1"></i>Catégories
             </a>
-            <a href="/admin/rapports/index.php" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/rapports/index.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
             </a>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreer">
@@ -171,17 +171,17 @@ include '../../includes/header.php';
     <!-- Sous-navigation Administration -->
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
-            <a class="nav-link active" href="/admin/utilisateurs/liste.php">
+            <a class="nav-link active" href="<?= url('/admin/utilisateurs/liste.php') ?>">
                 <i class="bi bi-person-badge me-1"></i>Utilisateurs
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="/admin/categories/liste.php">
+            <a class="nav-link" href="<?= url('/admin/categories/liste.php') ?>">
                 <i class="bi bi-tags me-1"></i>Catégories
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="/admin/rapports/index.php">
+            <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
                 <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
             </a>
         </li>

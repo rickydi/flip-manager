@@ -147,7 +147,7 @@ include '../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/employe/index.php">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/employe/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item active">Nouvelle facture</li>
             </ol>
         </nav>
@@ -356,7 +356,7 @@ include '../includes/header.php';
                 <hr>
                 
                 <div class="d-flex justify-content-between">
-                    <a href="/employe/index.php" class="btn btn-outline-secondary">
+                    <a href="<?= url('/employe/index.php') ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i>
                         Retour
                     </a>

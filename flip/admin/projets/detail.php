@@ -137,8 +137,8 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/admin/projets/liste.php">Projets</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/projets/liste.php') ?>">Projets</a></li>
                 <li class="breadcrumb-item active"><?= e($projet['nom']) ?></li>
             </ol>
         </nav>
@@ -147,7 +147,7 @@ include '../../includes/header.php';
                 <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
                     <h1 class="mb-0 fs-4"><?= e($projet['nom']) ?></h1>
                     <span class="badge <?= getStatutProjetClass($projet['statut']) ?>"><?= getStatutProjetLabel($projet['statut']) ?></span>
-                    <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
+                    <a href="<?= url('/admin/projets/modifier.php?id=<?= $projet['id'] ?>') ?>" class="btn btn-outline-primary btn-sm">
                         <i class="bi bi-pencil"></i>
                     </a>
                 </div>
@@ -526,10 +526,10 @@ include '../../includes/header.php';
     
     <!-- Actions -->
     <div class="d-flex justify-content-between mt-3 mb-4">
-        <a href="/admin/projets/liste.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
+        <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
         <div>
-            <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt"></i> Factures</a>
-            <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-primary btn-sm"><i class="bi bi-pencil"></i> Modifier</a>
+            <a href="<?= url('/admin/factures/liste.php?projet=<?= $projet['id'] ?>') ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt"></i> Factures</a>
+            <a href="<?= url('/admin/projets/modifier.php?id=<?= $projet['id'] ?>') ?>" class="btn btn-primary btn-sm"><i class="bi bi-pencil"></i> Modifier</a>
         </div>
     </div>
 </div>

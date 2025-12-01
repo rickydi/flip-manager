@@ -105,14 +105,14 @@ include '../../includes/header.php';
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                    <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                     <li class="breadcrumb-item active">Factures</li>
                 </ol>
             </nav>
             <h1><i class="bi bi-receipt me-2"></i>Factures</h1>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
-            <a href="/admin/factures/approuver.php" class="btn btn-warning">
+            <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-warning">
                 <i class="bi bi-check2-square me-1"></i>À approuver
                 <?php 
                 $countEnAttente = getFacturesEnAttenteCount($pdo);
@@ -121,7 +121,7 @@ include '../../includes/header.php';
                     <span class="badge bg-danger"><?= $countEnAttente ?></span>
                 <?php endif; ?>
             </a>
-            <a href="/admin/factures/nouvelle.php" class="btn btn-primary">
+            <a href="<?= url('/admin/factures/nouvelle.php') ?>" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>Nouvelle facture
             </a>
         </div>
@@ -165,7 +165,7 @@ include '../../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-3 d-flex align-items-end">
-                    <a href="/admin/factures/liste.php" class="btn btn-outline-secondary">
+                    <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>Réinitialiser
                     </a>
                 </div>

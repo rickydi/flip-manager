@@ -306,7 +306,7 @@ include '../includes/header.php';
         <div class="col-lg-8">
             <div class="section-title">
                 <h4><i class="bi bi-building me-2"></i>Projets actifs</h4>
-                <a href="/admin/projets/nouveau.php" class="btn btn-primary btn-sm">
+                <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i>Nouveau
                 </a>
             </div>
@@ -317,7 +317,7 @@ include '../includes/header.php';
                         <i class="bi bi-building text-secondary" style="font-size: 4rem;"></i>
                         <h4 class="mt-3">Aucun projet</h4>
                         <p class="text-muted">Créez votre premier projet de flip</p>
-                        <a href="/admin/projets/nouveau.php" class="btn btn-primary">
+                        <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-primary">
                             <i class="bi bi-plus-circle me-1"></i>Créer un projet
                         </a>
                     </div>
@@ -367,13 +367,13 @@ include '../includes/header.php';
                                     </div>
                                     
                                     <div class="quick-actions" onclick="event.stopPropagation()">
-                                        <a href="/admin/projets/detail.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
+                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $projet['id'] ?>') ?>" class="btn btn-outline-primary btn-sm">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
+                                        <a href="<?= url('/admin/factures/liste.php?projet=<?= $projet['id'] ?>') ?>" class="btn btn-outline-secondary btn-sm">
                                             <i class="bi bi-receipt"></i>
                                         </a>
-                                        <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
+                                        <a href="<?= url('/admin/projets/modifier.php?id=<?= $projet['id'] ?>') ?>" class="btn btn-outline-secondary btn-sm">
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                     </div>
@@ -412,7 +412,7 @@ include '../includes/header.php';
                                     <?= formatMoney($facture['montant_total']) ?>
                                 </div>
                                 <div>
-                                    <a href="/admin/factures/approuver.php?action=approuver&id=<?= $facture['id'] ?>" 
+                                    <a href="<?= url('/admin/factures/approuver.php?action=approuver&id=<?= $facture['id'] ?>') ?>" 
                                        class="btn btn-success btn-sm" title="Approuver">
                                         <i class="bi bi-check"></i>
                                     </a>
@@ -422,7 +422,7 @@ include '../includes/header.php';
                         
                         <?php if ($facturesEnAttente > 5): ?>
                             <div class="text-center pt-3">
-                                <a href="/admin/factures/approuver.php" class="btn btn-outline-primary btn-sm">
+                                <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
                                     Voir les <?= $facturesEnAttente ?> factures
                                 </a>
                             </div>
@@ -438,13 +438,13 @@ include '../includes/header.php';
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="/admin/projets/nouveau.php" class="btn btn-outline-primary">
+                        <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-outline-primary">
                             <i class="bi bi-plus-circle me-2"></i>Nouveau projet
                         </a>
-                        <a href="/admin/factures/nouvelle.php" class="btn btn-outline-secondary">
+                        <a href="<?= url('/admin/factures/nouvelle.php') ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-receipt me-2"></i>Nouvelle facture
                         </a>
-                        <a href="/admin/investisseurs/liste.php" class="btn btn-outline-secondary">
+                        <a href="<?= url('/admin/investisseurs/liste.php') ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-people me-2"></i>Investisseurs
                         </a>
                     </div>

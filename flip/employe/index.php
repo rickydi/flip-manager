@@ -61,11 +61,11 @@ include '../includes/header.php';
         </div>
         
         <div class="d-grid gap-3">
-            <a href="/employe/nouvelle-facture.php" class="btn btn-primary btn-lg py-4">
+            <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary btn-lg py-4">
                 <i class="bi bi-receipt" style="font-size: 2.5rem;"></i>
                 <div class="mt-2 fw-bold" style="font-size: 1.2rem;">Ajouter une facture</div>
             </a>
-            <a href="/employe/feuille-temps.php" class="btn btn-success btn-lg py-4">
+            <a href="<?= url('/employe/feuille-temps.php') ?>" class="btn btn-success btn-lg py-4">
                 <i class="bi bi-clock-history" style="font-size: 2.5rem;"></i>
                 <div class="mt-2 fw-bold" style="font-size: 1.2rem;">Ajouter des heures</div>
             </a>
@@ -74,7 +74,7 @@ include '../includes/header.php';
         <hr class="my-4">
         
         <div class="d-flex justify-content-center gap-3">
-            <a href="/employe/mes-factures.php" class="btn btn-outline-secondary">
+            <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-list me-1"></i>Mes factures
             </a>
         </div>
@@ -142,7 +142,7 @@ include '../includes/header.php';
                                     </span>
                                 </div>
                                 <div class="card-footer bg-transparent">
-                                    <a href="/employe/nouvelle-facture.php?projet_id=<?= $projet['id'] ?>" 
+                                    <a href="<?= url('/employe/nouvelle-facture.php?projet_id=<?= $projet['id'] ?>') ?>" 
                                        class="btn btn-primary btn-sm">
                                         <i class="bi bi-plus-circle me-1"></i>
                                         Nouvelle facture
@@ -160,7 +160,7 @@ include '../includes/header.php';
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-receipt me-2"></i>Mes dernières factures</span>
-            <a href="/employe/mes-factures.php" class="btn btn-outline-primary btn-sm">
+            <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-primary btn-sm">
                 Voir tout
             </a>
         </div>
@@ -170,7 +170,7 @@ include '../includes/header.php';
                     <i class="bi bi-receipt"></i>
                     <h4>Aucune facture</h4>
                     <p>Vous n'avez pas encore soumis de facture.</p>
-                    <a href="/employe/nouvelle-facture.php" class="btn btn-primary">
+                    <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary">
                         <i class="bi bi-plus-circle me-1"></i>
                         Soumettre une facture
                     </a>
@@ -205,7 +205,7 @@ include '../includes/header.php';
                                     </td>
                                     <td class="action-buttons">
                                         <?php if ($facture['statut'] === 'en_attente' && canEditFacture($facture['date_creation'])): ?>
-                                            <a href="/employe/modifier-facture.php?id=<?= $facture['id'] ?>" 
+                                            <a href="<?= url('/employe/modifier-facture.php?id=<?= $facture['id'] ?>') ?>" 
                                                class="btn btn-outline-primary btn-sm"
                                                title="Modifier">
                                                 <i class="bi bi-pencil"></i>

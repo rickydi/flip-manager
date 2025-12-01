@@ -70,13 +70,13 @@ include '../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/employe/index.php">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/employe/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item active">Mes factures</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
             <h1><i class="bi bi-receipt me-2"></i>Mes factures</h1>
-            <a href="/employe/nouvelle-facture.php" class="btn btn-primary">
+            <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary">
                 <i class="bi bi-plus-circle me-1"></i>
                 Nouvelle facture
             </a>
@@ -114,7 +114,7 @@ include '../includes/header.php';
                         <i class="bi bi-search me-1"></i>
                         Filtrer
                     </button>
-                    <a href="/employe/mes-factures.php" class="btn btn-outline-secondary">
+                    <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>
                         Réinitialiser
                     </a>

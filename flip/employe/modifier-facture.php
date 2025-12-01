@@ -177,8 +177,8 @@ include '../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/employe/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/employe/mes-factures.php">Mes factures</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/employe/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/employe/mes-factures.php') ?>">Mes factures</a></li>
                 <li class="breadcrumb-item active">Modifier</li>
             </ol>
         </nav>
@@ -396,7 +396,7 @@ include '../includes/header.php';
                 
                 <div class="d-flex justify-content-between">
                     <div>
-                        <a href="/employe/mes-factures.php" class="btn btn-outline-secondary">
+                        <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-arrow-left me-1"></i>
                             Retour
                         </a>

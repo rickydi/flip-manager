@@ -158,7 +158,7 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item active">Gestion du temps</li>
             </ol>
         </nav>
@@ -235,7 +235,7 @@ include '../../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
-                    <a href="/admin/temps/liste.php" class="btn btn-outline-secondary w-100">
+                    <a href="<?= url('/admin/temps/liste.php') ?>" class="btn btn-outline-secondary w-100">
                         <i class="bi bi-x-circle"></i> Reset
                     </a>
                 </div>
@@ -278,7 +278,7 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="/admin/projets/detail.php?id=<?= $h['projet_id'] ?>">
+                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $h['projet_id'] ?>') ?>">
                                             <?= e($h['projet_nom']) ?>
                                         </a>
                                     </td>

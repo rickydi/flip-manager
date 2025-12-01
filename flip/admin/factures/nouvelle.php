@@ -127,8 +127,8 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/admin/factures/liste.php">Factures</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/factures/liste.php') ?>">Factures</a></li>
                 <li class="breadcrumb-item active">Nouvelle facture</li>
             </ol>
         </nav>
@@ -281,7 +281,7 @@ include '../../includes/header.php';
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-check-circle me-1"></i>Ajouter la facture
                     </button>
-                    <a href="/admin/factures/liste.php" class="btn btn-secondary">Annuler</a>
+                    <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
                 </div>
             </form>
         </div>

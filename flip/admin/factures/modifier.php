@@ -119,8 +119,8 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/admin/factures/liste.php">Factures</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/factures/liste.php') ?>">Factures</a></li>
                 <li class="breadcrumb-item active">Modifier #<?= $factureId ?></li>
             </ol>
         </nav>
@@ -284,7 +284,7 @@ include '../../includes/header.php';
                     <button type="submit" class="btn btn-success">
                         <i class="bi bi-check-circle me-1"></i>Enregistrer
                     </button>
-                    <a href="/admin/factures/liste.php" class="btn btn-secondary">Annuler</a>
+                    <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
                     <button type="button" class="btn btn-outline-danger ms-auto" data-bs-toggle="modal" data-bs-target="#deleteModal">
                         <i class="bi bi-trash me-1"></i>Supprimer
                     </button>

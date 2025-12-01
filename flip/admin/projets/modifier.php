@@ -290,15 +290,15 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/admin/projets/liste.php">Projets</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/projets/liste.php') ?>">Projets</a></li>
                 <li class="breadcrumb-item active"><?= e($projet['nom']) ?></li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
-            <h1><a href="/admin/projets/detail.php?id=<?= $projetId ?>" class="text-decoration-none text-dark"><i class="bi bi-pencil me-2"></i><?= e($projet['nom']) ?></a></h1>
+            <h1><a href="<?= url('/admin/projets/detail.php?id=<?= $projetId ?>') ?>" class="text-decoration-none text-dark"><i class="bi bi-pencil me-2"></i><?= e($projet['nom']) ?></a></h1>
             <div>
-                <a href="/admin/projets/detail.php?id=<?= $projetId ?>" class="btn btn-primary me-2">
+                <a href="<?= url('/admin/projets/detail.php?id=<?= $projetId ?>') ?>" class="btn btn-primary me-2">
                     <i class="bi bi-eye me-1"></i>Voir détails
                 </a>
                 <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
@@ -574,7 +574,7 @@ include '../../includes/header.php';
         </div>
         
         <div class="d-flex justify-content-between mt-3">
-            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary btn-sm">
+            <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Retour
             </a>
             <button type="submit" class="btn btn-success">
@@ -827,7 +827,7 @@ include '../../includes/header.php';
     
     <!-- Lien pour ajouter des personnes -->
     <div class="text-center">
-        <a href="/admin/investisseurs/liste.php" class="btn btn-outline-secondary btn-sm">
+        <a href="<?= url('/admin/investisseurs/liste.php') ?>" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-person-plus me-1"></i>Gérer la liste des personnes
         </a>
     </div>
@@ -909,7 +909,7 @@ include '../../includes/header.php';
         </div>
         
         <div class="d-flex justify-content-between mt-3">
-            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Retour
             </a>
             <button type="submit" class="btn btn-success btn-lg">
@@ -1147,7 +1147,7 @@ include '../../includes/header.php';
         </div>
         
         <div class="d-flex justify-content-between mt-3">
-            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Retour
             </a>
             <button type="submit" class="btn btn-success btn-lg">
@@ -1157,7 +1157,7 @@ include '../../includes/header.php';
     </form>
     
     <div class="mt-3 text-center">
-        <a href="/admin/utilisateurs/liste.php" class="btn btn-outline-secondary btn-sm">
+        <a href="<?= url('/admin/utilisateurs/liste.php') ?>" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-gear me-1"></i>Modifier les taux horaires des employés
         </a>
     </div>

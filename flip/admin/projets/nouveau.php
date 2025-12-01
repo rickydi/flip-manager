@@ -103,8 +103,8 @@ include '../../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/admin/index.php">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="/admin/projets/liste.php">Projets</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/projets/liste.php') ?>">Projets</a></li>
                 <li class="breadcrumb-item active">Nouveau</li>
             </ol>
         </nav>
@@ -405,7 +405,7 @@ include '../../includes/header.php';
         </div>
         
         <div class="d-flex justify-content-between">
-            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
+            <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Retour
             </a>
             <button type="submit" class="btn btn-primary btn-lg">
