@@ -967,17 +967,29 @@ include '../../includes/header.php';
     if ($dateDebut && $dateFin) {
         $d1 = new DateTime($dateDebut);
         $d2 = new DateTime($dateFin);
-        $diff = $d1->diff($d2);
         
-        // Nombre de jours calendrier
-        $joursCalendrier = $diff->days;
+        // Calcul EXACT des jours ouvrables vs weekends (inclus date début ET fin)
+        $dureeJours = 0;
+        $joursFermes = 0;
         
-        // Jours ouvrables = jours calendrier × 5/7 (environ)
-        $dureeJours = round($joursCalendrier * 5 / 7);
+        // Créer une période incluant la date de fin (+1 jour car DatePeriod est exclusif sur la fin)
+        $d2Inclusive = clone $d2;
+        $d2Inclusive->modify('+1 day');
+        
+        $period = new DatePeriod($d1, new DateInterval('P1D'), $d2Inclusive);
+        
+        foreach ($period as $dt) {
+            // N = jour de la semaine ISO-8601 (1=Lundi, 7=Dimanche)
+            // Samedi = 6, Dimanche = 7
+            $dayOfWeek = (int)$dt->format('N');
+            if ($dayOfWeek >= 6) {
+                $joursFermes++;
+            } else {
+                $dureeJours++;
+            }
+        }
+        
         $dureeJours = max(1, $dureeJours);
-        
-        // Jours fermés (weekends)
-        $joursFermes = $joursCalendrier - $dureeJours;
         
         // Semaines pour affichage
         $dureeSemaines = ceil($dureeJours / 5);
