@@ -43,8 +43,9 @@ include '../../includes/header.php';
 /* Tableau compact 3 colonnes - compatible dark mode */
 .cost-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .cost-table th, .cost-table td { padding: 6px 10px; border-bottom: 1px solid var(--bs-border-color, #dee2e6); }
-.cost-table thead th { background: var(--bs-tertiary-bg, #f8f9fa); font-weight: 600; position: sticky; top: 0; }
+.cost-table thead th { background: #2d3748; color: white; font-weight: 600; position: sticky; top: 0; }
 .cost-table .section-header { background: #1e3a5f; color: white; font-weight: 600; }
+.cost-table .labor-row { background: #1e40af !important; color: white; }
 .cost-table .section-header td { padding: 8px 10px; }
 .cost-table .sub-item td:first-child { padding-left: 25px; }
 .cost-table .total-row { background: #374151; color: white; font-weight: 600; }
@@ -288,7 +289,7 @@ include '../../includes/header.php';
                     
                     <!-- MAIN D'ŒUVRE -->
                     <?php if ($indicateurs['main_doeuvre']['heures'] > 0 || $indicateurs['main_doeuvre']['cout'] > 0): ?>
-                    <tr class="sub-item" style="background: #e7f3ff;">
+                    <tr class="sub-item labor-row">
                         <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?>h)</td>
                         <td class="text-end">-</td>
                         <td class="text-end">-</td>
