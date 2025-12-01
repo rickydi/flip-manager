@@ -278,7 +278,7 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $h['projet_id'] ?>') ?>">
+                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $h['projet_id'] ?>">
                                             <?= e($h['projet_nom']) ?>
                                         </a>
                                     </td>

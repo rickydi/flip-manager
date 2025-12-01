@@ -36,14 +36,14 @@ $isAdmin = isAdmin();
                     <!-- Menu Admin -->
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/index.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/admin/index.php') ?>') ?>" title="Tableau de bord">
+                           href="<?= url('/admin/index.php') ?>" title="Tableau de bord">
                             <i class="bi bi-speedometer2"></i><span class="d-none d-xxl-inline"> Accueil</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/projets/') !== false ? 'active' : '' ?>"
-                           href="<?= url('/admin/projets/liste.php') ?>') ?>" title="Projets">
+                           href="<?= url('/admin/projets/liste.php') ?>" title="Projets">
                             <i class="bi bi-building"></i><span class="d-none d-xl-inline"> Projets</span>
                         </a>
                     </li>
@@ -51,7 +51,7 @@ $isAdmin = isAdmin();
                     <li class="nav-item">
                         <?php $countEnAttente = getFacturesEnAttenteCount($pdo); ?>
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/factures/') !== false ? 'active' : '' ?>"
-                           href="<?= url('/admin/factures/liste.php') ?>') ?>" title="Factures">
+                           href="<?= url('/admin/factures/liste.php') ?>" title="Factures">
                             <i class="bi bi-receipt"></i><span class="d-none d-xl-inline"> Fact.</span>
                             <?php if ($countEnAttente > 0): ?>
                                 <span class="badge bg-danger"><?= $countEnAttente ?></span>
@@ -61,14 +61,14 @@ $isAdmin = isAdmin();
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/investisseurs/') !== false ? 'active' : '' ?>"
-                           href="<?= url('/admin/investisseurs/liste.php') ?>') ?>" title="Investisseurs">
+                           href="<?= url('/admin/investisseurs/liste.php') ?>" title="Investisseurs">
                             <i class="bi bi-people"></i><span class="d-none d-xxl-inline"> Invest.</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/temps/') !== false ? 'active' : '' ?>"
-                           href="<?= url('/admin/temps/liste.php') ?>') ?>" title="Temps">
+                           href="<?= url('/admin/temps/liste.php') ?>" title="Temps">
                             <i class="bi bi-clock-history"></i><span class="d-none d-xl-inline"> Temps</span>
                             <?php
                             $countHeuresAttente = getHeuresEnAttenteCount($pdo);
@@ -81,7 +81,7 @@ $isAdmin = isAdmin();
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false ? 'active' : '' ?>"
-                           href="<?= url('/admin/utilisateurs/liste.php') ?>') ?>" title="Administration">
+                           href="<?= url('/admin/utilisateurs/liste.php') ?>" title="Administration">
                             <i class="bi bi-gear"></i><span class="d-none d-xxl-inline"> Admin</span>
                         </a>
                     </li>
@@ -90,28 +90,28 @@ $isAdmin = isAdmin();
                     <!-- Menu Employé -->
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/index.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/index.php') ?>') ?>" title="Tableau de bord">
+                           href="<?= url('/employe/index.php') ?>" title="Tableau de bord">
                             <i class="bi bi-speedometer2"></i><span class="d-none d-lg-inline"> Accueil</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/nouvelle-facture.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/nouvelle-facture.php') ?>') ?>" title="Nouvelle facture">
+                           href="<?= url('/employe/nouvelle-facture.php') ?>" title="Nouvelle facture">
                             <i class="bi bi-plus-circle"></i><span class="d-none d-lg-inline"> Facture</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/mes-factures.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/mes-factures.php') ?>') ?>" title="Mes factures">
+                           href="<?= url('/employe/mes-factures.php') ?>" title="Mes factures">
                             <i class="bi bi-receipt"></i><span class="d-none d-lg-inline"> Factures</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/feuille-temps.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/feuille-temps.php') ?>') ?>" title="Temps">
+                           href="<?= url('/employe/feuille-temps.php') ?>" title="Temps">
                             <i class="bi bi-clock-history"></i><span class="d-none d-lg-inline"> Temps</span>
                         </a>
                     </li>
@@ -151,7 +151,7 @@ $isAdmin = isAdmin();
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <a class="dropdown-item text-danger" href="<?= url('/logout.php') ?>') ?>">
+                            <a class="dropdown-item text-danger" href="<?= url('/logout.php') ?>">
                                 <i class="bi bi-box-arrow-right"></i> Déconnexion
                             </a>
                         </li>
