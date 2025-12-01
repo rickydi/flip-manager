@@ -26,9 +26,12 @@ $facturesApprouvees = $stmt->fetchColumn();
 $stmt = $pdo->query("SELECT SUM(montant_total) FROM factures WHERE statut = 'approuvee'");
 $totalDepenses = $stmt->fetchColumn() ?: 0;
 
-// Dernières activités (factures + heures)
+// Dernières activités (factures uniquement pour l'instant)
+$activites = [];
+
+// Récupérer les dernières factures
 $stmt = $pdo->query("
-    (SELECT 
+    SELECT 
         'facture' as type,
         f.id,
         f.fournisseur as description,
@@ -41,29 +44,38 @@ $stmt = $pdo->query("
     JOIN projets p ON f.projet_id = p.id
     JOIN users u ON f.user_id = u.id
     ORDER BY f.date_creation DESC
-    LIMIT 10)
-    
-    UNION ALL
-    
-    (SELECT 
-        'heures' as type,
-        h.id,
-        CONCAT(h.heures, 'h - ', IFNULL(h.description, 'Travail')) as description,
-        NULL as montant,
-        h.statut,
-        p.nom as projet_nom,
-        CONCAT(u.prenom, ' ', u.nom) as user_nom,
-        h.date_travail as date_activite
-    FROM heures_travail h
-    JOIN projets p ON h.projet_id = p.id
-    JOIN users u ON h.user_id = u.id
-    ORDER BY h.date_travail DESC
-    LIMIT 10)
-    
-    ORDER BY date_activite DESC
-    LIMIT 15
+    LIMIT 10
 ");
-$activites = $stmt->fetchAll();
+$activites = array_merge($activites, $stmt->fetchAll());
+
+// Essayer de récupérer les heures si la table existe
+try {
+    $stmt = $pdo->query("
+        SELECT 
+            'heures' as type,
+            h.id,
+            CONCAT(h.heures, 'h - ', IFNULL(h.description, 'Travail')) as description,
+            NULL as montant,
+            h.statut,
+            p.nom as projet_nom,
+            CONCAT(u.prenom, ' ', u.nom) as user_nom,
+            h.date_travail as date_activite
+        FROM heures_travail h
+        JOIN projets p ON h.projet_id = p.id
+        JOIN users u ON h.user_id = u.id
+        ORDER BY h.date_travail DESC
+        LIMIT 10
+    ");
+    $activites = array_merge($activites, $stmt->fetchAll());
+} catch (Exception $e) {
+    // Table heures_travail n'existe pas, ignorer
+}
+
+// Trier par date décroissante et limiter à 15
+usort($activites, function($a, $b) {
+    return strtotime($b['date_activite']) - strtotime($a['date_activite']);
+});
+$activites = array_slice($activites, 0, 15);
 
 // Factures en attente
 $stmt = $pdo->query("
