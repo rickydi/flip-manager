@@ -155,7 +155,11 @@ include '../../includes/header.php';
                 </div>
                 <small class="text-muted"><i class="bi bi-geo-alt"></i> <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?></small>
             </div>
-            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer"></i></button>
+            <div class="d-flex align-items-center gap-1">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(-1)" title="Réduire"><i class="bi bi-dash-lg"></i></button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(1)" title="Agrandir"><i class="bi bi-plus-lg"></i></button>
+                <button onclick="window.print()" class="btn btn-outline-secondary btn-sm" title="Imprimer"><i class="bi bi-printer"></i></button>
+            </div>
         </div>
     </div>
     
