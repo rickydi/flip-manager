@@ -1894,9 +1894,35 @@ body {
     background: rgba(251, 191, 36, 0.25);
 }
 
-/* User menu avatar */
-.navbar .nav-link .bi-person-circle {
-    font-size: 1.3rem;
+/* User avatar style Google */
+.user-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.user-avatar:hover {
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.navbar .dropdown-toggle::after {
+    display: none;
+}
+
+.navbar .nav-item.dropdown .nav-link {
+    padding: 0.25rem 0.5rem !important;
 }
 
 /* Toggler button mobile */

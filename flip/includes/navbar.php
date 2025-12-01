@@ -135,10 +135,22 @@ $isAdmin = isAdmin();
 
                 <!-- User menu -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle py-1 px-2" href="#" data-bs-toggle="dropdown" title="<?= e(getCurrentUserName()) ?>">
-                        <i class="bi bi-person-circle"></i>
-                        <span class="badge <?= $isAdmin ? 'bg-danger' : 'bg-secondary' ?> d-none d-lg-inline ms-1" style="font-size:0.65rem;">
-                            <?= $isAdmin ? 'A' : 'E' ?>
+                    <?php
+                    $userName = getCurrentUserName();
+                    $initials = '';
+                    $nameParts = explode(' ', trim($userName));
+                    if (count($nameParts) >= 2) {
+                        $initials = strtoupper(substr($nameParts[0], 0, 1) . substr($nameParts[count($nameParts)-1], 0, 1));
+                    } else {
+                        $initials = strtoupper(substr($userName, 0, 2));
+                    }
+                    $avatarColors = ['#4285f4', '#ea4335', '#fbbc05', '#34a853', '#673ab7', '#e91e63', '#00bcd4', '#ff5722'];
+                    $colorIndex = abs(crc32($userName)) % count($avatarColors);
+                    $avatarColor = $avatarColors[$colorIndex];
+                    ?>
+                    <a class="nav-link dropdown-toggle py-1 px-2" href="#" data-bs-toggle="dropdown" title="<?= e($userName) ?>">
+                        <span class="user-avatar" style="background-color: <?= $avatarColor ?>;">
+                            <?= $initials ?>
                         </span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end">
