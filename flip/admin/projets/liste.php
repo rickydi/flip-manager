@@ -127,7 +127,7 @@ include '../../includes/header.php';
                             <?php foreach ($projets as $projet): 
                                 $indicateurs = calculerIndicateursProjet($pdo, $projet);
                             ?>
-                                <tr style="cursor: pointer;" onclick="window.location='/admin/projets/detail.php?id=<?= $projet['id'] ?>'">
+                                <tr style="cursor: pointer;" onclick="window.location='<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>'">
                                     <td>
                                         <strong><?= e($projet['nom']) ?></strong>
                                         <br>
@@ -161,12 +161,12 @@ include '../../includes/header.php';
                                         </strong>
                                     </td>
                                     <td class="action-buttons" onclick="event.stopPropagation()">
-                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $projet['id'] ?>" 
+                                        <a href="<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>" 
                                            class="btn btn-outline-primary btn-sm"
                                            title="Voir détails">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        <a href="<?= url('/admin/projets/modifier.php?id=<?= $projet['id'] ?>" 
+                                        <a href="<?= url('/admin/projets/modifier.php?id=' . $projet['id']) ?>" 
                                            class="btn btn-outline-secondary btn-sm"
                                            title="Modifier">
                                             <i class="bi bi-pencil"></i>

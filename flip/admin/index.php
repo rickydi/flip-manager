@@ -329,7 +329,7 @@ include '../includes/header.php';
                         $progression = $indicateurs['renovation']['progression'];
                     ?>
                         <div class="col-md-6 mb-4">
-                            <div class="project-card" onclick="window.location='/admin/projets/detail.php?id=<?= $projet['id'] ?>'">
+                            <div class="project-card" onclick="window.location='<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>'">
                                 <div class="project-card-header">
                                     <div class="d-flex justify-content-between align-items-start">
                                         <div>
@@ -367,13 +367,13 @@ include '../includes/header.php';
                                     </div>
                                     
                                     <div class="quick-actions" onclick="event.stopPropagation()">
-                                        <a href="<?= url('/admin/projets/detail.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
+                                        <a href="<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>" class="btn btn-outline-primary btn-sm">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        <a href="<?= url('/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
+                                        <a href="<?= url('/admin/factures/liste.php?projet=' . $projet['id']) ?>" class="btn btn-outline-secondary btn-sm">
                                             <i class="bi bi-receipt"></i>
                                         </a>
-                                        <a href="<?= url('/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-secondary btn-sm">
+                                        <a href="<?= url('/admin/projets/modifier.php?id=' . $projet['id']) ?>" class="btn btn-outline-secondary btn-sm">
                                             <i class="bi bi-pencil"></i>
                                         </a>
                                     </div>
@@ -412,7 +412,7 @@ include '../includes/header.php';
                                     <?= formatMoney($facture['montant_total']) ?>
                                 </div>
                                 <div>
-                                    <a href="<?= url('/admin/factures/approuver.php?action=approuver&id=<?= $facture['id'] ?>" 
+                                    <a href="<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>" 
                                        class="btn btn-success btn-sm" title="Approuver">
                                         <i class="bi bi-check"></i>
                                     </a>
