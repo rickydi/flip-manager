@@ -13,9 +13,6 @@ requireAdmin();
 
 $pageTitle = 'Tableau de bord';
 
-// Récupérer les projets actifs
-$projets = getProjets($pdo);
-
 // Statistiques globales
 $stmt = $pdo->query("SELECT COUNT(*) FROM projets WHERE statut != 'archive'");
 $totalProjets = $stmt->fetchColumn();
@@ -28,6 +25,45 @@ $facturesApprouvees = $stmt->fetchColumn();
 
 $stmt = $pdo->query("SELECT SUM(montant_total) FROM factures WHERE statut = 'approuvee'");
 $totalDepenses = $stmt->fetchColumn() ?: 0;
+
+// Dernières activités (factures + heures)
+$stmt = $pdo->query("
+    (SELECT 
+        'facture' as type,
+        f.id,
+        f.fournisseur as description,
+        f.montant_total as montant,
+        f.statut,
+        p.nom as projet_nom,
+        CONCAT(u.prenom, ' ', u.nom) as user_nom,
+        f.date_creation as date_activite
+    FROM factures f
+    JOIN projets p ON f.projet_id = p.id
+    JOIN users u ON f.user_id = u.id
+    ORDER BY f.date_creation DESC
+    LIMIT 10)
+    
+    UNION ALL
+    
+    (SELECT 
+        'heures' as type,
+        h.id,
+        CONCAT(h.heures, 'h - ', IFNULL(h.description, 'Travail')) as description,
+        NULL as montant,
+        h.statut,
+        p.nom as projet_nom,
+        CONCAT(u.prenom, ' ', u.nom) as user_nom,
+        h.date_travail as date_activite
+    FROM heures_travail h
+    JOIN projets p ON h.projet_id = p.id
+    JOIN users u ON h.user_id = u.id
+    ORDER BY h.date_travail DESC
+    LIMIT 10)
+    
+    ORDER BY date_activite DESC
+    LIMIT 15
+");
+$activites = $stmt->fetchAll();
 
 // Factures en attente
 $stmt = $pdo->query("
@@ -47,39 +83,6 @@ include '../includes/header.php';
 ?>
 
 <style>
-/* Dashboard moderne */
-.dashboard-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1d4ed8 100%);
-    color: white;
-    padding: 2rem;
-    border-radius: 1rem;
-    margin-bottom: 2rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.dashboard-header::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    right: -20%;
-    width: 50%;
-    height: 200%;
-    background: rgba(255,255,255,0.1);
-    transform: rotate(25deg);
-}
-
-.dashboard-header h1 {
-    margin: 0;
-    font-size: 2rem;
-    font-weight: 700;
-}
-
-.dashboard-header p {
-    opacity: 0.9;
-    margin: 0.5rem 0 0;
-}
-
 /* Stats cards modernes */
 .stat-card-modern {
     background: var(--bg-card);
@@ -127,73 +130,6 @@ include '../includes/header.php';
     font-size: 0.875rem;
 }
 
-/* Project cards modernes */
-.project-card {
-    background: var(--bg-card);
-    border-radius: 1rem;
-    overflow: hidden;
-    box-shadow: 0 4px 6px var(--shadow-color);
-    transition: all 0.2s;
-    cursor: pointer;
-    height: 100%;
-}
-
-.project-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px var(--shadow-color);
-}
-
-.project-card-header {
-    padding: 1.25rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.project-card-header h5 {
-    margin: 0 0 0.25rem;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.project-card-header small {
-    color: var(--text-secondary);
-}
-
-.project-card-body {
-    padding: 1.25rem;
-}
-
-.project-metrics {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    margin-bottom: 1rem;
-}
-
-.metric-item {
-    text-align: center;
-    padding: 0.75rem;
-    background: var(--bg-table-hover);
-    border-radius: 0.5rem;
-}
-
-.metric-value {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-primary);
-}
-
-.metric-label {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.metric-item.success .metric-value { color: var(--success-color); }
-.metric-item.danger .metric-value { color: var(--danger-color); }
-.metric-item.warning .metric-value { color: var(--warning-color); }
-.metric-item.info .metric-value { color: var(--info-color); }
-
 /* Section title */
 .section-title {
     display: flex;
@@ -208,13 +144,74 @@ include '../includes/header.php';
     color: var(--text-primary);
 }
 
-/* Quick actions */
-.quick-actions {
+/* Activités récentes */
+.activity-item {
     display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border-color);
+    align-items: flex-start;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    gap: 1rem;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.activity-icon.facture { background: rgba(37, 99, 235, 0.15); color: var(--primary-color); }
+.activity-icon.heures { background: rgba(34, 197, 94, 0.15); color: var(--success-color); }
+
+.activity-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.activity-content strong {
+    color: var(--text-primary);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.activity-content small {
+    color: var(--text-secondary);
+}
+
+.activity-meta {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.activity-meta .amount {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.activity-meta .date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.activity-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    background: var(--bg-table-hover);
+    padding: 0.15rem 0.5rem;
+    border-radius: 1rem;
+    margin-top: 0.25rem;
 }
 
 /* Pending factures mini */
@@ -302,87 +299,48 @@ include '../includes/header.php';
     </div>
     
     <div class="row">
-        <!-- Colonne principale - Projets -->
+        <!-- Colonne principale - Activités récentes -->
         <div class="col-lg-8">
             <div class="section-title">
-                <h4><i class="bi bi-building me-2"></i>Projets actifs</h4>
-                <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-primary btn-sm">
-                    <i class="bi bi-plus-lg me-1"></i>Nouveau
-                </a>
+                <h4><i class="bi bi-activity me-2"></i>Dernières activités</h4>
             </div>
             
-            <?php if (empty($projets)): ?>
-                <div class="card">
-                    <div class="card-body text-center py-5">
-                        <i class="bi bi-building text-secondary" style="font-size: 4rem;"></i>
-                        <h4 class="mt-3">Aucun projet</h4>
-                        <p class="text-muted">Créez votre premier projet de flip</p>
-                        <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-primary">
-                            <i class="bi bi-plus-circle me-1"></i>Créer un projet
-                        </a>
-                    </div>
-                </div>
-            <?php else: ?>
-                <div class="row">
-                    <?php foreach ($projets as $projet): 
-                        $indicateurs = calculerIndicateursProjet($pdo, $projet);
-                        $progression = $indicateurs['renovation']['progression'];
-                    ?>
-                        <div class="col-md-6 mb-4">
-                            <div class="project-card" onclick="window.location='<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>'">
-                                <div class="project-card-header">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h5><?= e($projet['nom']) ?></h5>
-                                            <small><i class="bi bi-geo-alt me-1"></i><?= e($projet['ville']) ?></small>
-                                        </div>
-                                        <span class="badge <?= getStatutProjetClass($projet['statut']) ?>">
-                                            <?= getStatutProjetLabel($projet['statut']) ?>
-                                        </span>
+            <div class="card">
+                <div class="card-body p-0">
+                    <?php if (empty($activites)): ?>
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox text-secondary" style="font-size: 4rem;"></i>
+                            <h4 class="mt-3">Aucune activité</h4>
+                            <p class="text-muted">Les dernières entrées apparaîtront ici</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($activites as $activite): ?>
+                            <div class="activity-item">
+                                <div class="activity-icon <?= $activite['type'] ?>">
+                                    <i class="bi bi-<?= $activite['type'] === 'facture' ? 'receipt' : 'clock' ?>"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <strong><?= e($activite['description']) ?></strong>
+                                    <small><?= e($activite['projet_nom']) ?></small>
+                                    <div class="activity-user">
+                                        <i class="bi bi-person-fill"></i>
+                                        <?= e($activite['user_nom']) ?>
                                     </div>
                                 </div>
-                                <div class="project-card-body">
-                                    <div class="project-metrics">
-                                        <div class="metric-item">
-                                            <div class="metric-value"><?= formatMoney($indicateurs['valeur_potentielle']) ?></div>
-                                            <div class="metric-label">Valeur pot.</div>
-                                        </div>
-                                        <div class="metric-item <?= $indicateurs['equite_potentielle'] >= 0 ? 'success' : 'danger' ?>">
-                                            <div class="metric-value"><?= formatMoney($indicateurs['equite_potentielle']) ?></div>
-                                            <div class="metric-label">Profit</div>
-                                        </div>
-                                        <div class="metric-item info">
-                                            <div class="metric-value"><?= formatPercent($indicateurs['roi_leverage']) ?></div>
-                                            <div class="metric-label">ROI</div>
-                                        </div>
-                                        <div class="metric-item">
-                                            <div class="metric-value"><?= number_format($progression, 0) ?>%</div>
-                                            <div class="metric-label">Budget</div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="progress" style="height: 6px;">
-                                        <div class="progress-bar <?= $progression > 100 ? 'bg-danger' : 'bg-primary' ?>" 
-                                             style="width: <?= min(100, $progression) ?>%"></div>
-                                    </div>
-                                    
-                                    <div class="quick-actions" onclick="event.stopPropagation()">
-                                        <a href="<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>" class="btn btn-outline-primary btn-sm">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <a href="<?= url('/admin/factures/liste.php?projet=' . $projet['id']) ?>" class="btn btn-outline-secondary btn-sm">
-                                            <i class="bi bi-receipt"></i>
-                                        </a>
-                                        <a href="<?= url('/admin/projets/modifier.php?id=' . $projet['id']) ?>" class="btn btn-outline-secondary btn-sm">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                    </div>
+                                <div class="activity-meta">
+                                    <?php if ($activite['montant']): ?>
+                                        <div class="amount"><?= formatMoney($activite['montant']) ?></div>
+                                    <?php endif; ?>
+                                    <div class="date"><?= formatDate($activite['date_activite']) ?></div>
+                                    <span class="badge <?= $activite['statut'] === 'approuvee' || $activite['statut'] === 'approuve' ? 'bg-success' : ($activite['statut'] === 'en_attente' ? 'bg-warning text-dark' : 'bg-secondary') ?>" style="font-size: 0.65rem;">
+                                        <?= $activite['statut'] === 'approuvee' || $activite['statut'] === 'approuve' ? 'Approuvé' : ($activite['statut'] === 'en_attente' ? 'En attente' : $activite['statut']) ?>
+                                    </span>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
-            <?php endif; ?>
+            </div>
         </div>
         
         <!-- Colonne latérale -->
@@ -438,14 +396,14 @@ include '../includes/header.php';
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a href="<?= url('/admin/projets/nouveau.php') ?>" class="btn btn-outline-primary">
-                            <i class="bi bi-plus-circle me-2"></i>Nouveau projet
+                        <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-primary">
+                            <i class="bi bi-building me-2"></i>Voir les projets
                         </a>
                         <a href="<?= url('/admin/factures/nouvelle.php') ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-receipt me-2"></i>Nouvelle facture
                         </a>
-                        <a href="<?= url('/admin/investisseurs/liste.php') ?>" class="btn btn-outline-secondary">
-                            <i class="bi bi-people me-2"></i>Investisseurs
+                        <a href="<?= url('/admin/temps/liste.php') ?>" class="btn btn-outline-secondary">
+                            <i class="bi bi-clock me-2"></i>Feuilles de temps
                         </a>
                     </div>
                 </div>
