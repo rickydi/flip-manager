@@ -312,10 +312,28 @@ function displayFlashMessages() {
 }
 
 /**
+ * Construit une URL avec le chemin de base
+ * @param string $path
+ * @return string
+ */
+function url($path = '') {
+    $base = defined('BASE_PATH') ? BASE_PATH : '';
+    // Si le chemin commence par /, on le combine avec BASE_PATH
+    if (strpos($path, '/') === 0) {
+        return $base . $path;
+    }
+    return $base . '/' . $path;
+}
+
+/**
  * Redirige vers une URL
  * @param string $url
  */
 function redirect($url) {
+    // Ajouter BASE_PATH pour les URLs qui commencent par /
+    if (strpos($url, '/') === 0 && defined('BASE_PATH')) {
+        $url = BASE_PATH . $url;
+    }
     header('Location: ' . $url);
     exit;
 }

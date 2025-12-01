@@ -26,6 +26,7 @@ define('DB_CHARSET', 'utf8mb4');
 define('APP_NAME', 'Flip Manager');
 define('APP_URL', 'https://evoreno.com');
 define('APP_VERSION', '1.0.0');
+define('BASE_PATH', '/flip'); // Chemin de base de l'application
 
 // Configuration des uploads
 define('UPLOAD_PATH', __DIR__ . '/uploads/factures/');
