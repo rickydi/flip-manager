@@ -958,9 +958,9 @@ include '../../includes/header.php';
     <?php elseif ($tab === 'planification'): ?>
     <!-- Onglet Planification Main d'oeuvre -->
     <?php
-    // Calculer la durée en semaines (4 semaines par mois)
+    // Calculer la durée en jours ouvrables (5 jours par semaine)
+    $dureeJours = 0;
     $dureeSemaines = 0;
-    $dureeMois = 0;
     $dateDebut = $projet['date_debut_travaux'] ?? $projet['date_acquisition'];
     $dateFin = $projet['date_fin_prevue'];
     
@@ -968,14 +968,16 @@ include '../../includes/header.php';
         $d1 = new DateTime($dateDebut);
         $d2 = new DateTime($dateFin);
         $diff = $d1->diff($d2);
-        // Calculer les mois (comme ailleurs dans l'app)
-        $dureeMois = ($diff->y * 12) + $diff->m;
-        if ($d2->format('d') > $d1->format('d')) {
-            $dureeMois++;
-        }
-        $dureeMois = max(1, $dureeMois);
-        // 4 semaines par mois
-        $dureeSemaines = $dureeMois * 4;
+        
+        // Nombre de jours calendrier
+        $joursCalendrier = $diff->days;
+        
+        // Jours ouvrables = jours calendrier × 5/7 (environ)
+        $dureeJours = round($joursCalendrier * 5 / 7);
+        $dureeJours = max(1, $dureeJours);
+        
+        // Semaines pour affichage
+        $dureeSemaines = ceil($dureeJours / 5);
     }
     
     // Récupérer tous les employés actifs avec leur taux horaire
@@ -994,12 +996,14 @@ include '../../includes/header.php';
         // Table n'existe pas encore
     }
     
-    // Calculer le total estimé
+    // Calculer le total estimé (heures/jour × jours ouvrables)
     $totalHeuresEstimees = 0;
     $totalCoutEstime = 0;
     foreach ($employes as $emp) {
         $heuresSemaine = $planifications[$emp['id']] ?? 0;
-        $totalHeures = $heuresSemaine * $dureeSemaines;
+        // Convertir heures/semaine en heures/jour puis × jours
+        $heuresJour = $heuresSemaine / 5;
+        $totalHeures = $heuresJour * $dureeJours;
         $cout = $totalHeures * (float)$emp['taux_horaire'];
         $totalHeuresEstimees += $totalHeures;
         $totalCoutEstime += $cout;
@@ -1019,8 +1023,8 @@ include '../../includes/header.php';
             </div>
             <div class="col-md-4">
                 <strong><i class="bi bi-clock me-1"></i> Durée estimée:</strong>
-                <?php if ($dureeSemaines > 0): ?>
-                    <span class="badge bg-primary fs-6"><?= $dureeSemaines ?> semaines</span>
+                <?php if ($dureeJours > 0): ?>
+                    <span class="badge bg-primary fs-6"><?= $dureeJours ?> jours ouvrables</span>
                 <?php else: ?>
                     <span class="text-warning">Définir les dates dans l'onglet Général</span>
                 <?php endif; ?>
@@ -1073,7 +1077,7 @@ include '../../includes/header.php';
                             <th>Employé</th>
                             <th class="text-center" style="width: 100px;">Taux/h</th>
                             <th class="text-center" style="width: 140px;">Heures/semaine</th>
-                            <th class="text-center" style="width: 100px;">Semaines</th>
+                            <th class="text-center" style="width: 100px;">Jours</th>
                             <th class="text-end" style="width: 100px;">Total heures</th>
                             <th class="text-end" style="width: 120px;">Coût estimé</th>
                         </tr>
@@ -1082,7 +1086,9 @@ include '../../includes/header.php';
                         <?php foreach ($employes as $emp): 
                             $heuresSemaine = $planifications[$emp['id']] ?? 0;
                             $tauxHoraire = (float)$emp['taux_horaire'];
-                            $totalHeures = $heuresSemaine * $dureeSemaines;
+                            // heures/jour × jours ouvrables
+                            $heuresJour = $heuresSemaine / 5;
+                            $totalHeures = $heuresJour * $dureeJours;
                             $coutEstime = $totalHeures * $tauxHoraire;
                         ?>
                         <tr class="<?= $heuresSemaine > 0 ? 'table-success' : '' ?>">
@@ -1111,10 +1117,10 @@ include '../../includes/header.php';
                                        max="80" 
                                        step="0.5"
                                        data-taux="<?= $tauxHoraire ?>"
-                                       data-semaines="<?= $dureeSemaines ?>"
+                                       data-jours="<?= $dureeJours ?>"
                                        onfocus="this.select()">
                             </td>
-                            <td class="text-center text-muted"><?= $dureeSemaines ?></td>
+                            <td class="text-center text-muted"><?= $dureeJours ?></td>
                             <td class="text-end total-heures"><?= number_format($totalHeures, 1) ?> h</td>
                             <td class="text-end fw-bold cout-estime"><?= formatMoney($coutEstime) ?></td>
                         </tr>
@@ -1158,9 +1164,11 @@ include '../../includes/header.php';
                 const row = input.closest('tr');
                 const heuresSemaine = parseFloat(input.value) || 0;
                 const taux = parseFloat(input.dataset.taux) || 0;
-                const semaines = parseInt(input.dataset.semaines) || 0;
+                const jours = parseInt(input.dataset.jours) || 0;
                 
-                const totalHeures = heuresSemaine * semaines;
+                // heures/jour = heures/semaine ÷ 5, puis × jours
+                const heuresJour = heuresSemaine / 5;
+                const totalHeures = heuresJour * jours;
                 const cout = totalHeures * taux;
                 
                 row.querySelector('.total-heures').textContent = totalHeures.toFixed(1) + ' h';
