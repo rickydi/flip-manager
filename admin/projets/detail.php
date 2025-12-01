@@ -36,6 +36,67 @@ $categories = getCategories($pdo);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
 
+// ========================================
+// CALCUL MAIN D'ŒUVRE EXTRAPOLÉE (depuis planification)
+// ========================================
+$moExtrapole = ['heures' => 0, 'cout' => 0, 'jours' => 0];
+$dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'];
+$dateFinPrevue = $projet['date_fin_prevue'];
+
+if ($dateDebutTravaux && $dateFinPrevue) {
+    $d1 = new DateTime($dateDebutTravaux);
+    $d2 = new DateTime($dateFinPrevue);
+    
+    // Calcul des jours ouvrables (Lundi-Vendredi)
+    $d2Inclusive = clone $d2;
+    $d2Inclusive->modify('+1 day');
+    $period = new DatePeriod($d1, new DateInterval('P1D'), $d2Inclusive);
+    
+    $joursOuvrables = 0;
+    foreach ($period as $dt) {
+        if ((int)$dt->format('N') < 6) $joursOuvrables++;
+    }
+    $moExtrapole['jours'] = max(1, $joursOuvrables);
+    
+    // Récupérer les planifications avec taux horaire
+    try {
+        $stmt = $pdo->prepare("
+            SELECT p.heures_semaine_estimees, u.taux_horaire
+            FROM projet_planification_heures p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.projet_id = ?
+        ");
+        $stmt->execute([$projetId]);
+        
+        foreach ($stmt->fetchAll() as $row) {
+            $heuresSemaine = (float)$row['heures_semaine_estimees'];
+            $tauxHoraire = (float)$row['taux_horaire'];
+            // heures/jour = heures/semaine ÷ 5
+            $heuresJour = $heuresSemaine / 5;
+            $totalHeures = $heuresJour * $moExtrapole['jours'];
+            $moExtrapole['heures'] += $totalHeures;
+            $moExtrapole['cout'] += $totalHeures * $tauxHoraire;
+        }
+    } catch (Exception $e) {}
+}
+
+// ========================================
+// CALCUL MAIN D'ŒUVRE RÉELLE (heures travaillées)
+// ========================================
+$moReel = ['heures' => 0, 'cout' => 0];
+try {
+    $stmt = $pdo->prepare("
+        SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout 
+        FROM heures_travaillees h 
+        JOIN users u ON h.user_id = u.id 
+        WHERE h.projet_id = ? AND h.statut != 'rejetee'
+    ");
+    $stmt->execute([$projetId]);
+    $res = $stmt->fetch();
+    $moReel['heures'] = (float)($res['total_heures'] ?? 0);
+    $moReel['cout'] = (float)($res['total_cout'] ?? 0);
+} catch (Exception $e) {}
+
 include '../../includes/header.php';
 ?>
 
@@ -290,23 +351,22 @@ include '../../includes/header.php';
                     </tr>
                     <?php endforeach; ?>
                     
-                    <!-- MAIN D'ŒUVRE - Debug direct -->
+                    <!-- MAIN D'ŒUVRE -->
                     <?php 
-                    // Calcul direct pour debug
-                    $debugMO = ['heures' => 0, 'cout' => 0];
-                    try {
-                        $stmtDebug = $pdo->prepare("SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout FROM heures_travaillees h JOIN users u ON h.user_id = u.id WHERE h.projet_id = ? AND h.statut != 'rejetee'");
-                        $stmtDebug->execute([$projetId]);
-                        $resDebug = $stmtDebug->fetch();
-                        $debugMO = ['heures' => (float)($resDebug['total_heures'] ?? 0), 'cout' => (float)($resDebug['total_cout'] ?? 0)];
-                    } catch (Exception $e) {}
+                    $diffMO = $moExtrapole['cout'] - $moReel['cout'];
+                    if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0): 
                     ?>
-                    <?php if ($debugMO['heures'] > 0 || $debugMO['cout'] > 0): ?>
                     <tr class="sub-item labor-row">
-                        <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($debugMO['heures'], 1) ?>h @ <?= formatMoney($debugMO['heures'] > 0 ? $debugMO['cout'] / $debugMO['heures'] : 0) ?>/h)</td>
-                        <td class="text-end"><?= formatMoney(0) ?></td>
-                        <td class="text-end"><?= formatMoney(-$debugMO['cout']) ?></td>
-                        <td class="text-end"><?= formatMoney($debugMO['cout']) ?></td>
+                        <td>
+                            <i class="bi bi-person-fill me-1"></i>Main d'œuvre
+                            <small class="d-block opacity-75">
+                                Planifié: <?= number_format($moExtrapole['heures'], 0) ?>h (<?= $moExtrapole['jours'] ?>j) | 
+                                Réel: <?= number_format($moReel['heures'], 1) ?>h
+                            </small>
+                        </td>
+                        <td class="text-end"><?= formatMoney($moExtrapole['cout']) ?></td>
+                        <td class="text-end <?= $diffMO >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffMO) ?></td>
+                        <td class="text-end"><?= formatMoney($moReel['cout']) ?></td>
                     </tr>
                     <?php endif; ?>
                     
