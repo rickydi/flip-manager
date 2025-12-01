@@ -211,6 +211,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             setFlashMessage('success', 'Budgets mis à jour avec succès!');
             redirect('/admin/projets/modifier.php?id=' . $projetId . '&tab=budgets');
+        } elseif ($action === 'planification') {
+            // Mise à jour de la planification main d'œuvre
+            $heures = $_POST['heures'] ?? [];
+            
+            foreach ($heures as $userId => $heuresSemaine) {
+                $heuresSemaine = parseNumber($heuresSemaine);
+                
+                if ($heuresSemaine > 0) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO projet_planification_heures (projet_id, user_id, heures_semaine_estimees)
+                        VALUES (?, ?, ?)
+                        ON DUPLICATE KEY UPDATE heures_semaine_estimees = ?
+                    ");
+                    $stmt->execute([$projetId, $userId, $heuresSemaine, $heuresSemaine]);
+                } else {
+                    // Supprimer si 0
+                    $stmt = $pdo->prepare("DELETE FROM projet_planification_heures WHERE projet_id = ? AND user_id = ?");
+                    $stmt->execute([$projetId, $userId]);
+                }
+            }
+            
+            setFlashMessage('success', 'Planification main-d\'œuvre mise à jour!');
+            redirect('/admin/projets/modifier.php?id=' . $projetId . '&tab=planification');
         }
     }
 }
@@ -315,6 +338,12 @@ include '../../includes/header.php';
             <a class="nav-link <?= $tab === 'budgets' ? 'active' : '' ?>" 
                href="?id=<?= $projetId ?>&tab=budgets">
                 <i class="bi bi-calculator me-1"></i>Budgets
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?= $tab === 'planification' ? 'active' : '' ?>" 
+               href="?id=<?= $projetId ?>&tab=planification">
+                <i class="bi bi-people me-1"></i>Main-d'œuvre
             </a>
         </li>
     </ul>
@@ -922,6 +951,230 @@ include '../../includes/header.php';
         inputs.forEach(input => {
             input.addEventListener('input', updateTotal);
             input.addEventListener('change', updateTotal);
+        });
+    });
+    </script>
+    
+    <?php elseif ($tab === 'planification'): ?>
+    <!-- Onglet Planification Main d'oeuvre -->
+    <?php
+    // Calculer la durée en semaines
+    $dureeSemaines = 0;
+    $dateDebut = $projet['date_debut_travaux'] ?? $projet['date_acquisition'];
+    $dateFin = $projet['date_fin_prevue'];
+    
+    if ($dateDebut && $dateFin) {
+        $d1 = new DateTime($dateDebut);
+        $d2 = new DateTime($dateFin);
+        $diff = $d1->diff($d2);
+        $dureeSemaines = ceil($diff->days / 7);
+    }
+    
+    // Récupérer tous les employés actifs avec leur taux horaire
+    $stmt = $pdo->query("SELECT id, CONCAT(prenom, ' ', nom) as nom_complet, taux_horaire, role FROM users WHERE actif = 1 ORDER BY prenom, nom");
+    $employes = $stmt->fetchAll();
+    
+    // Récupérer les planifications existantes pour ce projet
+    $planifications = [];
+    try {
+        $stmt = $pdo->prepare("SELECT user_id, heures_semaine_estimees FROM projet_planification_heures WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+        while ($row = $stmt->fetch()) {
+            $planifications[$row['user_id']] = (float)$row['heures_semaine_estimees'];
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas encore
+    }
+    
+    // Calculer le total estimé
+    $totalHeuresEstimees = 0;
+    $totalCoutEstime = 0;
+    foreach ($employes as $emp) {
+        $heuresSemaine = $planifications[$emp['id']] ?? 0;
+        $totalHeures = $heuresSemaine * $dureeSemaines;
+        $cout = $totalHeures * (float)$emp['taux_horaire'];
+        $totalHeuresEstimees += $totalHeures;
+        $totalCoutEstime += $cout;
+    }
+    ?>
+    
+    <!-- Résumé du projet -->
+    <div class="alert alert-info mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-4">
+                <strong><i class="bi bi-calendar3 me-1"></i> Début travaux:</strong>
+                <?= $dateDebut ? formatDate($dateDebut) : '<span class="text-warning">Non défini</span>' ?>
+            </div>
+            <div class="col-md-4">
+                <strong><i class="bi bi-calendar-check me-1"></i> Fin prévue:</strong>
+                <?= $dateFin ? formatDate($dateFin) : '<span class="text-warning">Non défini</span>' ?>
+            </div>
+            <div class="col-md-4">
+                <strong><i class="bi bi-clock me-1"></i> Durée estimée:</strong>
+                <?php if ($dureeSemaines > 0): ?>
+                    <span class="badge bg-primary fs-6"><?= $dureeSemaines ?> semaines</span>
+                <?php else: ?>
+                    <span class="text-warning">Définir les dates dans l'onglet Général</span>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <?php if ($dureeSemaines == 0): ?>
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Attention:</strong> Vous devez d'abord définir les dates de début et fin de travaux dans l'onglet "Général" pour pouvoir calculer les coûts de main-d'œuvre.
+        </div>
+    <?php endif; ?>
+    
+    <!-- TOTAL EN HAUT - STICKY -->
+    <div class="card bg-success text-white mb-3 sticky-top" style="top: 60px; z-index: 100;">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <i class="bi bi-people fs-4"></i>
+                </div>
+                <div class="col">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="opacity-75">Total Heures Estimées</small>
+                            <h4 class="mb-0" id="totalHeures"><?= number_format($totalHeuresEstimees, 1) ?> h</h4>
+                        </div>
+                        <div class="text-end border-start ps-3 ms-3">
+                            <small class="opacity-75">Coût Main-d'œuvre Estimé</small>
+                            <h4 class="mb-0" id="totalCout"><?= formatMoney($totalCoutEstime) ?></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <form method="POST" action="" id="formPlanification">
+        <?php csrfField(); ?>
+        <input type="hidden" name="action" value="planification">
+        
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-person-lines-fill me-1"></i> Planification par employé
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employé</th>
+                            <th class="text-center" style="width: 100px;">Taux/h</th>
+                            <th class="text-center" style="width: 140px;">Heures/semaine</th>
+                            <th class="text-center" style="width: 100px;">Semaines</th>
+                            <th class="text-end" style="width: 100px;">Total heures</th>
+                            <th class="text-end" style="width: 120px;">Coût estimé</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($employes as $emp): 
+                            $heuresSemaine = $planifications[$emp['id']] ?? 0;
+                            $tauxHoraire = (float)$emp['taux_horaire'];
+                            $totalHeures = $heuresSemaine * $dureeSemaines;
+                            $coutEstime = $totalHeures * $tauxHoraire;
+                        ?>
+                        <tr class="<?= $heuresSemaine > 0 ? 'table-success' : '' ?>">
+                            <td>
+                                <i class="bi bi-person me-1"></i>
+                                <?= e($emp['nom_complet']) ?>
+                                <?php if ($emp['role'] === 'admin'): ?>
+                                    <span class="badge bg-secondary ms-1">Admin</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center">
+                                <?php if ($tauxHoraire > 0): ?>
+                                    <?= formatMoney($tauxHoraire) ?>
+                                <?php else: ?>
+                                    <span class="text-warning" title="Définir dans Gestion des utilisateurs">
+                                        <i class="bi bi-exclamation-triangle"></i> 0$
+                                    </span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center">
+                                <input type="number" 
+                                       class="form-control form-control-sm text-center heures-input" 
+                                       name="heures[<?= $emp['id'] ?>]" 
+                                       value="<?= $heuresSemaine ?>"
+                                       min="0" 
+                                       max="80" 
+                                       step="0.5"
+                                       data-taux="<?= $tauxHoraire ?>"
+                                       data-semaines="<?= $dureeSemaines ?>">
+                            </td>
+                            <td class="text-center text-muted"><?= $dureeSemaines ?></td>
+                            <td class="text-end total-heures"><?= number_format($totalHeures, 1) ?> h</td>
+                            <td class="text-end fw-bold cout-estime"><?= formatMoney($coutEstime) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between mt-3">
+            <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Retour
+            </a>
+            <button type="submit" class="btn btn-success btn-lg">
+                <i class="bi bi-check-circle me-1"></i>Enregistrer la planification
+            </button>
+        </div>
+    </form>
+    
+    <div class="mt-3 text-center">
+        <a href="/admin/utilisateurs/liste.php" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-gear me-1"></i>Modifier les taux horaires des employés
+        </a>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputs = document.querySelectorAll('.heures-input');
+        const totalHeuresEl = document.getElementById('totalHeures');
+        const totalCoutEl = document.getElementById('totalCout');
+        
+        function formatMoney(val) {
+            return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+        }
+        
+        function updateTotals() {
+            let grandTotalHeures = 0;
+            let grandTotalCout = 0;
+            
+            inputs.forEach(input => {
+                const row = input.closest('tr');
+                const heuresSemaine = parseFloat(input.value) || 0;
+                const taux = parseFloat(input.dataset.taux) || 0;
+                const semaines = parseInt(input.dataset.semaines) || 0;
+                
+                const totalHeures = heuresSemaine * semaines;
+                const cout = totalHeures * taux;
+                
+                row.querySelector('.total-heures').textContent = totalHeures.toFixed(1) + ' h';
+                row.querySelector('.cout-estime').textContent = formatMoney(cout);
+                
+                // Highlight row if hours > 0
+                if (heuresSemaine > 0) {
+                    row.classList.add('table-success');
+                } else {
+                    row.classList.remove('table-success');
+                }
+                
+                grandTotalHeures += totalHeures;
+                grandTotalCout += cout;
+            });
+            
+            totalHeuresEl.textContent = grandTotalHeures.toFixed(1) + ' h';
+            totalCoutEl.textContent = formatMoney(grandTotalCout);
+        }
+        
+        inputs.forEach(input => {
+            input.addEventListener('input', updateTotals);
+            input.addEventListener('change', updateTotals);
         });
     });
     </script>
