@@ -9,13 +9,12 @@ $currentUri = $_SERVER['REQUEST_URI'];
 $isAdmin = isAdmin();
 ?>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top py-1">
-    <div class="container-fluid px-2">
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+    <div class="container-fluid">
         <!-- Logo/Titre à gauche -->
-        <a class="navbar-brand d-flex align-items-center py-0" href="<?= $isAdmin ? url('/admin/index.php') : url('/employe/index.php') ?>">
+        <a class="navbar-brand" href="<?= $isAdmin ? url('/admin/index.php') : url('/employe/index.php') ?>">
             <i class="bi bi-house-door-fill"></i>
-            <span class="d-none d-xl-inline ms-1"><?= APP_NAME ?></span>
-            <span class="d-xl-none d-sm-inline ms-1">Flip</span>
+            <span class="d-none d-sm-inline"><?= APP_NAME ?></span>
         </a>
 
         <!-- Contrôles rapides sur mobile (avant toggler) -->
