@@ -21,13 +21,13 @@ $error = '';
 
 // Traitement du formulaire de connexion
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $identifier = trim($_POST['identifier'] ?? '');
+    $email = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     
-    if (empty($identifier) || empty($password)) {
+    if (empty($email) || empty($password)) {
         $error = 'Veuillez remplir tous les champs.';
     } else {
-        $user = verifyCredentials($pdo, $identifier, $password);
+        $user = verifyCredentials($pdo, $email, $password);
         
         if ($user) {
             loginUser($user);
@@ -79,17 +79,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             <form method="POST" action="">
                 <div class="mb-3">
-                    <label for="identifier" class="form-label">Identifiant</label>
+                    <label for="email" class="form-label">Email</label>
                     <div class="input-group">
                         <span class="input-group-text">
-                            <i class="bi bi-person"></i>
+                            <i class="bi bi-envelope"></i>
                         </span>
-                        <input type="text" 
+                        <input type="email" 
                                class="form-control form-control-lg" 
-                               id="identifier" 
-                               name="identifier" 
-                               placeholder="Nom d'utilisateur ou email"
-                               value="<?= e($_POST['identifier'] ?? '') ?>"
+                               id="email" 
+                               name="email" 
+                               placeholder="votre@email.com"
+                               value="<?= e($_POST['email'] ?? '') ?>"
                                required 
                                autofocus>
                     </div>

@@ -123,16 +123,16 @@ function updateLastLogin($pdo, $userId) {
 }
 
 /**
- * Vérifie les identifiants de connexion (username OU email)
+ * Vérifie les identifiants de connexion (email uniquement)
  * @param PDO $pdo
- * @param string $identifier Username ou email
+ * @param string $email Email de l'utilisateur
  * @param string $password
  * @return array|false Données utilisateur ou false
  */
-function verifyCredentials($pdo, $identifier, $password) {
-    // Chercher par username OU par email
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE (username = ? OR email = ?) AND actif = 1");
-    $stmt->execute([$identifier, $identifier]);
+function verifyCredentials($pdo, $email, $password) {
+    // Chercher uniquement par email
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND actif = 1");
+    $stmt->execute([$email]);
     $user = $stmt->fetch();
     
     if ($user && password_verify($password, $user['password'])) {
