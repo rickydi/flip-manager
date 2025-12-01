@@ -132,8 +132,6 @@ include '../../includes/header.php';
 }
 </style>
 
-<meta http-equiv="refresh" content="30">
-
 <div class="container-fluid">
     <!-- En-tête -->
     <div class="page-header">
@@ -758,5 +756,105 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         }
     });
 });
+
+// ========================================
+// AJAX REFRESH - Met à jour les données sans flash
+// ========================================
+(function() {
+    var refreshInterval = 30000; // 30 secondes
+    var refreshTimer;
+
+    function getCollapsedSections() {
+        var collapsed = [];
+        document.querySelectorAll('.section-header.collapsed').forEach(function(el) {
+            collapsed.push(el.dataset.section);
+        });
+        return collapsed;
+    }
+
+    function doRefresh() {
+        // Ne pas rafraîchir si l'onglet n'est pas visible
+        if (document.hidden) {
+            scheduleRefresh();
+            return;
+        }
+
+        var collapsedBefore = getCollapsedSections();
+
+        fetch(window.location.href, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) { return response.text(); })
+        .then(function(html) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(html, 'text/html');
+
+            // Mettre à jour les indicateurs (cartes en haut)
+            var newIndicators = doc.querySelectorAll('.row.g-2.mb-3 .card');
+            var currentIndicators = document.querySelectorAll('.row.g-2.mb-3 .card');
+            newIndicators.forEach(function(newCard, i) {
+                if (currentIndicators[i]) {
+                    var newValue = newCard.querySelector('strong');
+                    var currentValue = currentIndicators[i].querySelector('strong');
+                    if (newValue && currentValue && newValue.textContent !== currentValue.textContent) {
+                        currentValue.textContent = newValue.textContent;
+                        currentValue.style.transition = 'color 0.3s';
+                        currentValue.style.color = '#ffc107';
+                        setTimeout(function() { currentValue.style.color = ''; }, 500);
+                    }
+                }
+            });
+
+            // Mettre à jour le tableau des coûts
+            var newTable = doc.querySelector('.cost-table tbody');
+            var currentTable = document.querySelector('.cost-table tbody');
+            if (newTable && currentTable) {
+                var newRows = newTable.querySelectorAll('tr');
+                var currentRows = currentTable.querySelectorAll('tr');
+                newRows.forEach(function(newRow, i) {
+                    if (currentRows[i] && !currentRows[i].classList.contains('section-header')) {
+                        var newCells = newRow.querySelectorAll('td');
+                        var currentCells = currentRows[i].querySelectorAll('td');
+                        newCells.forEach(function(newCell, j) {
+                            if (currentCells[j] && newCell.textContent !== currentCells[j].textContent) {
+                                currentCells[j].innerHTML = newCell.innerHTML;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Restaurer l'état des sections collapsées
+            collapsedBefore.forEach(function(section) {
+                var header = document.querySelector('.section-header[data-section="' + section + '"]');
+                if (header && !header.classList.contains('collapsed')) {
+                    header.click();
+                }
+            });
+
+            scheduleRefresh();
+        })
+        .catch(function(err) {
+            console.log('Refresh error:', err);
+            scheduleRefresh();
+        });
+    }
+
+    function scheduleRefresh() {
+        refreshTimer = setTimeout(doRefresh, refreshInterval);
+    }
+
+    // Démarrer le refresh
+    scheduleRefresh();
+
+    // Pause quand l'onglet est caché
+    document.addEventListener('visibilitychange', function() {
+        if (document.hidden) {
+            clearTimeout(refreshTimer);
+        } else {
+            scheduleRefresh();
+        }
+    });
+})();
 </script>
 <?php include '../../includes/footer.php'; ?>
