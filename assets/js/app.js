@@ -437,9 +437,15 @@ function applyTextSize() {
 }
 
 function updateTextSizeIndicator() {
+    // Mettre à jour les deux indicateurs (navbar et menu déroulant)
     const indicator = document.getElementById('textSizeIndicator');
+    const indicator2 = document.getElementById('textSizeIndicator2');
+    
     if (indicator) {
         indicator.textContent = currentTextSize + '%';
+    }
+    if (indicator2) {
+        indicator2.textContent = currentTextSize + '%';
     }
 }
 
