@@ -1111,7 +1111,8 @@ include '../../includes/header.php';
                                        max="80" 
                                        step="0.5"
                                        data-taux="<?= $tauxHoraire ?>"
-                                       data-semaines="<?= $dureeSemaines ?>">
+                                       data-semaines="<?= $dureeSemaines ?>"
+                                       onfocus="this.select()">
                             </td>
                             <td class="text-center text-muted"><?= $dureeSemaines ?></td>
                             <td class="text-end total-heures"><?= number_format($totalHeures, 1) ?> h</td>
