@@ -673,20 +673,50 @@ new Chart(document.getElementById('chartProfits'), {
 });
 </script>
 <script>
-// Toggle sections
+// Toggle sections avec affichage du total
 document.querySelectorAll('.section-header[data-section]').forEach(header => {
+    // Trouver la ligne total-row associée et stocker le montant
+    let row = header.nextElementSibling;
+    let totalRow = null;
+    while (row && !row.classList.contains('section-header')) {
+        if (row.classList.contains('total-row')) {
+            totalRow = row;
+        }
+        row = row.nextElementSibling;
+    }
+    
+    // Extraire le montant du total-row (colonne 4 = Réel)
+    if (totalRow) {
+        const cells = totalRow.querySelectorAll('td');
+        if (cells.length >= 4) {
+            const totalText = cells[3].textContent.trim();
+            header.dataset.total = totalText;
+        }
+    }
+    
     header.addEventListener('click', function() {
-        const section = this.dataset.section;
         this.classList.toggle('collapsed');
+        const isCollapsed = this.classList.contains('collapsed');
         
-        let row = this.nextElementSibling;
-        while (row && !row.classList.contains('section-header')) {
-            if (row.style.display === 'none') {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+        // Afficher/masquer le total dans le titre
+        let totalSpan = this.querySelector('.section-total');
+        if (isCollapsed && this.dataset.total) {
+            if (!totalSpan) {
+                totalSpan = document.createElement('span');
+                totalSpan.className = 'section-total';
+                totalSpan.style.cssText = 'float:right;margin-right:25px;font-weight:normal;opacity:0.9;';
+                this.querySelector('td').appendChild(totalSpan);
             }
-            row = row.nextElementSibling;
+            totalSpan.textContent = this.dataset.total;
+        } else if (totalSpan) {
+            totalSpan.remove();
+        }
+        
+        // Toggle les lignes
+        let nextRow = this.nextElementSibling;
+        while (nextRow && !nextRow.classList.contains('section-header')) {
+            nextRow.style.display = isCollapsed ? 'none' : '';
+            nextRow = nextRow.nextElementSibling;
         }
     });
 });
