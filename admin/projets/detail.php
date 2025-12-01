@@ -673,8 +673,13 @@ new Chart(document.getElementById('chartProfits'), {
 });
 </script>
 <script>
-// Toggle sections avec affichage Extrapolé | Diff | Réel
+// Toggle sections avec affichage Extrapolé | Diff | Réel alignés sur les colonnes
 document.querySelectorAll('.section-header[data-section]').forEach(header => {
+    // Sauvegarder le HTML original
+    const originalTd = header.querySelector('td');
+    const originalHTML = originalTd.innerHTML;
+    const originalColspan = originalTd.getAttribute('colspan');
+    
     // Trouver la ligne total-row associée et stocker les montants
     let row = header.nextElementSibling;
     let totalRow = null;
@@ -692,7 +697,6 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
             header.dataset.extrapole = cells[1].textContent.trim();
             header.dataset.diff = cells[2].textContent.trim();
             header.dataset.reel = cells[3].textContent.trim();
-            // Vérifier si diff est positive ou négative
             header.dataset.diffClass = cells[2].classList.contains('positive') ? 'positive' : 
                                        cells[2].classList.contains('negative') ? 'negative' : '';
         }
@@ -701,36 +705,42 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
     header.addEventListener('click', function() {
         this.classList.toggle('collapsed');
         const isCollapsed = this.classList.contains('collapsed');
+        const existingTd = this.querySelector('td');
         
-        // Afficher/masquer les totaux dans le titre
-        let summaryDiv = this.querySelector('.section-summary');
         if (isCollapsed && this.dataset.reel) {
-            if (!summaryDiv) {
-                summaryDiv = document.createElement('div');
-                summaryDiv.className = 'section-summary';
-                summaryDiv.style.cssText = 'display:flex;gap:15px;float:right;margin-right:25px;font-weight:normal;font-size:0.8rem;';
-                
-                const extSpan = document.createElement('span');
-                extSpan.style.color = '#87CEEB';
-                extSpan.textContent = this.dataset.extrapole;
-                
-                const diffSpan = document.createElement('span');
-                if (this.dataset.diffClass === 'positive') diffSpan.style.color = '#90EE90';
-                else if (this.dataset.diffClass === 'negative') diffSpan.style.color = '#ff6b6b';
-                else diffSpan.style.opacity = '0.7';
-                diffSpan.textContent = this.dataset.diff;
-                
-                const reelSpan = document.createElement('span');
-                reelSpan.style.color = '#90EE90';
-                reelSpan.textContent = this.dataset.reel;
-                
-                summaryDiv.appendChild(extSpan);
-                summaryDiv.appendChild(diffSpan);
-                summaryDiv.appendChild(reelSpan);
-                this.querySelector('td').appendChild(summaryDiv);
+            // Transformer en 4 colonnes
+            existingTd.setAttribute('colspan', '1');
+            existingTd.classList.add('col-label');
+            
+            // Ajouter les 3 cellules de montant
+            const extTd = document.createElement('td');
+            extTd.className = 'text-end col-num';
+            extTd.style.color = '#87CEEB';
+            extTd.textContent = this.dataset.extrapole;
+            
+            const diffTd = document.createElement('td');
+            diffTd.className = 'text-end col-num';
+            if (this.dataset.diffClass === 'positive') diffTd.style.color = '#90EE90';
+            else if (this.dataset.diffClass === 'negative') diffTd.style.color = '#ff6b6b';
+            else diffTd.style.opacity = '0.7';
+            diffTd.textContent = this.dataset.diff;
+            
+            const reelTd = document.createElement('td');
+            reelTd.className = 'text-end col-num';
+            reelTd.style.color = '#90EE90';
+            reelTd.textContent = this.dataset.reel;
+            
+            this.appendChild(extTd);
+            this.appendChild(diffTd);
+            this.appendChild(reelTd);
+        } else {
+            // Restaurer le colspan original
+            existingTd.setAttribute('colspan', originalColspan);
+            existingTd.classList.remove('col-label');
+            // Supprimer les cellules ajoutées
+            while (this.children.length > 1) {
+                this.removeChild(this.lastChild);
             }
-        } else if (summaryDiv) {
-            summaryDiv.remove();
         }
         
         // Toggle les lignes
