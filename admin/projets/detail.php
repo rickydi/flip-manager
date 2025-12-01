@@ -44,7 +44,10 @@ include '../../includes/header.php';
 .cost-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .cost-table th, .cost-table td { padding: 6px 10px; border-bottom: 1px solid var(--bs-border-color, #dee2e6); }
 .cost-table thead th { background: #2d3748; color: white; font-weight: 600; position: sticky; top: 0; }
-.cost-table .section-header { background: #1e3a5f; color: white; font-weight: 600; }
+.cost-table .section-header { background: #1e3a5f; color: white; font-weight: 600; cursor: pointer; user-select: none; }
+.cost-table .section-header:hover { background: #254a73; }
+.cost-table .section-header .toggle-icon { float: right; opacity: 0.5; font-size: 0.75rem; transition: transform 0.2s; }
+.cost-table .section-header.collapsed .toggle-icon { transform: rotate(-90deg); }
 .cost-table .labor-row { background: #1e40af !important; color: white; }
 .cost-table .section-header td { padding: 8px 10px; }
 .cost-table .sub-item td:first-child { padding-left: 25px; }
@@ -158,10 +161,10 @@ include '../../includes/header.php';
                 </thead>
                 <tbody>
                     <!-- PRIX D'ACHAT -->
-                    <tr class="section-header">
-                        <td colspan="4"><i class="bi bi-house me-1"></i> Achat</td>
+                    <tr class="section-header" data-section="achat">
+                        <td colspan="4"><i class="bi bi-house me-1"></i> Achat <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
-                    <tr>
+                    <tr class="section-achat">
                         <td>Prix d'achat</td>
                         <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
                         <td class="text-end">-</td>
@@ -169,8 +172,8 @@ include '../../includes/header.php';
                     </tr>
                     
                     <!-- COÛTS D'ACQUISITION -->
-                    <tr class="section-header">
-                        <td colspan="4"><i class="bi bi-cart me-1"></i> Acquisition</td>
+                    <tr class="section-header" data-section="acquisition">
+                        <td colspan="4"><i class="bi bi-cart me-1"></i> Acquisition <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
                     <?php if ($indicateurs['couts_acquisition']['cession'] > 0): ?>
                     <tr class="sub-item">
@@ -212,8 +215,8 @@ include '../../includes/header.php';
                     </tr>
                     
                     <!-- COÛTS RÉCURRENTS -->
-                    <tr class="section-header">
-                        <td colspan="4"><i class="bi bi-arrow-repeat me-1"></i> Récurrents (<?= $dureeReelle ?> mois)</td>
+                    <tr class="section-header" data-section="recurrents">
+                        <td colspan="4"><i class="bi bi-arrow-repeat me-1"></i> Récurrents (<?= $dureeReelle ?> mois) <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Taxes municipales</td>
@@ -265,8 +268,8 @@ include '../../includes/header.php';
                     </tr>
                     
                     <!-- RÉNOVATION -->
-                    <tr class="section-header">
-                        <td colspan="4"><i class="bi bi-tools me-1"></i> Rénovation (+ <?= $projet['taux_contingence'] ?>% contingence)</td>
+                    <tr class="section-header" data-section="renovation">
+                        <td colspan="4"><i class="bi bi-tools me-1"></i> Rénovation (+ <?= $projet['taux_contingence'] ?>% contingence) <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
                     <?php 
                     $totalBudgetReno = 0;
@@ -316,8 +319,8 @@ include '../../includes/header.php';
                     </tr>
                     
                     <!-- COÛTS DE VENTE -->
-                    <tr class="section-header">
-                        <td colspan="4"><i class="bi bi-shop me-1"></i> Vente</td>
+                    <tr class="section-header" data-section="vente">
+                        <td colspan="4"><i class="bi bi-shop me-1"></i> Vente <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Intérêts (<?= $projet['taux_interet'] ?>% sur <?= $dureeReelle ?> mois)</td>
@@ -594,6 +597,25 @@ new Chart(document.getElementById('chartProfits'), {
         ]
     },
     options: optionsLine
+});
+</script>
+<script>
+// Toggle sections
+document.querySelectorAll('.section-header[data-section]').forEach(header => {
+    header.addEventListener('click', function() {
+        const section = this.dataset.section;
+        this.classList.toggle('collapsed');
+        
+        let row = this.nextElementSibling;
+        while (row && !row.classList.contains('section-header')) {
+            if (row.style.display === 'none') {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+            row = row.nextElementSibling;
+        }
+    });
 });
 </script>
 <?php include '../../includes/footer.php'; ?>
