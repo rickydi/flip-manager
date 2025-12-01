@@ -36,7 +36,7 @@ $groupes = [
 
 // Construire les conditions WHERE
 $whereFactures = "WHERE f.statut = 'approuvee'";
-$whereHeures = "WHERE h.statut = 'approuve'";
+$whereHeures = "WHERE h.statut = 'approuvee'";
 $params = [];
 
 if ($filtreProjet > 0) {
@@ -57,45 +57,74 @@ if ($dateFin) {
     $params[] = $dateFin;
 }
 
-// Construire les filtres additionnels pour les factures
-$filtreFacturesAdd = "";
-if ($filtreCategorie > 0) {
-    $filtreFacturesAdd .= " AND f.categorie_id = $filtreCategorie";
-}
-if ($filtreGroupe !== '') {
-    $filtreFacturesAdd .= " AND c.groupe = '$filtreGroupe'";
-}
-
-// 1. Rapport par projet
+// 1. Rapport par projet (avec requêtes préparées sécurisées)
 $sqlProjet = "
     SELECT p.id, p.nom, p.adresse,
            COALESCE(SUM(f.montant_total), 0) as total_factures
     FROM projets p
     LEFT JOIN factures f ON f.projet_id = p.id AND f.statut = 'approuvee'
-        " . ($dateDebut ? "AND f.date_facture >= '$dateDebut'" : "") . "
-        " . ($dateFin ? "AND f.date_facture <= '$dateFin'" : "") . "
-        " . ($filtreCategorie > 0 ? "AND f.categorie_id = $filtreCategorie" : "") . "
-    " . ($filtreGroupe !== '' ? "LEFT JOIN categories c ON f.categorie_id = c.id" : "") . "
-    " . ($filtreProjet > 0 ? "WHERE p.id = $filtreProjet" : "") . "
-    " . ($filtreGroupe !== '' && $filtreProjet == 0 ? "WHERE c.groupe = '$filtreGroupe'" : "") . "
-    " . ($filtreGroupe !== '' && $filtreProjet > 0 ? "AND c.groupe = '$filtreGroupe'" : "") . "
-    GROUP BY p.id, p.nom, p.adresse
-    ORDER BY p.nom
 ";
-$rapportProjets = $pdo->query($sqlProjet)->fetchAll();
+$paramsProjet = [];
+$conditionsJoin = [];
+$conditionsWhere = [];
 
-// Ajouter les heures par projet
+if ($dateDebut) {
+    $conditionsJoin[] = "f.date_facture >= ?";
+    $paramsProjet[] = $dateDebut;
+}
+if ($dateFin) {
+    $conditionsJoin[] = "f.date_facture <= ?";
+    $paramsProjet[] = $dateFin;
+}
+if ($filtreCategorie > 0) {
+    $conditionsJoin[] = "f.categorie_id = ?";
+    $paramsProjet[] = $filtreCategorie;
+}
+if (!empty($conditionsJoin)) {
+    $sqlProjet .= " AND " . implode(" AND ", $conditionsJoin);
+}
+if ($filtreGroupe !== '') {
+    $sqlProjet .= " LEFT JOIN categories c ON f.categorie_id = c.id";
+}
+if ($filtreProjet > 0) {
+    $conditionsWhere[] = "p.id = ?";
+    $paramsProjet[] = $filtreProjet;
+}
+if ($filtreGroupe !== '') {
+    $conditionsWhere[] = "c.groupe = ?";
+    $paramsProjet[] = $filtreGroupe;
+}
+if (!empty($conditionsWhere)) {
+    $sqlProjet .= " WHERE " . implode(" AND ", $conditionsWhere);
+}
+$sqlProjet .= " GROUP BY p.id, p.nom, p.adresse ORDER BY p.nom";
+
+$stmtProjet = $pdo->prepare($sqlProjet);
+$stmtProjet->execute($paramsProjet);
+$rapportProjets = $stmtProjet->fetchAll();
+
+// Ajouter les heures par projet (avec requêtes préparées)
 foreach ($rapportProjets as &$projet) {
     try {
-        $stmt = $pdo->prepare("
+        $sqlHeures = "
             SELECT COALESCE(SUM(h.heures * h.taux_horaire), 0) as cout_main_oeuvre,
                    COALESCE(SUM(h.heures), 0) as total_heures
             FROM heures_travaillees h
             WHERE h.projet_id = ? AND h.statut = 'approuvee'
-            " . ($dateDebut ? "AND h.date_travail >= '$dateDebut'" : "") . "
-            " . ($dateFin ? "AND h.date_travail <= '$dateFin'" : "") . "
-        ");
-        $stmt->execute([$projet['id']]);
+        ";
+        $paramsHeures = [$projet['id']];
+
+        if ($dateDebut) {
+            $sqlHeures .= " AND h.date_travail >= ?";
+            $paramsHeures[] = $dateDebut;
+        }
+        if ($dateFin) {
+            $sqlHeures .= " AND h.date_travail <= ?";
+            $paramsHeures[] = $dateFin;
+        }
+
+        $stmt = $pdo->prepare($sqlHeures);
+        $stmt->execute($paramsHeures);
         $heures = $stmt->fetch();
         $projet['cout_main_oeuvre'] = $heures['cout_main_oeuvre'] ?? 0;
         $projet['total_heures'] = $heures['total_heures'] ?? 0;
@@ -107,25 +136,48 @@ foreach ($rapportProjets as &$projet) {
 }
 unset($projet);
 
-// 2. Rapport par catégorie
+// 2. Rapport par catégorie (avec requêtes préparées)
 $sqlCategorie = "
     SELECT c.nom as categorie, c.groupe,
            COALESCE(SUM(f.montant_total), 0) as total
     FROM categories c
     LEFT JOIN factures f ON f.categorie_id = c.id AND f.statut = 'approuvee'
-        " . ($dateDebut ? "AND f.date_facture >= '$dateDebut'" : "") . "
-        " . ($dateFin ? "AND f.date_facture <= '$dateFin'" : "") . "
-        " . ($filtreProjet > 0 ? "AND f.projet_id = $filtreProjet" : "") . "
-    WHERE 1=1
-    " . ($filtreCategorie > 0 ? "AND c.id = $filtreCategorie" : "") . "
-    " . ($filtreGroupe !== '' ? "AND c.groupe = '$filtreGroupe'" : "") . "
-    GROUP BY c.id, c.nom, c.groupe
-    HAVING total > 0
-    ORDER BY total DESC
 ";
-$rapportCategories = $pdo->query($sqlCategorie)->fetchAll();
+$paramsCategorie = [];
+$conditionsCatJoin = [];
+$conditionsCatWhere = ["1=1"];
 
-// 3. Rapport par employé (heures)
+if ($dateDebut) {
+    $conditionsCatJoin[] = "f.date_facture >= ?";
+    $paramsCategorie[] = $dateDebut;
+}
+if ($dateFin) {
+    $conditionsCatJoin[] = "f.date_facture <= ?";
+    $paramsCategorie[] = $dateFin;
+}
+if ($filtreProjet > 0) {
+    $conditionsCatJoin[] = "f.projet_id = ?";
+    $paramsCategorie[] = $filtreProjet;
+}
+if (!empty($conditionsCatJoin)) {
+    $sqlCategorie .= " AND " . implode(" AND ", $conditionsCatJoin);
+}
+if ($filtreCategorie > 0) {
+    $conditionsCatWhere[] = "c.id = ?";
+    $paramsCategorie[] = $filtreCategorie;
+}
+if ($filtreGroupe !== '') {
+    $conditionsCatWhere[] = "c.groupe = ?";
+    $paramsCategorie[] = $filtreGroupe;
+}
+$sqlCategorie .= " WHERE " . implode(" AND ", $conditionsCatWhere);
+$sqlCategorie .= " GROUP BY c.id, c.nom, c.groupe HAVING total > 0 ORDER BY total DESC";
+
+$stmtCategorie = $pdo->prepare($sqlCategorie);
+$stmtCategorie->execute($paramsCategorie);
+$rapportCategories = $stmtCategorie->fetchAll();
+
+// 3. Rapport par employé (avec requêtes préparées)
 try {
     $sqlEmployes = "
         SELECT CONCAT(u.prenom, ' ', u.nom) as employe,
@@ -134,15 +186,30 @@ try {
                COALESCE(SUM(h.heures * h.taux_horaire), 0) as cout_total
         FROM users u
         LEFT JOIN heures_travaillees h ON h.user_id = u.id AND h.statut = 'approuvee'
-            " . ($dateDebut ? "AND h.date_travail >= '$dateDebut'" : "") . "
-            " . ($dateFin ? "AND h.date_travail <= '$dateFin'" : "") . "
-            " . ($filtreProjet > 0 ? "AND h.projet_id = $filtreProjet" : "") . "
-        WHERE u.actif = 1
-        GROUP BY u.id, u.prenom, u.nom, u.taux_horaire
-        HAVING total_heures > 0
-        ORDER BY total_heures DESC
     ";
-    $rapportEmployes = $pdo->query($sqlEmployes)->fetchAll();
+    $paramsEmployes = [];
+    $conditionsEmpJoin = [];
+
+    if ($dateDebut) {
+        $conditionsEmpJoin[] = "h.date_travail >= ?";
+        $paramsEmployes[] = $dateDebut;
+    }
+    if ($dateFin) {
+        $conditionsEmpJoin[] = "h.date_travail <= ?";
+        $paramsEmployes[] = $dateFin;
+    }
+    if ($filtreProjet > 0) {
+        $conditionsEmpJoin[] = "h.projet_id = ?";
+        $paramsEmployes[] = $filtreProjet;
+    }
+    if (!empty($conditionsEmpJoin)) {
+        $sqlEmployes .= " AND " . implode(" AND ", $conditionsEmpJoin);
+    }
+    $sqlEmployes .= " WHERE u.actif = 1 GROUP BY u.id, u.prenom, u.nom, u.taux_horaire HAVING total_heures > 0 ORDER BY total_heures DESC";
+
+    $stmtEmployes = $pdo->prepare($sqlEmployes);
+    $stmtEmployes->execute($paramsEmployes);
+    $rapportEmployes = $stmtEmployes->fetchAll();
 } catch (Exception $e) {
     $rapportEmployes = [];
 }
@@ -185,13 +252,16 @@ if ($filtreProjet > 0) {
     if ($projet) {
         $indicateurs = calculerIndicateursProjet($pdo, $projet);
         
-        // Calculer la durée réelle
+        // Calculer la durée réelle (cohérent avec calculs.php)
         $dureeReelle = (int)$projet['temps_assume_mois'];
         if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
             $dateAchat = new DateTime($projet['date_acquisition']);
             $dateVente = new DateTime($projet['date_vente']);
             $diff = $dateAchat->diff($dateVente);
-            $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+            $dureeReelle = ($diff->y * 12) + $diff->m;
+            if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+                $dureeReelle++;
+            }
             $dureeReelle = max(1, $dureeReelle);
         }
     }
@@ -511,7 +581,7 @@ include '../../includes/header.php';
                             </tr>
                             <tr>
                                 <td>Commission courtier (<?= $projet['taux_commission'] ?>% + taxes)</td>
-                                <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['commission'] * 1.14975) ?></td>
+                                <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['commission_ttc']) ?></td>
                             </tr>
                             <tr>
                                 <td>Quittance</td>
