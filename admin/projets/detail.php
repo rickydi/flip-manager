@@ -290,13 +290,23 @@ include '../../includes/header.php';
                     </tr>
                     <?php endforeach; ?>
                     
-                    <!-- MAIN D'ŒUVRE -->
-                    <?php if ($indicateurs['main_doeuvre']['heures'] > 0 || $indicateurs['main_doeuvre']['cout'] > 0): ?>
+                    <!-- MAIN D'ŒUVRE - Debug direct -->
+                    <?php 
+                    // Calcul direct pour debug
+                    $debugMO = ['heures' => 0, 'cout' => 0];
+                    try {
+                        $stmtDebug = $pdo->prepare("SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout FROM heures_travaillees h JOIN users u ON h.user_id = u.id WHERE h.projet_id = ? AND h.statut != 'rejetee'");
+                        $stmtDebug->execute([$projetId]);
+                        $resDebug = $stmtDebug->fetch();
+                        $debugMO = ['heures' => (float)($resDebug['total_heures'] ?? 0), 'cout' => (float)($resDebug['total_cout'] ?? 0)];
+                    } catch (Exception $e) {}
+                    ?>
+                    <?php if ($debugMO['heures'] > 0 || $debugMO['cout'] > 0): ?>
                     <tr class="sub-item labor-row">
-                        <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?>h @ <?= formatMoney($indicateurs['main_doeuvre']['cout'] / max(0.1, $indicateurs['main_doeuvre']['heures'])) ?>/h)</td>
+                        <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($debugMO['heures'], 1) ?>h @ <?= formatMoney($debugMO['heures'] > 0 ? $debugMO['cout'] / $debugMO['heures'] : 0) ?>/h)</td>
                         <td class="text-end"><?= formatMoney(0) ?></td>
-                        <td class="text-end"><?= formatMoney(-$indicateurs['main_doeuvre']['cout']) ?></td>
-                        <td class="text-end"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
+                        <td class="text-end"><?= formatMoney(-$debugMO['cout']) ?></td>
+                        <td class="text-end"><?= formatMoney($debugMO['cout']) ?></td>
                     </tr>
                     <?php endif; ?>
                     
