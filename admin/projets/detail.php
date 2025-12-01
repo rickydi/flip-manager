@@ -293,7 +293,7 @@ include '../../includes/header.php';
                     <!-- MAIN D'ŒUVRE -->
                     <?php if ($indicateurs['main_doeuvre']['heures'] > 0 || $indicateurs['main_doeuvre']['cout'] > 0): ?>
                     <tr class="sub-item labor-row">
-                        <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?>h)</td>
+                        <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?>h @ <?= formatMoney($indicateurs['main_doeuvre']['cout'] / max(0.1, $indicateurs['main_doeuvre']['heures'])) ?>/h)</td>
                         <td class="text-end"><?= formatMoney(0) ?></td>
                         <td class="text-end"><?= formatMoney(-$indicateurs['main_doeuvre']['cout']) ?></td>
                         <td class="text-end"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
