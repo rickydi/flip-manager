@@ -1028,7 +1028,7 @@ include '../../includes/header.php';
                 <strong><i class="bi bi-clock me-1"></i> Durée estimée:</strong>
                 <?php if ($dureeJours > 0): ?>
                     <span class="badge bg-primary fs-6"><?= $dureeJours ?> jours ouvrables</span>
-                    <span class="badge bg-primary fs-6 ms-1"><?= $joursFermes ?? 0 ?> jours fermés</span>
+                    <span class="badge bg-primary fs-6 ms-1"><?= $joursFermes ?? 0 ?> jours weekend</span>
                 <?php else: ?>
                     <span class="text-warning">Définir les dates dans l'onglet Général</span>
                 <?php endif; ?>
