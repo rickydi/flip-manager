@@ -82,11 +82,14 @@ if ($dateDebutTravaux && $dateFinPrevue) {
 
 // ========================================
 // CALCUL MAIN D'ŒUVRE RÉELLE (heures travaillées)
+// Utilise le taux stocké dans la ligne (comme temps/liste.php)
+// Si taux_horaire = 0, fallback sur le taux actuel de l'utilisateur
 // ========================================
 $moReel = ['heures' => 0, 'cout' => 0];
 try {
     $stmt = $pdo->prepare("
-        SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout 
+        SELECT SUM(h.heures) as total_heures, 
+               SUM(h.heures * IF(h.taux_horaire > 0, h.taux_horaire, u.taux_horaire)) as total_cout 
         FROM heures_travaillees h 
         JOIN users u ON h.user_id = u.id 
         WHERE h.projet_id = ? AND h.statut != 'rejetee'
