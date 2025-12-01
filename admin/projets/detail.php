@@ -356,8 +356,6 @@ include '../../includes/header.php';
                         <td class="text-end"><?= formatMoney($indicateurs['cout_total_reel']) ?></td>
                     </tr>
                     
-                    <tr><td colspan="4" style="height: 10px; background: #f8f9fa;"></td></tr>
-                    
                     <tr>
                         <td>Valeur potentielle de vente</td>
                         <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
