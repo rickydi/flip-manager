@@ -738,9 +738,8 @@ foreach ($heuresParJour as $jour => $heures) {
     $jourDataHeures[] = $heures;
 }
 
-// Calculer les heures totales et le temps prévu en heures
-$heuresTotal = array_sum($heuresParMois);
-$heuresPrevues = $dureeReelle * 4 * 40; // Estimation: 4 semaines * 40h/semaine par mois
+// Calculer les heures totales
+$heuresTotal = array_sum($heuresParJour);
 ?>
 <!-- Chart.js CDN + Adapter pour les dates -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
