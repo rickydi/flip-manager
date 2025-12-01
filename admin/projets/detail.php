@@ -47,7 +47,7 @@ include '../../includes/header.php';
 .cost-table .section-header { background: #1e3a5f; color: white; font-weight: 600; }
 .cost-table .section-header td { padding: 8px 10px; }
 .cost-table .sub-item td:first-child { padding-left: 25px; }
-.cost-table .total-row { background: var(--bs-secondary-bg, #e9ecef); font-weight: 600; }
+.cost-table .total-row { background: #374151; color: white; font-weight: 600; }
 .cost-table .grand-total { background: #1e3a5f; color: white; font-weight: 700; }
 .cost-table .profit-row { background: #198754; color: white; font-weight: 700; }
 .cost-table .text-end { text-align: right; }
