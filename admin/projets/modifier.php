@@ -976,6 +976,9 @@ include '../../includes/header.php';
         $dureeJours = round($joursCalendrier * 5 / 7);
         $dureeJours = max(1, $dureeJours);
         
+        // Jours fermés (weekends)
+        $joursFermes = $joursCalendrier - $dureeJours;
+        
         // Semaines pour affichage
         $dureeSemaines = ceil($dureeJours / 5);
     }
@@ -1025,6 +1028,7 @@ include '../../includes/header.php';
                 <strong><i class="bi bi-clock me-1"></i> Durée estimée:</strong>
                 <?php if ($dureeJours > 0): ?>
                     <span class="badge bg-primary fs-6"><?= $dureeJours ?> jours ouvrables</span>
+                    <span class="badge bg-secondary ms-1"><?= $joursFermes ?? 0 ?> weekends</span>
                 <?php else: ?>
                     <span class="text-warning">Définir les dates dans l'onglet Général</span>
                 <?php endif; ?>
