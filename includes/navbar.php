@@ -127,16 +127,8 @@ $isAdmin = isAdmin();
                     </button>
                 </li>
 
-                <!-- Zoom + Dark mode - grands écrans seulement -->
+                <!-- Dark mode - grands écrans -->
                 <li class="nav-item d-none d-xxl-flex align-items-center me-2">
-                    <button type="button" class="btn btn-outline-light btn-sm me-1" onclick="changeTextSize(-1)" title="Réduire le texte">
-                        <i class="bi bi-dash-lg"></i>
-                    </button>
-                    <span class="text-light small mx-1" id="textSizeIndicator">100%</span>
-                    <button type="button" class="btn btn-outline-light btn-sm ms-1" onclick="changeTextSize(1)" title="Agrandir le texte">
-                        <i class="bi bi-plus-lg"></i>
-                    </button>
-                    <span class="text-secondary mx-2">|</span>
                     <button type="button" class="dark-mode-toggle" onclick="toggleDarkMode()" title="Mode sombre/clair" id="darkModeBtn">
                         <i class="bi bi-moon-fill" id="darkModeIcon"></i>
                     </button>
@@ -158,22 +150,6 @@ $isAdmin = isAdmin();
                             </span>
                         </li>
                         <li><hr class="dropdown-divider"></li>
-                        <!-- Contrôles de zoom dans le menu -->
-                        <li class="d-xxl-none px-3 py-2">
-                            <div class="d-flex align-items-center justify-content-between">
-                                <span class="small text-muted">Taille</span>
-                                <div>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(-1)">
-                                        <i class="bi bi-dash"></i>
-                                    </button>
-                                    <span class="mx-1 small" id="textSizeIndicator2">100%</span>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(1)">
-                                        <i class="bi bi-plus"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </li>
-                        <li class="d-xxl-none"><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item text-danger" href="/logout.php">
                                 <i class="bi bi-box-arrow-right"></i> Déconnexion
