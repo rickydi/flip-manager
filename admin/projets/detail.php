@@ -673,9 +673,9 @@ new Chart(document.getElementById('chartProfits'), {
 });
 </script>
 <script>
-// Toggle sections avec affichage du total
+// Toggle sections avec affichage Extrapolé | Diff | Réel
 document.querySelectorAll('.section-header[data-section]').forEach(header => {
-    // Trouver la ligne total-row associée et stocker le montant
+    // Trouver la ligne total-row associée et stocker les montants
     let row = header.nextElementSibling;
     let totalRow = null;
     while (row && !row.classList.contains('section-header')) {
@@ -685,12 +685,16 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         row = row.nextElementSibling;
     }
     
-    // Extraire le montant du total-row (colonne 4 = Réel)
+    // Extraire les 3 montants du total-row
     if (totalRow) {
         const cells = totalRow.querySelectorAll('td');
         if (cells.length >= 4) {
-            const totalText = cells[3].textContent.trim();
-            header.dataset.total = totalText;
+            header.dataset.extrapole = cells[1].textContent.trim();
+            header.dataset.diff = cells[2].textContent.trim();
+            header.dataset.reel = cells[3].textContent.trim();
+            // Vérifier si diff est positive ou négative
+            header.dataset.diffClass = cells[2].classList.contains('positive') ? 'positive' : 
+                                       cells[2].classList.contains('negative') ? 'negative' : '';
         }
     }
     
@@ -698,18 +702,35 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         this.classList.toggle('collapsed');
         const isCollapsed = this.classList.contains('collapsed');
         
-        // Afficher/masquer le total dans le titre
-        let totalSpan = this.querySelector('.section-total');
-        if (isCollapsed && this.dataset.total) {
-            if (!totalSpan) {
-                totalSpan = document.createElement('span');
-                totalSpan.className = 'section-total';
-                totalSpan.style.cssText = 'float:right;margin-right:25px;font-weight:normal;opacity:0.9;';
-                this.querySelector('td').appendChild(totalSpan);
+        // Afficher/masquer les totaux dans le titre
+        let summaryDiv = this.querySelector('.section-summary');
+        if (isCollapsed && this.dataset.reel) {
+            if (!summaryDiv) {
+                summaryDiv = document.createElement('div');
+                summaryDiv.className = 'section-summary';
+                summaryDiv.style.cssText = 'display:flex;gap:15px;float:right;margin-right:25px;font-weight:normal;font-size:0.8rem;';
+                
+                const extSpan = document.createElement('span');
+                extSpan.style.color = '#87CEEB';
+                extSpan.textContent = this.dataset.extrapole;
+                
+                const diffSpan = document.createElement('span');
+                if (this.dataset.diffClass === 'positive') diffSpan.style.color = '#90EE90';
+                else if (this.dataset.diffClass === 'negative') diffSpan.style.color = '#ff6b6b';
+                else diffSpan.style.opacity = '0.7';
+                diffSpan.textContent = this.dataset.diff;
+                
+                const reelSpan = document.createElement('span');
+                reelSpan.style.color = '#90EE90';
+                reelSpan.textContent = this.dataset.reel;
+                
+                summaryDiv.appendChild(extSpan);
+                summaryDiv.appendChild(diffSpan);
+                summaryDiv.appendChild(reelSpan);
+                this.querySelector('td').appendChild(summaryDiv);
             }
-            totalSpan.textContent = this.dataset.total;
-        } else if (totalSpan) {
-            totalSpan.remove();
+        } else if (summaryDiv) {
+            summaryDiv.remove();
         }
         
         // Toggle les lignes
