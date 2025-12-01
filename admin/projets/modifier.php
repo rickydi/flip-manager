@@ -958,8 +958,9 @@ include '../../includes/header.php';
     <?php elseif ($tab === 'planification'): ?>
     <!-- Onglet Planification Main d'oeuvre -->
     <?php
-    // Calculer la durée en semaines
+    // Calculer la durée en semaines (4 semaines par mois)
     $dureeSemaines = 0;
+    $dureeMois = 0;
     $dateDebut = $projet['date_debut_travaux'] ?? $projet['date_acquisition'];
     $dateFin = $projet['date_fin_prevue'];
     
@@ -967,7 +968,14 @@ include '../../includes/header.php';
         $d1 = new DateTime($dateDebut);
         $d2 = new DateTime($dateFin);
         $diff = $d1->diff($d2);
-        $dureeSemaines = ceil($diff->days / 7);
+        // Calculer les mois (comme ailleurs dans l'app)
+        $dureeMois = ($diff->y * 12) + $diff->m;
+        if ($d2->format('d') > $d1->format('d')) {
+            $dureeMois++;
+        }
+        $dureeMois = max(1, $dureeMois);
+        // 4 semaines par mois
+        $dureeSemaines = $dureeMois * 4;
     }
     
     // Récupérer tous les employés actifs avec leur taux horaire
