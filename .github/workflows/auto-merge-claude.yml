@@ -1,0 +1,28 @@
+name: Auto-merge Claude branch
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Merge to master
+        run: |
+          git checkout master
+          git pull origin master
+          git merge origin/${{ github.ref_name }} -m "Auto-merge ${{ github.ref_name }}"
+          git push origin master
