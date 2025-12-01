@@ -32,7 +32,11 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateAchat = new DateTime($projet['date_acquisition']);
     $dateVente = new DateTime($projet['date_vente']);
     $diff = $dateAchat->diff($dateVente);
-    $dureeReelle = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $dureeReelle = ($diff->y * 12) + $diff->m;
+    // Ajouter 1 mois si jour fin > jour début (cohérent avec calculs.php)
+    if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+        $dureeReelle++;
+    }
     $dureeReelle = max(1, $dureeReelle);
 }
 
@@ -260,20 +264,14 @@ include '../../includes/header.php';
                             <td>Intérêts (<?= $dureeReelle ?> mois @ <?= $projet['taux_interet'] ?>%)</td>
                             <td class="amount"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
                         </tr>
-                        <?php 
-                        $commissionHT = $indicateurs['couts_vente']['commission'];
-                        $tpsCommission = $commissionHT * 0.05;
-                        $tvqCommission = $commissionHT * 0.09975;
-                        $commissionTTC = $commissionHT + $tpsCommission + $tvqCommission;
-                        ?>
                         <tr>
                             <td>
                                 Commission courtier (<?= $projet['taux_commission'] ?>%)
                                 <small class="text-muted d-block">
-                                    + TPS <?= formatMoney($tpsCommission) ?> + TVQ <?= formatMoney($tvqCommission) ?>
+                                    + Taxes <?= formatMoney($indicateurs['couts_vente']['taxes_commission']) ?>
                                 </small>
                             </td>
-                            <td class="amount"><?= formatMoney($commissionTTC) ?></td>
+                            <td class="amount"><?= formatMoney($indicateurs['couts_vente']['commission_ttc']) ?></td>
                         </tr>
                         <tr>
                             <td>Quittance</td>
@@ -657,12 +655,15 @@ include '../../includes/header.php';
 // Calculer la durée réelle du projet en mois
 $moisProjet = (int)$projet['temps_assume_mois'];
 
-// Si date de vente ET date acquisition existent, calculer la durée réelle
+// Si date de vente ET date acquisition existent, calculer la durée réelle (cohérent avec calculs.php)
 if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateAchat = new DateTime($projet['date_acquisition']);
     $dateVente = new DateTime($projet['date_vente']);
     $diff = $dateAchat->diff($dateVente);
-    $moisProjet = ($diff->y * 12) + $diff->m + ($diff->d > 15 ? 1 : 0);
+    $moisProjet = ($diff->y * 12) + $diff->m;
+    if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+        $moisProjet++;
+    }
     $moisProjet = max(1, $moisProjet);
 }
 
@@ -678,14 +679,16 @@ $contingence = $indicateurs['contingence'];
 // Recalculer les intérêts et récurrents avec la vraie durée
 $totalPrets = $indicateurs['total_prets'] ?? 0;
 $tauxInteret = (float)($projet['taux_interet'] ?? 10);
-$interetsMensuel = $totalPrets * ($tauxInteret / 100) / 12;
+$tauxMensuel = $tauxInteret / 100 / 12;  // Taux mensuel pour intérêts composés
 
-$recurrentsAnnuel = (float)$projet['taxes_municipales_annuel'] + (float)$projet['taxes_scolaires_annuel'] 
+// Récurrents (coûts annuels + hypothèque mensuelle - loyer mensuel)
+$recurrentsAnnuel = (float)$projet['taxes_municipales_annuel'] + (float)$projet['taxes_scolaires_annuel']
     + (float)$projet['electricite_annuel'] + (float)$projet['assurances_annuel']
     + (float)$projet['deneigement_annuel'] + (float)$projet['frais_condo_annuel'];
-$recurrentsMensuel = $recurrentsAnnuel / 12 + (float)$projet['hypotheque_mensuel'];
+$recurrentsMensuel = $recurrentsAnnuel / 12 + (float)$projet['hypotheque_mensuel'] - (float)$projet['loyer_mensuel'];
 
-$commission = $indicateurs['couts_vente']['commission'];
+// Commission TTC (avec taxes)
+$commissionTTC = $indicateurs['couts_vente']['commission_ttc'];
 
 // Générer les points pour chaque mois
 for ($m = 0; $m <= $moisProjet; $m++) {
@@ -694,21 +697,24 @@ for ($m = 0; $m <= $moisProjet; $m++) {
     } else {
         $labelsTimeline[] = 'Mois ' . $m;
     }
-    
+
     // Progression de la réno (linéaire sur la durée)
     $pctReno = min(1, $m / max(1, $moisProjet - 1));
-    
-    // Coût à ce mois
-    $cout = $baseAchat 
+
+    // Intérêts composés: I = P * ((1 + r)^n - 1)
+    $interetsCumules = $totalPrets * (pow(1 + $tauxMensuel, $m) - 1);
+
+    // Coût à ce mois (avec intérêts composés)
+    $cout = $baseAchat
         + ($budgetReno * $pctReno)
-        + ($recurrentsMensuel * $m) 
-        + ($interetsMensuel * $m);
-    
-    // Au dernier mois, ajouter contingence et commission
+        + ($recurrentsMensuel * $m)
+        + $interetsCumules;
+
+    // Au dernier mois, ajouter contingence et commission TTC
     if ($m == $moisProjet) {
-        $cout += $contingence + $commission;
+        $cout += $contingence + $commissionTTC;
     }
-    
+
     $coutsTimeline[] = round($cout, 2);
 }
 

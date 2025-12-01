@@ -75,8 +75,8 @@ function calculerCoutsRecurrents($projet) {
             'mensuel' => (float) $projet['loyer_mensuel'],
             'extrapole' => $loyer
         ],
-        'total' => $taxes_municipales + $taxes_scolaires + $electricite + 
-                   $assurances + $deneigement + $frais_condo + $hypotheque + $loyer
+        'total' => $taxes_municipales + $taxes_scolaires + $electricite +
+                   $assurances + $deneigement + $frais_condo + $hypotheque - $loyer
     ];
 }
 
@@ -91,22 +91,28 @@ function calculerCoutsVente($projet) {
     $tauxInteret = (float) $projet['taux_interet'];
     $montantPret = (float) $projet['montant_pret'];
     $mois = (int) $projet['temps_assume_mois'];
-    
-    // Commission courtier
-    $commission = $valeur * ($tauxCommission / 100);
-    
+
+    // Commission courtier (HT)
+    $commissionHT = $valeur * ($tauxCommission / 100);
+
+    // Taxes sur la commission (TPS 5% + TVQ 9.975% = 14.975%)
+    $taxesCommission = $commissionHT * 0.14975;
+    $commissionTTC = $commissionHT + $taxesCommission;
+
     // Intérêts sur le prêt (composés mensuellement)
     $tauxMensuel = $tauxInteret / 100 / 12;
     $interets = $montantPret * (pow(1 + $tauxMensuel, $mois) - 1);
-    
+
     // Quittance (généralement 0 ou fixe)
     $quittance = 0;
-    
+
     return [
-        'commission' => $commission,
+        'commission' => $commissionHT,
+        'commission_ttc' => $commissionTTC,
+        'taxes_commission' => $taxesCommission,
         'interets' => $interets,
         'quittance' => $quittance,
-        'total' => $commission + $interets + $quittance
+        'total' => $commissionTTC + $interets + $quittance
     ];
 }
 
