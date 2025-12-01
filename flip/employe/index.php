@@ -142,7 +142,7 @@ include '../includes/header.php';
                                     </span>
                                 </div>
                                 <div class="card-footer bg-transparent">
-                                    <a href="<?= url('/employe/nouvelle-facture.php?projet_id=<?= $projet['id'] ?>" 
+                                    <a href="<?= url('/employe/nouvelle-facture.php?projet_id=' . $projet['id']) ?>" 
                                        class="btn btn-primary btn-sm">
                                         <i class="bi bi-plus-circle me-1"></i>
                                         Nouvelle facture
@@ -205,7 +205,7 @@ include '../includes/header.php';
                                     </td>
                                     <td class="action-buttons">
                                         <?php if ($facture['statut'] === 'en_attente' && canEditFacture($facture['date_creation'])): ?>
-                                            <a href="<?= url('/employe/modifier-facture.php?id=<?= $facture['id'] ?>" 
+                                            <a href="<?= url('/employe/modifier-facture.php?id=' . $facture['id']) ?>" 
                                                class="btn btn-outline-primary btn-sm"
                                                title="Modifier">
                                                 <i class="bi bi-pencil"></i>
