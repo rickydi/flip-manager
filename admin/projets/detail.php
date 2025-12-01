@@ -1,7 +1,7 @@
 <?php
 /**
  * Détail du projet - Admin
- * Flip Manager
+ * Flip Manager - Vue compacte 3 colonnes
  */
 
 require_once '../../config.php';
@@ -9,10 +9,8 @@ require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 require_once '../../includes/calculs.php';
 
-// Vérifier que l'utilisateur est admin
 requireAdmin();
 
-// Récupérer le projet
 $projetId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 $projet = getProjetById($pdo, $projetId);
 
@@ -22,11 +20,9 @@ if (!$projet) {
 }
 
 $pageTitle = $projet['nom'];
-
-// Calculer tous les indicateurs
 $indicateurs = calculerIndicateursProjet($pdo, $projet);
 
-// Calculer la durée réelle (même logique que dans calculs.php)
+// Durée réelle
 $dureeReelle = (int)$projet['temps_assume_mois'];
 if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateAchat = new DateTime($projet['date_acquisition']);
@@ -36,7 +32,6 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dureeReelle = max(1, $dureeReelle);
 }
 
-// Récupérer les catégories avec budgets et dépenses
 $categories = getCategories($pdo);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
@@ -44,7 +39,28 @@ $depenses = calculerDepensesParCategorie($pdo, $projetId);
 include '../../includes/header.php';
 ?>
 
-<!-- Auto-refresh toutes les 30 secondes -->
+<style>
+/* Tableau compact 3 colonnes */
+.cost-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cost-table th, .cost-table td { padding: 6px 10px; border-bottom: 1px solid #dee2e6; }
+.cost-table thead th { background: #f8f9fa; font-weight: 600; position: sticky; top: 0; }
+.cost-table .section-header { background: #1e3a5f; color: white; font-weight: 600; }
+.cost-table .section-header td { padding: 8px 10px; }
+.cost-table .sub-item td:first-child { padding-left: 25px; color: #666; }
+.cost-table .total-row { background: #e9ecef; font-weight: 600; }
+.cost-table .grand-total { background: #1e3a5f; color: white; font-weight: 700; }
+.cost-table .profit-row { background: #198754; color: white; font-weight: 700; }
+.cost-table .text-end { text-align: right; }
+.cost-table .positive { color: #198754; }
+.cost-table .negative { color: #dc3545; }
+.cost-table .col-label { width: 40%; }
+.cost-table .col-num { width: 20%; text-align: right; }
+@media (max-width: 768px) {
+    .cost-table { font-size: 0.75rem; }
+    .cost-table th, .cost-table td { padding: 4px 6px; }
+}
+</style>
+
 <meta http-equiv="refresh" content="30">
 
 <div class="container-fluid">
@@ -57,607 +73,394 @@ include '../../includes/header.php';
                 <li class="breadcrumb-item active"><?= e($projet['nom']) ?></li>
             </ol>
         </nav>
-        <div class="d-flex justify-content-between align-items-start">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
             <div>
                 <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
-                    <h1 class="mb-0"><?= e($projet['nom']) ?></h1>
-                    <span class="badge <?= getStatutProjetClass($projet['statut']) ?>">
-                        <?= getStatutProjetLabel($projet['statut']) ?>
-                    </span>
+                    <h1 class="mb-0 fs-4"><?= e($projet['nom']) ?></h1>
+                    <span class="badge <?= getStatutProjetClass($projet['statut']) ?>"><?= getStatutProjetLabel($projet['statut']) ?></span>
                     <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-pencil me-1"></i>Modifier
+                        <i class="bi bi-pencil"></i>
                     </a>
                 </div>
-                <p class="text-muted mb-0">
-                    <i class="bi bi-geo-alt me-1"></i>
-                    <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?>
-                </p>
+                <small class="text-muted"><i class="bi bi-geo-alt"></i> <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?></small>
             </div>
-            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-printer me-1"></i>Imprimer
-            </button>
+            <button onclick="window.print()" class="btn btn-outline-secondary btn-sm"><i class="bi bi-printer"></i></button>
         </div>
     </div>
     
     <?php displayFlashMessage(); ?>
     
-    <!-- Indicateurs principaux -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-label">Coûts fixes total</div>
-            <div class="stat-value"><?= formatMoney($indicateurs['couts_fixes_totaux']) ?></div>
-            <div class="stat-percent"><?= formatPercent($indicateurs['pourcentages']['couts_fixes']) ?></div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-label">Rénovation extrapolée</div>
-            <div class="stat-value"><?= formatMoney($indicateurs['renovation']['budget']) ?></div>
-            <div class="stat-percent"><?= formatPercent($indicateurs['pourcentages']['renovation']) ?></div>
-        </div>
-        <div class="stat-card primary">
-            <div class="stat-label">Valeur potentielle</div>
-            <div class="stat-value"><?= formatMoney($indicateurs['valeur_potentielle']) ?></div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-label">Équité potentielle</div>
-            <div class="stat-value"><?= formatMoney($indicateurs['equite_potentielle']) ?></div>
-            <small class="text-muted">Budget prévu</small>
-        </div>
-        <div class="stat-card success">
-            <div class="stat-label">Équité réelle</div>
-            <div class="stat-value"><?= formatMoney($indicateurs['equite_reelle']) ?></div>
-            <small class="text-muted">Dépenses réelles</small>
-        </div>
-        <div class="stat-card info">
-            <div class="stat-label">ROI @ Leverage</div>
-            <div class="stat-value"><?= formatPercent($indicateurs['roi_leverage']) ?></div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">ROI All Cash</div>
-            <div class="stat-value"><?= formatPercent($indicateurs['roi_all_cash']) ?></div>
-        </div>
-    </div>
-    
-    <!-- GRAPHIQUES VUE D'ENSEMBLE -->
-    <div class="financial-section">
-        <h5><i class="bi bi-graph-up me-2"></i>Vue d'ensemble du projet</h5>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header text-center">
-                        📈 Coûts vs Valeur
-                        <small class="d-block text-muted" style="font-size:0.7rem">Rouge = coûts cumulés, Vert = valeur de vente</small>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chartCouts" height="200"></canvas>
-                    </div>
-                </div>
+    <!-- Indicateurs rapides -->
+    <div class="row g-2 mb-3">
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted">Valeur potentielle</small>
+                <strong class="fs-5 text-primary"><?= formatMoney($indicateurs['valeur_potentielle']) ?></strong>
             </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header text-center">
-                        ⏱️ Temps de travail
-                        <small class="d-block text-muted" style="font-size:0.7rem">Heures travaillées par jour</small>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chartBudget" height="200"></canvas>
-                    </div>
-                </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted">Équité Budget</small>
+                <strong class="fs-5 text-warning"><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
             </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header text-center">
-                        📊 Budget vs Dépensé
-                        <small class="d-block text-muted" style="font-size:0.7rem">Bleu = prévu, Rouge = réel</small>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chartProfits" height="200"></canvas>
-                    </div>
-                </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted">Équité Réelle</small>
+                <strong class="fs-5 text-success"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card text-center p-2">
+                <small class="text-muted">ROI Leverage</small>
+                <strong class="fs-5"><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
             </div>
         </div>
     </div>
     
-    <div class="row">
-        <!-- Colonne gauche -->
-        <div class="col-lg-6">
-            <!-- Coûts d'acquisition -->
-            <div class="financial-section">
-                <h5><i class="bi bi-cart me-2"></i>Coûts d'acquisition</h5>
-                <table class="financial-table">
-                    <tbody>
-                        <?php if ($indicateurs['couts_acquisition']['cession'] > 0): ?>
-                        <tr>
-                            <td>Achat de cession</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['cession']) ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <tr>
-                            <td>Notaire</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Taxe de mutation</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Arpenteurs</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['arpenteurs']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Assurance titre</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_acquisition']['assurance_titre']) ?></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><strong>Total</strong></td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Coûts récurrents -->
-            <div class="financial-section">
-                <h5><i class="bi bi-arrow-repeat me-2"></i>Coûts récurrents (<?= $dureeReelle ?> mois)</h5>
-                <table class="financial-table">
-                    <thead>
-                        <tr>
-                            <th></th>
-                            <th class="text-end">Annuel</th>
-                            <th class="text-end">Extrapolé</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>Taxes municipales</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['annuel']) ?></td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Taxes scolaires</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['annuel']) ?></td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Électricité</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['annuel']) ?></td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Assurances</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['annuel']) ?></td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Déneigement</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['annuel']) ?></td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Frais condo</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['annuel']) ?></td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['extrapole']) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Hypothèque</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['mensuel']) ?>/mois</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><strong>Total</strong></td>
-                            <td></td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Coûts de vente -->
-            <div class="financial-section">
-                <h5><i class="bi bi-shop me-2"></i>Coûts de vente</h5>
-                <table class="financial-table">
-                    <tbody>
-                        <tr>
-                            <td>Intérêts (<?= $dureeReelle ?> mois @ <?= $projet['taux_interet'] ?>%)</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
-                        </tr>
-                        <?php 
-                        $commissionHT = $indicateurs['couts_vente']['commission'];
-                        $tpsCommission = $commissionHT * 0.05;
-                        $tvqCommission = $commissionHT * 0.09975;
-                        $commissionTTC = $commissionHT + $tpsCommission + $tvqCommission;
-                        ?>
-                        <tr>
-                            <td>
-                                Commission courtier (<?= $projet['taux_commission'] ?>%)
-                                <small class="text-muted d-block">
-                                    + TPS <?= formatMoney($tpsCommission) ?> + TVQ <?= formatMoney($tvqCommission) ?>
-                                </small>
-                            </td>
-                            <td class="amount"><?= formatMoney($commissionTTC) ?></td>
-                        </tr>
-                        <tr>
-                            <td>Quittance</td>
-                            <td class="amount"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
-                        </tr>
-                        <tr class="total-row">
-                            <td><strong>Total</strong></td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['couts_vente']['total']) ?></strong></td>
-                        </tr>
-                    </tbody>
-                </table>
+    <!-- GRAPHIQUES -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header py-1 text-center small">📈 Coûts vs Valeur</div>
+                <div class="card-body p-2"><canvas id="chartCouts" height="150"></canvas></div>
             </div>
         </div>
-        
-        <!-- Colonne droite -->
-        <div class="col-lg-6">
-            <!-- Rénovation -->
-            <div class="financial-section">
-                <h5>
-                    <i class="bi bi-tools me-2"></i>Rénovation
-                    <small class="text-muted">(Contingence: <?= $projet['taux_contingence'] ?>% = <?= formatMoney($indicateurs['contingence']) ?>)</small>
-                </h5>
-                
-                <!-- Barre de progression -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span>Progression (factures + main d'œuvre)</span>
-                        <span><?= formatMoney($indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout']) ?> / <?= formatMoney($indicateurs['renovation']['budget']) ?></span>
-                    </div>
-                    <div class="progress-custom">
-                        <div class="progress-bar <?= $indicateurs['renovation']['progression'] > 100 ? 'bg-danger' : 'bg-success' ?>" 
-                             style="width: <?= min(100, $indicateurs['renovation']['progression']) ?>%">
-                            <?= number_format($indicateurs['renovation']['progression'], 1) ?>%
-                        </div>
-                    </div>
-                </div>
-                
-                <table class="financial-table">
-                    <thead>
-                        <tr>
-                            <th>Catégorie</th>
-                            <th class="text-end">Extrapolé</th>
-                            <th class="text-end">Réel</th>
-                            <th class="text-end">Écart</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php 
-                        $currentGroupe = '';
-                        foreach ($categories as $cat): 
-                            $budget = $budgets[$cat['id']] ?? 0;
-                            $depense = $depenses[$cat['id']] ?? 0;
-                            $ecart = $budget - $depense;
-                            
-                            if ($budget == 0 && $depense == 0) continue; // Ne pas afficher les lignes vides
-                            
-                            if ($cat['groupe'] !== $currentGroupe):
-                                $currentGroupe = $cat['groupe'];
-                        ?>
-                            <tr class="group-header-row">
-                                <td colspan="4"><strong><?= e(getGroupeCategorieLabel($currentGroupe)) ?></strong></td>
-                            </tr>
-                        <?php endif; ?>
-                        <tr>
-                            <td><?= e($cat['nom']) ?></td>
-                            <td class="amount"><?= formatMoney($budget) ?></td>
-                            <td class="amount"><?= formatMoney($depense) ?></td>
-                            <td class="amount <?= $ecart >= 0 ? 'positive' : 'negative' ?>">
-                                <?= formatMoney($ecart) ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                        <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
-                        <tr class="table-info">
-                            <td><i class="bi bi-person-fill me-1"></i><strong>Main d'œuvre interne</strong>
-                                <small class="text-muted d-block"><?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?> heures</small>
-                            </td>
-                            <td class="amount">-</td>
-                            <td class="amount"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
-                            <td class="amount">-</td>
-                        </tr>
-                        <?php endif; ?>
-                        <tr class="total-row">
-                            <td><strong>Total rénovation</strong></td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['renovation']['budget']) ?></strong></td>
-                            <td class="amount"><strong><?= formatMoney($indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout']) ?></strong></td>
-                            <td class="amount <?= $indicateurs['renovation']['ecart'] >= 0 ? 'positive' : 'negative' ?>">
-                                <strong><?= formatMoney($indicateurs['renovation']['ecart']) ?></strong>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header py-1 text-center small">⏱️ Heures travaillées</div>
+                <div class="card-body p-2"><canvas id="chartBudget" height="150"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header py-1 text-center small">📊 Budget vs Dépensé</div>
+                <div class="card-body p-2"><canvas id="chartProfits" height="150"></canvas></div>
             </div>
         </div>
     </div>
     
-    <!-- SECTION FINANCEMENT ET PARTICIPANTS -->
-    <div class="financial-section">
-        <h5><i class="bi bi-people-fill me-2"></i>Financement et Participants</h5>
-        
-        <div class="row">
-            <!-- PRÊTEURS -->
-            <div class="col-lg-6">
-                <div class="card mb-3 border-warning">
-                    <div class="card-header bg-warning text-dark">
-                        <i class="bi bi-bank me-2"></i><strong>Prêteurs</strong>
-                        <small class="float-end">Coût = Intérêts</small>
-                    </div>
-                    <?php if (!empty($indicateurs['preteurs'])): ?>
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nom</th>
-                                <th class="text-end">Montant</th>
-                                <th class="text-center">Taux</th>
-                                <th class="text-end">Intérêts</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($indicateurs['preteurs'] as $p): ?>
-                                <tr>
-                                    <td><?= e($p['nom']) ?></td>
-                                    <td class="text-end"><?= formatMoney($p['montant']) ?></td>
-                                    <td class="text-center"><span class="badge bg-warning text-dark"><?= $p['taux'] ?>%</span></td>
-                                    <td class="text-end text-danger"><?= formatMoney($p['interets_total']) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                        <tfoot class="table-warning">
-                            <tr>
-                                <td><strong>Total</strong></td>
-                                <td class="text-end"><strong><?= formatMoney($indicateurs['total_prets']) ?></strong></td>
-                                <td></td>
-                                <td class="text-end text-danger"><strong><?= formatMoney($indicateurs['total_interets']) ?></strong></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                    <?php else: ?>
-                    <div class="card-body text-center text-muted py-4">
-                        <i class="bi bi-bank" style="font-size: 2rem;"></i>
-                        <p class="mb-0 small">Aucun prêteur</p>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <!-- INVESTISSEURS -->
-            <div class="col-lg-6">
-                <div class="card mb-3 border-success">
-                    <div class="card-header bg-success text-white">
-                        <i class="bi bi-people me-2"></i><strong>Investisseurs</strong>
-                        <small class="float-end">Partage des profits</small>
-                    </div>
-                    <?php if (!empty($indicateurs['investisseurs'])): ?>
-                    <?php 
-                    $profitNet = $indicateurs['equite_potentielle'] - ($indicateurs['total_interets'] ?? 0);
-                    ?>
-                    <table class="table table-sm mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Nom</th>
-                                <th class="text-end">Mise</th>
-                                <th class="text-center">%</th>
-                                <th class="text-end">Profit</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php 
-                            $totalPourcentage = 0;
-                            $totalProfit = 0;
-                            foreach ($indicateurs['investisseurs'] as $inv): 
-                                // Utiliser pourcentage_calcule si pourcentage = 0
-                                $pct = !empty($inv['pourcentage']) ? $inv['pourcentage'] : ($inv['pourcentage_calcule'] ?? 0);
-                                $totalPourcentage += $pct;
-                                $totalProfit += $inv['profit_estime'];
-                            ?>
-                                <tr>
-                                    <td><?= e($inv['nom']) ?></td>
-                                    <td class="text-end"><?= formatMoney($inv['mise_de_fonds']) ?></td>
-                                    <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
-                                    <td class="text-end text-success"><?= formatMoney($inv['profit_estime']) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                        <tfoot class="table-success">
-                            <tr>
-                                <td><strong>Total</strong></td>
-                                <td class="text-end"><strong><?= formatMoney(array_sum(array_column($indicateurs['investisseurs'], 'mise_de_fonds'))) ?></strong></td>
-                                <td class="text-center"><strong><?= number_format($totalPourcentage, 1) ?>%</strong></td>
-                                <td class="text-end text-success"><strong><?= formatMoney($totalProfit) ?></strong></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                    <?php else: ?>
-                    <div class="card-body text-center text-muted py-4">
-                        <i class="bi bi-people" style="font-size: 2rem;"></i>
-                        <p class="mb-0 small">Aucun investisseur</p>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
+    <!-- TABLEAU UNIFIÉ : EXTRAPOLÉ | DIFF | RÉEL -->
+    <div class="card">
+        <div class="card-header py-2">
+            <i class="bi bi-calculator me-1"></i> Détail des coûts (<?= $dureeReelle ?> mois)
         </div>
-        
-        <div class="text-center">
-            <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>&tab=preteurs" class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-pencil me-1"></i>Gérer le financement
-            </a>
-        </div>
-    </div>
-    
-    <!-- Résumé financier comparatif -->
-    <div class="financial-section">
-        <h5><i class="bi bi-calculator me-2"></i>Résumé financier - Extrapolé vs Réel</h5>
-        
-        <?php
-        // Calculer le réel des factures + main d'œuvre
-        $renoReel = $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'];
-        $diffReno = $indicateurs['renovation']['budget'] - $renoReel;
-        $diffTotal = $indicateurs['cout_total_projet'] - $indicateurs['cout_total_reel'];
-        $diffEquite = $indicateurs['equite_reelle'] - $indicateurs['equite_potentielle'];
-        ?>
-        
-        <div class="table-responsive">
-            <table class="table table-bordered">
-                <thead class="table-light">
+        <div class="table-responsive" style="max-height: 60vh; overflow-y: auto;">
+            <table class="cost-table">
+                <thead>
                     <tr>
-                        <th></th>
-                        <th class="text-end text-info">📊 Extrapolé</th>
-                        <th class="text-center" style="width: 100px;">Écart</th>
-                        <th class="text-end text-success">✓ Réel</th>
+                        <th class="col-label">Poste</th>
+                        <th class="col-num text-info">Extrapolé</th>
+                        <th class="col-num">Diff</th>
+                        <th class="col-num text-success">Réel</th>
                     </tr>
                 </thead>
                 <tbody>
+                    <!-- PRIX D'ACHAT -->
+                    <tr class="section-header">
+                        <td colspan="4"><i class="bi bi-house me-1"></i> Achat</td>
+                    </tr>
                     <tr>
                         <td>Prix d'achat</td>
                         <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
-                        <td class="text-center">-</td>
+                        <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($projet['prix_achat']) ?></td>
                     </tr>
-                    <tr>
-                        <td>Coûts d'acquisition</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
-                        <td class="text-center">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
+                    
+                    <!-- COÛTS D'ACQUISITION -->
+                    <tr class="section-header">
+                        <td colspan="4"><i class="bi bi-cart me-1"></i> Acquisition</td>
                     </tr>
-                    <tr>
-                        <td>Coûts récurrents</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
-                        <td class="text-center">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
-                    </tr>
-                    <tr>
-                        <td>Coûts de vente</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
-                        <td class="text-center">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
-                    </tr>
-                    <tr class="table-warning">
-                        <td><strong>Rénovation</strong></td>
-                        <td class="text-end"><strong><?= formatMoney($indicateurs['renovation']['budget']) ?></strong></td>
-                        <td class="text-center <?= $diffReno >= 0 ? 'text-success' : 'text-danger' ?>">
-                            <strong><?= $diffReno >= 0 ? '+' : '' ?><?= formatMoney($diffReno) ?></strong>
-                        </td>
-                        <td class="text-end"><strong><?= formatMoney($renoReel) ?></strong></td>
-                    </tr>
-                    <tr>
-                        <td class="ps-4"><small>- Budget prévu</small></td>
-                        <td class="text-end"><small><?= formatMoney($indicateurs['renovation']['budget']) ?></small></td>
-                        <td></td>
-                        <td class="text-end"><small>-</small></td>
-                    </tr>
-                    <tr>
-                        <td class="ps-4"><small>- Factures réelles</small></td>
-                        <td class="text-end"><small>-</small></td>
-                        <td></td>
-                        <td class="text-end"><small><?= formatMoney($indicateurs['renovation']['reel']) ?></small></td>
-                    </tr>
-                    <?php if ($indicateurs['main_doeuvre']['cout'] > 0): ?>
-                    <tr>
-                        <td class="ps-4"><small>- Main d'œuvre</small></td>
-                        <td class="text-end"><small>-</small></td>
-                        <td></td>
-                        <td class="text-end"><small><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></small></td>
+                    <?php if ($indicateurs['couts_acquisition']['cession'] > 0): ?>
+                    <tr class="sub-item">
+                        <td>Cession</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['cession']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['cession']) ?></td>
                     </tr>
                     <?php endif; ?>
-                    <tr>
-                        <td>Contingence (<?= $projet['taux_contingence'] ?>%)</td>
+                    <tr class="sub-item">
+                        <td>Notaire</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Taxe mutation</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Arpenteurs</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['arpenteurs']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['arpenteurs']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Assurance titre</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['assurance_titre']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['assurance_titre']) ?></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Sous-total Acquisition</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
+                    </tr>
+                    
+                    <!-- COÛTS RÉCURRENTS -->
+                    <tr class="section-header">
+                        <td colspan="4"><i class="bi bi-arrow-repeat me-1"></i> Récurrents (<?= $dureeReelle ?> mois)</td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Taxes municipales</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Taxes scolaires</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Électricité</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Assurances</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Déneigement</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Frais condo</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Hypothèque</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Sous-total Récurrents</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
+                    </tr>
+                    
+                    <!-- RÉNOVATION -->
+                    <tr class="section-header">
+                        <td colspan="4"><i class="bi bi-tools me-1"></i> Rénovation (+ <?= $projet['taux_contingence'] ?>% contingence)</td>
+                    </tr>
+                    <?php 
+                    $totalBudgetReno = 0;
+                    $totalReelReno = 0;
+                    foreach ($categories as $cat): 
+                        $budget = $budgets[$cat['id']] ?? 0;
+                        $depense = $depenses[$cat['id']] ?? 0;
+                        if ($budget == 0 && $depense == 0) continue;
+                        $ecart = $budget - $depense;
+                        $totalBudgetReno += $budget;
+                        $totalReelReno += $depense;
+                    ?>
+                    <tr class="sub-item">
+                        <td><?= e($cat['nom']) ?></td>
+                        <td class="text-end"><?= formatMoney($budget) ?></td>
+                        <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
+                        <td class="text-end"><?= formatMoney($depense) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    
+                    <!-- MAIN D'ŒUVRE -->
+                    <?php if ($indicateurs['main_doeuvre']['heures'] > 0 || $indicateurs['main_doeuvre']['cout'] > 0): ?>
+                    <tr class="sub-item" style="background: #e7f3ff;">
+                        <td><i class="bi bi-person-fill me-1"></i>Main d'œuvre (<?= number_format($indicateurs['main_doeuvre']['heures'], 1) ?>h)</td>
+                        <td class="text-end">-</td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['main_doeuvre']['cout']) ?></td>
+                    </tr>
+                    <?php endif; ?>
+                    
+                    <tr class="sub-item">
+                        <td>Contingence <?= $projet['taux_contingence'] ?>%</td>
                         <td class="text-end"><?= formatMoney($indicateurs['contingence']) ?></td>
-                        <td class="text-center">-</td>
+                        <td class="text-end">-</td>
                         <td class="text-end">-</td>
                     </tr>
-                    <tr style="background-color:#1e3a5f;color:#fff">
-                        <td><strong>COÛT TOTAL</strong></td>
-                        <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_projet']) ?></strong></td>
-                        <td class="text-center" style="color:<?= $diffTotal >= 0 ? '#1cc88a' : '#e74a3b' ?>">
-                            <strong><?= $diffTotal >= 0 ? '+' : '' ?><?= formatMoney($diffTotal) ?></strong>
-                        </td>
-                        <td class="text-end"><strong><?= formatMoney($indicateurs['cout_total_reel']) ?></strong></td>
+                    
+                    <?php 
+                    $renoReel = $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'];
+                    $diffReno = $indicateurs['renovation']['budget'] - $renoReel;
+                    ?>
+                    <tr class="total-row">
+                        <td>Sous-total Rénovation</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['budget']) ?></td>
+                        <td class="text-end <?= $diffReno >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffReno) ?></td>
+                        <td class="text-end"><?= formatMoney($renoReel) ?></td>
                     </tr>
-                    <tr>
-                        <td colspan="4" class="bg-light"></td>
+                    
+                    <!-- COÛTS DE VENTE -->
+                    <tr class="section-header">
+                        <td colspan="4"><i class="bi bi-shop me-1"></i> Vente</td>
                     </tr>
+                    <tr class="sub-item">
+                        <td>Intérêts (<?= $projet['taux_interet'] ?>% sur <?= $dureeReelle ?> mois)</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
+                    </tr>
+                    <?php 
+                    $commHT = $indicateurs['couts_vente']['commission'];
+                    $commTTC = $commHT * 1.14975;
+                    ?>
+                    <tr class="sub-item">
+                        <td>Commission courtier <?= $projet['taux_commission'] ?>% + taxes</td>
+                        <td class="text-end"><?= formatMoney($commTTC) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($commTTC) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Quittance</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
+                    </tr>
+                    <tr class="total-row">
+                        <td>Sous-total Vente</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
+                    </tr>
+                    
+                    <!-- GRAND TOTAL -->
+                    <?php $diffTotal = $indicateurs['cout_total_projet'] - $indicateurs['cout_total_reel']; ?>
+                    <tr class="grand-total">
+                        <td>COÛT TOTAL PROJET</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['cout_total_projet']) ?></td>
+                        <td class="text-end" style="color:<?= $diffTotal >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= formatMoney($diffTotal) ?></td>
+                        <td class="text-end"><?= formatMoney($indicateurs['cout_total_reel']) ?></td>
+                    </tr>
+                    
+                    <tr><td colspan="4" style="height: 10px; background: #f8f9fa;"></td></tr>
+                    
                     <tr>
-                        <td>Valeur potentielle</td>
+                        <td>Valeur potentielle de vente</td>
                         <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
-                        <td class="text-center">-</td>
+                        <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
                     </tr>
-                    <tr style="background-color:#198754;color:#fff">
-                        <td><strong>ÉQUITÉ</strong></td>
-                        <td class="text-end">
-                            <strong><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
-                        </td>
-                        <td class="text-center" style="color:<?= $diffEquite >= 0 ? '#90EE90' : '#ffcccc' ?>">
-                            <strong><?= $diffEquite >= 0 ? '+' : '' ?><?= formatMoney($diffEquite) ?></strong>
-                        </td>
-                        <td class="text-end">
-                            <strong><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
-                        </td>
+                    
+                    <?php $diffEquite = $indicateurs['equite_reelle'] - $indicateurs['equite_potentielle']; ?>
+                    <tr class="profit-row">
+                        <td>ÉQUITÉ / PROFIT</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['equite_potentielle']) ?></td>
+                        <td class="text-end" style="color:<?= $diffEquite >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffEquite >= 0 ? '+' : '' ?><?= formatMoney($diffEquite) ?></td>
+                        <td class="text-end"><?= formatMoney($indicateurs['equite_reelle']) ?></td>
                     </tr>
-                    <tr>
-                        <td colspan="4" class="bg-light"></td>
-                    </tr>
-                    <tr>
-                        <td>Mise de fonds totale</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['mise_fonds_totale']) ?></td>
-                        <td class="text-center">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['mise_fonds_totale']) ?></td>
-                    </tr>
+                    
                     <tr>
                         <td><strong>ROI @ Leverage</strong></td>
-                        <td class="text-end <?= $indicateurs['roi_leverage'] >= 0 ? 'text-success' : 'text-danger' ?>">
-                            <strong><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
-                        </td>
-                        <td class="text-center">-</td>
-                        <td class="text-end <?= $indicateurs['roi_leverage_reel'] >= 0 ? 'text-success' : 'text-danger' ?>">
-                            <strong><?= formatPercent($indicateurs['roi_leverage_reel']) ?></strong>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td><strong>ROI All Cash</strong></td>
-                        <td class="text-end"><?= formatPercent($indicateurs['roi_all_cash']) ?></td>
-                        <td class="text-center">-</td>
-                        <td class="text-end"><?= formatPercent($indicateurs['roi_all_cash_reel']) ?></td>
+                        <td class="text-end"><?= formatPercent($indicateurs['roi_leverage']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatPercent($indicateurs['roi_leverage_reel']) ?></td>
                     </tr>
                 </tbody>
             </table>
         </div>
     </div>
     
-    <!-- Initialiser les tooltips Bootstrap -->
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl, { html: true });
-        });
-    });
-    </script>
+    <!-- FINANCEMENT -->
+    <div class="row g-2 mt-3">
+        <div class="col-md-6">
+            <div class="card border-warning h-100">
+                <div class="card-header py-1 bg-warning text-dark small">
+                    <i class="bi bi-bank me-1"></i> Prêteurs
+                </div>
+                <?php if (!empty($indicateurs['preteurs'])): ?>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 small">
+                        <thead><tr><th>Nom</th><th class="text-end">Montant</th><th class="text-center">%</th><th class="text-end">Intérêts</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($indicateurs['preteurs'] as $p): ?>
+                        <tr>
+                            <td><?= e($p['nom']) ?></td>
+                            <td class="text-end"><?= formatMoney($p['montant']) ?></td>
+                            <td class="text-center"><span class="badge bg-warning text-dark"><?= $p['taux'] ?>%</span></td>
+                            <td class="text-end text-danger"><?= formatMoney($p['interets_total']) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                        <tfoot class="table-warning"><tr>
+                            <td><strong>Total</strong></td>
+                            <td class="text-end"><strong><?= formatMoney($indicateurs['total_prets']) ?></strong></td>
+                            <td></td>
+                            <td class="text-end text-danger"><strong><?= formatMoney($indicateurs['total_interets']) ?></strong></td>
+                        </tr></tfoot>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="card-body text-center text-muted py-2"><small>Aucun prêteur</small></div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-success h-100">
+                <div class="card-header py-1 bg-success text-white small">
+                    <i class="bi bi-people me-1"></i> Investisseurs
+                </div>
+                <?php if (!empty($indicateurs['investisseurs'])): ?>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 small">
+                        <thead><tr><th>Nom</th><th class="text-end">Mise</th><th class="text-center">%</th><th class="text-end">Profit</th></tr></thead>
+                        <tbody>
+                        <?php foreach ($indicateurs['investisseurs'] as $inv): 
+                            $pct = !empty($inv['pourcentage']) ? $inv['pourcentage'] : ($inv['pourcentage_calcule'] ?? 0);
+                        ?>
+                        <tr>
+                            <td><?= e($inv['nom']) ?></td>
+                            <td class="text-end"><?= formatMoney($inv['mise_de_fonds']) ?></td>
+                            <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
+                            <td class="text-end text-success"><?= formatMoney($inv['profit_estime']) ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <?php else: ?>
+                <div class="card-body text-center text-muted py-2"><small>Aucun investisseur</small></div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
     
     <!-- Actions -->
-    <div class="d-flex justify-content-between mt-4">
-        <a href="/admin/projets/liste.php" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>
-            Retour à la liste
-        </a>
+    <div class="d-flex justify-content-between mt-3 mb-4">
+        <a href="/admin/projets/liste.php" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
         <div>
-            <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-primary">
-                <i class="bi bi-receipt me-1"></i>
-                Voir les factures
-            </a>
-            <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-primary">
-                <i class="bi bi-pencil me-1"></i>
-                Modifier le projet
-            </a>
+            <a href="/admin/factures/liste.php?projet=<?= $projet['id'] ?>" class="btn btn-outline-primary btn-sm"><i class="bi bi-receipt"></i> Factures</a>
+            <a href="/admin/projets/modifier.php?id=<?= $projet['id'] ?>" class="btn btn-primary btn-sm"><i class="bi bi-pencil"></i> Modifier</a>
         </div>
     </div>
 </div>
 
 <?php
-// Calculer la durée réelle du projet en mois
+// Données pour les graphiques
 $moisProjet = (int)$projet['temps_assume_mois'];
-
-// Si date de vente ET date acquisition existent, calculer la durée réelle
 if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateAchat = new DateTime($projet['date_acquisition']);
     $dateVente = new DateTime($projet['date_vente']);
@@ -666,69 +469,36 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $moisProjet = max(1, $moisProjet);
 }
 
-// Préparer les labels mensuels (Mois 1, Mois 2, etc.)
 $labelsTimeline = [];
 $coutsTimeline = [];
-
-// Calculer les coûts progressifs avec intérêts qui s'accumulent
 $baseAchat = (float)$projet['prix_achat'] + $indicateurs['couts_acquisition']['total'];
 $budgetReno = $indicateurs['renovation']['budget'];
 $contingence = $indicateurs['contingence'];
-
-// Recalculer les intérêts et récurrents avec la vraie durée
 $totalPrets = $indicateurs['total_prets'] ?? 0;
 $tauxInteret = (float)($projet['taux_interet'] ?? 10);
 $interetsMensuel = $totalPrets * ($tauxInteret / 100) / 12;
-
 $recurrentsAnnuel = (float)$projet['taxes_municipales_annuel'] + (float)$projet['taxes_scolaires_annuel'] 
     + (float)$projet['electricite_annuel'] + (float)$projet['assurances_annuel']
     + (float)$projet['deneigement_annuel'] + (float)$projet['frais_condo_annuel'];
 $recurrentsMensuel = $recurrentsAnnuel / 12 + (float)$projet['hypotheque_mensuel'];
-
 $commission = $indicateurs['couts_vente']['commission'];
 
-// Générer les points pour chaque mois
 for ($m = 0; $m <= $moisProjet; $m++) {
-    if ($m == 0) {
-        $labelsTimeline[] = 'Achat';
-    } else {
-        $labelsTimeline[] = 'Mois ' . $m;
-    }
-    
-    // Progression de la réno (linéaire sur la durée)
+    $labelsTimeline[] = $m == 0 ? 'Achat' : 'M' . $m;
     $pctReno = min(1, $m / max(1, $moisProjet - 1));
-    
-    // Coût à ce mois
-    $cout = $baseAchat 
-        + ($budgetReno * $pctReno)
-        + ($recurrentsMensuel * $m) 
-        + ($interetsMensuel * $m);
-    
-    // Au dernier mois, ajouter contingence et commission
-    if ($m == $moisProjet) {
-        $cout += $contingence + $commission;
-    }
-    
+    $cout = $baseAchat + ($budgetReno * $pctReno) + ($recurrentsMensuel * $m) + ($interetsMensuel * $m);
+    if ($m == $moisProjet) $cout += $contingence + $commission;
     $coutsTimeline[] = round($cout, 2);
 }
 
-// Valeur potentielle (ligne horizontale)
 $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
-// Récupérer les heures travaillées par jour (approuvées ET en attente)
+// Heures travaillées
 $heuresParJour = [];
 try {
-    $stmt = $pdo->prepare("
-        SELECT date_travail as jour, SUM(heures) as total_heures
-        FROM heures_travaillees 
-        WHERE projet_id = ? AND statut != 'rejetee'
-        GROUP BY date_travail
-        ORDER BY date_travail
-    ");
+    $stmt = $pdo->prepare("SELECT date_travail as jour, SUM(heures) as total FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_travail ORDER BY date_travail");
     $stmt->execute([$projetId]);
-    foreach ($stmt->fetchAll() as $row) {
-        $heuresParJour[$row['jour']] = (float)$row['total_heures'];
-    }
+    foreach ($stmt->fetchAll() as $row) $heuresParJour[$row['jour']] = (float)$row['total'];
 } catch (Exception $e) {}
 
 $jourLabelsHeures = [];
@@ -738,80 +508,14 @@ foreach ($heuresParJour as $jour => $heures) {
     $jourDataHeures[] = $heures;
 }
 
-// Calculer les heures totales
-$heuresTotal = array_sum($heuresParJour);
-?>
-<!-- Chart.js CDN + Adapter pour les dates -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Style actions/trading avec lignes
-Chart.defaults.color = '#666';
-Chart.defaults.font.family = "'Segoe UI', sans-serif";
-
-// Graphique 1: Timeline du projet - Coûts qui montent par mois
-const dataTimeline = {
-    labels: <?= json_encode($labelsTimeline) ?>,
-    datasets: [{
-        label: 'Coûts cumulés',
-        data: <?= json_encode($coutsTimeline) ?>,
-        borderColor: '#e74a3b',
-        backgroundColor: 'rgba(231, 74, 59, 0.1)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 4,
-        pointBackgroundColor: '#e74a3b',
-        pointBorderColor: '#fff',
-        pointBorderWidth: 2
-    }, {
-        label: 'Valeur potentielle',
-        data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>,
-        borderColor: '#1cc88a',
-        borderDash: [5, 5],
-        pointRadius: 0,
-        fill: false
-    }]
-};
-
-// Graphique 2: Heures travaillées par jour
-<?php if (!empty($jourLabelsHeures)): ?>
-const dataHeures = {
-    labels: <?= json_encode($jourLabelsHeures) ?>,
-    datasets: [{
-        label: 'Heures travaillées',
-        data: <?= json_encode($jourDataHeures) ?>,
-        borderColor: '#4e73df',
-        backgroundColor: 'rgba(78, 115, 223, 0.5)',
-        borderWidth: 1
-    }]
-};
-<?php else: ?>
-const dataHeures = {
-    labels: ['Aucune heure'],
-    datasets: [{
-        label: 'Heures',
-        data: [0],
-        borderColor: '#ccc',
-        backgroundColor: 'rgba(200, 200, 200, 0.2)'
-    }]
-};
-<?php endif; ?>
-
-// Graphique 3: Budget vs Dépensé avec suivi journalier
-<?php
+// Budget vs Dépensé
 $dateDebut = !empty($projet['date_acquisition']) ? $projet['date_acquisition'] : date('Y-m-d');
 $dateFin = !empty($projet['date_vente']) ? $projet['date_vente'] : date('Y-m-d', strtotime('+' . $moisProjet . ' months', strtotime($dateDebut)));
 $budgetTotal = $indicateurs['renovation']['budget'] ?: 1;
 
-// Récupérer les dépenses cumulées par jour
 $depensesCumulees = [];
 try {
-    $stmt = $pdo->prepare("
-        SELECT date_facture as jour, SUM(montant_total) as total
-        FROM factures 
-        WHERE projet_id = ? AND statut != 'rejetee'
-        GROUP BY date_facture
-        ORDER BY date_facture
-    ");
+    $stmt = $pdo->prepare("SELECT date_facture as jour, SUM(montant_total) as total FROM factures WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_facture ORDER BY date_facture");
     $stmt->execute([$projetId]);
     $cumul = 0;
     foreach ($stmt->fetchAll() as $row) {
@@ -820,7 +524,6 @@ try {
     }
 } catch (Exception $e) {}
 
-// Générer les points pour le graphique
 $jourLabels = [];
 $dataExtrapole = [];
 $dataReel = [];
@@ -829,111 +532,69 @@ $dateEnd = new DateTime($dateFin);
 $joursTotal = max(1, $dateStart->diff($dateEnd)->days);
 $dernierCumul = 0;
 
-$interval = new DateInterval('P7D'); // Interval de 7 jours pour lisibilité
+$interval = new DateInterval('P7D');
 $period = new DatePeriod($dateStart, $interval, $dateEnd);
 $points = iterator_to_array($period);
-$points[] = $dateEnd; // Ajouter la date de fin
+$points[] = $dateEnd;
 
 foreach ($points as $date) {
     $dateStr = $date->format('Y-m-d');
     $joursEcoules = $dateStart->diff($date)->days;
     $pctProgression = $joursEcoules / $joursTotal;
-    
     $jourLabels[] = $date->format('d M');
     $dataExtrapole[] = round($budgetTotal * $pctProgression, 2);
-    
-    // Trouver le cumul réel le plus proche
     foreach ($depensesCumulees as $jour => $cumul) {
-        if ($jour <= $dateStr) {
-            $dernierCumul = $cumul;
-        }
+        if ($jour <= $dateStr) $dernierCumul = $cumul;
     }
     $dataReel[] = $dernierCumul;
 }
-
-// Ajouter les heures travaillées au dernier point
 $dataReel[count($dataReel) - 1] += $indicateurs['main_doeuvre']['cout'];
 ?>
-const dataComparaison = {
-    labels: <?= json_encode($jourLabels) ?>,
-    datasets: [{
-        label: 'Extrapolation',
-        data: <?= json_encode($dataExtrapole) ?>,
-        borderColor: '#36b9cc',
-        backgroundColor: 'rgba(54, 185, 204, 0.1)',
-        fill: true,
-        tension: 0.3,
-        borderWidth: 2,
-        pointRadius: 2
-    }, {
-        label: 'Réel cumulé',
-        data: <?= json_encode($dataReel) ?>,
-        borderColor: '#e74a3b',
-        backgroundColor: 'rgba(231, 74, 59, 0.2)',
-        fill: true,
-        tension: 0,
-        borderWidth: 2,
-        stepped: true,
-        pointRadius: 3,
-        pointBackgroundColor: '#e74a3b'
-    }]
-};
-
-// Options style trading/actions
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+Chart.defaults.color = '#666';
 const optionsLine = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { intersect: false, mode: 'index' },
-    plugins: {
-        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
-        tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            callbacks: {
-                label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('fr-CA') + ' $'
-            }
-        }
-    },
-    scales: {
-        x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { size: 10 } } },
-        y: {
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: val => (val/1000).toFixed(0) + 'k$', font: { size: 10 } }
-        }
-    }
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } } },
+    scales: { x: { ticks: { font: { size: 9 } } }, y: { ticks: { callback: v => (v/1000).toFixed(0)+'k', font: { size: 9 } } } }
+};
+const optionsBar = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { ticks: { font: { size: 9 } } }, y: { ticks: { callback: v => v+'h', font: { size: 9 } } } }
 };
 
-// Créer les graphiques
-if (document.getElementById('chartCouts')) {
-    new Chart(document.getElementById('chartCouts'), { type: 'line', data: dataTimeline, options: optionsLine });
-}
-// Options pour heures (pas de $)
-const optionsHeures = {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { intersect: false, mode: 'index' },
-    plugins: {
-        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
-        tooltip: {
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            callbacks: {
-                label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toFixed(1) + ' h'
-            }
-        }
+new Chart(document.getElementById('chartCouts'), {
+    type: 'line',
+    data: {
+        labels: <?= json_encode($labelsTimeline) ?>,
+        datasets: [
+            { label: 'Coûts', data: <?= json_encode($coutsTimeline) ?>, borderColor: '#e74a3b', backgroundColor: 'rgba(231,74,59,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
+            { label: 'Valeur', data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>, borderColor: '#1cc88a', borderDash: [5,5], pointRadius: 0 }
+        ]
     },
-    scales: {
-        x: { grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { font: { size: 10 } } },
-        y: {
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            ticks: { callback: val => val + 'h', font: { size: 10 } }
-        }
-    }
-};
-if (document.getElementById('chartBudget')) {
-    new Chart(document.getElementById('chartBudget'), { type: 'bar', data: dataHeures, options: optionsHeures });
-}
-if (document.getElementById('chartProfits')) {
-    new Chart(document.getElementById('chartProfits'), { type: 'line', data: dataComparaison, options: optionsLine });
-}
+    options: optionsLine
+});
+
+new Chart(document.getElementById('chartBudget'), {
+    type: 'bar',
+    data: {
+        labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
+        datasets: [{ data: <?= json_encode($jourDataHeures ?: [0]) ?>, backgroundColor: 'rgba(78,115,223,0.6)' }]
+    },
+    options: optionsBar
+});
+
+new Chart(document.getElementById('chartProfits'), {
+    type: 'line',
+    data: {
+        labels: <?= json_encode($jourLabels) ?>,
+        datasets: [
+            { label: 'Budget', data: <?= json_encode($dataExtrapole) ?>, borderColor: '#36b9cc', fill: true, backgroundColor: 'rgba(54,185,204,0.1)', tension: 0.3, pointRadius: 1 },
+            { label: 'Réel', data: <?= json_encode($dataReel) ?>, borderColor: '#e74a3b', fill: true, backgroundColor: 'rgba(231,74,59,0.2)', stepped: true, pointRadius: 2 }
+        ]
+    },
+    options: optionsLine
+});
 </script>
-
 <?php include '../../includes/footer.php'; ?>
