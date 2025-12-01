@@ -40,15 +40,14 @@ include '../../includes/header.php';
 ?>
 
 <style>
-/* Tableau compact 3 colonnes */
+/* Tableau compact 3 colonnes - compatible dark mode */
 .cost-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.cost-table th, .cost-table td { padding: 6px 10px; border-bottom: 1px solid #dee2e6; }
-.cost-table thead th { background: #f8f9fa; font-weight: 600; position: sticky; top: 0; }
+.cost-table th, .cost-table td { padding: 6px 10px; border-bottom: 1px solid var(--bs-border-color, #dee2e6); }
+.cost-table thead th { background: var(--bs-tertiary-bg, #f8f9fa); font-weight: 600; position: sticky; top: 0; }
 .cost-table .section-header { background: #1e3a5f; color: white; font-weight: 600; }
 .cost-table .section-header td { padding: 8px 10px; }
-.cost-table .sub-item td:first-child { padding-left: 25px; color: #333; }
-.cost-table .sub-item { background: #f8f9fa; }
-.cost-table .total-row { background: #d1d5db; font-weight: 600; }
+.cost-table .sub-item td:first-child { padding-left: 25px; }
+.cost-table .total-row { background: var(--bs-secondary-bg, #e9ecef); font-weight: 600; }
 .cost-table .grand-total { background: #1e3a5f; color: white; font-weight: 700; }
 .cost-table .profit-row { background: #198754; color: white; font-weight: 700; }
 .cost-table .text-end { text-align: right; }
