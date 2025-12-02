@@ -25,7 +25,7 @@
                 const button = form.querySelector('button[type="submit"]');
                 
                 // Vérifier si c'est le formulaire de devis (contient "Obtenir mon estimation")
-                if (button && button.textContent.includes('Obtenir mon estimation')) {
+                if (button && button.textContent.toLowerCase().includes('obtenir mon estimation')) {
                     e.preventDefault();
                     e.stopImmediatePropagation();
                     
