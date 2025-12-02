@@ -1,0 +1,21 @@
+# Proteger les fichiers sensibles
+<FilesMatch "^\.env$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^contact_log\.txt$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^demandes_devis\.txt$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Bloquer l'acces au dossier vendor
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^vendor/ - [F,L]
+</IfModule>

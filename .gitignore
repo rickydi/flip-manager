@@ -52,3 +52,11 @@ node_modules/
 *.zip
 *.tar.gz
 *.rar
+
+# Composer vendor
+vendor/
+composer.lock
+
+# Contact form logs
+contact_log.txt
+demandes_devis.txt
