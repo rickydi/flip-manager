@@ -71,12 +71,10 @@
                     phoneInput.placeholder = 'Téléphone';
                     phoneInput.className = emailInput.className; // Copier les styles
 
-                    // Si email et select ont le même parent direct
-                    if (emailContainer.parentElement === selectContainer.parentElement) {
-                        // Cloner le conteneur email pour avoir la même structure
-                        var phoneContainer = emailContainer.cloneNode(true);
-                        // Remplacer l'input dans le clone
-                        var inputInClone = phoneContainer.querySelector('input');
+                    // Fonction pour mettre à jour tous les textes email -> téléphone
+                    function updatePhoneContainer(container) {
+                        // Mettre à jour l'input
+                        var inputInClone = container.querySelector('input');
                         if (inputInClone) {
                             inputInClone.type = 'tel';
                             inputInClone.name = 'telephone';
@@ -85,37 +83,51 @@
                             inputInClone.removeAttribute('id');
                         }
 
+                        // Mettre à jour tous les textes (labels, spans, etc.)
+                        var allElements = container.querySelectorAll('*');
+                        allElements.forEach(function(el) {
+                            if (el.childNodes) {
+                                el.childNodes.forEach(function(node) {
+                                    if (node.nodeType === 3) { // Text node
+                                        node.textContent = node.textContent.replace(/Email professionnel/gi, 'Téléphone').replace(/Email/gi, 'Téléphone');
+                                    }
+                                });
+                            }
+                        });
+
+                        // Aussi vérifier les attributs placeholder sur tous les éléments
+                        container.querySelectorAll('[placeholder]').forEach(function(el) {
+                            if (el.placeholder.toLowerCase().includes('email')) {
+                                el.placeholder = 'Téléphone';
+                            }
+                        });
+                    }
+
+                    // Si email et select ont le même parent direct
+                    if (emailContainer.parentElement === selectContainer.parentElement) {
+                        // Cloner le conteneur email pour avoir la même structure
+                        var phoneContainer = emailContainer.cloneNode(true);
+                        updatePhoneContainer(phoneContainer);
+
                         // Insérer ENTRE email et select
-                        // Trouver la position exacte dans le parent
                         var parent = emailContainer.parentElement;
                         var children = Array.from(parent.children);
                         var emailIndex = children.indexOf(emailContainer);
                         var selectIndex = children.indexOf(selectContainer);
 
-                        console.log('Email index:', emailIndex, 'Select index:', selectIndex);
-
                         // Insérer après email (qui devrait être avant select)
                         if (emailIndex < selectIndex) {
                             parent.insertBefore(phoneContainer, selectContainer);
                         } else {
-                            // Si l'ordre est inversé, insérer après select
                             parent.insertBefore(phoneContainer, emailContainer);
                         }
 
                         phoneFieldAdded = true;
                         console.log('Champ téléphone ajouté avec succès');
                     } else {
-                        console.log('Structure complexe - tentative alternative');
-                        // Structure plus complexe, essayer d'insérer directement après l'email
+                        // Structure plus complexe
                         var phoneContainer = emailContainer.cloneNode(true);
-                        var inputInClone = phoneContainer.querySelector('input');
-                        if (inputInClone) {
-                            inputInClone.type = 'tel';
-                            inputInClone.name = 'telephone';
-                            inputInClone.placeholder = 'Téléphone';
-                            inputInClone.value = '';
-                            inputInClone.removeAttribute('id');
-                        }
+                        updatePhoneContainer(phoneContainer);
                         emailContainer.parentElement.insertBefore(phoneContainer, emailContainer.nextSibling);
                         phoneFieldAdded = true;
                     }
