@@ -31,51 +31,93 @@
                     var form = button.closest('form');
                     if (!form) return;
 
-                    var emailInput = form.querySelector('input[type="email"]');
-                    if (!emailInput) {
-                        // Chercher le 3ème input (email)
-                        var inputs = form.querySelectorAll('input');
-                        if (inputs.length >= 3) emailInput = inputs[2];
+                    // Vérifier si téléphone existe déjà
+                    if (form.querySelector('input[name="telephone"]')) return;
+
+                    // Trouver tous les inputs et le select
+                    var allInputs = form.querySelectorAll('input');
+                    var selectElement = form.querySelector('select');
+
+                    // On s'attend à: Prénom (0), Nom (1), Email (2), puis Select
+                    if (allInputs.length < 3 || !selectElement) return;
+
+                    var emailInput = allInputs[2]; // Email est le 3ème input
+
+                    // Stratégie: Trouver le conteneur commun de tous les champs
+                    // En regardant les enfants directs du form ou du premier conteneur
+
+                    // D'abord, trouver à quel niveau les champs sont organisés
+                    function findFieldContainer(element) {
+                        var el = element;
+                        while (el.parentElement && el.parentElement !== form) {
+                            el = el.parentElement;
+                        }
+                        return el;
                     }
 
-                    var selectElement = form.querySelector('select');
-                    if (emailInput && selectElement && !form.querySelector('input[name="telephone"]')) {
-                        // Trouver le parent commun qui contient email et select
-                        var emailWrapper = emailInput.parentElement;
-                        var selectWrapper = selectElement.parentElement;
+                    // Trouver les conteneurs de chaque champ au niveau du form
+                    var emailContainer = findFieldContainer(emailInput);
+                    var selectContainer = findFieldContainer(selectElement);
 
-                        // Monter dans la hiérarchie jusqu'à trouver des siblings
-                        var emailAncestor = emailWrapper;
-                        var selectAncestor = selectWrapper;
+                    console.log('Structure trouvée:');
+                    console.log('- Email container:', emailContainer);
+                    console.log('- Select container:', selectContainer);
+                    console.log('- Parent commun:', emailContainer.parentElement);
 
-                        // Chercher le niveau où ils ont le même parent
-                        while (emailAncestor && selectAncestor && emailAncestor.parentElement !== selectAncestor.parentElement) {
-                            if (emailAncestor.parentElement && emailAncestor.parentElement !== form) {
-                                emailAncestor = emailAncestor.parentElement;
-                            }
-                            if (selectAncestor.parentElement && selectAncestor.parentElement !== form) {
-                                selectAncestor = selectAncestor.parentElement;
-                            }
+                    // Créer le nouveau champ téléphone
+                    var phoneInput = document.createElement('input');
+                    phoneInput.type = 'tel';
+                    phoneInput.name = 'telephone';
+                    phoneInput.placeholder = 'Téléphone';
+                    phoneInput.className = emailInput.className; // Copier les styles
+
+                    // Si email et select ont le même parent direct
+                    if (emailContainer.parentElement === selectContainer.parentElement) {
+                        // Cloner le conteneur email pour avoir la même structure
+                        var phoneContainer = emailContainer.cloneNode(true);
+                        // Remplacer l'input dans le clone
+                        var inputInClone = phoneContainer.querySelector('input');
+                        if (inputInClone) {
+                            inputInClone.type = 'tel';
+                            inputInClone.name = 'telephone';
+                            inputInClone.placeholder = 'Téléphone';
+                            inputInClone.value = '';
+                            inputInClone.removeAttribute('id');
                         }
 
-                        // Cloner le wrapper de l'email pour avoir les mêmes styles
-                        var phoneWrapper = emailAncestor.cloneNode(false);
+                        // Insérer ENTRE email et select
+                        // Trouver la position exacte dans le parent
+                        var parent = emailContainer.parentElement;
+                        var children = Array.from(parent.children);
+                        var emailIndex = children.indexOf(emailContainer);
+                        var selectIndex = children.indexOf(selectContainer);
 
-                        // Cloner l'input email et modifier ses attributs pour le téléphone
-                        var phoneInput = emailInput.cloneNode(false);
-                        phoneInput.type = 'tel';
-                        phoneInput.name = 'telephone';
-                        phoneInput.placeholder = 'Téléphone';
-                        phoneInput.value = '';
-                        phoneInput.removeAttribute('id');
+                        console.log('Email index:', emailIndex, 'Select index:', selectIndex);
 
-                        phoneWrapper.appendChild(phoneInput);
-
-                        // Insérer juste APRÈS l'email ancestor (pas avant le select)
-                        emailAncestor.parentNode.insertBefore(phoneWrapper, emailAncestor.nextSibling);
+                        // Insérer après email (qui devrait être avant select)
+                        if (emailIndex < selectIndex) {
+                            parent.insertBefore(phoneContainer, selectContainer);
+                        } else {
+                            // Si l'ordre est inversé, insérer après select
+                            parent.insertBefore(phoneContainer, emailContainer);
+                        }
 
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté entre email et type de projet');
+                        console.log('Champ téléphone ajouté avec succès');
+                    } else {
+                        console.log('Structure complexe - tentative alternative');
+                        // Structure plus complexe, essayer d'insérer directement après l'email
+                        var phoneContainer = emailContainer.cloneNode(true);
+                        var inputInClone = phoneContainer.querySelector('input');
+                        if (inputInClone) {
+                            inputInClone.type = 'tel';
+                            inputInClone.name = 'telephone';
+                            inputInClone.placeholder = 'Téléphone';
+                            inputInClone.value = '';
+                            inputInClone.removeAttribute('id');
+                        }
+                        emailContainer.parentElement.insertBefore(phoneContainer, emailContainer.nextSibling);
+                        phoneFieldAdded = true;
                     }
                 }
             });
