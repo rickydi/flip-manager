@@ -4,8 +4,10 @@
  * Traite les soumissions du formulaire et envoie un email via SMTP
  */
 
-// Charger PHPMailer
-require_once __DIR__ . '/vendor/autoload.php';
+// Charger PHPMailer directement (sans composer)
+require_once __DIR__ . '/PHPMailer-6.9.1/src/PHPMailer.php';
+require_once __DIR__ . '/PHPMailer-6.9.1/src/SMTP.php';
+require_once __DIR__ . '/PHPMailer-6.9.1/src/Exception.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
@@ -100,6 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $smtpPassword = getenv('SMTP_PASSWORD') ?: '';
     $fromEmail = getenv('SMTP_FROM_EMAIL') ?: 'info@evoreno.com';
     $fromName = getenv('SMTP_FROM_NAME') ?: 'Evoreno';
+
+    writeLog("Config SMTP - Host: $smtpHost, Port: $smtpPort, User: $smtpUsername");
 
     // Corps du message
     $messageBody = "NOUVELLE DEMANDE DE DEVIS - EVORENO\n";
