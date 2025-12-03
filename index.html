@@ -39,11 +39,11 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Cloner le parent de l'email pour avoir exactement les mêmes styles
+                        // Cloner le wrapper de l'email pour avoir exactement les mêmes styles
                         var emailWrapper = emailInput.parentElement;
                         var phoneWrapper = emailWrapper.cloneNode(false);
                         
-                        // Cloner également l'input email et modifier ses attributs
+                        // Cloner l'input email et modifier ses attributs
                         var phoneInput = emailInput.cloneNode(false);
                         phoneInput.type = 'tel';
                         phoneInput.name = 'telephone';
@@ -53,13 +53,9 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer avant le select "Type de projet"
-                        var selectElement = form.querySelector('select');
-                        if (selectElement && selectElement.parentElement) {
-                            selectElement.parentElement.insertAdjacentElement('beforebegin', phoneWrapper);
-                        } else {
-                            emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
-                        }
+                        // Insérer juste après le wrapper email (au même niveau)
+                        emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
+                        
                         phoneFieldAdded = true;
                         console.log('Champ téléphone ajouté après email');
                     }
