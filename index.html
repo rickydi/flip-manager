@@ -39,24 +39,29 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Créer le champ téléphone
-                        var phoneWrapper = document.createElement('div');
-                        phoneWrapper.style.cssText = emailInput.parentElement.style.cssText;
-                        phoneWrapper.className = emailInput.parentElement.className;
-
-                        var phoneInput = document.createElement('input');
+                        // Cloner le parent de l'email pour avoir exactement les mêmes styles
+                        var emailWrapper = emailInput.parentElement;
+                        var phoneWrapper = emailWrapper.cloneNode(false);
+                        
+                        // Cloner également l'input email et modifier ses attributs
+                        var phoneInput = emailInput.cloneNode(false);
                         phoneInput.type = 'tel';
                         phoneInput.name = 'telephone';
                         phoneInput.placeholder = 'Téléphone';
-                        phoneInput.className = emailInput.className;
-                        phoneInput.style.cssText = emailInput.style.cssText;
+                        phoneInput.value = '';
+                        phoneInput.removeAttribute('id');
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer après l'email
-                        emailInput.parentElement.insertAdjacentElement('afterend', phoneWrapper);
+                        // Insérer avant le select "Type de projet"
+                        var selectElement = form.querySelector('select');
+                        if (selectElement && selectElement.parentElement) {
+                            selectElement.parentElement.insertAdjacentElement('beforebegin', phoneWrapper);
+                        } else {
+                            emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
+                        }
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté');
+                        console.log('Champ téléphone ajouté après email');
                     }
                 }
             });
