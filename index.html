@@ -39,13 +39,9 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Trouver le select "Type de projet"
-                        var selectElement = form.querySelector('select');
-                        if (!selectElement) return;
-
-                        // Cloner le wrapper du select pour avoir exactement les mêmes styles
-                        var selectWrapper = selectElement.parentElement;
-                        var phoneWrapper = selectWrapper.cloneNode(false);
+                        // Cloner le wrapper de l'email pour avoir les mêmes styles
+                        var emailWrapper = emailInput.parentElement;
+                        var phoneWrapper = emailWrapper.cloneNode(false);
 
                         // Cloner l'input email et modifier ses attributs pour le téléphone
                         var phoneInput = emailInput.cloneNode(false);
@@ -57,11 +53,18 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer le téléphone JUSTE AVANT le select wrapper
-                        selectWrapper.parentNode.insertBefore(phoneWrapper, selectWrapper);
+                        // Trouver le sibling suivant de l'email wrapper (avant le select)
+                        var nextElement = emailWrapper.nextElementSibling;
+                        if (nextElement) {
+                            // Insérer avant le sibling suivant (entre email et type de projet)
+                            emailWrapper.parentNode.insertBefore(phoneWrapper, nextElement);
+                        } else {
+                            // Sinon insérer après l'email
+                            emailWrapper.parentNode.appendChild(phoneWrapper);
+                        }
 
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté entre email et type de projet');
+                        console.log('Champ téléphone ajouté après email');
                     }
                 }
             });
