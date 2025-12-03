@@ -18,63 +18,127 @@
     <script>
     (function() {
         var isSubmitting = false;
+        var phoneFieldAdded = false;
+
+        // Fonction pour ajouter le champ téléphone au formulaire
+        function addPhoneField() {
+            if (phoneFieldAdded) return;
+
+            // Chercher le formulaire avec le bouton estimation
+            var buttons = document.querySelectorAll('button');
+            buttons.forEach(function(button) {
+                if (button.textContent.toLowerCase().includes('estimation')) {
+                    var form = button.closest('form');
+                    if (!form) return;
+
+                    var emailInput = form.querySelector('input[type="email"]');
+                    if (!emailInput) {
+                        // Chercher le 3ème input (email)
+                        var inputs = form.querySelectorAll('input');
+                        if (inputs.length >= 3) emailInput = inputs[2];
+                    }
+
+                    if (emailInput && !form.querySelector('input[name="telephone"]')) {
+                        // Créer le champ téléphone
+                        var phoneWrapper = document.createElement('div');
+                        phoneWrapper.style.cssText = emailInput.parentElement.style.cssText;
+                        phoneWrapper.className = emailInput.parentElement.className;
+
+                        var phoneInput = document.createElement('input');
+                        phoneInput.type = 'tel';
+                        phoneInput.name = 'telephone';
+                        phoneInput.placeholder = 'Téléphone';
+                        phoneInput.className = emailInput.className;
+                        phoneInput.style.cssText = emailInput.style.cssText;
+
+                        phoneWrapper.appendChild(phoneInput);
+
+                        // Insérer après l'email
+                        emailInput.parentElement.insertAdjacentElement('afterend', phoneWrapper);
+                        phoneFieldAdded = true;
+                        console.log('Champ téléphone ajouté');
+                    }
+                }
+            });
+        }
+
+        // Observer pour détecter quand le formulaire est rendu
+        var observer = new MutationObserver(function() {
+            addPhoneField();
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // Aussi essayer après un délai
+        setTimeout(addPhoneField, 1000);
+        setTimeout(addPhoneField, 2000);
 
         function handleFormSubmit(button) {
             if (isSubmitting) return;
             isSubmitting = true;
 
-            // Trouver le formulaire parent ou le conteneur avec les inputs
             var form = button.closest('form');
-            var container = form || button.closest('div');
-
-            // Chercher les inputs dans différents conteneurs possibles
             var inputs = [];
             if (form) {
                 inputs = form.querySelectorAll('input, select');
             } else {
-                // Chercher dans la section du formulaire
                 var section = button.closest('section') || document.body;
                 inputs = section.querySelectorAll('input, select');
             }
 
+            // Récupérer les données avec le téléphone
             var data = {
-                prenom: inputs[0] ? inputs[0].value : '',
-                nom: inputs[1] ? inputs[1].value : '',
-                email: inputs[2] ? inputs[2].value : '',
-                projet: inputs[3] ? inputs[3].value : 'Non spécifié'
+                prenom: '',
+                nom: '',
+                email: '',
+                telephone: '',
+                projet: 'Non spécifié'
             };
+
+            // Parser les inputs par leur type/position
+            var inputArray = Array.from(inputs);
+            inputArray.forEach(function(input, index) {
+                var name = input.name || '';
+                var type = input.type || '';
+                var value = input.value || '';
+
+                if (name === 'telephone' || type === 'tel') {
+                    data.telephone = value;
+                } else if (type === 'email' || name === 'email') {
+                    data.email = value;
+                } else if (input.tagName === 'SELECT') {
+                    data.projet = value || 'Non spécifié';
+                } else if (index === 0) {
+                    data.prenom = value;
+                } else if (index === 1) {
+                    data.nom = value;
+                } else if (index === 2 && !data.email) {
+                    data.email = value;
+                }
+            });
 
             console.log('Données du formulaire:', data);
 
-            // Validation basique
             if (!data.prenom || !data.nom || !data.email) {
                 alert('Veuillez remplir tous les champs obligatoires.');
                 isSubmitting = false;
                 return;
             }
 
-            // Afficher un état de chargement
             var originalText = button.innerHTML;
             button.innerHTML = 'Envoi en cours...';
             button.disabled = true;
 
-            // Envoyer au serveur
             fetch('/contact.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             })
-            .then(function(response) {
-                return response.json();
-            })
+            .then(function(response) { return response.json(); })
             .then(function(result) {
                 console.log('Réponse serveur:', result);
                 if (result.status === 'success') {
                     alert('Merci ! Votre demande a été envoyée. Nous vous contacterons sous 24h.');
-                    // Réinitialiser les inputs
-                    inputs.forEach(function(input) {
+                    inputArray.forEach(function(input) {
                         if (input.tagName === 'SELECT') {
                             input.selectedIndex = 0;
                         } else {
@@ -96,15 +160,10 @@
             });
         }
 
-        // Écouter les clics sur tout le document
         document.addEventListener('click', function(e) {
-            var target = e.target;
-
-            // Vérifier si c'est un bouton ou si on a cliqué dans un bouton
-            var button = target.closest('button');
+            var button = e.target.closest('button');
             if (!button) return;
 
-            // Vérifier si c'est le bouton d'estimation
             var buttonText = button.textContent.toLowerCase();
             if (buttonText.includes('obtenir mon estimation') || buttonText.includes('estimation')) {
                 console.log('Bouton estimation cliqué!');
@@ -114,7 +173,6 @@
             }
         }, true);
 
-        // Aussi intercepter les soumissions de formulaire au cas où
         document.addEventListener('submit', function(e) {
             var form = e.target;
             var button = form.querySelector('button');

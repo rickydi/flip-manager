@@ -75,9 +75,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $prenom = htmlspecialchars(trim($data['prenom'] ?? ''));
     $nom = htmlspecialchars(trim($data['nom'] ?? ''));
     $email = filter_var(trim($data['email'] ?? ''), FILTER_SANITIZE_EMAIL);
+    $telephone = htmlspecialchars(trim($data['telephone'] ?? 'Non fourni'));
     $projet = htmlspecialchars(trim($data['projet'] ?? 'Non spécifié'));
 
-    writeLog("Prénom: $prenom, Nom: $nom, Email: $email, Projet: $projet");
+    writeLog("Prénom: $prenom, Nom: $nom, Email: $email, Tél: $telephone, Projet: $projet");
 
     // Vérifier que les champs requis sont remplis
     if (empty($prenom) || empty($nom) || empty($email)) {
@@ -105,18 +106,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     writeLog("Config SMTP - Host: $smtpHost, Port: $smtpPort, User: $smtpUsername");
 
-    // Corps du message
-    $messageBody = "NOUVELLE DEMANDE DE DEVIS - EVORENO\n";
-    $messageBody .= "=====================================\n\n";
-    $messageBody .= "Date : " . date('d/m/Y à H:i') . "\n\n";
-    $messageBody .= "INFORMATIONS DU CLIENT\n";
-    $messageBody .= "-------------------------------------\n";
-    $messageBody .= "Prénom       : " . $prenom . "\n";
-    $messageBody .= "Nom          : " . $nom . "\n";
-    $messageBody .= "Email        : " . $email . "\n";
-    $messageBody .= "Type projet  : " . $projet . "\n\n";
-    $messageBody .= "-------------------------------------\n";
-    $messageBody .= "Ce message a été envoyé depuis le formulaire de contact du site evoreno.com\n";
+    // Date formatée
+    $dateFormatted = date('d/m/Y à H:i');
+
+    // Corps du message HTML pour Evoreno
+    $messageHTML = '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header p { margin: 10px 0 0; opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; background: #f9f9f9; }
+        .card { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .field { margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #eee; }
+        .field:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+        .label { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .value { font-size: 16px; color: #333; font-weight: 500; }
+        .value a { color: #0066cc; text-decoration: none; }
+        .highlight { background: #e8f4fd; padding: 15px; border-radius: 8px; border-left: 4px solid #0066cc; }
+        .footer { padding: 20px 30px; text-align: center; font-size: 12px; color: #888; }
+        .badge { display: inline-block; background: #28a745; color: white; padding: 5px 12px; border-radius: 20px; font-size: 12px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ÉVORENO</h1>
+            <p>Nouvelle demande de devis</p>
+        </div>
+        <div class="content">
+            <div class="card">
+                <span class="badge">Nouveau lead</span>
+
+                <div class="field">
+                    <div class="label">Client</div>
+                    <div class="value">' . $prenom . ' ' . $nom . '</div>
+                </div>
+
+                <div class="field">
+                    <div class="label">Email</div>
+                    <div class="value"><a href="mailto:' . $email . '">' . $email . '</a></div>
+                </div>
+
+                <div class="field">
+                    <div class="label">Téléphone</div>
+                    <div class="value"><a href="tel:' . $telephone . '">' . $telephone . '</a></div>
+                </div>
+
+                <div class="field">
+                    <div class="label">Type de projet</div>
+                    <div class="value">' . $projet . '</div>
+                </div>
+
+                <div class="highlight">
+                    <div class="label">Date de la demande</div>
+                    <div class="value">' . $dateFormatted . '</div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            Demande reçue via le formulaire de contact evoreno.com
+        </div>
+    </div>
+</body>
+</html>';
+
+    // Email de confirmation HTML pour le client
+    $confirmHTML = '
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 40px 30px; text-align: center; }
+        .header h1 { margin: 0; font-size: 28px; }
+        .content { padding: 40px 30px; background: #ffffff; }
+        .message { font-size: 16px; margin-bottom: 30px; }
+        .recap { background: #f8f9fa; border-radius: 10px; padding: 25px; margin: 25px 0; }
+        .recap h3 { margin: 0 0 15px; color: #1a1a2e; font-size: 16px; }
+        .recap-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .recap-item:last-child { border-bottom: none; }
+        .recap-label { color: #666; }
+        .recap-value { font-weight: 500; color: #333; }
+        .cta { text-align: center; margin: 30px 0; }
+        .cta a { display: inline-block; background: #1a1a2e; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 500; }
+        .contact-info { background: #1a1a2e; color: white; padding: 30px; text-align: center; }
+        .contact-info h3 { margin: 0 0 15px; font-size: 16px; }
+        .contact-info p { margin: 5px 0; font-size: 14px; opacity: 0.9; }
+        .contact-info a { color: #ffffff; text-decoration: none; }
+        .footer { padding: 20px; text-align: center; font-size: 12px; color: #888; background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ÉVORENO</h1>
+        </div>
+        <div class="content">
+            <div class="message">
+                <p>Bonjour <strong>' . $prenom . '</strong>,</p>
+                <p>Nous avons bien reçu votre demande de devis et nous vous remercions de votre confiance.</p>
+                <p>Un membre de notre équipe analysera votre projet et vous contactera dans les <strong>24 à 48 heures</strong> pour discuter de vos besoins en détail.</p>
+            </div>
+
+            <div class="recap">
+                <h3>Récapitulatif de votre demande</h3>
+                <div class="recap-item">
+                    <span class="recap-label">Nom</span>
+                    <span class="recap-value">' . $prenom . ' ' . $nom . '</span>
+                </div>
+                <div class="recap-item">
+                    <span class="recap-label">Email</span>
+                    <span class="recap-value">' . $email . '</span>
+                </div>
+                <div class="recap-item">
+                    <span class="recap-label">Type de projet</span>
+                    <span class="recap-value">' . $projet . '</span>
+                </div>
+                <div class="recap-item">
+                    <span class="recap-label">Date</span>
+                    <span class="recap-value">' . $dateFormatted . '</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="contact-info">
+            <h3>Une question urgente ?</h3>
+            <p><a href="tel:+15145695583">(514) 569-5583</a></p>
+            <p>330 ch Saint-François-Xavier, Delson, QC</p>
+        </div>
+
+        <div class="footer">
+            © ' . date('Y') . ' Évoreno - Rénovation Résidentielle<br>
+            Cet email a été envoyé automatiquement suite à votre demande sur evoreno.com
+        </div>
+    </div>
+</body>
+</html>';
 
     writeLog("Tentative d'envoi d'email via SMTP...");
 
@@ -139,10 +272,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mail->addAddress('info@evoreno.com', 'Evoreno');
         $mail->addReplyTo($email, "$prenom $nom");
 
-        // Contenu
-        $mail->isHTML(false);
+        // Contenu HTML
+        $mail->isHTML(true);
         $mail->Subject = "Nouvelle demande de devis - $prenom $nom";
-        $mail->Body = $messageBody;
+        $mail->Body = $messageHTML;
+        $mail->AltBody = "Nouvelle demande de devis\n\nClient: $prenom $nom\nEmail: $email\nTéléphone: $telephone\nProjet: $projet\nDate: $dateFormatted";
 
         $mail->send();
         writeLog("SUCCES: Email envoyé à info@evoreno.com");
@@ -161,20 +295,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mailConfirm->setFrom($fromEmail, $fromName);
         $mailConfirm->addAddress($email, "$prenom $nom");
 
-        $confirmMessage = "Bonjour $prenom,\n\n";
-        $confirmMessage .= "Nous avons bien reçu votre demande de devis.\n";
-        $confirmMessage .= "Notre équipe vous contactera dans les plus brefs délais.\n\n";
-        $confirmMessage .= "Récapitulatif de votre demande :\n";
-        $confirmMessage .= "- Type de projet : $projet\n\n";
-        $confirmMessage .= "Cordialement,\n";
-        $confirmMessage .= "L'équipe Evoreno\n";
-        $confirmMessage .= "-------------------------------------\n";
-        $confirmMessage .= "Tél: (514) 569-5583\n";
-        $confirmMessage .= "330 ch Saint-François-Xavier, Delson, QC\n";
-
-        $mailConfirm->isHTML(false);
-        $mailConfirm->Subject = "Confirmation de votre demande - Evoreno";
-        $mailConfirm->Body = $confirmMessage;
+        $mailConfirm->isHTML(true);
+        $mailConfirm->Subject = "Confirmation de votre demande - Évoreno";
+        $mailConfirm->Body = $confirmHTML;
+        $mailConfirm->AltBody = "Bonjour $prenom,\n\nNous avons bien reçu votre demande de devis.\nNotre équipe vous contactera dans les plus brefs délais.\n\nType de projet: $projet\n\nCordialement,\nL'équipe Évoreno\n\nTél: (514) 569-5583\n330 ch Saint-François-Xavier, Delson, QC";
 
         $mailConfirm->send();
         writeLog("SUCCES: Email de confirmation envoyé à $email");
@@ -191,6 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $backupData .= "Prénom: $prenom\n";
         $backupData .= "Nom: $nom\n";
         $backupData .= "Email: $email\n";
+        $backupData .= "Téléphone: $telephone\n";
         $backupData .= "Projet: $projet\n";
         $backupData .= "Erreur SMTP: " . $mail->ErrorInfo . "\n";
         file_put_contents($backupFile, $backupData, FILE_APPEND);
