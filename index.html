@@ -17,77 +17,116 @@
     <!-- Script d'interception du formulaire de contact -->
     <script>
     (function() {
-        // Attendre que le DOM soit prêt
-        function initContactForm() {
-            // Intercepter les soumissions de formulaire
-            document.addEventListener('submit', function(e) {
-                const form = e.target;
-                const button = form.querySelector('button[type="submit"]');
-                
-                // Vérifier si c'est le formulaire de devis (contient "Obtenir mon estimation")
-                if (button && button.textContent.toLowerCase().includes('obtenir mon estimation')) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    
-                    // Récupérer les inputs du formulaire
-                    const inputs = form.querySelectorAll('input, select');
-                    
-                    const data = {
-                        prenom: inputs[0] ? inputs[0].value : '',
-                        nom: inputs[1] ? inputs[1].value : '',
-                        email: inputs[2] ? inputs[2].value : '',
-                        projet: inputs[3] ? inputs[3].value : 'Non spécifié'
-                    };
-                    
-                    // Validation basique
-                    if (!data.prenom || !data.nom || !data.email) {
-                        alert('Veuillez remplir tous les champs obligatoires.');
-                        return;
-                    }
-                    
-                    // Afficher un état de chargement
-                    const originalText = button.innerHTML;
-                    button.innerHTML = 'Envoi en cours...';
-                    button.disabled = true;
-                    
-                    // Envoyer au serveur
-                    fetch('/contact.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(data)
-                    })
-                    .then(function(response) {
-                        return response.json();
-                    })
-                    .then(function(result) {
-                        if (result.status === 'success') {
-                            alert('Merci ! Votre demande a été envoyée. Nous vous contacterons sous 24h.');
-                            // Réinitialiser le formulaire
-                            form.reset();
+        var isSubmitting = false;
+
+        function handleFormSubmit(button) {
+            if (isSubmitting) return;
+            isSubmitting = true;
+
+            // Trouver le formulaire parent ou le conteneur avec les inputs
+            var form = button.closest('form');
+            var container = form || button.closest('div');
+
+            // Chercher les inputs dans différents conteneurs possibles
+            var inputs = [];
+            if (form) {
+                inputs = form.querySelectorAll('input, select');
+            } else {
+                // Chercher dans la section du formulaire
+                var section = button.closest('section') || document.body;
+                inputs = section.querySelectorAll('input, select');
+            }
+
+            var data = {
+                prenom: inputs[0] ? inputs[0].value : '',
+                nom: inputs[1] ? inputs[1].value : '',
+                email: inputs[2] ? inputs[2].value : '',
+                projet: inputs[3] ? inputs[3].value : 'Non spécifié'
+            };
+
+            console.log('Données du formulaire:', data);
+
+            // Validation basique
+            if (!data.prenom || !data.nom || !data.email) {
+                alert('Veuillez remplir tous les champs obligatoires.');
+                isSubmitting = false;
+                return;
+            }
+
+            // Afficher un état de chargement
+            var originalText = button.innerHTML;
+            button.innerHTML = 'Envoi en cours...';
+            button.disabled = true;
+
+            // Envoyer au serveur
+            fetch('/contact.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(result) {
+                console.log('Réponse serveur:', result);
+                if (result.status === 'success') {
+                    alert('Merci ! Votre demande a été envoyée. Nous vous contacterons sous 24h.');
+                    // Réinitialiser les inputs
+                    inputs.forEach(function(input) {
+                        if (input.tagName === 'SELECT') {
+                            input.selectedIndex = 0;
                         } else {
-                            alert(result.message || 'Une erreur est survenue. Veuillez réessayer.');
+                            input.value = '';
                         }
-                    })
-                    .catch(function(error) {
-                        console.error('Erreur:', error);
-                        alert('Une erreur est survenue. Veuillez nous contacter par téléphone au (514) 569-5583.');
-                    })
-                    .finally(function() {
-                        button.innerHTML = originalText;
-                        button.disabled = false;
                     });
+                } else {
+                    alert(result.message || 'Une erreur est survenue. Veuillez réessayer.');
                 }
-            }, true); // Capture phase pour intercepter avant React
+            })
+            .catch(function(error) {
+                console.error('Erreur:', error);
+                alert('Une erreur est survenue. Veuillez nous contacter par téléphone au (514) 569-5583.');
+            })
+            .finally(function() {
+                button.innerHTML = originalText;
+                button.disabled = false;
+                isSubmitting = false;
+            });
         }
-        
-        // Initialiser quand le DOM est prêt
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initContactForm);
-        } else {
-            initContactForm();
-        }
+
+        // Écouter les clics sur tout le document
+        document.addEventListener('click', function(e) {
+            var target = e.target;
+
+            // Vérifier si c'est un bouton ou si on a cliqué dans un bouton
+            var button = target.closest('button');
+            if (!button) return;
+
+            // Vérifier si c'est le bouton d'estimation
+            var buttonText = button.textContent.toLowerCase();
+            if (buttonText.includes('obtenir mon estimation') || buttonText.includes('estimation')) {
+                console.log('Bouton estimation cliqué!');
+                e.preventDefault();
+                e.stopPropagation();
+                handleFormSubmit(button);
+            }
+        }, true);
+
+        // Aussi intercepter les soumissions de formulaire au cas où
+        document.addEventListener('submit', function(e) {
+            var form = e.target;
+            var button = form.querySelector('button');
+            if (button && button.textContent.toLowerCase().includes('estimation')) {
+                console.log('Formulaire soumis!');
+                e.preventDefault();
+                e.stopPropagation();
+                handleFormSubmit(button);
+            }
+        }, true);
+
+        console.log('Script de contact Evoreno chargé');
     })();
     </script>
   </body>
