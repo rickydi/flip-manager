@@ -39,10 +39,17 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Créer le champ téléphone
+                        // Créer le champ téléphone avec les mêmes styles
+                        var emailParent = emailInput.parentElement;
+                        var computedStyle = window.getComputedStyle(emailParent);
+
                         var phoneWrapper = document.createElement('div');
-                        phoneWrapper.style.cssText = emailInput.parentElement.style.cssText;
-                        phoneWrapper.className = emailInput.parentElement.className;
+                        phoneWrapper.className = emailParent.className;
+                        phoneWrapper.style.cssText = emailParent.style.cssText;
+                        phoneWrapper.style.marginTop = computedStyle.marginTop;
+                        phoneWrapper.style.marginBottom = computedStyle.marginBottom;
+                        phoneWrapper.style.paddingTop = computedStyle.paddingTop;
+                        phoneWrapper.style.paddingBottom = computedStyle.paddingBottom;
 
                         var phoneInput = document.createElement('input');
                         phoneInput.type = 'tel';
@@ -54,7 +61,7 @@
                         phoneWrapper.appendChild(phoneInput);
 
                         // Insérer après l'email
-                        emailInput.parentElement.insertAdjacentElement('afterend', phoneWrapper);
+                        emailParent.insertAdjacentElement('afterend', phoneWrapper);
                         phoneFieldAdded = true;
                         console.log('Champ téléphone ajouté');
                     }
