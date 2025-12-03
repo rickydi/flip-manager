@@ -53,11 +53,17 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer APRÈS l'email (entre email et type de projet)
-                        emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
+                        // Trouver le select "Type de projet" et insérer AVANT lui
+                        var selectElement = form.querySelector('select');
+                        if (selectElement && selectElement.parentElement) {
+                            selectElement.parentElement.insertAdjacentElement('beforebegin', phoneWrapper);
+                        } else {
+                            // Fallback: insérer après l'email
+                            emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
+                        }
 
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté après email');
+                        console.log('Champ téléphone ajouté entre email et type de projet');
                     }
                 }
             });
