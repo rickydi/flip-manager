@@ -71,8 +71,8 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer juste avant le select ancestor
-                        selectAncestor.parentNode.insertBefore(phoneWrapper, selectAncestor);
+                        // Insérer juste APRÈS l'email ancestor (pas avant le select)
+                        emailAncestor.parentNode.insertBefore(phoneWrapper, emailAncestor.nextSibling);
 
                         phoneFieldAdded = true;
                         console.log('Champ téléphone ajouté entre email et type de projet');
