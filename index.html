@@ -39,11 +39,15 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Cloner le wrapper de l'email pour avoir exactement les mêmes styles
-                        var emailWrapper = emailInput.parentElement;
-                        var phoneWrapper = emailWrapper.cloneNode(false);
+                        // Trouver le select "Type de projet"
+                        var selectElement = form.querySelector('select');
+                        if (!selectElement) return;
 
-                        // Cloner l'input email et modifier ses attributs
+                        // Cloner le wrapper du select pour avoir exactement les mêmes styles
+                        var selectWrapper = selectElement.parentElement;
+                        var phoneWrapper = selectWrapper.cloneNode(false);
+
+                        // Cloner l'input email et modifier ses attributs pour le téléphone
                         var phoneInput = emailInput.cloneNode(false);
                         phoneInput.type = 'tel';
                         phoneInput.name = 'telephone';
@@ -53,14 +57,8 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Trouver le select "Type de projet" et insérer AVANT lui
-                        var selectElement = form.querySelector('select');
-                        if (selectElement && selectElement.parentElement) {
-                            selectElement.parentElement.insertAdjacentElement('beforebegin', phoneWrapper);
-                        } else {
-                            // Fallback: insérer après l'email
-                            emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
-                        }
+                        // Insérer le téléphone JUSTE AVANT le select wrapper
+                        selectWrapper.parentNode.insertBefore(phoneWrapper, selectWrapper);
 
                         phoneFieldAdded = true;
                         console.log('Champ téléphone ajouté entre email et type de projet');
