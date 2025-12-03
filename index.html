@@ -42,7 +42,7 @@
                         // Cloner le wrapper de l'email pour avoir exactement les mêmes styles
                         var emailWrapper = emailInput.parentElement;
                         var phoneWrapper = emailWrapper.cloneNode(false);
-                        
+
                         // Cloner l'input email et modifier ses attributs
                         var phoneInput = emailInput.cloneNode(false);
                         phoneInput.type = 'tel';
@@ -53,11 +53,11 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer juste après le wrapper email (au même niveau)
-                        emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
-                        
+                        // Insérer AVANT l'email (téléphone en haut de email)
+                        emailWrapper.insertAdjacentElement('beforebegin', phoneWrapper);
+
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté après email');
+                        console.log('Champ téléphone ajouté avant email');
                     }
                 }
             });
