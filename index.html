@@ -81,25 +81,45 @@
                             inputInClone.placeholder = 'Téléphone';
                             inputInClone.value = '';
                             inputInClone.removeAttribute('id');
+
+                            // Forcer le placeholder avec un attribut
+                            inputInClone.setAttribute('placeholder', 'Téléphone');
                         }
 
-                        // Mettre à jour tous les textes (labels, spans, etc.)
-                        var allElements = container.querySelectorAll('*');
-                        allElements.forEach(function(el) {
-                            if (el.childNodes) {
-                                el.childNodes.forEach(function(node) {
-                                    if (node.nodeType === 3) { // Text node
-                                        node.textContent = node.textContent.replace(/Email professionnel/gi, 'Téléphone').replace(/Email/gi, 'Téléphone');
-                                    }
-                                });
+                        // Supprimer ou modifier les spans/labels qui contiennent "Email"
+                        var textElements = container.querySelectorAll('span, label, p, div');
+                        textElements.forEach(function(el) {
+                            // Ne pas supprimer le conteneur de l'input
+                            if (el.querySelector('input')) return;
+
+                            var text = el.textContent || el.innerText || '';
+                            if (text.toLowerCase().includes('email')) {
+                                // Remplacer le texte
+                                if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+                                    el.textContent = 'Téléphone';
+                                } else {
+                                    // Chercher et remplacer les noeuds texte
+                                    el.childNodes.forEach(function(node) {
+                                        if (node.nodeType === 3) {
+                                            node.textContent = node.textContent.replace(/Email professionnel/gi, 'Téléphone').replace(/Email/gi, 'Téléphone');
+                                        }
+                                    });
+                                }
                             }
                         });
 
                         // Aussi vérifier les attributs placeholder sur tous les éléments
                         container.querySelectorAll('[placeholder]').forEach(function(el) {
-                            if (el.placeholder.toLowerCase().includes('email')) {
-                                el.placeholder = 'Téléphone';
-                            }
+                            el.setAttribute('placeholder', 'Téléphone');
+                        });
+
+                        // Vérifier les attributs data-*
+                        container.querySelectorAll('*').forEach(function(el) {
+                            Array.from(el.attributes).forEach(function(attr) {
+                                if (attr.value.toLowerCase().includes('email')) {
+                                    el.setAttribute(attr.name, attr.value.replace(/Email professionnel/gi, 'Téléphone').replace(/email/gi, 'telephone'));
+                                }
+                            });
                         });
                     }
 
