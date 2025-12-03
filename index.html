@@ -39,17 +39,23 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Créer le champ téléphone avec le même style que l'email
-                        var phoneWrapper = document.createElement('div');
-                        phoneWrapper.style.cssText = emailInput.parentElement.style.cssText;
-                        phoneWrapper.className = emailInput.parentElement.className;
-
+                        // Cloner le wrapper de l'email pour garder exactement les mêmes styles
+                        var phoneWrapper = emailInput.parentElement.cloneNode(false);
+                        
+                        // Créer le champ téléphone
                         var phoneInput = document.createElement('input');
                         phoneInput.type = 'tel';
                         phoneInput.name = 'telephone';
                         phoneInput.placeholder = 'Téléphone';
                         phoneInput.className = emailInput.className;
-                        phoneInput.style.cssText = emailInput.style.cssText;
+                        
+                        // Copier tous les attributs de style de l'input email
+                        for (var i = 0; i < emailInput.attributes.length; i++) {
+                            var attr = emailInput.attributes[i];
+                            if (attr.name !== 'type' && attr.name !== 'name' && attr.name !== 'placeholder' && attr.name !== 'value') {
+                                phoneInput.setAttribute(attr.name, attr.value);
+                            }
+                        }
 
                         phoneWrapper.appendChild(phoneInput);
 
