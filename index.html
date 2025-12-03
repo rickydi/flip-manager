@@ -38,10 +38,28 @@
                         if (inputs.length >= 3) emailInput = inputs[2];
                     }
 
-                    if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Cloner le wrapper de l'email pour avoir les mêmes styles
+                    var selectElement = form.querySelector('select');
+                    if (emailInput && selectElement && !form.querySelector('input[name="telephone"]')) {
+                        // Trouver le parent commun qui contient email et select
                         var emailWrapper = emailInput.parentElement;
-                        var phoneWrapper = emailWrapper.cloneNode(false);
+                        var selectWrapper = selectElement.parentElement;
+
+                        // Monter dans la hiérarchie jusqu'à trouver des siblings
+                        var emailAncestor = emailWrapper;
+                        var selectAncestor = selectWrapper;
+
+                        // Chercher le niveau où ils ont le même parent
+                        while (emailAncestor && selectAncestor && emailAncestor.parentElement !== selectAncestor.parentElement) {
+                            if (emailAncestor.parentElement && emailAncestor.parentElement !== form) {
+                                emailAncestor = emailAncestor.parentElement;
+                            }
+                            if (selectAncestor.parentElement && selectAncestor.parentElement !== form) {
+                                selectAncestor = selectAncestor.parentElement;
+                            }
+                        }
+
+                        // Cloner le wrapper de l'email pour avoir les mêmes styles
+                        var phoneWrapper = emailAncestor.cloneNode(false);
 
                         // Cloner l'input email et modifier ses attributs pour le téléphone
                         var phoneInput = emailInput.cloneNode(false);
@@ -53,18 +71,11 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Trouver le sibling suivant de l'email wrapper (avant le select)
-                        var nextElement = emailWrapper.nextElementSibling;
-                        if (nextElement) {
-                            // Insérer avant le sibling suivant (entre email et type de projet)
-                            emailWrapper.parentNode.insertBefore(phoneWrapper, nextElement);
-                        } else {
-                            // Sinon insérer après l'email
-                            emailWrapper.parentNode.appendChild(phoneWrapper);
-                        }
+                        // Insérer juste avant le select ancestor
+                        selectAncestor.parentNode.insertBefore(phoneWrapper, selectAncestor);
 
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté après email');
+                        console.log('Champ téléphone ajouté entre email et type de projet');
                     }
                 }
             });
