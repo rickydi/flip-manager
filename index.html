@@ -53,11 +53,11 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer AVANT l'email (téléphone en haut de email)
-                        emailWrapper.insertAdjacentElement('beforebegin', phoneWrapper);
+                        // Insérer APRÈS l'email (entre email et type de projet)
+                        emailWrapper.insertAdjacentElement('afterend', phoneWrapper);
 
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté avant email');
+                        console.log('Champ téléphone ajouté après email');
                     }
                 }
             });
