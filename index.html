@@ -39,7 +39,7 @@
                     }
 
                     if (emailInput && !form.querySelector('input[name="telephone"]')) {
-                        // Créer le champ téléphone
+                        // Créer le champ téléphone avec le même style que l'email
                         var phoneWrapper = document.createElement('div');
                         phoneWrapper.style.cssText = emailInput.parentElement.style.cssText;
                         phoneWrapper.className = emailInput.parentElement.className;
@@ -53,10 +53,17 @@
 
                         phoneWrapper.appendChild(phoneInput);
 
-                        // Insérer après l'email
-                        emailInput.parentElement.insertAdjacentElement('afterend', phoneWrapper);
+                        // Trouver le select "Type de projet" pour insérer avant lui
+                        var selectElement = form.querySelector('select');
+                        if (selectElement && selectElement.parentElement) {
+                            // Insérer avant le select (après l'email)
+                            selectElement.parentElement.insertAdjacentElement('beforebegin', phoneWrapper);
+                        } else {
+                            // Fallback: insérer après l'email
+                            emailInput.parentElement.insertAdjacentElement('afterend', phoneWrapper);
+                        }
                         phoneFieldAdded = true;
-                        console.log('Champ téléphone ajouté');
+                        console.log('Champ téléphone ajouté après email');
                     }
                 }
             });
