@@ -49,66 +49,21 @@
                     // Stratégie: Trouver le conteneur commun de tous les champs
                     // En regardant les enfants directs du form ou du premier conteneur
 
-                    // D'abord, trouver à quel niveau les champs sont organisés
-                    function findFieldContainer(element) {
-                        var el = element;
-                        while (el.parentElement && el.parentElement !== form) {
-                            el = el.parentElement;
-                        }
-                        return el;
-                    }
-
-                    // Trouver les conteneurs de chaque champ au niveau du form
-                    var emailContainer = findFieldContainer(emailInput);
-                    var selectContainer = findFieldContainer(selectElement);
-
-                    console.log('Structure trouvée:');
-                    console.log('- Email container:', emailContainer);
-                    console.log('- Select container:', selectContainer);
-                    console.log('- Parent commun:', emailContainer.parentElement);
-
-                    // Créer le champ téléphone DE ZÉRO
-                    var phoneContainer = document.createElement('div');
-                    phoneContainer.className = emailContainer.className;
-
-                    // Créer l'input téléphone
+                    // Pas besoin de chercher des conteneurs complexes, les inputs sont enfants directs du form (avec space-y-4)
+                    
+                    // Créer l'input téléphone DIRECTEMENT (pas de wrapper div inutile)
                     var newPhoneInput = document.createElement('input');
                     newPhoneInput.type = 'tel';
                     newPhoneInput.name = 'telephone';
                     newPhoneInput.placeholder = 'Téléphone';
-                    newPhoneInput.className = emailInput.className;
+                    newPhoneInput.className = emailInput.className; // Copier exactement les classes de l'input email
 
-                    // Copier les styles de l'input email pour avoir la même taille
-                    var emailStyles = window.getComputedStyle(emailInput);
-                    newPhoneInput.style.width = '100%';
-                    newPhoneInput.style.height = emailStyles.height;
-                    newPhoneInput.style.padding = emailStyles.padding;
-                    newPhoneInput.style.fontSize = emailStyles.fontSize;
-                    newPhoneInput.style.fontFamily = emailStyles.fontFamily;
-                    newPhoneInput.style.color = emailStyles.color;
-                    newPhoneInput.style.border = 'none';
-                    newPhoneInput.style.outline = 'none';
-                    newPhoneInput.style.background = 'transparent';
+                    // Nettoyer les styles que j'avais ajoutés au Select précédemment si jamais le JS est en cache
+                    selectElement.style.removeProperty('margin-top');
 
-                    phoneContainer.appendChild(newPhoneInput);
-
-                    // Pas de styles inline forcés - on laisse les classes faire le travail
-                    // pour que l'espacement soit géré naturellement par le CSS du site
-
-                    // Forcer la marge supérieure du Select à 0 pour laisser la marge du téléphone gérer l'espacement
-                    selectContainer.style.setProperty('margin-top', '0', 'important');
-
-                    // Insérer ENTRE email et select
-                    var parent = emailContainer.parentElement;
-                    var children = Array.from(parent.children);
-                    var emailIndex = children.indexOf(emailContainer);
-                    var selectIndex = children.indexOf(selectContainer);
-
-                    if (emailIndex < selectIndex) {
-                        parent.insertBefore(phoneContainer, selectContainer);
-                    } else {
-                        parent.insertBefore(phoneContainer, emailContainer);
-                    }
+                    // Insérer l'input téléphone juste après l'input email
+                    // Comme ils sont frères dans un conteneur flex/grid/space-y, l'espacement se fera tout seul
+                    emailInput.insertAdjacentElement('afterend', newPhoneInput);
 
                     phoneFieldAdded = true;
                     console.log('Champ téléphone créé de zéro avec succès');
