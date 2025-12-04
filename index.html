@@ -82,7 +82,14 @@
                     newPhoneInput.placeholder = 'Téléphone';
                     newPhoneInput.className = emailInput.className;
 
-                    // Supprimer la bordure par défaut pour correspondre au style
+                    // Copier les styles de l'input email pour avoir la même taille
+                    var emailStyles = window.getComputedStyle(emailInput);
+                    newPhoneInput.style.width = '100%';
+                    newPhoneInput.style.height = emailStyles.height;
+                    newPhoneInput.style.padding = emailStyles.padding;
+                    newPhoneInput.style.fontSize = emailStyles.fontSize;
+                    newPhoneInput.style.fontFamily = emailStyles.fontFamily;
+                    newPhoneInput.style.color = emailStyles.color;
                     newPhoneInput.style.border = 'none';
                     newPhoneInput.style.outline = 'none';
                     newPhoneInput.style.background = 'transparent';
