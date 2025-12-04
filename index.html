@@ -81,7 +81,11 @@
                     newPhoneInput.name = 'telephone';
                     newPhoneInput.placeholder = 'Téléphone';
                     newPhoneInput.className = emailInput.className;
-                    newPhoneInput.style.cssText = window.getComputedStyle(emailInput).cssText;
+
+                    // Supprimer la bordure par défaut pour correspondre au style
+                    newPhoneInput.style.border = 'none';
+                    newPhoneInput.style.outline = 'none';
+                    newPhoneInput.style.background = 'transparent';
 
                     phoneContainer.appendChild(newPhoneInput);
 
