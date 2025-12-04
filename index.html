@@ -92,9 +92,22 @@
 
                     phoneContainer.appendChild(newPhoneInput);
 
-                    // Forcer la suppression des marges pour éviter le double espacement
-                    phoneContainer.style.setProperty('margin-bottom', '0', 'important');
-                    phoneContainer.style.setProperty('margin-top', '0', 'important');
+                    // Copier les styles calculés du conteneur email pour correspondre exactement
+                    var emailContainerStyles = window.getComputedStyle(emailContainer);
+                    
+                    // Appliquer tous les styles du conteneur email
+                    phoneContainer.style.cssText = emailContainer.style.cssText;
+                    phoneContainer.style.marginTop = emailContainerStyles.marginTop;
+                    phoneContainer.style.marginBottom = emailContainerStyles.marginBottom;
+                    phoneContainer.style.paddingTop = emailContainerStyles.paddingTop;
+                    phoneContainer.style.paddingBottom = emailContainerStyles.paddingBottom;
+
+                    // Réduire la marge supérieure du Select si elle est trop grande
+                    var selectStyles = window.getComputedStyle(selectContainer);
+                    var selectMarginTop = parseInt(selectStyles.marginTop || '0');
+                    if (selectMarginTop > 10) {
+                         selectContainer.style.setProperty('margin-top', '0', 'important');
+                    }
 
                     // Insérer ENTRE email et select
                     var parent = emailContainer.parentElement;
