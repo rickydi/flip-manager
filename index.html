@@ -64,14 +64,7 @@
                     console.log('- Select container:', selectContainer);
                     console.log('- Parent commun:', emailContainer.parentElement);
 
-                    // Créer le nouveau champ téléphone
-                    var phoneInput = document.createElement('input');
-                    phoneInput.type = 'tel';
-                    phoneInput.name = 'telephone';
-                    phoneInput.placeholder = 'Téléphone';
-                    phoneInput.className = emailInput.className; // Copier les styles
-
-                    // Créer le champ téléphone DE ZÉRO (pas de clonage)
+                    // Créer le champ téléphone DE ZÉRO
                     var phoneContainer = document.createElement('div');
                     phoneContainer.className = emailContainer.className;
 
