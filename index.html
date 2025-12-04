@@ -92,8 +92,9 @@
 
                     phoneContainer.appendChild(newPhoneInput);
 
-                    // Ne pas mettre de marges - laisser le parent flex/grid gérer l'espacement
-                    // Les classes copiées devraient suffire
+                    // Forcer la suppression des marges pour éviter le double espacement
+                    phoneContainer.style.setProperty('margin-bottom', '0', 'important');
+                    phoneContainer.style.setProperty('margin-top', '0', 'important');
 
                     // Insérer ENTRE email et select
                     var parent = emailContainer.parentElement;
