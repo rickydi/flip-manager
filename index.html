@@ -89,8 +89,15 @@
 
                     phoneContainer.appendChild(newPhoneInput);
 
-                    // Supprimer la marge inférieure pour éviter le double espacement
-                    phoneContainer.style.marginBottom = '0';
+                    // Copier les styles calculés du conteneur email pour correspondre exactement
+                    var emailContainerStyles = window.getComputedStyle(emailContainer);
+                    
+                    // Appliquer tous les styles du conteneur email
+                    phoneContainer.style.cssText = emailContainer.style.cssText;
+                    phoneContainer.style.marginTop = emailContainerStyles.marginTop;
+                    phoneContainer.style.marginBottom = emailContainerStyles.marginBottom;
+                    phoneContainer.style.paddingTop = emailContainerStyles.paddingTop;
+                    phoneContainer.style.paddingBottom = emailContainerStyles.paddingBottom;
 
                     // Insérer ENTRE email et select
                     var parent = emailContainer.parentElement;
