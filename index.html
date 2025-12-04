@@ -42,6 +42,9 @@
                     if (allInputs.length < 3 || !selectElement) return;
 
                     var emailInput = allInputs[2]; // Email est le 3ème input
+                    
+                    // Changer le placeholder de l'email en "Email" au lieu de "Email professionnel"
+                    emailInput.placeholder = 'Email';
 
                     // Stratégie: Trouver le conteneur commun de tous les champs
                     // En regardant les enfants directs du form ou du premier conteneur
@@ -89,15 +92,8 @@
 
                     phoneContainer.appendChild(newPhoneInput);
 
-                    // Copier les styles calculés du conteneur email pour correspondre exactement
-                    var emailContainerStyles = window.getComputedStyle(emailContainer);
-                    
-                    // Appliquer tous les styles du conteneur email
-                    phoneContainer.style.cssText = emailContainer.style.cssText;
-                    phoneContainer.style.marginTop = emailContainerStyles.marginTop;
-                    phoneContainer.style.marginBottom = emailContainerStyles.marginBottom;
-                    phoneContainer.style.paddingTop = emailContainerStyles.paddingTop;
-                    phoneContainer.style.paddingBottom = emailContainerStyles.paddingBottom;
+                    // Ne pas mettre de marges - laisser le parent flex/grid gérer l'espacement
+                    // Les classes copiées devraient suffire
 
                     // Insérer ENTRE email et select
                     var parent = emailContainer.parentElement;
