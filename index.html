@@ -102,12 +102,8 @@
                     phoneContainer.style.paddingTop = emailContainerStyles.paddingTop;
                     phoneContainer.style.paddingBottom = emailContainerStyles.paddingBottom;
 
-                    // Réduire la marge supérieure du Select si elle est trop grande
-                    var selectStyles = window.getComputedStyle(selectContainer);
-                    var selectMarginTop = parseInt(selectStyles.marginTop || '0');
-                    if (selectMarginTop > 10) {
-                         selectContainer.style.setProperty('margin-top', '0', 'important');
-                    }
+                    // Forcer la marge supérieure du Select à 0 pour laisser la marge du téléphone gérer l'espacement
+                    selectContainer.style.setProperty('margin-top', '0', 'important');
 
                     // Insérer ENTRE email et select
                     var parent = emailContainer.parentElement;
