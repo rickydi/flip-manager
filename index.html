@@ -89,6 +89,9 @@
 
                     phoneContainer.appendChild(newPhoneInput);
 
+                    // Supprimer la marge inférieure pour éviter le double espacement
+                    phoneContainer.style.marginBottom = '0';
+
                     // Insérer ENTRE email et select
                     var parent = emailContainer.parentElement;
                     var children = Array.from(parent.children);
