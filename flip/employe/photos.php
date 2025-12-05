@@ -24,7 +24,13 @@ $success = false;
 
 // Traitement de l'upload
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    // Vérifier si le fichier est trop volumineux (PHP vide $_POST quand la limite est dépassée)
+    $maxPostSize = ini_get('post_max_size');
+    $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : 0;
+
+    if (empty($_POST) && $contentLength > 0) {
+        $errors[] = __('file_too_large') . ' (max: ' . $maxPostSize . ')';
+    } elseif (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         $errors[] = 'Token de sécurité invalide.';
     } else {
         $action = $_POST['action'] ?? '';
