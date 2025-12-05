@@ -294,7 +294,7 @@ include '../includes/header.php';
 
                         <div class="mb-3">
                             <label for="projet_id" class="form-label"><?= __('project') ?> *</label>
-                            <select class="form-select" id="projet_id" name="projet_id" required <?= !empty($photosGroupe) ? 'disabled' : '' ?>>
+                            <select class="form-select" id="projet_id" name="projet_id" required>
                                 <option value=""><?= __('select') ?></option>
                                 <?php foreach ($projets as $projet): ?>
                                     <option value="<?= $projet['id'] ?>" <?= $projetIdSelected == $projet['id'] ? 'selected' : '' ?>>
@@ -302,9 +302,6 @@ include '../includes/header.php';
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <?php if (!empty($photosGroupe)): ?>
-                                <input type="hidden" name="projet_id" value="<?= $projetIdSelected ?>">
-                            <?php endif; ?>
                         </div>
 
                         <div class="mb-3">
@@ -475,6 +472,20 @@ include '../includes/header.php';
     </div>
 </div>
 
+<!-- Overlay de chargement -->
+<div id="uploadOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
+    <div class="spinner-border text-light" role="status" style="width:4rem;height:4rem;">
+        <span class="visually-hidden">Chargement...</span>
+    </div>
+    <div class="text-white mt-4 fs-4" id="uploadStatus">
+        <i class="bi bi-cloud-upload me-2"></i>Téléversement en cours...
+    </div>
+    <div class="text-white-50 mt-2">Veuillez patienter, ne fermez pas cette page</div>
+    <div class="progress mt-3" style="width:200px;height:8px;">
+        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div>
+    </div>
+</div>
+
 <script>
 // Prévisualisation des photos sélectionnées
 function previewPhotos(input) {
@@ -507,11 +518,16 @@ function previewPhotos(input) {
     }
 }
 
-// Désactiver le bouton pendant la soumission
+// Afficher l'overlay pendant le téléversement
 document.getElementById('photoForm').addEventListener('submit', function() {
     const btn = document.getElementById('submitBtn');
+    const overlay = document.getElementById('uploadOverlay');
+
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
+
+    // Afficher l'overlay
+    overlay.style.display = 'flex';
 });
 </script>
 
