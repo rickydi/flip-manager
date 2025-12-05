@@ -286,139 +286,6 @@ include '../../includes/header.php';
                                     <?php endif; ?>
                                 </td>
                             </tr>
-                            
-                            <!-- Modal Modifier -->
-                            <div class="modal fade" id="modalModifier<?= $user['id'] ?>" tabindex="-1">
-                                <div class="modal-dialog">
-                                    <div class="modal-content">
-                                        <form method="POST" action="">
-                                            <?php csrfField(); ?>
-                                            <input type="hidden" name="action" value="modifier">
-                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                            
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Modifier l'utilisateur</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <div class="row">
-                                                    <div class="col-6 mb-3">
-                                                        <label class="form-label">Prénom *</label>
-                                                        <input type="text" class="form-control" name="prenom" 
-                                                               value="<?= e($user['prenom']) ?>" required>
-                                                    </div>
-                                                    <div class="col-6 mb-3">
-                                                        <label class="form-label">Nom *</label>
-                                                        <input type="text" class="form-control" name="nom" 
-                                                               value="<?= e($user['nom']) ?>" required>
-                                                    </div>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Email (login) *</label>
-                                                    <input type="email" class="form-control" name="email" 
-                                                           value="<?= e($user['email']) ?>" required>
-                                                    <small class="text-muted">L'email est utilisé pour se connecter</small>
-                                                </div>
-                                                <div class="mb-3">
-                                                    <label class="form-label">Nouveau mot de passe</label>
-                                                    <input type="password" class="form-control" name="password"
-                                                           placeholder="Laisser vide pour ne pas changer">
-                                                </div>
-                                                <div class="row">
-                                                    <div class="col-6 mb-3">
-                                                        <label class="form-label">Rôle</label>
-                                                        <select class="form-select" name="role">
-                                                            <option value="employe" <?= $user['role'] === 'employe' ? 'selected' : '' ?>>Employé</option>
-                                                            <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrateur</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-6 mb-3">
-                                                        <label class="form-label">Taux horaire</label>
-                                                        <div class="input-group">
-                                                            <input type="number" step="0.01" min="0" class="form-control" 
-                                                                   name="taux_horaire" value="<?= formatMoney($user['taux_horaire'] ?? 0, false) ?>">
-                                                            <span class="input-group-text">$/h</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="form-check mb-2">
-                                                    <input class="form-check-input" type="checkbox" name="actif" 
-                                                           id="actif<?= $user['id'] ?>" <?= $user['actif'] ? 'checked' : '' ?>>
-                                                    <label class="form-check-label" for="actif<?= $user['id'] ?>">
-                                                        Compte actif
-                                                    </label>
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="est_contremaitre" 
-                                                           id="contremaitre<?= $user['id'] ?>" <?= !empty($user['est_contremaitre']) ? 'checked' : '' ?>>
-                                                    <label class="form-check-label" for="contremaitre<?= $user['id'] ?>">
-                                                        <i class="bi bi-person-badge me-1"></i>Contremaître (peut saisir les heures des autres)
-                                                    </label>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                                                <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Modal Activité -->
-                            <div class="modal fade" id="modalActivite<?= $user['id'] ?>" tabindex="-1">
-                                <div class="modal-dialog modal-lg">
-                                    <div class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">
-                                                <i class="bi bi-clock-history me-2"></i>Activité de <?= e($user['prenom']) ?> <?= e($user['nom']) ?>
-                                            </h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                        </div>
-                                        <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
-                                            <?php
-                                            $activities = getUserActivity($pdo, $user['id'], 50);
-                                            if (empty($activities)): ?>
-                                                <p class="text-muted text-center py-4">Aucune activité enregistrée</p>
-                                            <?php else: ?>
-                                                <table class="table table-sm">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Date</th>
-                                                            <th>Action</th>
-                                                            <th>Page</th>
-                                                            <th>Détails</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <?php foreach ($activities as $activity): ?>
-                                                            <tr>
-                                                                <td>
-                                                                    <small><?= formatDateTime($activity['created_at']) ?></small>
-                                                                </td>
-                                                                <td><?= formatActivityAction($activity['action']) ?></td>
-                                                                <td>
-                                                                    <?php if ($activity['page']): ?>
-                                                                        <code><?= e($activity['page']) ?></code>
-                                                                    <?php else: ?>
-                                                                        <span class="text-muted">-</span>
-                                                                    <?php endif; ?>
-                                                                </td>
-                                                                <td>
-                                                                    <small class="text-muted"><?= e($activity['details'] ?? '') ?></small>
-                                                                </td>
-                                                            </tr>
-                                                        <?php endforeach; ?>
-                                                    </tbody>
-                                                </table>
-                                            <?php endif; ?>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
@@ -426,6 +293,142 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Modals Modifier et Activité (en dehors du tableau) -->
+<?php foreach ($utilisateurs as $user): ?>
+    <!-- Modal Modifier -->
+    <div class="modal fade" id="modalModifier<?= $user['id'] ?>" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="modifier">
+                    <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">Modifier l'utilisateur</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Prénom *</label>
+                                <input type="text" class="form-control" name="prenom"
+                                       value="<?= e($user['prenom']) ?>" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Nom *</label>
+                                <input type="text" class="form-control" name="nom"
+                                       value="<?= e($user['nom']) ?>" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Email (login) *</label>
+                            <input type="email" class="form-control" name="email"
+                                   value="<?= e($user['email']) ?>" required>
+                            <small class="text-muted">L'email est utilisé pour se connecter</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Nouveau mot de passe</label>
+                            <input type="password" class="form-control" name="password"
+                                   placeholder="Laisser vide pour ne pas changer">
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Rôle</label>
+                                <select class="form-select" name="role">
+                                    <option value="employe" <?= $user['role'] === 'employe' ? 'selected' : '' ?>>Employé</option>
+                                    <option value="admin" <?= $user['role'] === 'admin' ? 'selected' : '' ?>>Administrateur</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Taux horaire</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="taux_horaire" value="<?= formatMoney($user['taux_horaire'] ?? 0, false) ?>">
+                                    <span class="input-group-text">$/h</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="actif"
+                                   id="actif<?= $user['id'] ?>" <?= $user['actif'] ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="actif<?= $user['id'] ?>">
+                                Compte actif
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="est_contremaitre"
+                                   id="contremaitre<?= $user['id'] ?>" <?= !empty($user['est_contremaitre']) ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="contremaitre<?= $user['id'] ?>">
+                                <i class="bi bi-person-badge me-1"></i>Contremaître (peut saisir les heures des autres)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Activité -->
+    <div class="modal fade" id="modalActivite<?= $user['id'] ?>" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-clock-history me-2"></i>Activité de <?= e($user['prenom']) ?> <?= e($user['nom']) ?>
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                    <?php
+                    $activities = getUserActivity($pdo, $user['id'], 50);
+                    if (empty($activities)): ?>
+                        <p class="text-muted text-center py-4">Aucune activité enregistrée</p>
+                    <?php else: ?>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                    <th>Page</th>
+                                    <th>Détails</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($activities as $activity): ?>
+                                    <tr>
+                                        <td>
+                                            <small><?= formatDateTime($activity['created_at']) ?></small>
+                                        </td>
+                                        <td><?= formatActivityAction($activity['action']) ?></td>
+                                        <td>
+                                            <?php if ($activity['page']): ?>
+                                                <code><?= e($activity['page']) ?></code>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted"><?= e($activity['details'] ?? '') ?></small>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php endforeach; ?>
 
 <!-- Modal Créer -->
 <div class="modal fade" id="modalCreer" tabindex="-1">
