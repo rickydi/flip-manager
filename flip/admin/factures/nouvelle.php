@@ -151,22 +151,22 @@ include '../../includes/header.php';
                 <?php csrfField(); ?>
                 
                 <div class="row">
-                    <div class="col-md-6 mb-3">
+                    <div class="col-md-4 mb-3">
                         <label class="form-label">Projet *</label>
                         <select class="form-select" name="projet_id" required>
-                            <option value="">Sélectionner un projet...</option>
+                            <option value="">Sélectionner...</option>
                             <?php foreach ($projets as $projet): ?>
                                 <option value="<?= $projet['id'] ?>" <?= $selectedProjet == $projet['id'] ? 'selected' : '' ?>>
-                                    <?= e($projet['nom']) ?> - <?= e($projet['adresse']) ?>
+                                    <?= e($projet['nom']) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    
-                    <div class="col-md-6 mb-3">
+
+                    <div class="col-md-4 mb-3">
                         <label class="form-label">Catégorie *</label>
                         <select class="form-select" name="categorie_id" required>
-                            <option value="">Sélectionner une catégorie...</option>
+                            <option value="">Sélectionner...</option>
                             <?php foreach ($categoriesGroupees as $groupe => $cats): ?>
                                 <optgroup label="<?= getGroupeCategorieLabel($groupe) ?>">
                                     <?php foreach ($cats as $cat): ?>
@@ -176,12 +176,18 @@ include '../../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
+
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Date de la facture *</label>
+                        <input type="date" class="form-control" name="date_facture" required
+                               value="<?= date('Y-m-d') ?>">
+                    </div>
                 </div>
-                
+
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Fournisseur *</label>
-                        <input type="text" class="form-control" name="fournisseur" id="fournisseur" required 
+                        <input type="text" class="form-control" name="fournisseur" id="fournisseur" required
                                list="listeFournisseurs" autocomplete="off"
                                placeholder="Tapez ou sélectionnez un fournisseur...">
                         <datalist id="listeFournisseurs">
@@ -189,22 +195,15 @@ include '../../includes/header.php';
                                 <option value="<?= e($f) ?>">
                             <?php endforeach; ?>
                         </datalist>
-                        <small class="text-muted">Tapez pour rechercher ou entrez un nouveau fournisseur</small>
                     </div>
-                    
+
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Date de la facture *</label>
-                        <input type="date" class="form-control" name="date_facture" required 
-                               value="<?= date('Y-m-d') ?>">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" name="description"
+                               placeholder="Description des achats...">
                     </div>
                 </div>
-                
-                <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-control" name="description" rows="2" 
-                              placeholder="Description des achats..."></textarea>
-                </div>
-                
+
                 <!-- Type de facture -->
                 <div class="mb-3">
                     <div class="form-check form-switch">
