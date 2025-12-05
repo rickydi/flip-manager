@@ -293,30 +293,21 @@ include '../includes/header.php';
                             <input type="date" class="form-control" name="date_travail" 
                                    value="<?= date('Y-m-d') ?>" required>
                         </div>
-                        
-                        <!-- Option 1: Heures directes -->
-                        <div class="mb-3 p-2 border rounded" id="option-heures-directes">
-                            <label class="form-label mb-2">
-                                <input type="radio" name="mode_saisie" value="direct" checked class="form-check-input me-1" id="modeDirectAdd">
-                                Nombre d'heures
-                            </label>
-                            <div class="input-group">
+
+                        <!-- Saisie des heures -->
+                        <div class="mb-3 p-3 border rounded">
+                            <label class="form-label">Nombre d'heures *</label>
+                            <div class="input-group mb-3">
                                 <input type="number" step="0.5" min="0.5" max="24"
-                                       class="form-control" name="heures" id="heuresDirectAdd" value="8">
+                                       class="form-control" name="heures" id="heuresDirectAdd" value="8" required>
                                 <span class="input-group-text">heures</span>
                             </div>
-                        </div>
 
-                        <div class="text-center my-2">
-                            <span class="badge bg-secondary px-3">OU</span>
-                        </div>
+                            <div class="text-center my-2">
+                                <span class="badge bg-secondary px-3">OU</span>
+                            </div>
 
-                        <!-- Option 2: Heure début/fin -->
-                        <div class="mb-3 p-2 border rounded" id="option-heures-calcul">
-                            <label class="form-label mb-2">
-                                <input type="radio" name="mode_saisie" value="calcul" class="form-check-input me-1" id="modeCalculAdd">
-                                Heure d'arrivée / fin
-                            </label>
+                            <label class="form-label small text-muted">Calculer à partir des heures</label>
                             <div class="row g-2">
                                 <div class="col-6">
                                     <label class="form-label small text-muted mb-1">Arrivée</label>
@@ -326,9 +317,6 @@ include '../includes/header.php';
                                     <label class="form-label small text-muted mb-1">Fin</label>
                                     <input type="time" class="form-control" id="heureFinAdd" value="16:00">
                                 </div>
-                            </div>
-                            <div class="text-center mt-2">
-                                <small class="text-muted">= <strong id="heuresCalculeesAdd">8</strong> heures</small>
                             </div>
                         </div>
                         
@@ -470,30 +458,21 @@ include '../includes/header.php';
                                 <input type="date" class="form-control" name="date_travail"
                                        value="<?= e($h['date_travail']) ?>" required>
                             </div>
-                            <!-- Option 1: Heures directes -->
-                            <div class="mb-2 p-2 border rounded">
-                                <label class="form-label mb-2">
-                                    <input type="radio" name="mode_saisie_<?= $h['id'] ?>" value="direct" checked class="form-check-input me-1 mode-direct-edit" data-id="<?= $h['id'] ?>">
-                                    Nombre d'heures
-                                </label>
-                                <div class="input-group">
+                            <!-- Saisie des heures -->
+                            <div class="mb-3 p-3 border rounded">
+                                <label class="form-label">Nombre d'heures *</label>
+                                <div class="input-group mb-3">
                                     <input type="number" step="0.5" min="0.5" max="24"
-                                           class="form-control heures-direct-edit" name="heures" id="heuresEdit<?= $h['id'] ?>"
-                                           value="<?= e($h['heures']) ?>">
+                                           class="form-control" name="heures" id="heuresEdit<?= $h['id'] ?>"
+                                           value="<?= e($h['heures']) ?>" required>
                                     <span class="input-group-text">heures</span>
                                 </div>
-                            </div>
 
-                            <div class="text-center my-2">
-                                <span class="badge bg-secondary px-3">OU</span>
-                            </div>
+                                <div class="text-center my-2">
+                                    <span class="badge bg-secondary px-3">OU</span>
+                                </div>
 
-                            <!-- Option 2: Heure début/fin -->
-                            <div class="mb-3 p-2 border rounded">
-                                <label class="form-label mb-2">
-                                    <input type="radio" name="mode_saisie_<?= $h['id'] ?>" value="calcul" class="form-check-input me-1 mode-calcul-edit" data-id="<?= $h['id'] ?>">
-                                    Heure d'arrivée / fin
-                                </label>
+                                <label class="form-label small text-muted">Calculer à partir des heures</label>
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <label class="form-label small text-muted mb-1">Arrivée</label>
@@ -503,9 +482,6 @@ include '../includes/header.php';
                                         <label class="form-label small text-muted mb-1">Fin</label>
                                         <input type="time" class="form-control heure-fin-edit" data-id="<?= $h['id'] ?>" value="16:00">
                                     </div>
-                                </div>
-                                <div class="text-center mt-2">
-                                    <small class="text-muted">= <strong class="heures-calculees-edit" data-id="<?= $h['id'] ?>">8</strong> heures</small>
                                 </div>
                             </div>
                             <div class="mb-3">
@@ -539,63 +515,31 @@ document.addEventListener('DOMContentLoaded', function() {
         return diff > 0 ? Math.round(diff * 2) / 2 : 0; // Arrondir à 0.5h
     }
 
-    // Formulaire d'ajout
+    // Formulaire d'ajout - mise à jour automatique quand on change les heures début/fin
     var heureDebutAdd = document.getElementById('heureDebutAdd');
     var heureFinAdd = document.getElementById('heureFinAdd');
-    var heuresCalculeesAdd = document.getElementById('heuresCalculeesAdd');
     var heuresDirectAdd = document.getElementById('heuresDirectAdd');
-    var modeDirectAdd = document.getElementById('modeDirectAdd');
-    var modeCalculAdd = document.getElementById('modeCalculAdd');
-    var optionDirectes = document.getElementById('option-heures-directes');
-    var optionCalcul = document.getElementById('option-heures-calcul');
 
-    function updateCalculAdd() {
+    function updateHeuresAdd() {
         var heures = calculerHeures(heureDebutAdd.value, heureFinAdd.value);
-        heuresCalculeesAdd.textContent = heures;
-        if (modeCalculAdd.checked) {
+        if (heures > 0) {
             heuresDirectAdd.value = heures;
         }
     }
 
-    function updateStyleAdd() {
-        if (modeDirectAdd.checked) {
-            optionDirectes.classList.add('border-primary');
-            optionCalcul.classList.remove('border-primary');
-        } else {
-            optionDirectes.classList.remove('border-primary');
-            optionCalcul.classList.add('border-primary');
-        }
-    }
+    heureDebutAdd.addEventListener('change', updateHeuresAdd);
+    heureFinAdd.addEventListener('change', updateHeuresAdd);
 
-    heureDebutAdd.addEventListener('change', updateCalculAdd);
-    heureFinAdd.addEventListener('change', updateCalculAdd);
-    modeDirectAdd.addEventListener('change', updateStyleAdd);
-    modeCalculAdd.addEventListener('change', function() {
-        updateStyleAdd();
-        updateCalculAdd();
-    });
-
-    // Modals d'édition
+    // Modals d'édition - mise à jour automatique quand on change les heures début/fin
     document.querySelectorAll('.heure-debut-edit, .heure-fin-edit').forEach(function(input) {
         input.addEventListener('change', function() {
             var id = this.getAttribute('data-id');
             var debut = document.querySelector('.heure-debut-edit[data-id="' + id + '"]').value;
             var fin = document.querySelector('.heure-fin-edit[data-id="' + id + '"]').value;
             var heures = calculerHeures(debut, fin);
-            document.querySelector('.heures-calculees-edit[data-id="' + id + '"]').textContent = heures;
-            if (document.querySelector('.mode-calcul-edit[data-id="' + id + '"]').checked) {
+            if (heures > 0) {
                 document.getElementById('heuresEdit' + id).value = heures;
             }
-        });
-    });
-
-    document.querySelectorAll('.mode-calcul-edit').forEach(function(radio) {
-        radio.addEventListener('change', function() {
-            var id = this.getAttribute('data-id');
-            var debut = document.querySelector('.heure-debut-edit[data-id="' + id + '"]').value;
-            var fin = document.querySelector('.heure-fin-edit[data-id="' + id + '"]').value;
-            var heures = calculerHeures(debut, fin);
-            document.getElementById('heuresEdit' + id).value = heures;
         });
     });
 });
