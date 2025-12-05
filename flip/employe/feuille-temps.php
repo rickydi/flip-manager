@@ -284,7 +284,7 @@ include '../includes/header.php';
                             <select class="form-select" name="projet_id" required>
                                 <option value=""><?= __('select') ?></option>
                                 <?php foreach ($projets as $projet): ?>
-                                    <option value="<?= $projet['id'] ?>"><?= e($projet['nom']) ?></option>
+                                    <option value="<?= $projet['id'] ?>"><?= e($projet['nom']) ?> - <?= e($projet['adresse']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -455,7 +455,7 @@ include '../includes/header.php';
                                 <select class="form-select" name="projet_id" required>
                                     <?php foreach ($projets as $projet): ?>
                                         <option value="<?= $projet['id'] ?>" <?= $projet['id'] == $h['projet_id'] ? 'selected' : '' ?>>
-                                            <?= e($projet['nom']) ?>
+                                            <?= e($projet['nom']) ?> - <?= e($projet['adresse']) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
