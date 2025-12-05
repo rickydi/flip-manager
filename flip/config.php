@@ -23,7 +23,7 @@ define('DB_PASS', 'Zun+668@');
 define('DB_CHARSET', 'utf8mb4');
 
 // Configuration de l'application
-define('APP_NAME', 'Flip Manager');
+define('APP_NAME', 'Manager');
 define('APP_URL', 'https://evoreno.com');
 define('APP_VERSION', '1.0.0');
 define('BASE_PATH', '/flip'); // Chemin de base de l'application

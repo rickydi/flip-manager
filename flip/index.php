@@ -66,7 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="login-logo">
                 <i class="bi bi-house-door-fill"></i>
                 <h1><?= APP_NAME ?></h1>
-                <p class="text-muted">Gestion de flips immobiliers</p>
             </div>
             
             <?php if ($error): ?>
