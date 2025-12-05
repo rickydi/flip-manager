@@ -386,16 +386,17 @@ include '../includes/header.php';
                     </div>
                     <div class="card-body">
                         <div class="row g-2">
-                            <?php foreach ($photosGroupe as $photo):
+                            <?php foreach ($photosGroupe as $index => $photo):
                                 $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
                                 $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+                                $mediaUrl = url('/uploads/photos/' . e($photo['fichier']));
                             ?>
                                 <div class="col-4 col-md-3">
                                     <div class="position-relative">
-                                        <a href="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>" target="_blank">
+                                        <a href="javascript:void(0)" onclick="openGallery(<?= $index ?>)" class="d-block">
                                             <?php if ($isVideo): ?>
                                                 <div class="video-thumbnail rounded" style="width:100%;height:100px;background:#1a1d21;display:flex;align-items:center;justify-content:center;position:relative;">
-                                                    <video src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
+                                                    <video src="<?= $mediaUrl ?>"
                                                            style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
                                                            muted preload="metadata"></video>
                                                     <div style="position:absolute;z-index:2;background:rgba(0,0,0,0.6);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
@@ -403,23 +404,23 @@ include '../includes/header.php';
                                                     </div>
                                                 </div>
                                             <?php else: ?>
-                                                <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
+                                                <img src="<?= $mediaUrl ?>"
                                                      alt="Photo"
                                                      class="img-fluid rounded"
                                                      style="width:100%;height:100px;object-fit:cover;">
                                             <?php endif; ?>
                                         </a>
-                                        <form method="POST" class="position-absolute top-0 end-0 m-1">
+                                        <form method="POST" class="position-absolute top-0 end-0" style="margin:2px;">
                                             <?php csrfField(); ?>
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
-                                            <button type="submit" class="btn btn-danger btn-sm"
+                                            <button type="submit" class="btn btn-danger"
+                                                    style="padding:2px 5px;font-size:10px;line-height:1;"
                                                     onclick="return confirm('<?= __('delete_photo_confirm') ?>')">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </form>
                                     </div>
-                                    <small class="text-muted"><?= formatDateTime($photo['date_prise']) ?></small>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -486,7 +487,62 @@ include '../includes/header.php';
     </div>
 </div>
 
+<!-- Galerie Lightbox -->
+<div id="galleryOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.95);z-index:9998;touch-action:pan-y;">
+    <!-- Barre du haut -->
+    <div style="position:absolute;top:0;left:0;right:0;padding:15px;display:flex;justify-content:space-between;align-items:center;z-index:10;">
+        <span id="galleryCounter" class="text-white">1 / 1</span>
+        <div>
+            <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="sharePhoto()" title="Partager">
+                <i class="bi bi-share"></i>
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm me-2" onclick="downloadPhoto()" title="Télécharger">
+                <i class="bi bi-download"></i>
+            </button>
+            <button type="button" class="btn btn-outline-light btn-sm" onclick="closeGallery()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Flèches navigation -->
+    <button type="button" id="galleryPrev" onclick="prevPhoto()"
+            style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.2);border:none;color:white;padding:15px;border-radius:50%;z-index:10;">
+        <i class="bi bi-chevron-left" style="font-size:1.5rem;"></i>
+    </button>
+    <button type="button" id="galleryNext" onclick="nextPhoto()"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.2);border:none;color:white;padding:15px;border-radius:50%;z-index:10;">
+        <i class="bi bi-chevron-right" style="font-size:1.5rem;"></i>
+    </button>
+
+    <!-- Contenu media -->
+    <div id="galleryContent" style="position:absolute;top:60px;bottom:20px;left:0;right:0;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+        <img id="galleryImage" src="" alt="Photo" style="max-width:100%;max-height:100%;object-fit:contain;display:none;">
+        <video id="galleryVideo" src="" controls style="max-width:100%;max-height:100%;display:none;"></video>
+    </div>
+</div>
+
+<?php
+// Préparer les données de la galerie pour JavaScript
+$galleryData = [];
+if (!empty($photosGroupe)) {
+    foreach ($photosGroupe as $photo) {
+        $ext = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
+        $galleryData[] = [
+            'url' => url('/uploads/photos/' . $photo['fichier']),
+            'isVideo' => in_array($ext, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']),
+            'filename' => $photo['fichier']
+        ];
+    }
+}
+?>
+
 <script>
+// Données de la galerie
+const galleryItems = <?= json_encode($galleryData) ?>;
+let currentIndex = 0;
+let touchStartX = 0;
+let touchEndX = 0;
 // Prévisualisation des photos sélectionnées
 function previewPhotos(input) {
     const preview = document.getElementById('photoPreview');
@@ -528,6 +584,135 @@ document.getElementById('photoForm').addEventListener('submit', function() {
 
     // Afficher l'overlay
     overlay.style.display = 'flex';
+});
+
+// ===== GALERIE LIGHTBOX =====
+function openGallery(index) {
+    if (galleryItems.length === 0) return;
+    currentIndex = index;
+    showCurrentMedia();
+    document.getElementById('galleryOverlay').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeGallery() {
+    document.getElementById('galleryOverlay').style.display = 'none';
+    document.body.style.overflow = '';
+    // Arrêter la vidéo si elle joue
+    document.getElementById('galleryVideo').pause();
+}
+
+function showCurrentMedia() {
+    const item = galleryItems[currentIndex];
+    const img = document.getElementById('galleryImage');
+    const video = document.getElementById('galleryVideo');
+    const counter = document.getElementById('galleryCounter');
+
+    // Mise à jour du compteur
+    counter.textContent = (currentIndex + 1) + ' / ' + galleryItems.length;
+
+    // Afficher/cacher les flèches
+    document.getElementById('galleryPrev').style.display = currentIndex > 0 ? 'block' : 'none';
+    document.getElementById('galleryNext').style.display = currentIndex < galleryItems.length - 1 ? 'block' : 'none';
+
+    // Arrêter la vidéo précédente
+    video.pause();
+
+    if (item.isVideo) {
+        img.style.display = 'none';
+        video.src = item.url;
+        video.style.display = 'block';
+    } else {
+        video.style.display = 'none';
+        img.src = item.url;
+        img.style.display = 'block';
+    }
+}
+
+function nextPhoto() {
+    if (currentIndex < galleryItems.length - 1) {
+        currentIndex++;
+        showCurrentMedia();
+    }
+}
+
+function prevPhoto() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        showCurrentMedia();
+    }
+}
+
+// Partager la photo
+function sharePhoto() {
+    const item = galleryItems[currentIndex];
+    if (navigator.share) {
+        navigator.share({
+            title: 'Photo du projet',
+            url: item.url
+        }).catch(() => {});
+    } else {
+        // Fallback: copier le lien
+        navigator.clipboard.writeText(window.location.origin + item.url).then(() => {
+            alert('Lien copié dans le presse-papier!');
+        }).catch(() => {
+            // Fallback pour anciens navigateurs
+            prompt('Copiez ce lien:', window.location.origin + item.url);
+        });
+    }
+}
+
+// Télécharger la photo
+function downloadPhoto() {
+    const item = galleryItems[currentIndex];
+    const a = document.createElement('a');
+    a.href = item.url;
+    a.download = item.filename;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// Gestion du swipe tactile
+const galleryOverlay = document.getElementById('galleryOverlay');
+if (galleryOverlay) {
+    galleryOverlay.addEventListener('touchstart', function(e) {
+        touchStartX = e.changedTouches[0].screenX;
+    }, false);
+
+    galleryOverlay.addEventListener('touchend', function(e) {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    }, false);
+}
+
+function handleSwipe() {
+    const swipeThreshold = 50;
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > swipeThreshold) {
+        if (diff > 0) {
+            // Swipe gauche -> photo suivante
+            nextPhoto();
+        } else {
+            // Swipe droite -> photo précédente
+            prevPhoto();
+        }
+    }
+}
+
+// Fermer avec Escape ou clic sur le fond
+document.addEventListener('keydown', function(e) {
+    if (document.getElementById('galleryOverlay').style.display === 'block') {
+        if (e.key === 'Escape') closeGallery();
+        if (e.key === 'ArrowRight') nextPhoto();
+        if (e.key === 'ArrowLeft') prevPhoto();
+    }
+});
+
+document.getElementById('galleryContent')?.addEventListener('click', function(e) {
+    if (e.target === this) closeGallery();
 });
 </script>
 
