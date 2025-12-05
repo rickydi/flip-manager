@@ -124,11 +124,12 @@ try {
     // Ignorer
 }
 
-// Trier par date décroissante et limiter à 15
+// Trier par date décroissante et limiter à 5 pour l'affichage
 usort($activites, function($a, $b) {
     return strtotime($b['date_activite']) - strtotime($a['date_activite']);
 });
-$activites = array_slice($activites, 0, 15);
+$totalActivites = count($activites);
+$activites = array_slice($activites, 0, 5);
 
 // Factures en attente
 $stmt = $pdo->query("
@@ -372,14 +373,14 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="row">
+    <div class="row" style="display: flex; align-items: stretch;">
         <!-- Colonne Activités récentes -->
-        <div class="col-lg-6 mb-4">
+        <div class="col-lg-6 mb-4 d-flex flex-column">
             <div class="section-title">
                 <h4><i class="bi bi-activity me-2"></i>Dernières activités</h4>
             </div>
 
-            <div class="card" style="max-height: 350px; overflow-y: auto;">
+            <div class="card flex-grow-1 d-flex flex-column">
                 <div class="card-body p-0">
                     <?php if (empty($activites)): ?>
                         <div class="text-center py-5">
@@ -478,13 +479,21 @@ include '../includes/header.php';
                                 </div>
                             </a>
                         <?php endforeach; ?>
+
+                        <?php if ($totalActivites > 5): ?>
+                            <div class="text-center py-3 border-top">
+                                <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-arrow-right me-1"></i>Voir plus
+                                </a>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
-        
+
         <!-- Colonne À approuver -->
-        <div class="col-lg-6 mb-4">
+        <div class="col-lg-6 mb-4 d-flex flex-column">
             <!-- Factures en attente -->
             <div class="section-title">
                 <h4><i class="bi bi-clock-history me-2"></i>À approuver</h4>
@@ -493,7 +502,7 @@ include '../includes/header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="card" style="max-height: 350px; overflow-y: auto;">
+            <div class="card flex-grow-1 d-flex flex-column">
                 <div class="card-body p-0">
                     <?php if (empty($facturesAttente)): ?>
                         <div class="text-center py-5">
@@ -522,9 +531,9 @@ include '../includes/header.php';
                         <?php endforeach; ?>
 
                         <?php if ($facturesEnAttente > 5): ?>
-                            <div class="text-center py-3">
+                            <div class="text-center py-3 border-top">
                                 <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
-                                    Voir les <?= $facturesEnAttente ?> factures
+                                    <i class="bi bi-arrow-right me-1"></i>Voir les <?= $facturesEnAttente ?> factures
                                 </a>
                             </div>
                         <?php endif; ?>
