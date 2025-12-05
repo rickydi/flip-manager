@@ -373,13 +373,13 @@ include '../includes/header.php';
     </div>
     
     <div class="row">
-        <!-- Colonne principale - Activités récentes -->
-        <div class="col-lg-8">
+        <!-- Colonne Activités récentes -->
+        <div class="col-lg-6 mb-4">
             <div class="section-title">
                 <h4><i class="bi bi-activity me-2"></i>Dernières activités</h4>
             </div>
-            
-            <div class="card">
+
+            <div class="card" style="max-height: 350px; overflow-y: auto;">
                 <div class="card-body p-0">
                     <?php if (empty($activites)): ?>
                         <div class="text-center py-5">
@@ -483,8 +483,8 @@ include '../includes/header.php';
             </div>
         </div>
         
-        <!-- Colonne latérale -->
-        <div class="col-lg-4">
+        <!-- Colonne À approuver -->
+        <div class="col-lg-6 mb-4">
             <!-- Factures en attente -->
             <div class="section-title">
                 <h4><i class="bi bi-clock-history me-2"></i>À approuver</h4>
@@ -493,7 +493,7 @@ include '../includes/header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="card">
+            <div class="card" style="max-height: 350px; overflow-y: auto;">
                 <div class="card-body p-0">
                     <?php if (empty($facturesAttente)): ?>
                         <div class="text-center py-5">
@@ -531,14 +531,18 @@ include '../includes/header.php';
                     <?php endif; ?>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Actions rapides -->
-            <div class="section-title mt-4">
+    <!-- Actions rapides -->
+    <div class="row">
+        <div class="col-12">
+            <div class="section-title">
                 <h4><i class="bi bi-lightning me-2"></i>Actions rapides</h4>
             </div>
             <div class="card">
                 <div class="card-body">
-                    <div class="d-grid gap-2">
+                    <div class="d-flex flex-wrap gap-2">
                         <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-primary">
                             <i class="bi bi-building me-2"></i>Voir les projets
                         </a>
@@ -547,6 +551,12 @@ include '../includes/header.php';
                         </a>
                         <a href="<?= url('/admin/temps/liste.php') ?>" class="btn btn-outline-secondary">
                             <i class="bi bi-clock me-2"></i>Feuilles de temps
+                        </a>
+                        <a href="<?= url('/admin/photos/liste.php') ?>" class="btn btn-outline-secondary">
+                            <i class="bi bi-camera me-2"></i>Photos
+                        </a>
+                        <a href="<?= url('/admin/rapports/paie-hebdo.php') ?>" class="btn btn-outline-secondary">
+                            <i class="bi bi-calendar-week me-2"></i>Paie hebdo
                         </a>
                     </div>
                 </div>
