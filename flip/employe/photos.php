@@ -60,13 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $originalName = $_FILES['photos']['name'][$i];
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
-                        // Vérifier l'extension
-                        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp'])) {
-                            continue;
-                        }
-
-                        // Vérifier la taille (max 10MB)
-                        if ($_FILES['photos']['size'][$i] > 10 * 1024 * 1024) {
+                        // Vérifier l'extension (photos et vidéos)
+                        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+                        if (!in_array($extension, $allowedExtensions)) {
                             continue;
                         }
 
@@ -218,9 +214,9 @@ include '../includes/header.php';
                         <div class="mb-3">
                             <label class="form-label"><?= __('photos') ?> *</label>
 
-                            <!-- Input caché pour les photos -->
+                            <!-- Input caché pour les photos et vidéos -->
                             <input type="file" id="photoInput" name="photos[]"
-                                   accept="image/*" multiple
+                                   accept="image/*,video/*" multiple
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 

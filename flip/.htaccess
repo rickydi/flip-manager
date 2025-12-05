@@ -1,7 +1,8 @@
 # Flip Manager
 
-# Augmenter les limites d'upload pour les photos
-php_value upload_max_filesize 100M
-php_value post_max_size 100M
-php_value max_execution_time 300
-php_value max_input_time 300
+# Augmenter les limites d'upload pour les photos et vidéos
+php_value upload_max_filesize 10000M
+php_value post_max_size 10000M
+php_value max_execution_time 600
+php_value max_input_time 600
+php_value memory_limit 512M
