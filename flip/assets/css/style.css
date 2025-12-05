@@ -1382,6 +1382,23 @@ body {
     color: var(--text-secondary) !important;
 }
 
+/* Form select et form control - dark mode */
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-control {
+    background-color: var(--bg-input) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .form-select option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .form-label {
+    color: var(--text-primary);
+}
+
 /* Boutons outline */
 [data-theme="dark"] .btn-outline-secondary {
     color: var(--text-secondary);
