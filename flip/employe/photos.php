@@ -269,18 +269,24 @@ include '../includes/header.php';
 
                         <!-- Zone de capture/upload -->
                         <div class="mb-3">
-                            <label for="photoInput" class="form-label"><?= __('photos') ?> *</label>
+                            <label class="form-label"><?= __('photos') ?> *</label>
 
-                            <!-- Input caché pour les photos et vidéos -->
-                            <input type="file" id="photoInput" name="photos[]"
+                            <!-- Input caméra (avec capture) -->
+                            <input type="file" id="cameraInput" name="photos[]"
+                                   accept="image/*" capture="environment"
+                                   class="d-none"
+                                   onchange="previewPhotos(this)">
+
+                            <!-- Input galerie (sans capture) -->
+                            <input type="file" id="galleryInput" name="photos[]"
                                    accept="image/*,video/*" multiple
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 
                             <!-- Bouton Prendre photo (caméra) -->
                             <div class="d-grid gap-2 mb-3">
-                                <button type="button" class="btn btn-primary btn-lg" onclick="openCamera()">
-                                    <i class="bi bi-camera-fill me-2"></i><?= __('take_photo') ?>
+                                <button type="button" class="btn btn-primary py-3" style="font-size: 1.2rem;" onclick="document.getElementById('cameraInput').click()">
+                                    <i class="bi bi-camera-fill me-2" style="font-size: 1.5rem;"></i><?= __('take_photo') ?>
                                 </button>
                             </div>
 
@@ -290,7 +296,7 @@ include '../includes/header.php';
                             </div>
 
                             <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-secondary" onclick="openGallery()">
+                                <button type="button" class="btn btn-outline-secondary py-2" onclick="document.getElementById('galleryInput').click()">
                                     <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
                                 </button>
                             </div>
@@ -406,20 +412,6 @@ include '../includes/header.php';
 </div>
 
 <script>
-// Ouvrir la caméra (sur mobile)
-function openCamera() {
-    const input = document.getElementById('photoInput');
-    input.setAttribute('capture', 'environment');
-    input.click();
-}
-
-// Ouvrir la galerie
-function openGallery() {
-    const input = document.getElementById('photoInput');
-    input.removeAttribute('capture');
-    input.click();
-}
-
 // Prévisualisation des photos sélectionnées
 function previewPhotos(input) {
     const preview = document.getElementById('photoPreview');
