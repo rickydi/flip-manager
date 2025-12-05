@@ -181,13 +181,14 @@ include '../../includes/header.php';
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0.4rem 0.75rem;
-            margin-bottom: 0.25rem;
+            padding: 0.2rem 0.5rem;
+            margin-bottom: 0.15rem;
             background: var(--bg-card);
-            border-radius: 0.375rem;
+            border-radius: 0.25rem;
             cursor: pointer;
             transition: all 0.2s;
             border: 1px solid var(--border-color);
+            font-size: 0.875rem;
         }
         .category-item:hover {
             background: rgba(0, 123, 255, 0.1);
