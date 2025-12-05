@@ -374,7 +374,7 @@ function ajouterFournisseur() {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: 'nom=' + encodeURIComponent(nom) + '&csrf_token=<?= getCSRFToken() ?>'
+        body: 'nom=' + encodeURIComponent(nom) + '&csrf_token=<?= generateCSRFToken() ?>'
     })
     .then(response => response.json())
     .then(data => {
