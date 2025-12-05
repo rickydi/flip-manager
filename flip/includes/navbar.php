@@ -96,28 +96,36 @@ $isAdmin = isAdmin();
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/index.php') !== false ? 'active' : '' ?>"
                            href="<?= url('/employe/index.php') ?>" title="Tableau de bord">
-                            <i class="bi bi-speedometer2"></i><span class="d-none d-lg-inline"> Accueil</span>
+                            <i class="bi bi-speedometer2"></i>
+                            <span class="nav-text-short d-none d-lg-inline"> Accueil</span>
+                            <span class="nav-text-full"> Accueil</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/nouvelle-facture.php') !== false ? 'active' : '' ?>"
                            href="<?= url('/employe/nouvelle-facture.php') ?>" title="Nouvelle facture">
-                            <i class="bi bi-plus-circle"></i><span class="d-none d-lg-inline"> Facture</span>
+                            <i class="bi bi-plus-circle"></i>
+                            <span class="nav-text-short d-none d-lg-inline"> Nouvelle</span>
+                            <span class="nav-text-full"> Nouvelle facture</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/mes-factures.php') !== false ? 'active' : '' ?>"
                            href="<?= url('/employe/mes-factures.php') ?>" title="Mes factures">
-                            <i class="bi bi-receipt"></i><span class="d-none d-lg-inline"> Factures</span>
+                            <i class="bi bi-receipt"></i>
+                            <span class="nav-text-short d-none d-lg-inline"> Factures</span>
+                            <span class="nav-text-full"> Mes factures</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/feuille-temps.php') !== false ? 'active' : '' ?>"
                            href="<?= url('/employe/feuille-temps.php') ?>" title="Temps">
-                            <i class="bi bi-clock-history"></i><span class="d-none d-lg-inline"> Temps</span>
+                            <i class="bi bi-clock-history"></i>
+                            <span class="nav-text-short d-none d-lg-inline"> Temps</span>
+                            <span class="nav-text-full"> Feuille de temps</span>
                         </a>
                     </li>
                 <?php endif; ?>
