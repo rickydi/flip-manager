@@ -87,9 +87,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 redirect('/employe/feuille-temps.php');
             }
+        } elseif ($action === 'modifier') {
+            $id = (int)($_POST['temps_id'] ?? 0);
+            $projetId = (int)($_POST['projet_id'] ?? 0);
+            $dateTravail = $_POST['date_travail'] ?? '';
+            $heures = parseNumber($_POST['heures'] ?? 0);
+            $description = trim($_POST['description'] ?? '');
+
+            // Vérifier que l'entrée existe et peut être modifiée
+            if ($estContremaitre) {
+                $stmt = $pdo->prepare("SELECT * FROM heures_travaillees WHERE id = ? AND statut = 'en_attente'");
+                $stmt->execute([$id]);
+            } else {
+                $stmt = $pdo->prepare("SELECT * FROM heures_travaillees WHERE id = ? AND user_id = ? AND statut = 'en_attente'");
+                $stmt->execute([$id, $userId]);
+            }
+
+            $entree = $stmt->fetch();
+            if ($entree) {
+                // Validations
+                if ($projetId <= 0) $errors[] = 'Veuillez sélectionner un projet.';
+                if (empty($dateTravail)) $errors[] = 'La date est requise.';
+                if ($heures <= 0) $errors[] = 'Le nombre d\'heures doit être supérieur à 0.';
+                if ($heures > 24) $errors[] = 'Le nombre d\'heures ne peut pas dépasser 24.';
+
+                if (empty($errors)) {
+                    $stmt = $pdo->prepare("
+                        UPDATE heures_travaillees
+                        SET projet_id = ?, date_travail = ?, heures = ?, description = ?
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$projetId, $dateTravail, $heures, $description, $id]);
+                    setFlashMessage('success', 'Entrée modifiée avec succès.');
+                    redirect('/employe/feuille-temps.php');
+                }
+            } else {
+                setFlashMessage('danger', 'Impossible de modifier cette entrée.');
+                redirect('/employe/feuille-temps.php');
+            }
         } elseif ($action === 'supprimer') {
             $id = (int)($_POST['temps_id'] ?? 0);
-            
+
             // Le contremaître peut supprimer les entrées des autres aussi
             if ($estContremaitre) {
                 $stmt = $pdo->prepare("SELECT id FROM heures_travaillees WHERE id = ? AND statut = 'en_attente'");
@@ -98,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("SELECT id FROM heures_travaillees WHERE id = ? AND user_id = ? AND statut = 'en_attente'");
                 $stmt->execute([$id, $userId]);
             }
-            
+
             if ($stmt->fetch()) {
                 $stmt = $pdo->prepare("DELETE FROM heures_travaillees WHERE id = ?");
                 $stmt->execute([$id]);
@@ -342,10 +380,14 @@ include '../includes/header.php';
                                                     <?= getStatutFactureLabel($h['statut']) ?>
                                                 </span>
                                             </td>
-                                            <td>
+                                            <td class="text-nowrap">
                                                 <?php if ($h['statut'] === 'en_attente'): ?>
                                                     <?php if (!$estContremaitre || $h['user_id'] == $userId || $estContremaitre): ?>
-                                                        <form method="POST" action="" class="d-inline" 
+                                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                                data-bs-toggle="modal" data-bs-target="#editModal<?= $h['id'] ?>">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <form method="POST" action="" class="d-inline"
                                                               onsubmit="return confirm('Supprimer cette entrée ?');">
                                                             <?php csrfField(); ?>
                                                             <input type="hidden" name="action" value="supprimer">
@@ -368,5 +410,62 @@ include '../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Modals d'édition -->
+<?php foreach ($mesHeures as $h): ?>
+    <?php if ($h['statut'] === 'en_attente'): ?>
+        <div class="modal fade" id="editModal<?= $h['id'] ?>" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST" action="">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="action" value="modifier">
+                        <input type="hidden" name="temps_id" value="<?= $h['id'] ?>">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier l'entrée</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Projet *</label>
+                                <select class="form-select" name="projet_id" required>
+                                    <?php foreach ($projets as $projet): ?>
+                                        <option value="<?= $projet['id'] ?>" <?= $projet['id'] == $h['projet_id'] ? 'selected' : '' ?>>
+                                            <?= e($projet['nom']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Date *</label>
+                                <input type="date" class="form-control" name="date_travail"
+                                       value="<?= e($h['date_travail']) ?>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Nombre d'heures *</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.5" min="0.5" max="24"
+                                           class="form-control" name="heures"
+                                           value="<?= e($h['heures']) ?>" required>
+                                    <span class="input-group-text">heures</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" name="description" rows="2"><?= e($h['description'] ?? '') ?></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Enregistrer
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+<?php endforeach; ?>
 
 <?php include '../includes/footer.php'; ?>

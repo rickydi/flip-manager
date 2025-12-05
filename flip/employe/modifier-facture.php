@@ -36,14 +36,9 @@ if (!$facture) {
     redirect('/employe/mes-factures.php');
 }
 
-// Vérifier que la facture peut être modifiée
+// Vérifier que la facture peut être modifiée (tant qu'elle n'est pas approuvée/rejetée)
 if ($facture['statut'] !== 'en_attente') {
     setFlashMessage('warning', 'Cette facture ne peut plus être modifiée car elle a été traitée.');
-    redirect('/employe/mes-factures.php');
-}
-
-if (!canEditFacture($facture['date_creation'])) {
-    setFlashMessage('warning', 'Cette facture ne peut plus être modifiée car elle a plus de 24 heures.');
     redirect('/employe/mes-factures.php');
 }
 

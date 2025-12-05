@@ -150,11 +150,11 @@ include '../includes/header.php';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($factures as $facture): 
+                            <?php foreach ($factures as $facture):
                                 $isImage = $facture['fichier'] && preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier']);
                                 $isPdf = $facture['fichier'] && preg_match('/\.pdf$/i', $facture['fichier']);
                                 $isRemboursement = $facture['montant_total'] < 0;
-                                $canEdit = $facture['statut'] === 'en_attente' && canEditFacture($facture['date_creation']);
+                                $canEdit = $facture['statut'] === 'en_attente';
                             ?>
                                 <tr onclick="<?= $canEdit ? "window.location='/employe/modifier-facture.php?id={$facture['id']}'" : '' ?>" 
                                     style="<?= $canEdit ? 'cursor:pointer' : '' ?>" 
