@@ -411,8 +411,8 @@ include '../includes/header.php';
                 <h4><i class="bi bi-activity me-2"></i>Dernières activités</h4>
             </div>
 
-            <div class="card dashboard-card">
-                <div class="card-body p-0">
+            <div class="card" style="height: 340px; overflow: hidden;">
+                <div class="card-body p-0" style="overflow: hidden;">
                     <?php if (empty($activites)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-inbox text-secondary" style="font-size: 4rem;"></i>
@@ -531,8 +531,8 @@ include '../includes/header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="card dashboard-card">
-                <div class="card-body p-0">
+            <div class="card" style="height: 340px; overflow: hidden;">
+                <div class="card-body p-0" style="overflow: hidden;">
                     <?php if (empty($facturesAttente)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
