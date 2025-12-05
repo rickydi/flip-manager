@@ -124,12 +124,12 @@ try {
     // Ignorer
 }
 
-// Trier par date décroissante et limiter à 5 pour l'affichage
+// Trier par date décroissante et limiter à 4 pour l'affichage
 usort($activites, function($a, $b) {
     return strtotime($b['date_activite']) - strtotime($a['date_activite']);
 });
 $totalActivites = count($activites);
-$activites = array_slice($activites, 0, 5);
+$activites = array_slice($activites, 0, 4);
 
 // Factures en attente
 $stmt = $pdo->query("
@@ -141,7 +141,7 @@ $stmt = $pdo->query("
     JOIN users u ON f.user_id = u.id
     WHERE f.statut = 'en_attente'
     ORDER BY f.date_creation ASC
-    LIMIT 5
+    LIMIT 4
 ");
 $facturesAttente = $stmt->fetchAll();
 
@@ -508,7 +508,7 @@ include '../includes/header.php';
                             </a>
                         <?php endforeach; ?>
 
-                        <?php if ($totalActivites > 5): ?>
+                        <?php if ($totalActivites > 4): ?>
                             <div class="text-center py-3 border-top">
                                 <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-arrow-right me-1"></i>Voir plus
@@ -558,7 +558,7 @@ include '../includes/header.php';
                             </div>
                         <?php endforeach; ?>
 
-                        <?php if ($facturesEnAttente > 5): ?>
+                        <?php if ($facturesEnAttente > 4): ?>
                             <div class="text-center py-3 border-top">
                                 <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-arrow-right me-1"></i>Voir les <?= $facturesEnAttente ?> factures
