@@ -1956,25 +1956,43 @@ body {
         border: 1px solid rgba(255, 255, 255, 0.1);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
     }
-    
+
     .navbar .navbar-nav {
         gap: 0.25rem;
     }
-    
+
     .navbar .nav-link {
         padding: 0.75rem 1rem !important;
     }
-    
+
     .navbar .nav-link::before {
         display: none;
     }
-    
+
     .navbar .dropdown-menu {
         background: rgba(255, 255, 255, 0.05);
         border: none;
         box-shadow: none;
         padding-left: 1rem;
     }
+
+    /* Afficher les textes du menu quand il est ouvert sur mobile */
+    .navbar-collapse.show .nav-link span,
+    .navbar-collapse.collapsing .nav-link span {
+        display: inline !important;
+    }
+}
+
+/* Select projet - afficher tout le nom */
+.form-select {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+select.form-select option {
+    white-space: normal;
+    word-wrap: break-word;
 }
 
 /* Animation d'entrée */
