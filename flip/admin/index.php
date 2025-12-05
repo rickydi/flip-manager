@@ -26,12 +26,21 @@ $facturesApprouvees = $stmt->fetchColumn();
 $stmt = $pdo->query("SELECT SUM(montant_total) FROM factures WHERE statut = 'approuvee'");
 $totalDepenses = $stmt->fetchColumn() ?: 0;
 
-// Dernières activités (factures uniquement pour l'instant)
+// Statistiques photos
+$totalPhotos = 0;
+try {
+    $stmt = $pdo->query("SELECT COUNT(*) FROM photos_projet");
+    $totalPhotos = $stmt->fetchColumn() ?: 0;
+} catch (Exception $e) {
+    // Table n'existe pas
+}
+
+// Dernières activités (factures, heures, photos)
 $activites = [];
 
 // Récupérer les dernières factures
 $stmt = $pdo->query("
-    SELECT 
+    SELECT
         'facture' as type,
         f.id,
         f.fournisseur as description,
@@ -51,7 +60,7 @@ $activites = array_merge($activites, $stmt->fetchAll());
 // Essayer de récupérer les heures si la table existe
 try {
     $stmt = $pdo->query("
-        SELECT 
+        SELECT
             'heures' as type,
             h.id,
             CONCAT(h.heures, 'h - ', IFNULL(h.description, 'Travail')) as description,
@@ -69,6 +78,50 @@ try {
     $activites = array_merge($activites, $stmt->fetchAll());
 } catch (Exception $e) {
     // Table heures_travail n'existe pas, ignorer
+}
+
+// Récupérer les photos uploadées
+try {
+    $stmt = $pdo->query("
+        SELECT
+            'photo' as type,
+            ph.id,
+            IFNULL(ph.description, 'Photo') as description,
+            NULL as montant,
+            'photo' as statut,
+            p.nom as projet_nom,
+            CONCAT(u.prenom, ' ', u.nom) as user_nom,
+            ph.date_prise as date_activite
+        FROM photos_projet ph
+        JOIN projets p ON ph.projet_id = p.id
+        JOIN users u ON ph.user_id = u.id
+        ORDER BY ph.date_prise DESC
+        LIMIT 10
+    ");
+    $activites = array_merge($activites, $stmt->fetchAll());
+} catch (Exception $e) {
+    // Table photos_projet n'existe pas, ignorer
+}
+
+// Récupérer les projets créés/modifiés
+try {
+    $stmt = $pdo->query("
+        SELECT
+            'projet' as type,
+            p.id,
+            p.nom as description,
+            p.budget_total as montant,
+            p.statut,
+            p.nom as projet_nom,
+            'Admin' as user_nom,
+            p.date_creation as date_activite
+        FROM projets p
+        ORDER BY p.date_creation DESC
+        LIMIT 10
+    ");
+    $activites = array_merge($activites, $stmt->fetchAll());
+} catch (Exception $e) {
+    // Ignorer
 }
 
 // Trier par date décroissante et limiter à 15
@@ -186,6 +239,10 @@ include '../includes/header.php';
 
 .activity-icon.facture { background: rgba(37, 99, 235, 0.15); color: var(--primary-color); }
 .activity-icon.heures { background: rgba(34, 197, 94, 0.15); color: var(--success-color); }
+.activity-icon.photo { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.activity-icon.projet { background: rgba(245, 158, 11, 0.15); color: var(--warning-color); }
+
+.bg-purple { background-color: #a855f7 !important; }
 
 .activity-content {
     flex: 1;
@@ -331,10 +388,32 @@ include '../includes/header.php';
                             <p class="text-muted">Les dernières entrées apparaîtront ici</p>
                         </div>
                     <?php else: ?>
-                        <?php foreach ($activites as $activite): ?>
-                            <a href="<?= url('/admin/factures/modifier.php?id=' . $activite['id']) ?>" class="activity-item" style="text-decoration: none; color: inherit; cursor: pointer;">
+                        <?php foreach ($activites as $activite):
+                            // Déterminer le lien selon le type
+                            $activityLink = '#';
+                            $activityIcon = 'activity';
+                            switch ($activite['type']) {
+                                case 'facture':
+                                    $activityLink = url('/admin/factures/modifier.php?id=' . $activite['id']);
+                                    $activityIcon = 'receipt';
+                                    break;
+                                case 'heures':
+                                    $activityLink = url('/admin/temps/liste.php');
+                                    $activityIcon = 'clock';
+                                    break;
+                                case 'photo':
+                                    $activityLink = url('/admin/photos/liste.php');
+                                    $activityIcon = 'camera';
+                                    break;
+                                case 'projet':
+                                    $activityLink = url('/admin/projets/modifier.php?id=' . $activite['id']);
+                                    $activityIcon = 'building';
+                                    break;
+                            }
+                        ?>
+                            <a href="<?= $activityLink ?>" class="activity-item" style="text-decoration: none; color: inherit; cursor: pointer;">
                                 <div class="activity-icon <?= $activite['type'] ?>">
-                                    <i class="bi bi-<?= $activite['type'] === 'facture' ? 'receipt' : 'clock' ?>"></i>
+                                    <i class="bi bi-<?= $activityIcon ?>"></i>
                                 </div>
                                 <div class="activity-content">
                                     <strong><?= e($activite['description']) ?></strong>
@@ -349,8 +428,52 @@ include '../includes/header.php';
                                         <div class="amount"><?= formatMoney($activite['montant']) ?></div>
                                     <?php endif; ?>
                                     <div class="date"><?= formatDate($activite['date_activite']) ?></div>
-                                    <span class="badge <?= $activite['statut'] === 'approuvee' || $activite['statut'] === 'approuve' ? 'bg-success' : ($activite['statut'] === 'en_attente' ? 'bg-warning text-dark' : 'bg-secondary') ?>" style="font-size: 0.65rem;">
-                                        <?= $activite['statut'] === 'approuvee' || $activite['statut'] === 'approuve' ? 'Approuvé' : ($activite['statut'] === 'en_attente' ? 'En attente' : $activite['statut']) ?>
+                                    <?php
+                                    // Badge selon le type et statut
+                                    $badgeClass = 'bg-secondary';
+                                    $badgeText = '';
+                                    switch ($activite['type']) {
+                                        case 'facture':
+                                            if ($activite['statut'] === 'approuvee') {
+                                                $badgeClass = 'bg-success';
+                                                $badgeText = 'Approuvé';
+                                            } elseif ($activite['statut'] === 'en_attente') {
+                                                $badgeClass = 'bg-warning text-dark';
+                                                $badgeText = 'En attente';
+                                            } else {
+                                                $badgeText = ucfirst($activite['statut']);
+                                            }
+                                            break;
+                                        case 'heures':
+                                            if ($activite['statut'] === 'approuve') {
+                                                $badgeClass = 'bg-success';
+                                                $badgeText = 'Approuvé';
+                                            } elseif ($activite['statut'] === 'en_attente') {
+                                                $badgeClass = 'bg-warning text-dark';
+                                                $badgeText = 'En attente';
+                                            } else {
+                                                $badgeText = ucfirst($activite['statut']);
+                                            }
+                                            break;
+                                        case 'photo':
+                                            $badgeClass = 'bg-purple';
+                                            $badgeText = 'Photo';
+                                            break;
+                                        case 'projet':
+                                            if ($activite['statut'] === 'en_cours') {
+                                                $badgeClass = 'bg-primary';
+                                                $badgeText = 'En cours';
+                                            } elseif ($activite['statut'] === 'termine') {
+                                                $badgeClass = 'bg-success';
+                                                $badgeText = 'Terminé';
+                                            } else {
+                                                $badgeText = ucfirst(str_replace('_', ' ', $activite['statut']));
+                                            }
+                                            break;
+                                    }
+                                    ?>
+                                    <span class="badge <?= $badgeClass ?>" style="font-size: 0.65rem;">
+                                        <?= $badgeText ?>
                                     </span>
                                 </div>
                             </a>
