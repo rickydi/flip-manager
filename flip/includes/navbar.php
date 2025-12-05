@@ -30,14 +30,18 @@ $isAdmin = isAdmin();
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/index.php') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/index.php') ?>" title="Tableau de bord">
-                            <i class="bi bi-speedometer2"></i><span class="d-none d-xxl-inline"> Accueil</span>
+                            <i class="bi bi-speedometer2"></i>
+                            <span class="nav-text-short d-none d-xxl-inline"> Accueil</span>
+                            <span class="nav-text-full"> Accueil</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/projets/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/projets/liste.php') ?>" title="Projets">
-                            <i class="bi bi-building"></i><span class="d-none d-xl-inline"> Projets</span>
+                            <i class="bi bi-building"></i>
+                            <span class="nav-text-short d-none d-xl-inline"> Projets</span>
+                            <span class="nav-text-full"> Projets</span>
                         </a>
                     </li>
 
@@ -45,7 +49,9 @@ $isAdmin = isAdmin();
                         <?php $countEnAttente = getFacturesEnAttenteCount($pdo); ?>
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/factures/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/factures/liste.php') ?>" title="Factures">
-                            <i class="bi bi-receipt"></i><span class="d-none d-xl-inline"> Fact.</span>
+                            <i class="bi bi-receipt"></i>
+                            <span class="nav-text-short d-none d-xl-inline"> Fact.</span>
+                            <span class="nav-text-full"> Factures</span>
                             <?php if ($countEnAttente > 0): ?>
                                 <span class="badge bg-danger"><?= $countEnAttente ?></span>
                             <?php endif; ?>
@@ -55,14 +61,18 @@ $isAdmin = isAdmin();
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/investisseurs/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/investisseurs/liste.php') ?>" title="Investisseurs">
-                            <i class="bi bi-people"></i><span class="d-none d-xxl-inline"> Invest.</span>
+                            <i class="bi bi-people"></i>
+                            <span class="nav-text-short d-none d-xxl-inline"> Invest.</span>
+                            <span class="nav-text-full"> Investisseurs</span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/temps/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/temps/liste.php') ?>" title="Temps">
-                            <i class="bi bi-clock-history"></i><span class="d-none d-xl-inline"> Temps</span>
+                            <i class="bi bi-clock-history"></i>
+                            <span class="nav-text-short d-none d-xl-inline"> Temps</span>
+                            <span class="nav-text-full"> Feuilles de temps</span>
                             <?php
                             $countHeuresAttente = getHeuresEnAttenteCount($pdo);
                             if ($countHeuresAttente > 0):
@@ -75,7 +85,9 @@ $isAdmin = isAdmin();
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/utilisateurs/liste.php') ?>" title="Administration">
-                            <i class="bi bi-gear"></i><span class="d-none d-xxl-inline"> Admin</span>
+                            <i class="bi bi-gear"></i>
+                            <span class="nav-text-short d-none d-xxl-inline"> Admin</span>
+                            <span class="nav-text-full"> Administration</span>
                         </a>
                     </li>
 

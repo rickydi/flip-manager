@@ -1976,11 +1976,41 @@ body {
         padding-left: 1rem;
     }
 
-    /* Afficher les textes du menu quand il est ouvert sur mobile */
-    .navbar-collapse.show .nav-link span,
-    .navbar-collapse.collapsing .nav-link span {
+    /* Afficher les noms complets dans le menu mobile */
+    .navbar-collapse.show .nav-link .nav-text-full,
+    .navbar-collapse.collapsing .nav-link .nav-text-full {
         display: inline !important;
     }
+
+    .navbar-collapse.show .nav-link .nav-text-short,
+    .navbar-collapse.collapsing .nav-link .nav-text-short {
+        display: none !important;
+    }
+
+    /* Améliorer le design du menu mobile */
+    .navbar-collapse.show .nav-item {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .navbar-collapse.show .nav-item:last-child {
+        border-bottom: none;
+    }
+
+    .navbar-collapse.show .nav-link {
+        font-size: 1.05rem;
+        padding: 0.85rem 1rem !important;
+    }
+
+    .navbar-collapse.show .nav-link i {
+        width: 24px;
+        text-align: center;
+        margin-right: 0.75rem;
+    }
+}
+
+/* Cacher nav-text-full par défaut sur desktop */
+.nav-text-full {
+    display: none;
 }
 
 /* Select projet - afficher tout le nom */
