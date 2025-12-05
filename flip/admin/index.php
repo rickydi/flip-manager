@@ -210,6 +210,24 @@ include '../includes/header.php';
     color: var(--text-primary);
 }
 
+/* Dashboard cards égales */
+.dashboard-row {
+    display: flex;
+    align-items: stretch;
+}
+
+.dashboard-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.dashboard-card .card-body {
+    flex: 1;
+    overflow: hidden;
+}
+
 /* Activités récentes */
 .activity-item {
     display: flex;
@@ -373,14 +391,14 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="row" style="display: flex; align-items: stretch;">
+    <div class="row dashboard-row">
         <!-- Colonne Activités récentes -->
-        <div class="col-lg-6 mb-4 d-flex flex-column">
+        <div class="col-lg-6 mb-4">
             <div class="section-title">
                 <h4><i class="bi bi-activity me-2"></i>Dernières activités</h4>
             </div>
 
-            <div class="card flex-grow-1 d-flex flex-column">
+            <div class="card dashboard-card">
                 <div class="card-body p-0">
                     <?php if (empty($activites)): ?>
                         <div class="text-center py-5">
@@ -493,7 +511,7 @@ include '../includes/header.php';
         </div>
 
         <!-- Colonne À approuver -->
-        <div class="col-lg-6 mb-4 d-flex flex-column">
+        <div class="col-lg-6 mb-4">
             <!-- Factures en attente -->
             <div class="section-title">
                 <h4><i class="bi bi-clock-history me-2"></i>À approuver</h4>
@@ -502,7 +520,7 @@ include '../includes/header.php';
                 <?php endif; ?>
             </div>
 
-            <div class="card flex-grow-1 d-flex flex-column">
+            <div class="card dashboard-card">
                 <div class="card-body p-0">
                     <?php if (empty($facturesAttente)): ?>
                         <div class="text-center py-5">
