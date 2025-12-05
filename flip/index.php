@@ -59,6 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <!-- Custom CSS -->
     <link href="<?= BASE_PATH ?>/assets/css/style.css" rel="stylesheet">
+
+    <style>
+        /* Bouton Se connecter plus gros sur mobile */
+        @media (max-width: 768px) {
+            .btn-primary.btn-lg {
+                padding: 1rem 1.5rem;
+                font-size: 1.25rem;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="login-container">
