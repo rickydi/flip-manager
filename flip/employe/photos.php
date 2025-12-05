@@ -74,6 +74,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
                         $destination = __DIR__ . '/../uploads/photos/' . $newFilename;
 
+                        // Vérifier que le fichier temp existe
+                        if (!file_exists($tmpName)) {
+                            $debugInfo[] = "Fichier temp n'existe pas: $tmpName";
+                            continue;
+                        }
+
+                        // Vérifier que le dossier destination existe et est writable
+                        $destDir = dirname($destination);
+                        if (!is_dir($destDir)) {
+                            $debugInfo[] = "Dossier destination n'existe pas: $destDir";
+                            continue;
+                        }
+                        if (!is_writable($destDir)) {
+                            $debugInfo[] = "Dossier non writable: $destDir";
+                            continue;
+                        }
+
+                        // Essayer avec copy() si move_uploaded_file échoue
                         if (move_uploaded_file($tmpName, $destination)) {
                             // Insérer dans la base de données
                             $stmt = $pdo->prepare("
@@ -82,8 +100,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ");
                             $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
                             $uploadedCount++;
+                        } elseif (copy($tmpName, $destination)) {
+                            // Fallback avec copy()
+                            unlink($tmpName);
+                            $stmt = $pdo->prepare("
+                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
+                                VALUES (?, ?, ?, ?, NOW(), ?)
+                            ");
+                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
+                            $uploadedCount++;
                         } else {
-                            $debugInfo[] = "Échec move_uploaded_file pour: $originalName";
+                            $lastError = error_get_last();
+                            $debugInfo[] = "Échec upload $originalName: " . ($lastError['message'] ?? 'erreur inconnue');
                         }
                     } else {
                         // Décoder l'erreur d'upload
