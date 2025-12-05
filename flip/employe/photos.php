@@ -52,15 +52,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $uploadedCount = 0;
             $debugInfo = [];
 
-            if (isset($_FILES['photos']) && !empty($_FILES['photos']['name'][0])) {
-                $totalFiles = count($_FILES['photos']['name']);
+            // Collecter tous les fichiers (caméra + galerie)
+            $filesToProcess = [];
 
-                for ($i = 0; $i < $totalFiles; $i++) {
-                    $errorCode = $_FILES['photos']['error'][$i];
-                    $originalName = $_FILES['photos']['name'][$i];
+            // Photo de la caméra (fichier unique)
+            if (isset($_FILES['camera_photo']) && $_FILES['camera_photo']['error'] === UPLOAD_ERR_OK && !empty($_FILES['camera_photo']['name'])) {
+                $filesToProcess[] = [
+                    'name' => $_FILES['camera_photo']['name'],
+                    'tmp_name' => $_FILES['camera_photo']['tmp_name'],
+                    'error' => $_FILES['camera_photo']['error'],
+                    'size' => $_FILES['camera_photo']['size']
+                ];
+            }
+
+            // Photos de la galerie (fichiers multiples)
+            if (isset($_FILES['gallery_photos']) && !empty($_FILES['gallery_photos']['name'][0])) {
+                $totalGallery = count($_FILES['gallery_photos']['name']);
+                for ($i = 0; $i < $totalGallery; $i++) {
+                    if (!empty($_FILES['gallery_photos']['name'][$i])) {
+                        $filesToProcess[] = [
+                            'name' => $_FILES['gallery_photos']['name'][$i],
+                            'tmp_name' => $_FILES['gallery_photos']['tmp_name'][$i],
+                            'error' => $_FILES['gallery_photos']['error'][$i],
+                            'size' => $_FILES['gallery_photos']['size'][$i]
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($filesToProcess)) {
+                foreach ($filesToProcess as $file) {
+                    $errorCode = $file['error'];
+                    $originalName = $file['name'];
 
                     if ($errorCode === UPLOAD_ERR_OK) {
-                        $tmpName = $_FILES['photos']['tmp_name'][$i];
+                        $tmpName = $file['tmp_name'];
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
                         // Vérifier l'extension (photos et vidéos)
@@ -272,13 +298,13 @@ include '../includes/header.php';
                             <label class="form-label"><?= __('photos') ?> *</label>
 
                             <!-- Input caméra (avec capture) -->
-                            <input type="file" id="cameraInput" name="photos[]"
+                            <input type="file" id="cameraInput" name="camera_photo"
                                    accept="image/*" capture="environment"
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 
                             <!-- Input galerie (sans capture) -->
-                            <input type="file" id="galleryInput" name="photos[]"
+                            <input type="file" id="galleryInput" name="gallery_photos[]"
                                    accept="image/*,video/*" multiple
                                    class="d-none"
                                    onchange="previewPhotos(this)">
