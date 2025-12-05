@@ -213,12 +213,15 @@ include '../includes/header.php';
                         <div class="mb-3">
                             <label class="form-label"><?= __('photos') ?> *</label>
 
+                            <!-- Input caché pour le formulaire -->
+                            <input type="file" id="photosInput" name="photos[]" multiple accept="image/*" style="display: none;">
+
                             <!-- Bouton pour ouvrir la caméra (mobile) -->
                             <div class="mb-3">
                                 <button type="button" class="btn btn-primary btn-lg w-100" onclick="document.getElementById('cameraInput').click()">
                                     <i class="bi bi-camera-fill me-2"></i><?= __('take_photo') ?>
                                 </button>
-                                <input type="file" id="cameraInput" name="photos[]"
+                                <input type="file" id="cameraInput"
                                        accept="image/*" capture="environment" multiple
                                        style="display: none;"
                                        onchange="previewPhotos(this)">
@@ -233,7 +236,7 @@ include '../includes/header.php';
                                 <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('galleryInput').click()">
                                     <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
                                 </button>
-                                <input type="file" id="galleryInput" name="photos[]"
+                                <input type="file" id="galleryInput"
                                        accept="image/*" multiple
                                        style="display: none;"
                                        onchange="previewPhotos(this)">
@@ -444,14 +447,14 @@ function removePhoto(index) {
 }
 
 function updateFileInput() {
-    // Créer un nouveau DataTransfer pour mettre à jour l'input file
+    // Créer un nouveau DataTransfer pour mettre à jour l'input file principal
     const dataTransfer = new DataTransfer();
     selectedFiles.forEach(file => {
         dataTransfer.items.add(file);
     });
 
-    document.getElementById('cameraInput').files = dataTransfer.files;
-    document.getElementById('galleryInput').files = new DataTransfer().files;
+    // Mettre à jour l'input caché qui sera soumis avec le formulaire
+    document.getElementById('photosInput').files = dataTransfer.files;
 }
 </script>
 
