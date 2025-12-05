@@ -90,6 +90,15 @@ $isAdmin = isAdmin();
                     </li>
 
                     <li class="nav-item">
+                        <a class="nav-link px-2 <?= strpos($currentUri, '/admin/photos/') !== false ? 'active' : '' ?>"
+                           href="<?= url('/admin/photos/liste.php') ?>" title="Photos">
+                            <i class="bi bi-camera"></i>
+                            <span class="nav-text-short d-none d-xl-inline"> Photos</span>
+                            <span class="nav-text-full"> Photos</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/utilisateurs/liste.php') ?>" title="Administration">
                             <i class="bi bi-gear"></i>
