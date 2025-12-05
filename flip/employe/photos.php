@@ -365,14 +365,28 @@ include '../includes/header.php';
                     </div>
                     <div class="card-body">
                         <div class="row g-2">
-                            <?php foreach ($photosGroupe as $photo): ?>
+                            <?php foreach ($photosGroupe as $photo):
+                                $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
+                                $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+                            ?>
                                 <div class="col-4 col-md-3">
                                     <div class="position-relative">
                                         <a href="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>" target="_blank">
-                                            <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
-                                                 alt="Photo"
-                                                 class="img-fluid rounded"
-                                                 style="width:100%;height:100px;object-fit:cover;">
+                                            <?php if ($isVideo): ?>
+                                                <div class="video-thumbnail rounded" style="width:100%;height:100px;background:#1a1d21;display:flex;align-items:center;justify-content:center;position:relative;">
+                                                    <video src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
+                                                           style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
+                                                           muted preload="metadata"></video>
+                                                    <div style="position:absolute;z-index:2;background:rgba(0,0,0,0.6);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+                                                        <i class="bi bi-play-fill text-white" style="font-size:1.5rem;margin-left:3px;"></i>
+                                                    </div>
+                                                </div>
+                                            <?php else: ?>
+                                                <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
+                                                     alt="Photo"
+                                                     class="img-fluid rounded"
+                                                     style="width:100%;height:100px;object-fit:cover;">
+                                            <?php endif; ?>
                                         </a>
                                         <form method="POST" class="position-absolute top-0 end-0 m-1">
                                             <?php csrfField(); ?>

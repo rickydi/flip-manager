@@ -224,16 +224,30 @@ include '../../includes/header.php';
                         <p class="text-muted mb-3"><i class="bi bi-chat-left-text me-2"></i><?= e($groupe['description']) ?></p>
                     <?php endif; ?>
                     <div class="row g-2">
-                        <?php foreach ($photosGroupe as $photo): ?>
+                        <?php foreach ($photosGroupe as $photo):
+                            $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
+                            $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+                        ?>
                             <div class="col-6 col-md-3 col-lg-2">
                                 <div class="position-relative">
                                     <a href="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
                                        target="_blank"
                                        class="d-block">
-                                        <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
-                                             alt="Photo"
-                                             class="img-fluid rounded"
-                                             style="width:100%;height:120px;object-fit:cover;">
+                                        <?php if ($isVideo): ?>
+                                            <div class="video-thumbnail rounded" style="width:100%;height:120px;background:#1a1d21;display:flex;align-items:center;justify-content:center;position:relative;">
+                                                <video src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
+                                                       style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
+                                                       muted preload="metadata"></video>
+                                                <div style="position:absolute;z-index:2;background:rgba(0,0,0,0.6);border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;">
+                                                    <i class="bi bi-play-fill text-white" style="font-size:2rem;margin-left:4px;"></i>
+                                                </div>
+                                            </div>
+                                        <?php else: ?>
+                                            <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
+                                                 alt="Photo"
+                                                 class="img-fluid rounded"
+                                                 style="width:100%;height:120px;object-fit:cover;">
+                                        <?php endif; ?>
                                     </a>
                                     <form method="POST" action="" class="position-absolute top-0 end-0 m-1">
                                         <?php csrfField(); ?>
@@ -245,7 +259,10 @@ include '../../includes/header.php';
                                         </button>
                                     </form>
                                     <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-50 text-white p-1 rounded-bottom">
-                                        <small><?= date('H:i', strtotime($photo['date_prise'])) ?></small>
+                                        <small>
+                                            <?php if ($isVideo): ?><i class="bi bi-camera-video me-1"></i><?php endif; ?>
+                                            <?= date('H:i', strtotime($photo['date_prise'])) ?>
+                                        </small>
                                     </div>
                                 </div>
                             </div>
