@@ -504,6 +504,13 @@ include '../includes/header.php';
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-fermer le calendrier/horloge quand on sélectionne une valeur
+    document.querySelectorAll('input[type="date"], input[type="time"]').forEach(function(input) {
+        input.addEventListener('change', function() {
+            this.blur();
+        });
+    });
+
     // Fonction pour calculer les heures entre deux horaires
     function calculerHeures(debut, fin) {
         if (!debut || !fin) return 0;
