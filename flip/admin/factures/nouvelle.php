@@ -13,29 +13,23 @@ requireAdmin();
 $pageTitle = 'Nouvelle facture';
 $errors = [];
 
-// Liste des fournisseurs suggérés
-$fournisseursSuggeres = [
-    'Réno Dépot',
-    'Rona',
-    'BMR',
-    'Patrick Morin',
-    'Home Depot',
-    'J-Jodoin',
-    'Ly Granite',
-    'COMMONWEALTH',
-    'CJP',
-    'Richelieu',
-    'Canac',
-    'IKEA',
-    'Lowes',
-    'Canadian Tire'
-];
+// Créer la table fournisseurs si elle n'existe pas
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS fournisseurs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(255) NOT NULL UNIQUE,
+            actif TINYINT(1) DEFAULT 1,
+            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+} catch (Exception $e) {
+    // Ignorer
+}
 
-// Récupérer les fournisseurs utilisés récemment (pour auto-complétion)
-$stmt = $pdo->query("SELECT DISTINCT fournisseur FROM factures ORDER BY fournisseur ASC LIMIT 50");
-$fournisseursUtilises = $stmt->fetchAll(PDO::FETCH_COLUMN);
-$tousLesFournisseurs = array_unique(array_merge($fournisseursSuggeres, $fournisseursUtilises));
-sort($tousLesFournisseurs);
+// Récupérer les fournisseurs depuis la table
+$stmt = $pdo->query("SELECT nom FROM fournisseurs WHERE actif = 1 ORDER BY nom ASC");
+$tousLesFournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
@@ -186,6 +180,7 @@ include '../../includes/header.php';
                             <?php foreach ($tousLesFournisseurs as $f): ?>
                                 <option value="<?= e($f) ?>"><?= e($f) ?></option>
                             <?php endforeach; ?>
+                            <option value="__autre__">➕ Autre (ajouter nouveau)</option>
                         </select>
                     </div>
 
@@ -344,6 +339,82 @@ document.getElementById('tvq').addEventListener('focus', function() {
 
 document.getElementById('tps').addEventListener('input', calculerTotal);
 document.getElementById('tvq').addEventListener('input', calculerTotal);
+
+// Gestion du fournisseur "Autre"
+document.getElementById('fournisseur').addEventListener('change', function() {
+    if (this.value === '__autre__') {
+        this.value = ''; // Reset la sélection
+        new bootstrap.Modal(document.getElementById('nouveauFournisseurModal')).show();
+    }
+});
+
+function ajouterFournisseur() {
+    const nom = document.getElementById('nouveauFournisseurNom').value.trim();
+    if (!nom) {
+        alert('Veuillez entrer le nom du fournisseur');
+        return;
+    }
+
+    // Envoyer en AJAX
+    fetch('<?= url('/api/fournisseur-ajouter.php') ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'nom=' + encodeURIComponent(nom) + '&csrf_token=<?= getCSRFToken() ?>'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Ajouter le nouveau fournisseur au dropdown
+            const select = document.getElementById('fournisseur');
+            const newOption = document.createElement('option');
+            newOption.value = nom;
+            newOption.textContent = nom;
+
+            // Insérer avant "Autre"
+            const autreOption = select.querySelector('option[value="__autre__"]');
+            select.insertBefore(newOption, autreOption);
+
+            // Sélectionner le nouveau fournisseur
+            select.value = nom;
+
+            // Fermer le modal
+            bootstrap.Modal.getInstance(document.getElementById('nouveauFournisseurModal')).hide();
+            document.getElementById('nouveauFournisseurNom').value = '';
+        } else {
+            alert(data.error || 'Erreur lors de l\'ajout');
+        }
+    })
+    .catch(error => {
+        alert('Erreur de connexion');
+    });
+}
 </script>
+
+<!-- Modal Nouveau Fournisseur -->
+<div class="modal fade" id="nouveauFournisseurModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nouveau fournisseur</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nom du fournisseur *</label>
+                    <input type="text" class="form-control" id="nouveauFournisseurNom"
+                           placeholder="Ex: Home Depot" autofocus>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="ajouterFournisseur()">
+                    <i class="bi bi-plus-circle me-1"></i>Ajouter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php include '../../includes/footer.php'; ?>

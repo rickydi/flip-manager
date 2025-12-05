@@ -392,6 +392,11 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/fournisseurs/liste.php') ?>">
+                <i class="bi bi-shop me-1"></i>Fournisseurs
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
                 <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
             </a>
