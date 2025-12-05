@@ -305,8 +305,8 @@ include '../includes/header.php';
                             <span id="photoCountText"></span>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100 btn-lg" id="submitBtn" style="display: none;">
-                            <i class="bi bi-cloud-upload me-2"></i><?= __('upload_photos') ?>
+                        <button type="submit" class="btn btn-success w-100 py-4" id="submitBtn" style="display: none; font-size: 1.3rem;">
+                            <i class="bi bi-cloud-upload me-2" style="font-size: 1.8rem;"></i><?= __('upload_photos') ?>
                         </button>
                     </form>
 
