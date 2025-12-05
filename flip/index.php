@@ -32,7 +32,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($user) {
             loginUser($user);
             updateLastLogin($pdo, $user['id']);
-            
+            logActivity($pdo, $user['id'], 'login', null, 'Connexion réussie');
+
             if ($user['role'] === 'admin') {
                 redirect('/admin/index.php');
             } else {

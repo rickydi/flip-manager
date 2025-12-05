@@ -65,5 +65,56 @@ try {
     // Ignorer si la colonne existe déjà
 }
 
+// Migration: créer la table user_activity pour l'historique des activités
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS user_activity (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        page VARCHAR(255) DEFAULT NULL,
+        details VARCHAR(255) DEFAULT NULL,
+        ip_address VARCHAR(45) DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_user_id (user_id),
+        INDEX idx_created_at (created_at)
+    )");
+} catch (Exception $e) {
+    // Ignorer si la table existe déjà
+}
+
+// Mettre à jour la durée de session et logger l'activité (si connecté)
+if (isset($_SESSION['user_id']) && isset($_SESSION['login_time'])) {
+    $dureeSession = time() - $_SESSION['login_time'];
+    try {
+        $stmt = $pdo->prepare("UPDATE users SET duree_derniere_session = ? WHERE id = ?");
+        $stmt->execute([$dureeSession, $_SESSION['user_id']]);
+    } catch (Exception $e) {
+        // Ignorer les erreurs
+    }
+
+    // Logger les pages visitées (sauf API et assets)
+    $currentPage = $_SERVER['REQUEST_URI'] ?? '';
+    $isApi = strpos($currentPage, '/api/') !== false;
+    $isLogout = strpos($currentPage, 'logout') !== false;
+    $isLogin = $currentPage === '/flip/' || $currentPage === '/flip/index.php';
+
+    // Ne logger que les pages principales, pas trop souvent (1 fois par page par session)
+    if (!$isApi && !$isLogout && !$isLogin) {
+        $pageKey = 'visited_' . md5($currentPage);
+        if (!isset($_SESSION[$pageKey])) {
+            $_SESSION[$pageKey] = true;
+            try {
+                // Nettoyer le chemin pour l'affichage
+                $pageName = str_replace(['/flip/', '.php'], ['', ''], $currentPage);
+                $pageName = trim($pageName, '/') ?: 'accueil';
+                $stmt = $pdo->prepare("INSERT INTO user_activity (user_id, action, page, ip_address) VALUES (?, 'page_view', ?, ?)");
+                $stmt->execute([$_SESSION['user_id'], $pageName, $_SERVER['REMOTE_ADDR'] ?? null]);
+            } catch (Exception $e) {
+                // Ignorer
+            }
+        }
+    }
+}
+
 // Système de traduction
 require_once __DIR__ . '/includes/lang.php';

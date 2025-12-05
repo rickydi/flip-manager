@@ -121,6 +121,51 @@ function formatDureeSession($seconds) {
 }
 
 /**
+ * Enregistre une activité utilisateur
+ * @param PDO $pdo
+ * @param int $userId
+ * @param string $action (login, logout, page_view, etc.)
+ * @param string|null $page
+ * @param string|null $details
+ */
+function logActivity($pdo, $userId, $action, $page = null, $details = null) {
+    try {
+        $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+        $stmt = $pdo->prepare("INSERT INTO user_activity (user_id, action, page, details, ip_address) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$userId, $action, $page, $details, $ip]);
+    } catch (Exception $e) {
+        // Ignorer les erreurs silencieusement
+    }
+}
+
+/**
+ * Récupère l'historique d'activité d'un utilisateur
+ * @param PDO $pdo
+ * @param int $userId
+ * @param int $limit
+ * @return array
+ */
+function getUserActivity($pdo, $userId, $limit = 50) {
+    $stmt = $pdo->prepare("SELECT * FROM user_activity WHERE user_id = ? ORDER BY created_at DESC LIMIT ?");
+    $stmt->execute([$userId, $limit]);
+    return $stmt->fetchAll();
+}
+
+/**
+ * Formate le nom d'une action pour l'affichage
+ * @param string $action
+ * @return string
+ */
+function formatActivityAction($action) {
+    $actions = [
+        'login' => '🔐 Connexion',
+        'logout' => '🚪 Déconnexion',
+        'page_view' => '👁 Page visitée',
+    ];
+    return $actions[$action] ?? $action;
+}
+
+/**
  * Génère un nom de fichier unique
  * @param string $originalName
  * @return string
