@@ -169,6 +169,11 @@ include '../includes/header.php';
     border-bottom: none;
 }
 
+.activity-item:hover {
+    background-color: rgba(0, 123, 255, 0.05);
+    transition: background-color 0.2s;
+}
+
 .activity-icon {
     width: 40px;
     height: 40px;
@@ -327,7 +332,7 @@ include '../includes/header.php';
                         </div>
                     <?php else: ?>
                         <?php foreach ($activites as $activite): ?>
-                            <div class="activity-item">
+                            <a href="<?= url('/admin/factures/modifier.php?id=' . $activite['id']) ?>" class="activity-item" style="text-decoration: none; color: inherit; cursor: pointer;">
                                 <div class="activity-icon <?= $activite['type'] ?>">
                                     <i class="bi bi-<?= $activite['type'] === 'facture' ? 'receipt' : 'clock' ?>"></i>
                                 </div>
@@ -348,7 +353,7 @@ include '../includes/header.php';
                                         <?= $activite['statut'] === 'approuvee' || $activite['statut'] === 'approuve' ? 'Approuvé' : ($activite['statut'] === 'en_attente' ? 'En attente' : $activite['statut']) ?>
                                     </span>
                                 </div>
-                            </div>
+                            </a>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
