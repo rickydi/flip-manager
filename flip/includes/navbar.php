@@ -17,6 +17,12 @@ $isAdmin = isAdmin();
             <span class="d-none d-sm-inline"><?= APP_NAME ?></span>
         </a>
 
+        <!-- Bouton langue mobile (à côté du menu hamburger) - seulement pour employés -->
+        <?php if (!$isAdmin): ?>
+            <div class="d-lg-none me-2">
+                <?= renderLanguageToggle() ?>
+            </div>
+        <?php endif; ?>
 
         <button class="navbar-toggler py-1 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
             <span class="navbar-toggler-icon"></span>

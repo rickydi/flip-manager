@@ -55,11 +55,6 @@ include '../includes/header.php';
     <!-- INTERFACE MOBILE - Deux gros boutons -->
     <!-- ========================================== -->
     <div class="d-md-none mobile-action-menu">
-        <!-- Bouton langue -->
-        <div class="text-end mb-3">
-            <?= renderLanguageToggle() ?>
-        </div>
-
         <div class="text-center mb-4">
             <h4 class="mb-1"><i class="bi bi-person-circle me-2"></i><?= __('hello') ?>, <?= e(getCurrentUserName()) ?></h4>
             <p class="text-muted small mb-0"><?= __('what_to_do') ?></p>
