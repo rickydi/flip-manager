@@ -12,6 +12,22 @@ requireAdmin();
 
 $pageTitle = 'Rapport de paie hebdomadaire';
 
+// Créer la table semaines_payees si elle n'existe pas
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS semaines_payees (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            semaine_debut DATE NOT NULL,
+            paye_par INT NULL,
+            date_paiement DATETIME DEFAULT CURRENT_TIMESTAMP,
+            notes TEXT NULL,
+            UNIQUE KEY unique_semaine (semaine_debut)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+} catch (Exception $e) {
+    // Ignorer
+}
+
 // Déterminer la semaine sélectionnée (lundi à dimanche)
 $semaineParam = isset($_GET['semaine']) ? $_GET['semaine'] : date('Y-m-d');
 $dateSemaine = new DateTime($semaineParam);
@@ -22,6 +38,40 @@ $dateSemaine->modify('-' . ($jourSemaine - 1) . ' days');
 $lundi = $dateSemaine->format('Y-m-d');
 $dateSemaine->modify('+6 days');
 $dimanche = $dateSemaine->format('Y-m-d');
+
+// Traitement POST pour marquer comme payé/non payé
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $action = $_POST['action'] ?? '';
+
+        if ($action === 'marquer_paye') {
+            $stmt = $pdo->prepare("INSERT IGNORE INTO semaines_payees (semaine_debut, paye_par) VALUES (?, ?)");
+            $stmt->execute([$lundi, getCurrentUserId()]);
+            setFlashMessage('success', 'Semaine marquée comme payée!');
+        } elseif ($action === 'annuler_paye') {
+            $stmt = $pdo->prepare("DELETE FROM semaines_payees WHERE semaine_debut = ?");
+            $stmt->execute([$lundi]);
+            setFlashMessage('warning', 'Statut de paiement annulé.');
+        }
+
+        redirect('/admin/rapports/paie-hebdo.php?semaine=' . $lundi);
+    }
+}
+
+// Vérifier si la semaine est payée
+$semainePaye = false;
+$datePaiement = null;
+try {
+    $stmt = $pdo->prepare("SELECT * FROM semaines_payees WHERE semaine_debut = ?");
+    $stmt->execute([$lundi]);
+    $paiement = $stmt->fetch();
+    if ($paiement) {
+        $semainePaye = true;
+        $datePaiement = $paiement['date_paiement'];
+    }
+} catch (Exception $e) {
+    // Table n'existe pas
+}
 
 // Générer les dates de la semaine
 $joursSemaine = [];
@@ -119,6 +169,17 @@ try {
     // Table n'existe pas encore
 }
 
+// Récupérer la liste des semaines payées
+$semainesPayees = [];
+try {
+    $stmt = $pdo->query("SELECT semaine_debut FROM semaines_payees");
+    while ($row = $stmt->fetch()) {
+        $semainesPayees[] = $row['semaine_debut'];
+    }
+} catch (Exception $e) {
+    // Ignorer
+}
+
 // Générer la liste des semaines disponibles (12 dernières semaines)
 $semainesDisponibles = [];
 $dateTemp = new DateTime();
@@ -128,9 +189,11 @@ $dateTemp->modify('-' . ($jourActuel - 1) . ' days'); // Aller au lundi
 for ($i = 0; $i < 12; $i++) {
     $lundiTemp = $dateTemp->format('Y-m-d');
     $dimancheTemp = (clone $dateTemp)->modify('+6 days')->format('Y-m-d');
+    $estPaye = in_array($lundiTemp, $semainesPayees);
     $semainesDisponibles[] = [
         'valeur' => $lundiTemp,
-        'label' => 'Sem. ' . $dateTemp->format('d/m') . ' au ' . (new DateTime($dimancheTemp))->format('d/m/Y')
+        'label' => ($estPaye ? '✓ ' : '') . 'Sem. ' . $dateTemp->format('d/m') . ' au ' . (new DateTime($dimancheTemp))->format('d/m/Y'),
+        'paye' => $estPaye
     ];
     $dateTemp->modify('-7 days');
 }
@@ -261,12 +324,43 @@ include '../../includes/header.php';
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h1><i class="bi bi-gear me-2"></i>Administration</h1>
             <div class="d-flex gap-2">
+                <?php if ($semainePaye): ?>
+                    <form method="POST" class="d-inline" onsubmit="return confirm('Annuler le statut payé pour cette semaine?');">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="action" value="annuler_paye">
+                        <button type="submit" class="btn btn-outline-warning">
+                            <i class="bi bi-x-circle me-1"></i>Annuler payé
+                        </button>
+                    </form>
+                <?php else: ?>
+                    <form method="POST" class="d-inline" onsubmit="return confirm('Marquer cette semaine comme payée?');">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="action" value="marquer_paye">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Marquer payé
+                        </button>
+                    </form>
+                <?php endif; ?>
                 <button type="button" class="btn btn-primary" onclick="window.print()">
                     <i class="bi bi-printer me-1"></i>Imprimer
                 </button>
             </div>
         </div>
     </div>
+
+    <?php displayFlashMessage(); ?>
+
+    <?php if ($semainePaye): ?>
+    <div class="alert alert-success d-flex align-items-center mb-4 no-print">
+        <i class="bi bi-check-circle-fill me-2" style="font-size: 1.5rem;"></i>
+        <div>
+            <strong>Semaine payée</strong>
+            <?php if ($datePaiement): ?>
+                <br><small>Payé le <?= formatDateTime($datePaiement) ?></small>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- Sous-navigation Administration -->
     <ul class="nav nav-tabs mb-4 no-print">
