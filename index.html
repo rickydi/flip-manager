@@ -13,6 +13,17 @@
     <style>
       /* Cacher le bouton chat */
       #root > div > div > button { display: none !important; }
+
+      /* Corriger le scroll sur mobile - désactiver sticky */
+      @media (max-width: 768px) {
+        .sticky {
+          position: relative !important;
+        }
+        section {
+          min-height: auto !important;
+          height: auto !important;
+        }
+      }
     </style>
   </head>
   <body>
