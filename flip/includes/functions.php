@@ -101,6 +101,26 @@ function formatTempsEcoule($datetime) {
 }
 
 /**
+ * Formate une durée de session en secondes vers un format lisible
+ * @param int|null $seconds Durée en secondes
+ * @return string
+ */
+function formatDureeSession($seconds) {
+    if (empty($seconds) || $seconds <= 0) return '-';
+
+    $hours = floor($seconds / 3600);
+    $minutes = floor(($seconds % 3600) / 60);
+
+    if ($hours > 0) {
+        return $hours . 'h' . ($minutes > 0 ? str_pad($minutes, 2, '0', STR_PAD_LEFT) : '');
+    } elseif ($minutes > 0) {
+        return $minutes . ' min';
+    } else {
+        return '< 1 min';
+    }
+}
+
+/**
  * Génère un nom de fichier unique
  * @param string $originalName
  * @return string

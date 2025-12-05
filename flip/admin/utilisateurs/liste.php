@@ -211,6 +211,7 @@ include '../../includes/header.php';
                             <th>Taux horaire</th>
                             <th>Statut</th>
                             <th>Dernière connexion</th>
+                            <th>Durée session</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -249,6 +250,13 @@ include '../../includes/header.php';
                                         <br><small class="text-muted"><?= formatTempsEcoule($user['derniere_connexion']) ?></small>
                                     <?php else: ?>
                                         <span class="text-muted">Jamais</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if (!empty($user['duree_derniere_session'])): ?>
+                                        <i class="bi bi-clock me-1 text-muted"></i><?= formatDureeSession($user['duree_derniere_session']) ?>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="action-buttons">

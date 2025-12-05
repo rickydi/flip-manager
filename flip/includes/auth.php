@@ -96,11 +96,25 @@ function loginUser($user) {
 }
 
 /**
- * Déconnecte l'utilisateur
+ * Déconnecte l'utilisateur et sauvegarde la durée de session
+ * @param PDO|null $pdo Connexion à la base de données (optionnel)
  */
-function logoutUser() {
+function logoutUser($pdo = null) {
+    // Sauvegarder la durée de session si possible
+    if ($pdo && isset($_SESSION['user_id']) && isset($_SESSION['login_time'])) {
+        $userId = $_SESSION['user_id'];
+        $dureeSession = time() - $_SESSION['login_time']; // en secondes
+
+        try {
+            $stmt = $pdo->prepare("UPDATE users SET duree_derniere_session = ? WHERE id = ?");
+            $stmt->execute([$dureeSession, $userId]);
+        } catch (Exception $e) {
+            // Ignorer les erreurs
+        }
+    }
+
     $_SESSION = array();
-    
+
     if (ini_get("session.use_cookies")) {
         $params = session_get_cookie_params();
         setcookie(session_name(), '', time() - 42000,
@@ -108,7 +122,7 @@ function logoutUser() {
             $params["secure"], $params["httponly"]
         );
     }
-    
+
     session_destroy();
 }
 

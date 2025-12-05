@@ -58,5 +58,12 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// Migration: ajouter colonne duree_derniere_session si elle n'existe pas
+try {
+    $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS duree_derniere_session INT DEFAULT NULL");
+} catch (Exception $e) {
+    // Ignorer si la colonne existe déjà
+}
+
 // Système de traduction
 require_once __DIR__ . '/includes/lang.php';
