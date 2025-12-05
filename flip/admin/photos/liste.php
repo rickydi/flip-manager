@@ -15,7 +15,7 @@ $pageTitle = 'Photos des projets';
 // Filtres
 $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
 $filtreEmploye = isset($_GET['employe']) ? (int)$_GET['employe'] : 0;
-$filtreGroupe = isset($_GET['groupe']) ? $_GET['groupe'] : '';
+$filtreCategorie = isset($_GET['categorie']) ? $_GET['categorie'] : '';
 
 // Charger les noms des catégories depuis la base de données
 $categoryNames = [];
@@ -35,16 +35,14 @@ $projets = getProjets($pdo, false);
 $stmt = $pdo->query("SELECT id, CONCAT(prenom, ' ', nom) as nom_complet FROM users ORDER BY prenom, nom");
 $employes = $stmt->fetchAll();
 
-// Récupérer les groupes de photos pour le filtre (avec catégorie)
+// Récupérer les catégories utilisées pour le filtre
 $stmt = $pdo->query("
-    SELECT DISTINCT p.groupe_id, p.description, pr.nom as projet_nom,
-           DATE_FORMAT(MIN(p.date_prise), '%d/%m/%Y') as date_groupe
-    FROM photos_projet p
-    JOIN projets pr ON p.projet_id = pr.id
-    GROUP BY p.groupe_id, p.description, pr.nom
-    ORDER BY MIN(p.date_prise) DESC
+    SELECT DISTINCT description
+    FROM photos_projet
+    WHERE description IS NOT NULL AND description != ''
+    ORDER BY description
 ");
-$groupesListe = $stmt->fetchAll();
+$categoriesUtilisees = $stmt->fetchAll();
 
 // Traitement de la suppression
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -123,9 +121,9 @@ if ($filtreEmploye > 0) {
     $params[] = $filtreEmploye;
 }
 
-if (!empty($filtreGroupe)) {
-    $sql .= " AND p.groupe_id = ?";
-    $params[] = $filtreGroupe;
+if (!empty($filtreCategorie)) {
+    $sql .= " AND p.description = ?";
+    $params[] = $filtreCategorie;
 }
 
 $sql .= " GROUP BY p.groupe_id, p.projet_id, pr.nom, pr.adresse, u.prenom, u.nom, u.id, p.description
@@ -199,23 +197,20 @@ include '../../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Groupe</label>
-                    <select class="form-select" name="groupe" onchange="this.form.submit()">
-                        <option value="">Tous les groupes</option>
-                        <?php foreach ($groupesListe as $grp):
-                            $grpLabel = $grp['projet_nom'] . ' - ' . $grp['date_groupe'];
-                            if (!empty($grp['description'])) {
-                                $catName = $grp['description'];
-                                if (isset($categoryNames[$catName])) {
-                                    $catName = $categoryNames[$catName];
-                                } elseif (strpos($catName, 'cat_') === 0) {
-                                    $catName = __($catName);
-                                }
-                                $grpLabel .= ' (' . $catName . ')';
+                    <label class="form-label">Catégorie</label>
+                    <select class="form-select" name="categorie" onchange="this.form.submit()">
+                        <option value="">Toutes les catégories</option>
+                        <?php foreach ($categoriesUtilisees as $cat):
+                            $catKey = $cat['description'];
+                            $catLabel = $catKey;
+                            if (isset($categoryNames[$catKey])) {
+                                $catLabel = $categoryNames[$catKey];
+                            } elseif (strpos($catKey, 'cat_') === 0) {
+                                $catLabel = __($catKey);
                             }
                         ?>
-                            <option value="<?= e($grp['groupe_id']) ?>" <?= $filtreGroupe === $grp['groupe_id'] ? 'selected' : '' ?>>
-                                <?= e($grpLabel) ?>
+                            <option value="<?= e($catKey) ?>" <?= $filtreCategorie === $catKey ? 'selected' : '' ?>>
+                                <?= e($catLabel) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
