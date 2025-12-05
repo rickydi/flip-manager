@@ -42,51 +42,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $groupeId = uniqid('grp_', true);
             }
 
-            // Traiter les fichiers uploadés
-            if (isset($_FILES['photos']) && !empty($_FILES['photos']['name'][0])) {
-                $uploadedCount = 0;
-                $totalFiles = count($_FILES['photos']['name']);
+            // Fonction pour traiter un array de fichiers
+            $processFiles = function($files) use ($projetId, $userId, $groupeId, $description, $pdo) {
+                $count = 0;
+                if (!isset($files['name']) || empty($files['name'][0])) {
+                    return 0;
+                }
 
+                $totalFiles = count($files['name']);
                 for ($i = 0; $i < $totalFiles; $i++) {
-                    if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
-                        $tmpName = $_FILES['photos']['tmp_name'][$i];
-                        $originalName = $_FILES['photos']['name'][$i];
+                    if ($files['error'][$i] === UPLOAD_ERR_OK) {
+                        $tmpName = $files['tmp_name'][$i];
+                        $originalName = $files['name'][$i];
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
-                        // Vérifier l'extension
-                        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif'])) {
+                        if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp'])) {
                             continue;
                         }
 
-                        // Vérifier la taille (max 10MB)
-                        if ($_FILES['photos']['size'][$i] > 10 * 1024 * 1024) {
+                        if ($files['size'][$i] > 10 * 1024 * 1024) {
                             continue;
                         }
 
-                        // Générer un nom unique
                         $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
                         $destination = __DIR__ . '/../uploads/photos/' . $newFilename;
 
                         if (move_uploaded_file($tmpName, $destination)) {
-                            // Insérer dans la base de données
                             $stmt = $pdo->prepare("
                                 INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
                                 VALUES (?, ?, ?, ?, NOW(), ?)
                             ");
                             $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
-                            $uploadedCount++;
+                            $count++;
                         }
                     }
                 }
+                return $count;
+            };
 
-                if ($uploadedCount > 0) {
-                    setFlashMessage('success', $uploadedCount . ' ' . __('photos_uploaded'));
-                    redirect('/employe/photos.php?groupe=' . $groupeId . '&projet=' . $projetId);
-                } else {
-                    $errors[] = __('no_photos_uploaded');
-                }
+            // Traiter les fichiers des deux inputs
+            $uploadedCount = 0;
+            if (isset($_FILES['photos'])) {
+                $uploadedCount += $processFiles($_FILES['photos']);
+            }
+            if (isset($_FILES['camera_photos'])) {
+                $uploadedCount += $processFiles($_FILES['camera_photos']);
+            }
+
+            if ($uploadedCount > 0) {
+                setFlashMessage('success', $uploadedCount . ' ' . __('photos_uploaded'));
+                redirect('/employe/photos.php?groupe=' . $groupeId . '&projet=' . $projetId);
             } else {
-                $errors[] = __('select_photos');
+                $errors[] = __('no_photos_uploaded');
             }
         } elseif ($action === 'delete') {
             $photoId = (int)($_POST['photo_id'] ?? 0);
@@ -213,34 +220,18 @@ include '../includes/header.php';
                         <div class="mb-3">
                             <label class="form-label"><?= __('photos') ?> *</label>
 
-                            <!-- Input caché pour le formulaire -->
-                            <input type="file" id="photosInput" name="photos[]" multiple accept="image/*" style="display: none;">
+                            <!-- Input fichier unique -->
+                            <input type="file" id="photosInput" name="photos[]"
+                                   accept="image/*" multiple required
+                                   class="form-control form-control-lg mb-3"
+                                   onchange="previewPhotos(this)">
 
-                            <!-- Bouton pour ouvrir la caméra (mobile) -->
-                            <div class="mb-3">
-                                <button type="button" class="btn btn-primary btn-lg w-100" onclick="document.getElementById('cameraInput').click()">
-                                    <i class="bi bi-camera-fill me-2"></i><?= __('take_photo') ?>
-                                </button>
-                                <input type="file" id="cameraInput"
-                                       accept="image/*" capture="environment" multiple
-                                       style="display: none;"
-                                       onchange="previewPhotos(this)">
-                            </div>
-
-                            <!-- Ou sélectionner depuis la galerie -->
-                            <div class="text-center mb-3">
-                                <span class="badge bg-secondary"><?= __('or') ?></span>
-                            </div>
-
-                            <div class="mb-3">
-                                <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('galleryInput').click()">
-                                    <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
-                                </button>
-                                <input type="file" id="galleryInput"
-                                       accept="image/*" multiple
-                                       style="display: none;"
-                                       onchange="previewPhotos(this)">
-                            </div>
+                            <!-- Bouton caméra pour mobile -->
+                            <input type="file" id="cameraInput" name="camera_photos[]"
+                                   accept="image/*" capture="environment"
+                                   class="form-control mb-2"
+                                   onchange="previewPhotos(this)">
+                            <small class="text-muted d-block mb-3"><?= __('take_photo') ?></small>
                         </div>
 
                         <!-- Prévisualisation des photos -->
@@ -252,7 +243,7 @@ include '../includes/header.php';
                             <span id="photoCountText"></span>
                         </div>
 
-                        <button type="button" class="btn btn-success w-100" id="submitBtn" disabled onclick="submitPhotos()">
+                        <button type="submit" class="btn btn-success w-100" id="submitBtn">
                             <i class="bi bi-cloud-upload me-2"></i><?= __('upload_photos') ?>
                         </button>
                     </form>
@@ -353,125 +344,41 @@ include '../includes/header.php';
 </div>
 
 <script>
-let selectedFiles = [];
-
+// Simple prévisualisation des photos sélectionnées
 function previewPhotos(input) {
     const preview = document.getElementById('photoPreview');
     const photoCount = document.getElementById('photoCount');
     const photoCountText = document.getElementById('photoCountText');
-    const submitBtn = document.getElementById('submitBtn');
 
-    // Ajouter les nouveaux fichiers à la liste
-    for (let file of input.files) {
-        selectedFiles.push(file);
-    }
+    if (input.files && input.files.length > 0) {
+        preview.innerHTML = '';
+        preview.style.display = 'flex';
 
-    // Afficher la prévisualisation
-    preview.innerHTML = '';
-    preview.style.display = 'flex';
-
-    selectedFiles.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const col = document.createElement('div');
-            col.className = 'col-4';
-            col.innerHTML = `
-                <div class="position-relative">
-                    <img src="${e.target.result}" class="img-fluid rounded"
-                         style="width:100%;height:80px;object-fit:cover;">
-                    <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1"
-                            onclick="removePhoto(${index})">
-                        <i class="bi bi-x"></i>
-                    </button>
-                </div>
-            `;
-            preview.appendChild(col);
-        };
-        reader.readAsDataURL(file);
-    });
-
-    // Afficher le compteur
-    if (selectedFiles.length > 0) {
-        photoCount.style.display = 'block';
-        photoCountText.textContent = selectedFiles.length + ' photo(s) sélectionnée(s)';
-        submitBtn.disabled = false;
-    } else {
-        photoCount.style.display = 'none';
-        submitBtn.disabled = true;
-    }
-
-    // Mettre à jour l'input file
-    updateFileInput();
-}
-
-function removePhoto(index) {
-    selectedFiles.splice(index, 1);
-
-    const preview = document.getElementById('photoPreview');
-    const photoCount = document.getElementById('photoCount');
-    const photoCountText = document.getElementById('photoCountText');
-    const submitBtn = document.getElementById('submitBtn');
-
-    // Recréer la prévisualisation
-    preview.innerHTML = '';
-
-    if (selectedFiles.length === 0) {
-        preview.style.display = 'none';
-        photoCount.style.display = 'none';
-        submitBtn.disabled = true;
-    } else {
-        selectedFiles.forEach((file, idx) => {
+        for (let file of input.files) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 const col = document.createElement('div');
                 col.className = 'col-4';
                 col.innerHTML = `
-                    <div class="position-relative">
-                        <img src="${e.target.result}" class="img-fluid rounded"
-                             style="width:100%;height:80px;object-fit:cover;">
-                        <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-1"
-                                onclick="removePhoto(${idx})">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
+                    <img src="${e.target.result}" class="img-fluid rounded"
+                         style="width:100%;height:80px;object-fit:cover;">
                 `;
                 preview.appendChild(col);
             };
             reader.readAsDataURL(file);
-        });
+        }
 
-        photoCountText.textContent = selectedFiles.length + ' photo(s) sélectionnée(s)';
+        photoCount.style.display = 'block';
+        photoCountText.textContent = input.files.length + ' photo(s) sélectionnée(s)';
     }
-
-    updateFileInput();
 }
 
-function updateFileInput() {
-    // Cette fonction n'est plus nécessaire pour la soumission
-    // mais garde la compatibilité
-}
-
-function submitPhotos() {
-    if (selectedFiles.length === 0) {
-        alert('<?= __('select_photos') ?>');
-        return;
-    }
-
-    // Synchroniser les fichiers vers l'input caché avant soumission
-    const dataTransfer = new DataTransfer();
-    selectedFiles.forEach(file => {
-        dataTransfer.items.add(file);
-    });
-    document.getElementById('photosInput').files = dataTransfer.files;
-
-    // Désactiver le bouton pendant l'upload
-    const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
-
-    // Soumettre le formulaire normalement
-    document.getElementById('photoForm').submit();
-}
+// Désactiver le bouton pendant la soumission
+document.getElementById('photoForm').addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>
