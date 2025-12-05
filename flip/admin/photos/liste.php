@@ -217,7 +217,7 @@ include '../../includes/header.php';
             foreach ($photosGroupe as $p) {
                 $ext = strtolower(pathinfo($p['fichier'], PATHINFO_EXTENSION));
                 $allPhotosForGallery[] = [
-                    'url' => url('/uploads/photos/' . $p['fichier']),
+                    'url' => url('/serve-photo.php?file=' . urlencode($p['fichier'])),
                     'isVideo' => in_array($ext, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']),
                     'filename' => $p['fichier']
                 ];
@@ -271,7 +271,7 @@ include '../../includes/header.php';
                         <?php foreach ($photosGroupe as $photo):
                             $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
                             $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
-                            $mediaUrl = url('/uploads/photos/' . e($photo['fichier']));
+                            $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
                             $currentPhotoIndex = $photoIndexCounter++;
                         ?>
                             <div class="col-6 col-md-3 col-lg-2">
@@ -412,16 +412,42 @@ function prevPhoto() {
     }
 }
 
-function sharePhoto() {
+async function sharePhoto() {
     const item = galleryItems[currentIndex];
-    if (navigator.share) {
-        navigator.share({ title: 'Photo du projet', url: item.url }).catch(() => {});
-    } else {
-        navigator.clipboard.writeText(window.location.origin + item.url).then(() => {
-            alert('Lien copié dans le presse-papier!');
-        }).catch(() => {
-            prompt('Copiez ce lien:', window.location.origin + item.url);
+    const btn = document.querySelector('[onclick="sharePhoto()"]');
+    const originalHtml = btn.innerHTML;
+
+    try {
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        btn.disabled = true;
+
+        const response = await fetch('<?= url('/api/share-photo.php') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: item.filename })
         });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Erreur lors de la création du lien');
+        }
+
+        const shareUrl = data.url;
+
+        if (navigator.share) {
+            await navigator.share({ title: 'Photo du projet', url: shareUrl });
+        } else {
+            await navigator.clipboard.writeText(shareUrl);
+            alert('Lien de partage copié! (valide 7 jours)');
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            alert('Erreur: ' + (err.message || 'Impossible de partager'));
+        }
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
     }
 }
 

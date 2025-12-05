@@ -1,0 +1,5 @@
+# Bloquer l'accès direct aux photos
+# Les photos seront servies via serve-photo.php
+
+Order deny,allow
+Deny from all
