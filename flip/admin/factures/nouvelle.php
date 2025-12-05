@@ -13,6 +13,13 @@ requireAdmin();
 $pageTitle = 'Nouvelle facture';
 $errors = [];
 
+// Liste des fournisseurs par défaut
+$fournisseursDefaut = [
+    'Réno Dépot', 'Rona', 'BMR', 'Patrick Morin', 'Home Depot',
+    'J-Jodoin', 'Ly Granite', 'COMMONWEALTH', 'CJP', 'Richelieu',
+    'Canac', 'IKEA', 'Lowes', 'Canadian Tire'
+];
+
 // Créer la table fournisseurs si elle n'existe pas
 try {
     $pdo->exec("
@@ -23,6 +30,12 @@ try {
             date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+
+    // Insérer les fournisseurs par défaut
+    $stmtInsert = $pdo->prepare("INSERT IGNORE INTO fournisseurs (nom) VALUES (?)");
+    foreach ($fournisseursDefaut as $f) {
+        $stmtInsert->execute([$f]);
+    }
 } catch (Exception $e) {
     // Ignorer
 }
