@@ -430,23 +430,26 @@ include '../../includes/header.php';
             document.getElementById('filterForm').submit();
         });
     });
-    
-    // Gestion des sections à afficher
-    document.querySelectorAll('.section-toggle').forEach(function(checkbox) {
-        // Cacher toutes les sections au chargement
-        var sectionId = checkbox.getAttribute('data-section');
-        var section = document.getElementById(sectionId);
-        if (section) {
-            section.style.display = 'none';
-        }
-        
-        // Événement de changement
-        checkbox.addEventListener('change', function() {
-            var sectionId = this.getAttribute('data-section');
+
+    // Gestion des sections à afficher - attendre que le DOM soit chargé
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.section-toggle').forEach(function(checkbox) {
+            var sectionId = checkbox.getAttribute('data-section');
             var section = document.getElementById(sectionId);
+
+            // Cacher la section au chargement
             if (section) {
-                section.style.display = this.checked ? '' : 'none';
+                section.style.display = 'none';
             }
+
+            // Événement de changement
+            checkbox.addEventListener('change', function() {
+                var sectionId = this.getAttribute('data-section');
+                var section = document.getElementById(sectionId);
+                if (section) {
+                    section.style.display = this.checked ? 'block' : 'none';
+                }
+            });
         });
     });
     </script>
