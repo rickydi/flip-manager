@@ -51,6 +51,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $projetId = (int)($_POST['projet_id'] ?? 0);
         $categorieId = (int)($_POST['categorie_id'] ?? 0);
         $fournisseur = trim($_POST['fournisseur'] ?? '');
+        // Si "Autre" est sélectionné, utiliser le champ fournisseur_autre
+        if ($fournisseur === '__autre__') {
+            $fournisseur = trim($_POST['fournisseur_autre'] ?? '');
+        }
         $description = trim($_POST['description'] ?? '');
         $dateFacture = $_POST['date_facture'] ?? '';
         $montantAvantTaxes = parseNumber($_POST['montant_avant_taxes'] ?? 0);
@@ -151,7 +155,7 @@ include '../../includes/header.php';
                 <?php csrfField(); ?>
                 
                 <div class="row">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Projet *</label>
                         <select class="form-select" name="projet_id" required>
                             <option value="">Sélectionner...</option>
@@ -163,7 +167,7 @@ include '../../includes/header.php';
                         </select>
                     </div>
 
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Catégorie *</label>
                         <select class="form-select" name="categorie_id" required>
                             <option value="">Sélectionner...</option>
@@ -176,32 +180,39 @@ include '../../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
+                </div>
 
-                    <div class="col-md-4 mb-3">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Fournisseur *</label>
+                        <select class="form-select" name="fournisseur" id="fournisseur" required>
+                            <option value="">Sélectionner...</option>
+                            <?php foreach ($tousLesFournisseurs as $f): ?>
+                                <option value="<?= e($f) ?>"><?= e($f) ?></option>
+                            <?php endforeach; ?>
+                            <option value="__autre__">-- Autre (saisir manuellement) --</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
                         <label class="form-label">Date de la facture *</label>
                         <input type="date" class="form-control" name="date_facture" required
                                value="<?= date('Y-m-d') ?>">
                     </div>
                 </div>
 
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Fournisseur *</label>
-                        <input type="text" class="form-control" name="fournisseur" id="fournisseur" required
-                               list="listeFournisseurs" autocomplete="off"
-                               placeholder="Tapez ou sélectionnez un fournisseur...">
-                        <datalist id="listeFournisseurs">
-                            <?php foreach ($tousLesFournisseurs as $f): ?>
-                                <option value="<?= e($f) ?>">
-                            <?php endforeach; ?>
-                        </datalist>
+                <div class="row" id="fournisseurAutreRow" style="display:none;">
+                    <div class="col-12 mb-3">
+                        <label class="form-label">Nom du fournisseur *</label>
+                        <input type="text" class="form-control" name="fournisseur_autre" id="fournisseurAutre"
+                               placeholder="Entrez le nom du fournisseur...">
                     </div>
+                </div>
 
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Description</label>
-                        <input type="text" class="form-control" name="description"
-                               placeholder="Description des achats...">
-                    </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <input type="text" class="form-control" name="description"
+                           placeholder="Description des achats...">
                 </div>
 
                 <!-- Type de facture -->
@@ -346,6 +357,21 @@ document.getElementById('tvq').addEventListener('focus', function() {
 
 document.getElementById('tps').addEventListener('input', calculerTotal);
 document.getElementById('tvq').addEventListener('input', calculerTotal);
+
+// Gestion du fournisseur "Autre"
+document.getElementById('fournisseur').addEventListener('change', function() {
+    const autreRow = document.getElementById('fournisseurAutreRow');
+    const autreInput = document.getElementById('fournisseurAutre');
+    if (this.value === '__autre__') {
+        autreRow.style.display = 'flex';
+        autreInput.required = true;
+        autreInput.focus();
+    } else {
+        autreRow.style.display = 'none';
+        autreInput.required = false;
+        autreInput.value = '';
+    }
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>
