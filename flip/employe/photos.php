@@ -296,8 +296,8 @@ include '../includes/header.php';
                             </div>
 
                             <div class="d-grid gap-2">
-                                <button type="button" class="btn btn-outline-secondary py-2" onclick="document.getElementById('galleryInput').click()">
-                                    <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
+                                <button type="button" class="btn btn-outline-primary py-3" style="font-size: 1.2rem;" onclick="document.getElementById('galleryInput').click()">
+                                    <i class="bi bi-images me-2" style="font-size: 1.5rem;"></i><?= __('choose_from_gallery') ?>
                                 </button>
                             </div>
                         </div>
