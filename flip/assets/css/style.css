@@ -1363,8 +1363,8 @@ body {
 /* Tables avec thead classe light */
 [data-theme="dark"] thead.thead-light th,
 [data-theme="dark"] .table thead th {
-    background-color: var(--bg-card-header) !important;
-    color: var(--text-secondary) !important;
+    background-color: #334155 !important;
+    color: #ffffff !important;
     border-color: var(--border-color) !important;
 }
 
