@@ -363,40 +363,43 @@ include '../includes/header.php';
         <!-- Colonne latérale -->
         <div class="col-lg-4">
             <!-- Factures en attente -->
-            <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-clock-history me-2"></i>À approuver</span>
-                    <?php if ($facturesEnAttente > 0): ?>
-                        <span class="badge bg-danger"><?= $facturesEnAttente ?></span>
-                    <?php endif; ?>
-                </div>
-                <div class="card-body">
+            <div class="section-title">
+                <h4><i class="bi bi-clock-history me-2"></i>À approuver</h4>
+                <?php if ($facturesEnAttente > 0): ?>
+                    <span class="badge bg-danger"><?= $facturesEnAttente ?></span>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
                     <?php if (empty($facturesAttente)): ?>
-                        <p class="text-muted text-center mb-0 py-3">
-                            <i class="bi bi-check-circle text-success" style="font-size: 2rem;"></i><br>
-                            Aucune facture en attente
-                        </p>
+                        <div class="text-center py-5">
+                            <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+                            <h4 class="mt-3">Aucune facture</h4>
+                            <p class="text-muted">Toutes les factures sont approuvées</p>
+                        </div>
                     <?php else: ?>
                         <?php foreach ($facturesAttente as $facture): ?>
-                            <div class="pending-facture-item">
-                                <div class="pending-facture-info">
+                            <div class="activity-item">
+                                <div class="activity-icon facture">
+                                    <i class="bi bi-receipt"></i>
+                                </div>
+                                <div class="activity-content">
                                     <strong><?= e($facture['fournisseur']) ?></strong>
                                     <small><?= e($facture['projet_nom']) ?></small>
                                 </div>
-                                <div class="pending-facture-amount">
-                                    <?= formatMoney($facture['montant_total']) ?>
-                                </div>
-                                <div>
-                                    <a href="<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>" 
-                                       class="btn btn-success btn-sm" title="Approuver">
+                                <div class="activity-meta">
+                                    <div class="amount"><?= formatMoney($facture['montant_total']) ?></div>
+                                    <a href="<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>"
+                                       class="btn btn-success btn-sm mt-1" title="Approuver">
                                         <i class="bi bi-check"></i>
                                     </a>
                                 </div>
                             </div>
                         <?php endforeach; ?>
-                        
+
                         <?php if ($facturesEnAttente > 5): ?>
-                            <div class="text-center pt-3">
+                            <div class="text-center py-3">
                                 <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
                                     Voir les <?= $facturesEnAttente ?> factures
                                 </a>
@@ -405,12 +408,12 @@ include '../includes/header.php';
                     <?php endif; ?>
                 </div>
             </div>
-            
+
             <!-- Actions rapides -->
+            <div class="section-title mt-4">
+                <h4><i class="bi bi-lightning me-2"></i>Actions rapides</h4>
+            </div>
             <div class="card">
-                <div class="card-header">
-                    <i class="bi bi-lightning me-2"></i>Actions rapides
-                </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
                         <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-primary">
