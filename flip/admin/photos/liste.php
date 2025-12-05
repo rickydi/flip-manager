@@ -227,10 +227,10 @@ include '../../includes/header.php';
                         <?php foreach ($photosGroupe as $photo): ?>
                             <div class="col-6 col-md-3 col-lg-2">
                                 <div class="position-relative">
-                                    <a href="/uploads/photos/<?= e($photo['fichier']) ?>"
+                                    <a href="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
                                        target="_blank"
                                        class="d-block">
-                                        <img src="/uploads/photos/<?= e($photo['fichier']) ?>"
+                                        <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
                                              alt="Photo"
                                              class="img-fluid rounded"
                                              style="width:100%;height:120px;object-fit:cover;">

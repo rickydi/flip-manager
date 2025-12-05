@@ -336,8 +336,8 @@ include '../includes/header.php';
                             <?php foreach ($photosGroupe as $photo): ?>
                                 <div class="col-4 col-md-3">
                                     <div class="position-relative">
-                                        <a href="/uploads/photos/<?= e($photo['fichier']) ?>" target="_blank">
-                                            <img src="/uploads/photos/<?= e($photo['fichier']) ?>"
+                                        <a href="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>" target="_blank">
+                                            <img src="<?= url('/uploads/photos/' . e($photo['fichier'])) ?>"
                                                  alt="Photo"
                                                  class="img-fluid rounded"
                                                  style="width:100%;height:100px;object-fit:cover;">
