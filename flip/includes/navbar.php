@@ -19,9 +19,10 @@ $isAdmin = isAdmin();
 
         <!-- Bouton langue mobile (à côté du menu hamburger) - seulement pour employés -->
         <?php if (!$isAdmin): ?>
-            <div class="d-lg-none me-2">
-                <?= renderLanguageToggle() ?>
-            </div>
+            <a href="<?= url('/set-language.php?lang=' . (getCurrentLanguage() === 'fr' ? 'es' : 'fr')) ?>"
+               class="btn btn-outline-light btn-sm d-lg-none me-2">
+                <?= getCurrentLanguage() === 'fr' ? '🇪🇸 ES' : '🇫🇷 FR' ?>
+            </a>
         <?php endif; ?>
 
         <button class="navbar-toggler py-1 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
