@@ -226,16 +226,19 @@ include '../includes/header.php';
 }
 
 .dashboard-card {
-    flex: 1;
-    min-height: 320px;
+    height: 340px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden !important;
 }
 
 .dashboard-card .card-body {
     flex: 1;
-    overflow: hidden;
+    overflow: hidden !important;
+}
+
+.dashboard-card .card-body::-webkit-scrollbar {
+    display: none;
 }
 
 /* Activités récentes */
