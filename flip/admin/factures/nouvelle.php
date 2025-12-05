@@ -181,8 +181,12 @@ include '../../includes/header.php';
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Fournisseur *</label>
-                        <input type="text" class="form-control" name="fournisseur" id="fournisseur" required
-                               placeholder="Nom du fournisseur..." autocomplete="off">
+                        <select class="form-select" name="fournisseur" id="fournisseur" required>
+                            <option value="">Sélectionner...</option>
+                            <?php foreach ($tousLesFournisseurs as $f): ?>
+                                <option value="<?= e($f) ?>"><?= e($f) ?></option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
 
                     <div class="col-md-6 mb-3">
