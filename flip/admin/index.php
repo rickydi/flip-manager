@@ -511,13 +511,11 @@ include '../includes/header.php';
                             </a>
                         <?php endforeach; ?>
 
-                        <?php if ($totalActivites > 4): ?>
-                            <div class="text-center py-3 border-top">
-                                <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-arrow-right me-1"></i>Voir plus
-                                </a>
-                            </div>
-                        <?php endif; ?>
+                        <div class="text-center py-3 border-top">
+                            <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-arrow-right me-1"></i>Voir plus
+                            </a>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
@@ -561,13 +559,11 @@ include '../includes/header.php';
                             </div>
                         <?php endforeach; ?>
 
-                        <?php if ($facturesEnAttente > 4): ?>
-                            <div class="text-center py-3 border-top">
-                                <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
-                                    <i class="bi bi-arrow-right me-1"></i>Voir les <?= $facturesEnAttente ?> factures
-                                </a>
-                            </div>
-                        <?php endif; ?>
+                        <div class="text-center py-3 border-top">
+                            <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-arrow-right me-1"></i>Voir plus
+                            </a>
+                        </div>
                     <?php endif; ?>
                 </div>
             </div>
