@@ -444,6 +444,12 @@ include '../includes/header.php';
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
+                            <?php if ($estContremaitre && isset($h['employe_nom'])): ?>
+                                <div class="mb-3">
+                                    <label class="form-label"><?= __('employee') ?></label>
+                                    <input type="text" class="form-control" value="<?= e($h['employe_nom']) ?>" disabled>
+                                </div>
+                            <?php endif; ?>
                             <div class="mb-3">
                                 <label class="form-label"><?= __('project') ?> *</label>
                                 <select class="form-select" name="projet_id" required>
