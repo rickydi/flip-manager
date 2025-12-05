@@ -190,8 +190,8 @@ include '../includes/header.php';
                         <input type="hidden" name="groupe_id" value="<?= e($groupeId ?: uniqid('grp_', true)) ?>">
 
                         <div class="mb-3">
-                            <label class="form-label"><?= __('project') ?> *</label>
-                            <select class="form-select" name="projet_id" required <?= !empty($photosGroupe) ? 'disabled' : '' ?>>
+                            <label for="projet_id" class="form-label"><?= __('project') ?> *</label>
+                            <select class="form-select" id="projet_id" name="projet_id" required <?= !empty($photosGroupe) ? 'disabled' : '' ?>>
                                 <option value=""><?= __('select') ?></option>
                                 <?php foreach ($projets as $projet): ?>
                                     <option value="<?= $projet['id'] ?>" <?= $projetIdSelected == $projet['id'] ? 'selected' : '' ?>>
@@ -205,14 +205,14 @@ include '../includes/header.php';
                         </div>
 
                         <div class="mb-3">
-                            <label class="form-label"><?= __('description') ?></label>
-                            <textarea class="form-control" name="description" rows="2"
+                            <label for="description" class="form-label"><?= __('description') ?></label>
+                            <textarea class="form-control" id="description" name="description" rows="2"
                                       placeholder="<?= __('photo_description_placeholder') ?>"></textarea>
                         </div>
 
                         <!-- Zone de capture/upload -->
                         <div class="mb-3">
-                            <label class="form-label"><?= __('photos') ?> *</label>
+                            <label for="photoInput" class="form-label"><?= __('photos') ?> *</label>
 
                             <!-- Input caché pour les photos et vidéos -->
                             <input type="file" id="photoInput" name="photos[]"
