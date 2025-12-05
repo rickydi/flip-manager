@@ -221,7 +221,14 @@ include '../../includes/header.php';
                 </div>
                 <div class="card-body">
                     <?php if (!empty($groupe['description'])): ?>
-                        <p class="text-muted mb-3"><i class="bi bi-chat-left-text me-2"></i><?= e($groupe['description']) ?></p>
+                        <p class="text-muted mb-3">
+                            <i class="bi bi-tag me-2"></i>
+                            <?php
+                            // Si c'est une clé de catégorie, la traduire
+                            $desc = $groupe['description'];
+                            echo e(strpos($desc, 'cat_') === 0 ? __($desc) : $desc);
+                            ?>
+                        </p>
                     <?php endif; ?>
                     <div class="row g-2">
                         <?php foreach ($photosGroupe as $photo):

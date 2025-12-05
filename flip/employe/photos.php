@@ -288,9 +288,24 @@ include '../includes/header.php';
                         </div>
 
                         <div class="mb-3">
-                            <label for="description" class="form-label"><?= __('description') ?></label>
-                            <textarea class="form-control" id="description" name="description" rows="2"
-                                      placeholder="<?= __('photo_description_placeholder') ?>"></textarea>
+                            <label for="categorie" class="form-label"><?= __('photo_category') ?></label>
+                            <select class="form-select" id="categorie" name="description">
+                                <option value=""><?= __('select_category_photo') ?></option>
+                                <option value="cat_interior_finishing"><?= __('cat_interior_finishing') ?></option>
+                                <option value="cat_exterior"><?= __('cat_exterior') ?></option>
+                                <option value="cat_plumbing"><?= __('cat_plumbing') ?></option>
+                                <option value="cat_electrical"><?= __('cat_electrical') ?></option>
+                                <option value="cat_structure"><?= __('cat_structure') ?></option>
+                                <option value="cat_foundation"><?= __('cat_foundation') ?></option>
+                                <option value="cat_roofing"><?= __('cat_roofing') ?></option>
+                                <option value="cat_windows_doors"><?= __('cat_windows_doors') ?></option>
+                                <option value="cat_painting"><?= __('cat_painting') ?></option>
+                                <option value="cat_flooring"><?= __('cat_flooring') ?></option>
+                                <option value="cat_before_work"><?= __('cat_before_work') ?></option>
+                                <option value="cat_after_work"><?= __('cat_after_work') ?></option>
+                                <option value="cat_progress"><?= __('cat_progress') ?></option>
+                                <option value="cat_other"><?= __('cat_other') ?></option>
+                            </select>
                         </div>
 
                         <!-- Zone de capture/upload -->

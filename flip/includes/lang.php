@@ -142,6 +142,24 @@ $TRANSLATIONS = [
         'start_taking_photos' => 'Commencez par prendre des photos de vos projets.',
         'photo_deleted' => 'Photo supprimée.',
         'delete_photo_confirm' => 'Supprimer cette photo ?',
+
+        // Catégories de photos
+        'photo_category' => 'Catégorie',
+        'select_category_photo' => 'Sélectionner une catégorie...',
+        'cat_interior_finishing' => 'Finition intérieure',
+        'cat_exterior' => 'Extérieur',
+        'cat_plumbing' => 'Plomberie',
+        'cat_electrical' => 'Électricité',
+        'cat_structure' => 'Structure',
+        'cat_foundation' => 'Fondation',
+        'cat_roofing' => 'Toiture',
+        'cat_windows_doors' => 'Fenêtres et portes',
+        'cat_painting' => 'Peinture',
+        'cat_flooring' => 'Plancher',
+        'cat_before_work' => 'Avant travaux',
+        'cat_after_work' => 'Après travaux',
+        'cat_progress' => 'En cours',
+        'cat_other' => 'Autre',
     ],
 
     'es' => [
@@ -276,6 +294,24 @@ $TRANSLATIONS = [
         'start_taking_photos' => 'Comienza tomando fotos de tus proyectos.',
         'photo_deleted' => 'Foto eliminada.',
         'delete_photo_confirm' => '¿Eliminar esta foto?',
+
+        // Catégories de photos
+        'photo_category' => 'Categoría',
+        'select_category_photo' => 'Seleccionar una categoría...',
+        'cat_interior_finishing' => 'Acabado interior',
+        'cat_exterior' => 'Exterior',
+        'cat_plumbing' => 'Plomería',
+        'cat_electrical' => 'Electricidad',
+        'cat_structure' => 'Estructura',
+        'cat_foundation' => 'Cimentación',
+        'cat_roofing' => 'Techo',
+        'cat_windows_doors' => 'Ventanas y puertas',
+        'cat_painting' => 'Pintura',
+        'cat_flooring' => 'Piso',
+        'cat_before_work' => 'Antes del trabajo',
+        'cat_after_work' => 'Después del trabajo',
+        'cat_progress' => 'En progreso',
+        'cat_other' => 'Otro',
     ]
 ];
 
