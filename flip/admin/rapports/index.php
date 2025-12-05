@@ -283,15 +283,6 @@ include '../../includes/header.php';
             <h1><i class="bi bi-gear me-2"></i>Administration</h1>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
-            <a href="<?= url('/admin/rapports/paie-hebdo.php') ?>" class="btn btn-success">
-                <i class="bi bi-calendar-week me-1"></i>Paie hebdo
-            </a>
-            <a href="<?= url('/admin/utilisateurs/liste.php') ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-person-badge me-1"></i>Utilisateurs
-            </a>
-            <a href="<?= url('/admin/categories/liste.php') ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-tags me-1"></i>Catégories
-            </a>
             <button type="button" class="btn btn-primary" onclick="window.print()">
                 <i class="bi bi-printer me-1"></i>Imprimer
             </button>

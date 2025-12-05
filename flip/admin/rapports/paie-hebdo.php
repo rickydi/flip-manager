@@ -255,12 +255,11 @@ include '../../includes/header.php';
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="<?= url('/admin/rapports/index.php') ?>">Rapports</a></li>
-                <li class="breadcrumb-item active">Paie hebdomadaire</li>
+                <li class="breadcrumb-item active">Administration</li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <h1><i class="bi bi-calendar-week me-2"></i>Rapport de paie hebdomadaire</h1>
+            <h1><i class="bi bi-gear me-2"></i>Administration</h1>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-primary" onclick="window.print()">
                     <i class="bi bi-printer me-1"></i>Imprimer
@@ -268,6 +267,30 @@ include '../../includes/header.php';
             </div>
         </div>
     </div>
+
+    <!-- Sous-navigation Administration -->
+    <ul class="nav nav-tabs mb-4 no-print">
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/utilisateurs/liste.php') ?>">
+                <i class="bi bi-person-badge me-1"></i>Utilisateurs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/categories/liste.php') ?>">
+                <i class="bi bi-tags me-1"></i>Catégories
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" href="<?= url('/admin/rapports/paie-hebdo.php') ?>">
+                <i class="bi bi-calendar-week me-1"></i>Paie hebdo
+            </a>
+        </li>
+    </ul>
 
     <!-- Sélecteur de semaine -->
     <div class="card mb-4 no-print">

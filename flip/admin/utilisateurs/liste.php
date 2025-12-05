@@ -152,18 +152,12 @@ include '../../includes/header.php';
             <h1><i class="bi bi-gear me-2"></i>Administration</h1>
         </div>
         <div class="d-flex gap-2 mt-2 mt-md-0">
-            <a href="<?= url('/admin/categories/liste.php') ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-tags me-1"></i>Catégories
-            </a>
-            <a href="<?= url('/admin/rapports/index.php') ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
-            </a>
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreer">
                 <i class="bi bi-plus-circle me-1"></i>Nouvel utilisateur
             </button>
         </div>
     </div>
-    
+
     <!-- Sous-navigation Administration -->
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
@@ -179,6 +173,11 @@ include '../../includes/header.php';
         <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
                 <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/rapports/paie-hebdo.php') ?>">
+                <i class="bi bi-calendar-week me-1"></i>Paie hebdo
             </a>
         </li>
     </ul>
