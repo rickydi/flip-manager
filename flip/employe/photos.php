@@ -50,19 +50,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Traiter les fichiers uploadés
             $uploadedCount = 0;
+            $debugInfo = [];
 
             if (isset($_FILES['photos']) && !empty($_FILES['photos']['name'][0])) {
                 $totalFiles = count($_FILES['photos']['name']);
 
                 for ($i = 0; $i < $totalFiles; $i++) {
-                    if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
+                    $errorCode = $_FILES['photos']['error'][$i];
+                    $originalName = $_FILES['photos']['name'][$i];
+
+                    if ($errorCode === UPLOAD_ERR_OK) {
                         $tmpName = $_FILES['photos']['tmp_name'][$i];
-                        $originalName = $_FILES['photos']['name'][$i];
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
                         // Vérifier l'extension (photos et vidéos)
                         $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
                         if (!in_array($extension, $allowedExtensions)) {
+                            $debugInfo[] = "Extension non supportée: $extension ($originalName)";
                             continue;
                         }
 
@@ -78,9 +82,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             ");
                             $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
                             $uploadedCount++;
+                        } else {
+                            $debugInfo[] = "Échec move_uploaded_file pour: $originalName";
                         }
+                    } else {
+                        // Décoder l'erreur d'upload
+                        $errorMessages = [
+                            UPLOAD_ERR_INI_SIZE => 'Fichier trop gros (limite PHP)',
+                            UPLOAD_ERR_FORM_SIZE => 'Fichier trop gros (limite formulaire)',
+                            UPLOAD_ERR_PARTIAL => 'Fichier partiellement uploadé',
+                            UPLOAD_ERR_NO_FILE => 'Aucun fichier',
+                            UPLOAD_ERR_NO_TMP_DIR => 'Dossier temporaire manquant',
+                            UPLOAD_ERR_CANT_WRITE => 'Échec écriture disque',
+                            UPLOAD_ERR_EXTENSION => 'Extension PHP a bloqué l\'upload',
+                        ];
+                        $errorMsg = $errorMessages[$errorCode] ?? "Erreur inconnue ($errorCode)";
+                        $debugInfo[] = "$originalName: $errorMsg";
                     }
                 }
+            } else {
+                $debugInfo[] = "Aucun fichier reçu par le serveur";
             }
 
             if ($uploadedCount > 0) {
@@ -88,6 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect('/employe/photos.php?groupe=' . $groupeId . '&projet=' . $projetId);
             } else {
                 $errors[] = __('no_photos_uploaded');
+                if (!empty($debugInfo)) {
+                    $errors[] = "Détails: " . implode(', ', $debugInfo);
+                }
             }
         } elseif ($action === 'delete') {
             $photoId = (int)($_POST['photo_id'] ?? 0);
