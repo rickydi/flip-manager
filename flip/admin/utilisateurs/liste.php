@@ -244,7 +244,12 @@ include '../../includes/header.php';
                                     </span>
                                 </td>
                                 <td>
-                                    <?= $user['derniere_connexion'] ? formatDateTime($user['derniere_connexion']) : 'Jamais' ?>
+                                    <?php if ($user['derniere_connexion']): ?>
+                                        <?= formatDateTime($user['derniere_connexion']) ?>
+                                        <br><small class="text-muted"><?= formatTempsEcoule($user['derniere_connexion']) ?></small>
+                                    <?php else: ?>
+                                        <span class="text-muted">Jamais</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="action-buttons">
                                     <button type="button" 

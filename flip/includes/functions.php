@@ -76,6 +76,31 @@ function formatDateTime($datetime) {
 }
 
 /**
+ * Formate une date en temps relatif (il y a X minutes/heures/jours)
+ * @param string $datetime
+ * @return string
+ */
+function formatTempsEcoule($datetime) {
+    if (empty($datetime)) return '';
+
+    $dt = new DateTime($datetime);
+    $now = new DateTime();
+    $diff = $now->diff($dt);
+
+    if ($diff->days > 30) {
+        return 'il y a ' . floor($diff->days / 30) . ' mois';
+    } elseif ($diff->days > 0) {
+        return 'il y a ' . $diff->days . ' jour' . ($diff->days > 1 ? 's' : '');
+    } elseif ($diff->h > 0) {
+        return 'il y a ' . $diff->h . 'h' . ($diff->i > 0 ? $diff->i : '');
+    } elseif ($diff->i > 0) {
+        return 'il y a ' . $diff->i . ' min';
+    } else {
+        return 'à l\'instant';
+    }
+}
+
+/**
  * Génère un nom de fichier unique
  * @param string $originalName
  * @return string
