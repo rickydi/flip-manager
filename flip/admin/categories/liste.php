@@ -143,7 +143,7 @@ include '../../includes/header.php';
     </ul>
     
     <?php displayFlashMessages(); ?>
-    
+
     <?php if (!empty($errors)): ?>
         <div class="alert alert-danger">
             <ul class="mb-0">
@@ -153,49 +153,88 @@ include '../../includes/header.php';
             </ul>
         </div>
     <?php endif; ?>
-    
-    <!-- Liste des catégories par groupe -->
-    <?php foreach ($groupeLabels as $groupe => $label): ?>
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-folder me-2"></i><?= $label ?>
-                <span class="badge bg-secondary ms-2"><?= count($categoriesGroupees[$groupe] ?? []) ?></span>
-            </div>
-            <div class="card-body p-0">
+
+    <style>
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        @media (max-width: 768px) {
+            .category-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .category-group {
+            margin-bottom: 2rem;
+        }
+        .category-group-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .category-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            background: var(--bg-card);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid var(--border-color);
+        }
+        .category-item:hover {
+            background: rgba(0, 123, 255, 0.1);
+            border-color: var(--primary-color);
+        }
+        .category-item-name {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        .category-item-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+    </style>
+
+    <!-- Liste des catégories par groupe - 2 colonnes -->
+    <div class="category-grid">
+        <?php foreach ($groupeLabels as $groupe => $label): ?>
+            <div class="category-group">
+                <div class="category-group-title">
+                    <i class="bi bi-folder"></i>
+                    <?= $label ?>
+                    <span class="badge bg-secondary"><?= count($categoriesGroupees[$groupe] ?? []) ?></span>
+                </div>
+
                 <?php if (empty($categoriesGroupees[$groupe])): ?>
-                    <p class="text-muted p-3 mb-0">Aucune catégorie dans ce groupe.</p>
+                    <p class="text-muted small">Aucune catégorie</p>
                 <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($categoriesGroupees[$groupe] as $cat): ?>
-                                    <tr>
-                                        <td><?= e($cat['nom']) ?></td>
-                                        <td class="text-end">
-                                            <button type="button" class="btn btn-outline-primary btn-sm" 
-                                                    data-bs-toggle="modal" data-bs-target="#editModal<?= $cat['id'] ?>">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-danger btn-sm"
-                                                    data-bs-toggle="modal" data-bs-target="#deleteModal<?= $cat['id'] ?>">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
+                    <?php foreach ($categoriesGroupees[$groupe] as $cat): ?>
+                        <div class="category-item" onclick="document.getElementById('editBtn<?= $cat['id'] ?>').click()">
+                            <span class="category-item-name"><?= e($cat['nom']) ?></span>
+                            <div class="category-item-actions" onclick="event.stopPropagation()">
+                                <button type="button" id="editBtn<?= $cat['id'] ?>" class="btn btn-outline-primary btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#editModal<?= $cat['id'] ?>">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#deleteModal<?= $cat['id'] ?>">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 <?php endif; ?>
             </div>
-        </div>
-    <?php endforeach; ?>
+        <?php endforeach; ?>
+    </div>
 </div>
 
 <!-- Modal Ajouter -->
