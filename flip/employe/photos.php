@@ -80,15 +80,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             continue;
                         }
 
-                        // Vérifier que le dossier destination existe et est writable
+                        // Vérifier/créer le dossier destination
                         $destDir = dirname($destination);
                         if (!is_dir($destDir)) {
-                            $debugInfo[] = "Dossier destination n'existe pas: $destDir";
-                            continue;
+                            if (!mkdir($destDir, 0777, true)) {
+                                $debugInfo[] = "Impossible de créer le dossier: $destDir";
+                                continue;
+                            }
                         }
                         if (!is_writable($destDir)) {
-                            $debugInfo[] = "Dossier non writable: $destDir";
-                            continue;
+                            chmod($destDir, 0777);
+                            if (!is_writable($destDir)) {
+                                $debugInfo[] = "Dossier non writable: $destDir";
+                                continue;
+                            }
                         }
 
                         // Essayer avec copy() si move_uploaded_file échoue
