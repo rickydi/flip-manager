@@ -243,6 +243,18 @@ include '../../includes/header.php';
         padding-bottom: 10px;
     }
 
+    .print-paye-status {
+        display: block !important;
+        border: 2px solid #000 !important;
+        padding: 5px 15px !important;
+        margin: 10px auto !important;
+        font-size: 14px !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        background: #e8f5e9 !important;
+        width: fit-content;
+    }
+
     .employe-section {
         break-inside: avoid;
         margin-bottom: 15px !important;
@@ -312,9 +324,9 @@ include '../../includes/header.php';
             <strong>Semaine du <?= (new DateTime($lundi))->format('d/m/Y') ?> au <?= (new DateTime($dimanche))->format('d/m/Y') ?></strong>
         </p>
         <?php if ($semainePaye): ?>
-        <p style="margin:10px 0 0 0; color:#198754; font-weight:bold; font-size:14px;">
+        <div class="print-paye-status">
             ✓ PAYÉ<?php if ($datePaiement): ?> - le <?= (new DateTime($datePaiement))->format('d/m/Y') ?><?php endif; ?>
-        </p>
+        </div>
         <?php endif; ?>
     </div>
 
