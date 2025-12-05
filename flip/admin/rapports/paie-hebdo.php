@@ -311,6 +311,11 @@ include '../../includes/header.php';
         <p style="margin:5px 0;">
             <strong>Semaine du <?= (new DateTime($lundi))->format('d/m/Y') ?> au <?= (new DateTime($dimanche))->format('d/m/Y') ?></strong>
         </p>
+        <?php if ($semainePaye): ?>
+        <p style="margin:10px 0 0 0; color:#198754; font-weight:bold; font-size:14px;">
+            ✓ PAYÉ<?php if ($datePaiement): ?> - le <?= (new DateTime($datePaiement))->format('d/m/Y') ?><?php endif; ?>
+        </p>
+        <?php endif; ?>
     </div>
 
     <!-- En-tête écran -->
