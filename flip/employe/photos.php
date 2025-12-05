@@ -214,17 +214,14 @@ include '../includes/header.php';
                             <label class="form-label"><?= __('photos') ?> *</label>
 
                             <!-- Bouton pour ouvrir la caméra (mobile) -->
-                            <div class="d-grid gap-2 mb-3">
-                                <div class="position-relative">
-                                    <input type="file" id="cameraInput" name="photos[]"
-                                           accept="image/*" capture="environment" multiple
-                                           class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                                           style="cursor: pointer; z-index: 2;"
-                                           onchange="previewPhotos(this)">
-                                    <div class="btn btn-primary btn-lg w-100">
-                                        <i class="bi bi-camera-fill me-2"></i><?= __('take_photo') ?>
-                                    </div>
-                                </div>
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-primary btn-lg w-100" onclick="document.getElementById('cameraInput').click()">
+                                    <i class="bi bi-camera-fill me-2"></i><?= __('take_photo') ?>
+                                </button>
+                                <input type="file" id="cameraInput" name="photos[]"
+                                       accept="image/*" capture="environment" multiple
+                                       style="display: none;"
+                                       onchange="previewPhotos(this)">
                             </div>
 
                             <!-- Ou sélectionner depuis la galerie -->
@@ -232,17 +229,14 @@ include '../includes/header.php';
                                 <span class="badge bg-secondary"><?= __('or') ?></span>
                             </div>
 
-                            <div class="d-grid">
-                                <div class="position-relative">
-                                    <input type="file" id="galleryInput" name="photos[]"
-                                           accept="image/*" multiple
-                                           class="position-absolute top-0 start-0 w-100 h-100 opacity-0"
-                                           style="cursor: pointer; z-index: 2;"
-                                           onchange="previewPhotos(this)">
-                                    <div class="btn btn-outline-secondary w-100">
-                                        <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
-                                    </div>
-                                </div>
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-outline-secondary w-100" onclick="document.getElementById('galleryInput').click()">
+                                    <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
+                                </button>
+                                <input type="file" id="galleryInput" name="photos[]"
+                                       accept="image/*" multiple
+                                       style="display: none;"
+                                       onchange="previewPhotos(this)">
                             </div>
                         </div>
 
