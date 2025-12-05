@@ -21,26 +21,31 @@ $fournisseursDefaut = [
 
 // Créer la table fournisseurs si elle n'existe pas
 try {
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS fournisseurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(255) NOT NULL UNIQUE,
-            actif TINYINT(1) DEFAULT 1,
-            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
+    // Vérifier si la table existe
+    $tableExists = $pdo->query("SHOW TABLES LIKE 'fournisseurs'")->rowCount() > 0;
 
-    // Insérer les fournisseurs par défaut
-    $stmtInsert = $pdo->prepare("INSERT IGNORE INTO fournisseurs (nom) VALUES (?)");
-    foreach ($fournisseursDefaut as $f) {
-        $stmtInsert->execute([$f]);
+    if (!$tableExists) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS fournisseurs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(255) NOT NULL UNIQUE,
+                actif TINYINT(1) DEFAULT 1,
+                date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        // Insérer les fournisseurs par défaut seulement à la création de la table
+        $stmtInsert = $pdo->prepare("INSERT IGNORE INTO fournisseurs (nom) VALUES (?)");
+        foreach ($fournisseursDefaut as $f) {
+            $stmtInsert->execute([$f]);
+        }
+
+        // Importer les fournisseurs existants des factures
+        $pdo->exec("
+            INSERT IGNORE INTO fournisseurs (nom)
+            SELECT DISTINCT fournisseur FROM factures WHERE fournisseur IS NOT NULL AND fournisseur != ''
+        ");
     }
-
-    // Importer les fournisseurs existants des factures
-    $pdo->exec("
-        INSERT IGNORE INTO fournisseurs (nom)
-        SELECT DISTINCT fournisseur FROM factures WHERE fournisseur IS NOT NULL AND fournisseur != ''
-    ");
 } catch (Exception $e) {
     // Ignorer
 }

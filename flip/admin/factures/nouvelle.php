@@ -13,28 +13,25 @@ requireAdmin();
 $pageTitle = 'Nouvelle facture';
 $errors = [];
 
-// Liste des fournisseurs par défaut
-$fournisseursDefaut = [
-    'Réno Dépot', 'Rona', 'BMR', 'Patrick Morin', 'Home Depot',
-    'J-Jodoin', 'Ly Granite', 'COMMONWEALTH', 'CJP', 'Richelieu',
-    'Canac', 'IKEA', 'Lowes', 'Canadian Tire'
-];
-
-// Créer la table fournisseurs si elle n'existe pas
+// Créer la table fournisseurs si elle n'existe pas (sans réinsérer les défauts)
 try {
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS fournisseurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(255) NOT NULL UNIQUE,
-            actif TINYINT(1) DEFAULT 1,
-            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
-
-    // Insérer les fournisseurs par défaut
-    $stmtInsert = $pdo->prepare("INSERT IGNORE INTO fournisseurs (nom) VALUES (?)");
-    foreach ($fournisseursDefaut as $f) {
-        $stmtInsert->execute([$f]);
+    $tableExists = $pdo->query("SHOW TABLES LIKE 'fournisseurs'")->rowCount() > 0;
+    if (!$tableExists) {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS fournisseurs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(255) NOT NULL UNIQUE,
+                actif TINYINT(1) DEFAULT 1,
+                date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        // Insérer les fournisseurs par défaut seulement à la création
+        $fournisseursDefaut = ['Réno Dépot', 'Rona', 'BMR', 'Patrick Morin', 'Home Depot',
+            'J-Jodoin', 'Ly Granite', 'COMMONWEALTH', 'CJP', 'Richelieu', 'Canac', 'IKEA', 'Lowes', 'Canadian Tire'];
+        $stmtInsert = $pdo->prepare("INSERT IGNORE INTO fournisseurs (nom) VALUES (?)");
+        foreach ($fournisseursDefaut as $f) {
+            $stmtInsert->execute([$f]);
+        }
     }
 } catch (Exception $e) {
     // Ignorer
