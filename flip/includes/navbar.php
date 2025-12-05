@@ -135,6 +135,15 @@ $isAdmin = isAdmin();
                             <span class="nav-text-full"> <?= __('timesheet') ?></span>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link px-2 <?= strpos($currentUri, '/employe/photos.php') !== false ? 'active' : '' ?>"
+                           href="<?= url('/employe/photos.php') ?>" title="<?= __('photos') ?>">
+                            <i class="bi bi-camera"></i>
+                            <span class="nav-text-short d-none d-lg-inline"> <?= __('photos') ?></span>
+                            <span class="nav-text-full"> <?= __('photos') ?></span>
+                        </a>
+                    </li>
                 <?php endif; ?>
             </ul>
 

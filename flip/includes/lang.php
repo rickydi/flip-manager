@@ -119,6 +119,28 @@ $TRANSLATIONS = [
         'notes_optional' => 'Notes (optionnel)',
         'additional_notes' => 'Notes supplémentaires...',
         'errors' => 'Erreur(s)',
+
+        // Photos
+        'take_photos' => 'Prendre des photos',
+        'project_photos' => 'Photos de projet',
+        'take_project_photos' => 'Prenez des photos de vos projets en cours',
+        'add_photos' => 'Ajouter des photos',
+        'photos' => 'Photos',
+        'take_photo' => 'Prendre une photo',
+        'choose_from_gallery' => 'Choisir dans la galerie',
+        'upload_photos' => 'Téléverser les photos',
+        'photos_uploaded' => 'photo(s) téléversée(s)',
+        'no_photos_uploaded' => 'Aucune photo n\'a pu être téléversée.',
+        'select_photos' => 'Veuillez sélectionner au moins une photo.',
+        'select_project_error' => 'Veuillez sélectionner un projet.',
+        'photo_description_placeholder' => 'Description des photos (optionnel)...',
+        'current_group' => 'Groupe actuel',
+        'new_photo_group' => 'Nouveau groupe de photos',
+        'my_photo_groups' => 'Mes groupes de photos',
+        'no_photos_yet' => 'Aucune photo',
+        'start_taking_photos' => 'Commencez par prendre des photos de vos projets.',
+        'photo_deleted' => 'Photo supprimée.',
+        'delete_photo_confirm' => 'Supprimer cette photo ?',
     ],
 
     'es' => [
@@ -230,6 +252,28 @@ $TRANSLATIONS = [
         'notes_optional' => 'Notas (opcional)',
         'additional_notes' => 'Notas adicionales...',
         'errors' => 'Error(es)',
+
+        // Photos
+        'take_photos' => 'Tomar fotos',
+        'project_photos' => 'Fotos del proyecto',
+        'take_project_photos' => 'Toma fotos de tus proyectos en curso',
+        'add_photos' => 'Agregar fotos',
+        'photos' => 'Fotos',
+        'take_photo' => 'Tomar una foto',
+        'choose_from_gallery' => 'Elegir de la galería',
+        'upload_photos' => 'Subir fotos',
+        'photos_uploaded' => 'foto(s) subida(s)',
+        'no_photos_uploaded' => 'No se pudo subir ninguna foto.',
+        'select_photos' => 'Por favor selecciona al menos una foto.',
+        'select_project_error' => 'Por favor selecciona un proyecto.',
+        'photo_description_placeholder' => 'Descripción de las fotos (opcional)...',
+        'current_group' => 'Grupo actual',
+        'new_photo_group' => 'Nuevo grupo de fotos',
+        'my_photo_groups' => 'Mis grupos de fotos',
+        'no_photos_yet' => 'Sin fotos',
+        'start_taking_photos' => 'Comienza tomando fotos de tus proyectos.',
+        'photo_deleted' => 'Foto eliminada.',
+        'delete_photo_confirm' => '¿Eliminar esta foto?',
     ]
 ];
 

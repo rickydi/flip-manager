@@ -69,6 +69,10 @@ include '../includes/header.php';
                 <i class="bi bi-clock-history" style="font-size: 2.5rem;"></i>
                 <div class="mt-2 fw-bold" style="font-size: 1.2rem;"><?= __('add_hours') ?></div>
             </a>
+            <a href="<?= url('/employe/photos.php') ?>" class="btn btn-warning btn-lg py-4">
+                <i class="bi bi-camera" style="font-size: 2.5rem;"></i>
+                <div class="mt-2 fw-bold" style="font-size: 1.2rem;"><?= __('take_photos') ?></div>
+            </a>
         </div>
 
         <hr class="my-4">
