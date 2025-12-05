@@ -202,7 +202,7 @@ include '../../includes/header.php';
     <!-- Filtres -->
     <div class="card mb-3">
         <div class="card-body">
-            <form method="GET" action="/admin/temps/liste.php" class="row g-3 align-items-end">
+            <form method="GET" action="<?= url('/admin/temps/liste.php') ?>" class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="form-label">Statut</label>
                     <select class="form-select" name="statut" onchange="this.form.submit()">
