@@ -42,51 +42,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $groupeId = uniqid('grp_', true);
             }
 
-            // Fonction pour traiter un array de fichiers
-            $processFiles = function($files) use ($projetId, $userId, $groupeId, $description, $pdo) {
-                $count = 0;
-                if (!isset($files['name']) || empty($files['name'][0])) {
-                    return 0;
-                }
+            // Traiter les fichiers uploadés
+            $uploadedCount = 0;
 
-                $totalFiles = count($files['name']);
+            if (isset($_FILES['photos']) && !empty($_FILES['photos']['name'][0])) {
+                $totalFiles = count($_FILES['photos']['name']);
+
                 for ($i = 0; $i < $totalFiles; $i++) {
-                    if ($files['error'][$i] === UPLOAD_ERR_OK) {
-                        $tmpName = $files['tmp_name'][$i];
-                        $originalName = $files['name'][$i];
+                    if ($_FILES['photos']['error'][$i] === UPLOAD_ERR_OK) {
+                        $tmpName = $_FILES['photos']['tmp_name'][$i];
+                        $originalName = $_FILES['photos']['name'][$i];
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
+                        // Vérifier l'extension
                         if (!in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp'])) {
                             continue;
                         }
 
-                        if ($files['size'][$i] > 10 * 1024 * 1024) {
+                        // Vérifier la taille (max 10MB)
+                        if ($_FILES['photos']['size'][$i] > 10 * 1024 * 1024) {
                             continue;
                         }
 
+                        // Générer un nom unique
                         $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
                         $destination = __DIR__ . '/../uploads/photos/' . $newFilename;
 
                         if (move_uploaded_file($tmpName, $destination)) {
+                            // Insérer dans la base de données
                             $stmt = $pdo->prepare("
                                 INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
                                 VALUES (?, ?, ?, ?, NOW(), ?)
                             ");
                             $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
-                            $count++;
+                            $uploadedCount++;
                         }
                     }
                 }
-                return $count;
-            };
-
-            // Traiter les fichiers des deux inputs
-            $uploadedCount = 0;
-            if (isset($_FILES['photos'])) {
-                $uploadedCount += $processFiles($_FILES['photos']);
-            }
-            if (isset($_FILES['camera_photos'])) {
-                $uploadedCount += $processFiles($_FILES['camera_photos']);
             }
 
             if ($uploadedCount > 0) {
@@ -190,7 +182,7 @@ include '../includes/header.php';
                     <i class="bi bi-camera-fill me-2"></i><?= __('add_photos') ?>
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="" enctype="multipart/form-data" id="photoForm">
+                    <form method="POST" enctype="multipart/form-data" id="photoForm">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="upload">
                         <input type="hidden" name="groupe_id" value="<?= e($groupeId ?: uniqid('grp_', true)) ?>">
@@ -220,18 +212,29 @@ include '../includes/header.php';
                         <div class="mb-3">
                             <label class="form-label"><?= __('photos') ?> *</label>
 
-                            <!-- Input fichier unique -->
-                            <input type="file" id="photosInput" name="photos[]"
-                                   accept="image/*" multiple required
-                                   class="form-control form-control-lg mb-3"
+                            <!-- Input caché pour les photos -->
+                            <input type="file" id="photoInput" name="photos[]"
+                                   accept="image/*" multiple
+                                   class="d-none"
                                    onchange="previewPhotos(this)">
 
-                            <!-- Bouton caméra pour mobile -->
-                            <input type="file" id="cameraInput" name="camera_photos[]"
-                                   accept="image/*" capture="environment"
-                                   class="form-control mb-2"
-                                   onchange="previewPhotos(this)">
-                            <small class="text-muted d-block mb-3"><?= __('take_photo') ?></small>
+                            <!-- Bouton Prendre photo (caméra) -->
+                            <div class="d-grid gap-2 mb-3">
+                                <button type="button" class="btn btn-primary btn-lg" onclick="openCamera()">
+                                    <i class="bi bi-camera-fill me-2"></i><?= __('take_photo') ?>
+                                </button>
+                            </div>
+
+                            <!-- Ou sélectionner depuis la galerie -->
+                            <div class="text-center mb-3">
+                                <span class="badge bg-secondary"><?= __('or') ?></span>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-secondary" onclick="openGallery()">
+                                    <i class="bi bi-images me-2"></i><?= __('choose_from_gallery') ?>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Prévisualisation des photos -->
@@ -243,7 +246,7 @@ include '../includes/header.php';
                             <span id="photoCountText"></span>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100" id="submitBtn">
+                        <button type="submit" class="btn btn-success w-100 btn-lg" id="submitBtn" style="display: none;">
                             <i class="bi bi-cloud-upload me-2"></i><?= __('upload_photos') ?>
                         </button>
                     </form>
@@ -280,7 +283,7 @@ include '../includes/header.php';
                                                  class="img-fluid rounded"
                                                  style="width:100%;height:100px;object-fit:cover;">
                                         </a>
-                                        <form method="POST" action="" class="position-absolute top-0 end-0 m-1">
+                                        <form method="POST" class="position-absolute top-0 end-0 m-1">
                                             <?php csrfField(); ?>
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
@@ -344,11 +347,26 @@ include '../includes/header.php';
 </div>
 
 <script>
-// Simple prévisualisation des photos sélectionnées
+// Ouvrir la caméra (sur mobile)
+function openCamera() {
+    const input = document.getElementById('photoInput');
+    input.setAttribute('capture', 'environment');
+    input.click();
+}
+
+// Ouvrir la galerie
+function openGallery() {
+    const input = document.getElementById('photoInput');
+    input.removeAttribute('capture');
+    input.click();
+}
+
+// Prévisualisation des photos sélectionnées
 function previewPhotos(input) {
     const preview = document.getElementById('photoPreview');
     const photoCount = document.getElementById('photoCount');
     const photoCountText = document.getElementById('photoCountText');
+    const submitBtn = document.getElementById('submitBtn');
 
     if (input.files && input.files.length > 0) {
         preview.innerHTML = '';
@@ -370,6 +388,7 @@ function previewPhotos(input) {
 
         photoCount.style.display = 'block';
         photoCountText.textContent = input.files.length + ' photo(s) sélectionnée(s)';
+        submitBtn.style.display = 'block';
     }
 }
 
