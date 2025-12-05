@@ -405,6 +405,7 @@ include '../includes/header.php';
     </div>
     
     <div class="row dashboard-row">
+        <!-- TEST VERSION 2 - Si tu vois ce commentaire, les changements sont déployés -->
         <!-- Colonne Activités récentes -->
         <div class="col-lg-6 mb-4">
             <div class="section-title">
