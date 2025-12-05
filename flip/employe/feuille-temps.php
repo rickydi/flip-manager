@@ -213,11 +213,6 @@ include '../includes/header.php';
                 <div class="stat-value"><?= formatMoney($totaux['total_montant'] ?? 0) ?></div>
             </div>
         </div>
-    <?php else: ?>
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            En tant que contremaître, vous pouvez saisir les heures pour tous les employés.
-        </div>
     <?php endif; ?>
     
     <div class="row">
