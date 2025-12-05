@@ -252,7 +252,7 @@ include '../includes/header.php';
                             <span id="photoCountText"></span>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100" id="submitBtn" disabled>
+                        <button type="button" class="btn btn-success w-100" id="submitBtn" disabled onclick="submitPhotos()">
                             <i class="bi bi-cloud-upload me-2"></i><?= __('upload_photos') ?>
                         </button>
                     </form>
@@ -447,14 +447,58 @@ function removePhoto(index) {
 }
 
 function updateFileInput() {
-    // Créer un nouveau DataTransfer pour mettre à jour l'input file principal
-    const dataTransfer = new DataTransfer();
+    // Cette fonction n'est plus nécessaire pour la soumission
+    // mais garde la compatibilité
+}
+
+function submitPhotos() {
+    if (selectedFiles.length === 0) {
+        alert('<?= __('select_photos') ?>');
+        return;
+    }
+
+    const form = document.getElementById('photoForm');
+    const formData = new FormData();
+
+    // Ajouter les champs du formulaire
+    formData.append('csrf_token', form.querySelector('input[name="csrf_token"]').value);
+    formData.append('action', 'upload');
+    formData.append('groupe_id', form.querySelector('input[name="groupe_id"]').value);
+    formData.append('description', form.querySelector('textarea[name="description"]').value);
+
+    // Récupérer le projet_id (peut être dans un select ou un input hidden)
+    const projetSelect = form.querySelector('select[name="projet_id"]');
+    const projetHidden = form.querySelector('input[name="projet_id"]');
+    if (projetSelect && !projetSelect.disabled) {
+        formData.append('projet_id', projetSelect.value);
+    } else if (projetHidden) {
+        formData.append('projet_id', projetHidden.value);
+    }
+
+    // Ajouter les fichiers photos
     selectedFiles.forEach(file => {
-        dataTransfer.items.add(file);
+        formData.append('photos[]', file);
     });
 
-    // Mettre à jour l'input caché qui sera soumis avec le formulaire
-    document.getElementById('photosInput').files = dataTransfer.files;
+    // Désactiver le bouton pendant l'upload
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
+
+    // Envoyer avec fetch
+    fetch(form.action || window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        // Rediriger vers la même page pour voir le résultat
+        window.location.reload();
+    })
+    .catch(error => {
+        alert('Erreur lors du téléversement: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i><?= __('upload_photos') ?>';
+    });
 }
 </script>
 
