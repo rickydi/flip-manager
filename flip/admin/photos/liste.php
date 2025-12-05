@@ -16,6 +16,17 @@ $pageTitle = 'Photos des projets';
 $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
 $filtreEmploye = isset($_GET['employe']) ? (int)$_GET['employe'] : 0;
 
+// Charger les noms des catégories depuis la base de données
+$categoryNames = [];
+try {
+    $stmt = $pdo->query("SELECT cle, nom_fr FROM photos_categories");
+    while ($row = $stmt->fetch()) {
+        $categoryNames[$row['cle']] = $row['nom_fr'];
+    }
+} catch (Exception $e) {
+    // Table n'existe pas encore
+}
+
 // Récupérer les projets pour le filtre
 $projets = getProjets($pdo, false);
 
@@ -122,7 +133,12 @@ include '../../includes/header.php';
                 <li class="breadcrumb-item active">Photos des projets</li>
             </ol>
         </nav>
-        <h1><i class="bi bi-camera me-2"></i>Photos des projets</h1>
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-camera me-2"></i>Photos des projets</h1>
+            <a href="<?= url('/admin/photos/categories.php') ?>" class="btn btn-outline-primary">
+                <i class="bi bi-tags me-2"></i>Gérer les catégories
+            </a>
+        </div>
     </div>
 
     <?php displayFlashMessage(); ?>
@@ -224,9 +240,15 @@ include '../../includes/header.php';
                         <p class="text-muted mb-3">
                             <i class="bi bi-tag me-2"></i>
                             <?php
-                            // Si c'est une clé de catégorie, la traduire
                             $desc = $groupe['description'];
-                            echo e(strpos($desc, 'cat_') === 0 ? __($desc) : $desc);
+                            // Chercher d'abord dans la base de données, sinon traduction, sinon texte brut
+                            if (isset($categoryNames[$desc])) {
+                                echo e($categoryNames[$desc]);
+                            } elseif (strpos($desc, 'cat_') === 0) {
+                                echo e(__($desc));
+                            } else {
+                                echo e($desc);
+                            }
                             ?>
                         </p>
                     <?php endif; ?>

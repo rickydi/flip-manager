@@ -16,6 +16,26 @@ $userId = getCurrentUserId();
 // Récupérer les projets actifs
 $projets = getProjets($pdo, true);
 
+// Récupérer les catégories de photos depuis la base de données
+$photoCategories = [];
+try {
+    $lang = getCurrentLanguage();
+    $nomCol = $lang === 'es' ? 'nom_es' : 'nom_fr';
+    $stmt = $pdo->query("SELECT cle, $nomCol as nom FROM photos_categories WHERE actif = 1 ORDER BY ordre, nom_fr");
+    $photoCategories = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas encore, utiliser les catégories par défaut
+    $defaultCategories = [
+        'cat_interior_finishing', 'cat_exterior', 'cat_plumbing', 'cat_electrical',
+        'cat_structure', 'cat_foundation', 'cat_roofing', 'cat_windows_doors',
+        'cat_painting', 'cat_flooring', 'cat_before_work', 'cat_after_work',
+        'cat_progress', 'cat_other'
+    ];
+    foreach ($defaultCategories as $cat) {
+        $photoCategories[] = ['cle' => $cat, 'nom' => __($cat)];
+    }
+}
+
 // Générer un ID de groupe unique pour cette session
 $groupeId = isset($_GET['groupe']) ? $_GET['groupe'] : null;
 
@@ -291,20 +311,9 @@ include '../includes/header.php';
                             <label for="categorie" class="form-label"><?= __('photo_category') ?></label>
                             <select class="form-select" id="categorie" name="description">
                                 <option value=""><?= __('select_category_photo') ?></option>
-                                <option value="cat_interior_finishing"><?= __('cat_interior_finishing') ?></option>
-                                <option value="cat_exterior"><?= __('cat_exterior') ?></option>
-                                <option value="cat_plumbing"><?= __('cat_plumbing') ?></option>
-                                <option value="cat_electrical"><?= __('cat_electrical') ?></option>
-                                <option value="cat_structure"><?= __('cat_structure') ?></option>
-                                <option value="cat_foundation"><?= __('cat_foundation') ?></option>
-                                <option value="cat_roofing"><?= __('cat_roofing') ?></option>
-                                <option value="cat_windows_doors"><?= __('cat_windows_doors') ?></option>
-                                <option value="cat_painting"><?= __('cat_painting') ?></option>
-                                <option value="cat_flooring"><?= __('cat_flooring') ?></option>
-                                <option value="cat_before_work"><?= __('cat_before_work') ?></option>
-                                <option value="cat_after_work"><?= __('cat_after_work') ?></option>
-                                <option value="cat_progress"><?= __('cat_progress') ?></option>
-                                <option value="cat_other"><?= __('cat_other') ?></option>
+                                <?php foreach ($photoCategories as $cat): ?>
+                                    <option value="<?= e($cat['cle']) ?>"><?= e($cat['nom']) ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
 
