@@ -457,48 +457,20 @@ function submitPhotos() {
         return;
     }
 
-    const form = document.getElementById('photoForm');
-    const formData = new FormData();
-
-    // Ajouter les champs du formulaire
-    formData.append('csrf_token', form.querySelector('input[name="csrf_token"]').value);
-    formData.append('action', 'upload');
-    formData.append('groupe_id', form.querySelector('input[name="groupe_id"]').value);
-    formData.append('description', form.querySelector('textarea[name="description"]').value);
-
-    // Récupérer le projet_id (peut être dans un select ou un input hidden)
-    const projetSelect = form.querySelector('select[name="projet_id"]');
-    const projetHidden = form.querySelector('input[name="projet_id"]');
-    if (projetSelect && !projetSelect.disabled) {
-        formData.append('projet_id', projetSelect.value);
-    } else if (projetHidden) {
-        formData.append('projet_id', projetHidden.value);
-    }
-
-    // Ajouter les fichiers photos
+    // Synchroniser les fichiers vers l'input caché avant soumission
+    const dataTransfer = new DataTransfer();
     selectedFiles.forEach(file => {
-        formData.append('photos[]', file);
+        dataTransfer.items.add(file);
     });
+    document.getElementById('photosInput').files = dataTransfer.files;
 
     // Désactiver le bouton pendant l'upload
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
 
-    // Envoyer avec fetch
-    fetch(form.action || window.location.href, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        // Rediriger vers la même page pour voir le résultat
-        window.location.reload();
-    })
-    .catch(error => {
-        alert('Erreur lors du téléversement: ' + error.message);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="bi bi-cloud-upload me-2"></i><?= __('upload_photos') ?>';
-    });
+    // Soumettre le formulaire normalement
+    document.getElementById('photoForm').submit();
 }
 </script>
 
