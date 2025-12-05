@@ -206,6 +206,7 @@ include '../../includes/header.php';
                                 <th>Employé</th>
                                 <th class="text-end">Montant</th>
                                 <th class="text-center">Statut</th>
+                                <th style="width:50px"></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -251,6 +252,12 @@ include '../../includes/header.php';
                                             <?= getStatutFactureLabel($facture['statut']) ?>
                                         </span>
                                     </td>
+                                    <td class="text-center" onclick="event.stopPropagation()">
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                                onclick="confirmerSuppression(<?= $facture['id'] ?>, '<?= e(addslashes($facture['fournisseur'])) ?>', '<?= formatMoney($facture['montant_total']) ?>')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -266,6 +273,42 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Modal de suppression -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Supprimer la facture</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Supprimer cette facture de <strong id="deleteFournisseur"></strong> ?</p>
+                <p><strong>Montant :</strong> <span id="deleteMontant"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="<?= url('/admin/factures/supprimer.php') ?>" method="POST" class="d-inline">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="facture_id" id="deleteFactureId">
+                    <input type="hidden" name="redirect" value="<?= url('/admin/factures/liste.php') ?>">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Supprimer
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmerSuppression(id, fournisseur, montant) {
+    document.getElementById('deleteFactureId').value = id;
+    document.getElementById('deleteFournisseur').textContent = fournisseur;
+    document.getElementById('deleteMontant').textContent = montant;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
 
 <!-- Info: Page auto-refresh toutes les 15 secondes -->
 
