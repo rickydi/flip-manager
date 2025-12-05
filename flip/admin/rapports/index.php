@@ -371,8 +371,11 @@ include '../../includes/header.php';
             <!-- Sections à afficher -->
             <hr class="my-3">
             <div class="row">
-                <div class="col-12">
-                    <label class="form-label fw-bold"><i class="bi bi-eye me-1"></i>Sections à afficher :</label>
+                <div class="col-12 d-flex align-items-center gap-3 mb-2">
+                    <label class="form-label fw-bold mb-0"><i class="bi bi-eye me-1"></i>Sections à afficher :</label>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="toggleAllSections">
+                        <i class="bi bi-check-all me-1"></i>Tout cocher
+                    </button>
                 </div>
                 <div class="col-md-12">
                     <div class="d-flex flex-wrap gap-3">
@@ -433,6 +436,8 @@ include '../../includes/header.php';
 
     // Gestion des sections à afficher - attendre que le DOM soit chargé
     document.addEventListener('DOMContentLoaded', function() {
+        var allChecked = false;
+
         document.querySelectorAll('.section-toggle').forEach(function(checkbox) {
             var sectionId = checkbox.getAttribute('data-section');
             var section = document.getElementById(sectionId);
@@ -450,6 +455,32 @@ include '../../includes/header.php';
                     section.style.display = this.checked ? 'block' : 'none';
                 }
             });
+        });
+
+        // Bouton Tout cocher / Tout décocher
+        document.getElementById('toggleAllSections').addEventListener('click', function() {
+            allChecked = !allChecked;
+            var btn = this;
+
+            document.querySelectorAll('.section-toggle').forEach(function(checkbox) {
+                checkbox.checked = allChecked;
+                var sectionId = checkbox.getAttribute('data-section');
+                var section = document.getElementById(sectionId);
+                if (section) {
+                    section.style.display = allChecked ? 'block' : 'none';
+                }
+            });
+
+            // Changer le texte du bouton
+            if (allChecked) {
+                btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Tout décocher';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-outline-secondary');
+            } else {
+                btn.innerHTML = '<i class="bi bi-check-all me-1"></i>Tout cocher';
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-outline-primary');
+            }
         });
     });
     </script>
