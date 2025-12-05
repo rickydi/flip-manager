@@ -159,18 +159,18 @@ include '../includes/header.php';
                                 $isRemboursement = $facture['montant_total'] < 0;
                                 $canEdit = $facture['statut'] === 'en_attente';
                             ?>
-                                <tr onclick="<?= $canEdit ? "window.location='/employe/modifier-facture.php?id={$facture['id']}'" : '' ?>" 
-                                    style="<?= $canEdit ? 'cursor:pointer' : '' ?>" 
+                                <tr onclick="<?= $canEdit ? "window.location='" . url('/employe/modifier-facture.php?id=' . $facture['id']) . "'" : '' ?>"
+                                    style="<?= $canEdit ? 'cursor:pointer' : '' ?>"
                                     class="<?= $isRemboursement ? 'table-success' : '' ?>">
                                     <td class="text-center" onclick="event.stopPropagation()">
                                         <?php if ($isImage): ?>
-                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank">
-                                                <img src="/uploads/factures/<?= e($facture['fichier']) ?>" 
-                                                     alt="Facture" 
+                                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
+                                                <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                                     alt="Facture"
                                                      style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
                                             </a>
                                         <?php elseif ($isPdf): ?>
-                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank" class="text-danger">
+                                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
                                                 <i class="bi bi-file-pdf" style="font-size:1.5rem"></i>
                                             </a>
                                         <?php else: ?>
@@ -208,7 +208,7 @@ include '../includes/header.php';
                 <!-- Pagination -->
                 <?php if ($totalPages > 1): ?>
                     <div class="card-footer">
-                        <?= generatePagination($page, $totalPages, '/employe/mes-factures.php') ?>
+                        <?= generatePagination($page, $totalPages, url('/employe/mes-factures.php')) ?>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
