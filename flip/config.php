@@ -57,3 +57,6 @@ try {
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// Système de traduction
+require_once __DIR__ . '/includes/lang.php';

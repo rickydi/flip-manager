@@ -95,37 +95,37 @@ $isAdmin = isAdmin();
                     <!-- Menu Employé -->
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/index.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/index.php') ?>" title="Tableau de bord">
+                           href="<?= url('/employe/index.php') ?>" title="<?= __('dashboard') ?>">
                             <i class="bi bi-speedometer2"></i>
-                            <span class="nav-text-short d-none d-lg-inline"> Accueil</span>
-                            <span class="nav-text-full"> Accueil</span>
+                            <span class="nav-text-short d-none d-lg-inline"> <?= __('home') ?></span>
+                            <span class="nav-text-full"> <?= __('home') ?></span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/nouvelle-facture.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/nouvelle-facture.php') ?>" title="Nouvelle facture">
+                           href="<?= url('/employe/nouvelle-facture.php') ?>" title="<?= __('new_invoice') ?>">
                             <i class="bi bi-plus-circle"></i>
-                            <span class="nav-text-short d-none d-lg-inline"> Nouvelle</span>
-                            <span class="nav-text-full"> Nouvelle facture</span>
+                            <span class="nav-text-short d-none d-lg-inline"> <?= __('new') ?></span>
+                            <span class="nav-text-full"> <?= __('new_invoice') ?></span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/mes-factures.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/mes-factures.php') ?>" title="Mes factures">
+                           href="<?= url('/employe/mes-factures.php') ?>" title="<?= __('my_invoices') ?>">
                             <i class="bi bi-receipt"></i>
-                            <span class="nav-text-short d-none d-lg-inline"> Factures</span>
-                            <span class="nav-text-full"> Mes factures</span>
+                            <span class="nav-text-short d-none d-lg-inline"> <?= __('invoices') ?></span>
+                            <span class="nav-text-full"> <?= __('my_invoices') ?></span>
                         </a>
                     </li>
 
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/employe/feuille-temps.php') !== false ? 'active' : '' ?>"
-                           href="<?= url('/employe/feuille-temps.php') ?>" title="Temps">
+                           href="<?= url('/employe/feuille-temps.php') ?>" title="<?= __('timesheet') ?>">
                             <i class="bi bi-clock-history"></i>
-                            <span class="nav-text-short d-none d-lg-inline"> Temps</span>
-                            <span class="nav-text-full"> Feuille de temps</span>
+                            <span class="nav-text-short d-none d-lg-inline"> <?= __('timesheet') ?></span>
+                            <span class="nav-text-full"> <?= __('timesheet') ?></span>
                         </a>
                     </li>
                 <?php endif; ?>
@@ -133,6 +133,27 @@ $isAdmin = isAdmin();
 
             <!-- Contrôles à droite -->
             <ul class="navbar-nav ms-auto">
+                <?php if (!$isAdmin): ?>
+                <!-- Sélecteur de langue pour employés -->
+                <li class="nav-item dropdown me-2">
+                    <a class="nav-link dropdown-toggle py-1 px-2" href="#" data-bs-toggle="dropdown" title="<?= __('language') ?>">
+                        <i class="bi bi-globe2"></i>
+                        <span class="d-none d-sm-inline ms-1"><?= getCurrentLanguage() === 'es' ? 'ES' : 'FR' ?></span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item <?= getCurrentLanguage() === 'fr' ? 'active' : '' ?>" href="<?= url('/set-language.php?lang=fr') ?>">
+                                <span class="fi fi-fr me-2"></span> <?= __('french') ?>
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item <?= getCurrentLanguage() === 'es' ? 'active' : '' ?>" href="<?= url('/set-language.php?lang=es') ?>">
+                                <span class="fi fi-es me-2"></span> <?= __('spanish') ?>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                <?php endif; ?>
                 <!-- User menu -->
                 <li class="nav-item dropdown">
                     <?php
@@ -163,7 +184,7 @@ $isAdmin = isAdmin();
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item text-danger" href="<?= url('/logout.php') ?>">
-                                <i class="bi bi-box-arrow-right"></i> Déconnexion
+                                <i class="bi bi-box-arrow-right"></i> <?= __('logout') ?>
                             </a>
                         </li>
                     </ul>
