@@ -197,7 +197,7 @@ include '../../includes/header.php';
                                     </td>
                                     <td>
                                         <?php if ($facture['fichier']): ?>
-                                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>"
                                                target="_blank"
                                                class="btn btn-outline-secondary btn-sm">
                                                 <i class="bi bi-file-earmark"></i> Voir

@@ -339,17 +339,17 @@ include '../includes/header.php';
                                 <label class="form-label">Fichier actuel</label>
                                 <div class="d-flex align-items-center gap-3">
                                     <?php if ($isImage): ?>
-                                        <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
-                                            <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                        <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank">
+                                            <img src="/uploads/factures/<?= e($facture['fichier']) ?>"
                                                  alt="Facture"
                                                  style="max-width:150px;max-height:150px;object-fit:contain;border-radius:8px;border:2px solid #ddd">
                                         </a>
                                     <?php elseif ($isPdf): ?>
-                                        <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
+                                        <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank" class="text-danger">
                                             <i class="bi bi-file-pdf" style="font-size:4rem"></i>
                                         </a>
                                     <?php endif; ?>
-                                    <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                    <a href="/uploads/factures/<?= e($facture['fichier']) ?>"
                                        target="_blank"
                                        class="btn btn-outline-secondary btn-sm">
                                         <i class="bi bi-eye me-1"></i>Voir en grand

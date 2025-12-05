@@ -164,13 +164,13 @@ include '../includes/header.php';
                                     class="<?= $isRemboursement ? 'table-success' : '' ?>">
                                     <td class="text-center" onclick="event.stopPropagation()">
                                         <?php if ($isImage): ?>
-                                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
-                                                <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank">
+                                                <img src="/uploads/factures/<?= e($facture['fichier']) ?>"
                                                      alt="Facture"
                                                      style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
                                             </a>
                                         <?php elseif ($isPdf): ?>
-                                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
+                                            <a href="/uploads/factures/<?= e($facture['fichier']) ?>" target="_blank" class="text-danger">
                                                 <i class="bi bi-file-pdf" style="font-size:1.5rem"></i>
                                             </a>
                                         <?php else: ?>
