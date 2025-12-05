@@ -1,0 +1,13 @@
+# Autoriser l'accès aux fichiers factures
+# (JPG, PNG, GIF, PDF seulement)
+
+<FilesMatch "\.(jpg|jpeg|png|gif|pdf)$">
+    Order allow,deny
+    Allow from all
+</FilesMatch>
+
+# Bloquer les autres types de fichiers
+<FilesMatch "\.php$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
