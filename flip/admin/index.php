@@ -213,11 +213,21 @@ include '../includes/header.php';
 /* Dashboard cards égales */
 .dashboard-row {
     display: flex;
-    align-items: stretch;
+    flex-wrap: wrap;
+}
+
+.dashboard-row > .col-lg-6 {
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-row .section-title {
+    flex-shrink: 0;
 }
 
 .dashboard-card {
-    height: 100%;
+    flex: 1;
+    min-height: 320px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
