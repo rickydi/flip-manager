@@ -15,6 +15,7 @@ $pageTitle = 'Photos des projets';
 // Filtres
 $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
 $filtreEmploye = isset($_GET['employe']) ? (int)$_GET['employe'] : 0;
+$filtreGroupe = isset($_GET['groupe']) ? $_GET['groupe'] : '';
 
 // Charger les noms des catégories depuis la base de données
 $categoryNames = [];
@@ -33,6 +34,17 @@ $projets = getProjets($pdo, false);
 // Récupérer les employés pour le filtre
 $stmt = $pdo->query("SELECT id, CONCAT(prenom, ' ', nom) as nom_complet FROM users ORDER BY prenom, nom");
 $employes = $stmt->fetchAll();
+
+// Récupérer les groupes de photos pour le filtre (avec catégorie)
+$stmt = $pdo->query("
+    SELECT DISTINCT p.groupe_id, p.description, pr.nom as projet_nom,
+           DATE_FORMAT(MIN(p.date_prise), '%d/%m/%Y') as date_groupe
+    FROM photos_projet p
+    JOIN projets pr ON p.projet_id = pr.id
+    GROUP BY p.groupe_id, p.description, pr.nom
+    ORDER BY MIN(p.date_prise) DESC
+");
+$groupesListe = $stmt->fetchAll();
 
 // Traitement de la suppression
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -111,6 +123,11 @@ if ($filtreEmploye > 0) {
     $params[] = $filtreEmploye;
 }
 
+if (!empty($filtreGroupe)) {
+    $sql .= " AND p.groupe_id = ?";
+    $params[] = $filtreGroupe;
+}
+
 $sql .= " GROUP BY p.groupe_id, p.projet_id, pr.nom, pr.adresse, u.prenom, u.nom, u.id, p.description
           ORDER BY derniere_photo DESC";
 
@@ -159,7 +176,7 @@ include '../../includes/header.php';
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="" class="row g-3 align-items-end">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Projet</label>
                     <select class="form-select" name="projet" onchange="this.form.submit()">
                         <option value="">Tous les projets</option>
@@ -170,7 +187,7 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Employé</label>
                     <select class="form-select" name="employe" onchange="this.form.submit()">
                         <option value="">Tous les employés</option>
@@ -182,8 +199,30 @@ include '../../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <a href="<?= url('/admin/photos/liste.php') ?>" class="btn btn-outline-secondary">
-                        <i class="bi bi-x-circle me-1"></i>Réinitialiser
+                    <label class="form-label">Groupe</label>
+                    <select class="form-select" name="groupe" onchange="this.form.submit()">
+                        <option value="">Tous les groupes</option>
+                        <?php foreach ($groupesListe as $grp):
+                            $grpLabel = $grp['projet_nom'] . ' - ' . $grp['date_groupe'];
+                            if (!empty($grp['description'])) {
+                                $catName = $grp['description'];
+                                if (isset($categoryNames[$catName])) {
+                                    $catName = $categoryNames[$catName];
+                                } elseif (strpos($catName, 'cat_') === 0) {
+                                    $catName = __($catName);
+                                }
+                                $grpLabel .= ' (' . $catName . ')';
+                            }
+                        ?>
+                            <option value="<?= e($grp['groupe_id']) ?>" <?= $filtreGroupe === $grp['groupe_id'] ? 'selected' : '' ?>>
+                                <?= e($grpLabel) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <a href="<?= url('/admin/photos/liste.php') ?>" class="btn btn-outline-secondary w-100">
+                        <i class="bi bi-x-circle me-1"></i>Reset
                     </a>
                 </div>
             </form>
