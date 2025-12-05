@@ -70,16 +70,19 @@ include '../includes/header.php';
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="<?= url('/employe/index.php') ?>">Tableau de bord</a></li>
-                <li class="breadcrumb-item active">Mes factures</li>
+                <li class="breadcrumb-item"><a href="<?= url('/employe/index.php') ?>"><?= __('dashboard') ?></a></li>
+                <li class="breadcrumb-item active"><?= __('my_invoices') ?></li>
             </ol>
         </nav>
         <div class="d-flex justify-content-between align-items-center">
-            <h1><i class="bi bi-receipt me-2"></i>Mes factures</h1>
-            <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary">
-                <i class="bi bi-plus-circle me-1"></i>
-                Nouvelle facture
-            </a>
+            <h1><i class="bi bi-receipt me-2"></i><?= __('my_invoices') ?></h1>
+            <div>
+                <?= renderLanguageToggle() ?>
+                <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary ms-2">
+                    <i class="bi bi-plus-circle me-1"></i>
+                    <?= __('new_invoice') ?>
+                </a>
+            </div>
         </div>
     </div>
     
@@ -90,9 +93,9 @@ include '../includes/header.php';
         <div class="card-body">
             <form method="GET" action="" class="row g-3">
                 <div class="col-md-4">
-                    <label for="projet" class="form-label">Projet</label>
+                    <label for="projet" class="form-label"><?= __('project') ?></label>
                     <select class="form-select" id="projet" name="projet">
-                        <option value="">Tous les projets</option>
+                        <option value=""><?= __('all_projects') ?></option>
                         <?php foreach ($projets as $projet): ?>
                             <option value="<?= $projet['id'] ?>" <?= $filtreProjet == $projet['id'] ? 'selected' : '' ?>>
                                 <?= e($projet['nom']) ?>
@@ -101,22 +104,22 @@ include '../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="statut" class="form-label">Statut</label>
+                    <label for="statut" class="form-label"><?= __('status') ?></label>
                     <select class="form-select" id="statut" name="statut">
-                        <option value="">Tous les statuts</option>
-                        <option value="en_attente" <?= $filtreStatut === 'en_attente' ? 'selected' : '' ?>>En attente</option>
-                        <option value="approuvee" <?= $filtreStatut === 'approuvee' ? 'selected' : '' ?>>Approuvée</option>
-                        <option value="rejetee" <?= $filtreStatut === 'rejetee' ? 'selected' : '' ?>>Rejetée</option>
+                        <option value=""><?= __('all_statuses') ?></option>
+                        <option value="en_attente" <?= $filtreStatut === 'en_attente' ? 'selected' : '' ?>><?= __('pending') ?></option>
+                        <option value="approuvee" <?= $filtreStatut === 'approuvee' ? 'selected' : '' ?>><?= __('approved') ?></option>
+                        <option value="rejetee" <?= $filtreStatut === 'rejetee' ? 'selected' : '' ?>><?= __('rejected') ?></option>
                     </select>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-outline-primary me-2">
                         <i class="bi bi-search me-1"></i>
-                        Filtrer
+                        <?= __('filter') ?>
                     </button>
                     <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>
-                        Réinitialiser
+                        <?= __('reset') ?>
                     </a>
                 </div>
             </form>
@@ -126,14 +129,14 @@ include '../includes/header.php';
     <!-- Liste des factures -->
     <div class="card">
         <div class="card-header">
-            <span><?= $totalFactures ?> facture(s) trouvée(s)</span>
+            <span><?= $totalFactures ?> <?= __('invoices_found') ?></span>
         </div>
         <div class="card-body p-0">
             <?php if (empty($factures)): ?>
                 <div class="empty-state">
                     <i class="bi bi-receipt"></i>
-                    <h4>Aucune facture</h4>
-                    <p>Aucune facture ne correspond à vos critères.</p>
+                    <h4><?= __('no_invoices') ?></h4>
+                    <p><?= __('no_match') ?></p>
                 </div>
             <?php else: ?>
                 <div class="table-responsive">
@@ -141,12 +144,12 @@ include '../includes/header.php';
                         <thead>
                             <tr>
                                 <th style="width:50px"></th>
-                                <th>Date</th>
-                                <th>Projet</th>
-                                <th>Fournisseur</th>
-                                <th>Catégorie</th>
-                                <th class="text-end">Montant</th>
-                                <th class="text-center">Statut</th>
+                                <th><?= __('date') ?></th>
+                                <th><?= __('project') ?></th>
+                                <th><?= __('supplier') ?></th>
+                                <th><?= __('category') ?></th>
+                                <th class="text-end"><?= __('amount') ?></th>
+                                <th class="text-center"><?= __('status') ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -181,7 +184,7 @@ include '../includes/header.php';
                                     <td>
                                         <?= e($facture['fournisseur']) ?>
                                         <?php if ($isRemboursement): ?>
-                                            <span class="badge bg-success ms-1">Remb.</span>
+                                            <span class="badge bg-success ms-1"><?= __('refund') ?></span>
                                         <?php endif; ?>
                                     </td>
                                     <td><?= e($facture['categorie_nom']) ?></td>

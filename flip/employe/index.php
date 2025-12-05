@@ -11,7 +11,7 @@ require_once '../includes/functions.php';
 // Vérifier que l'utilisateur est connecté
 requireLogin();
 
-$pageTitle = 'Tableau de bord';
+$pageTitle = __('dashboard');
 
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
@@ -55,27 +55,32 @@ include '../includes/header.php';
     <!-- INTERFACE MOBILE - Deux gros boutons -->
     <!-- ========================================== -->
     <div class="d-md-none mobile-action-menu">
-        <div class="text-center mb-4">
-            <h4 class="mb-1"><i class="bi bi-person-circle me-2"></i>Bonjour, <?= e(getCurrentUserName()) ?></h4>
-            <p class="text-muted small mb-0">Que souhaitez-vous faire?</p>
+        <!-- Bouton langue -->
+        <div class="text-end mb-3">
+            <?= renderLanguageToggle() ?>
         </div>
-        
+
+        <div class="text-center mb-4">
+            <h4 class="mb-1"><i class="bi bi-person-circle me-2"></i><?= __('hello') ?>, <?= e(getCurrentUserName()) ?></h4>
+            <p class="text-muted small mb-0"><?= __('what_to_do') ?></p>
+        </div>
+
         <div class="d-grid gap-3">
             <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary btn-lg py-4">
                 <i class="bi bi-receipt" style="font-size: 2.5rem;"></i>
-                <div class="mt-2 fw-bold" style="font-size: 1.2rem;">Ajouter une facture</div>
+                <div class="mt-2 fw-bold" style="font-size: 1.2rem;"><?= __('add_invoice') ?></div>
             </a>
             <a href="<?= url('/employe/feuille-temps.php') ?>" class="btn btn-success btn-lg py-4">
                 <i class="bi bi-clock-history" style="font-size: 2.5rem;"></i>
-                <div class="mt-2 fw-bold" style="font-size: 1.2rem;">Ajouter des heures</div>
+                <div class="mt-2 fw-bold" style="font-size: 1.2rem;"><?= __('add_hours') ?></div>
             </a>
         </div>
-        
+
         <hr class="my-4">
-        
+
         <div class="d-flex justify-content-center gap-3">
             <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-list me-1"></i>Mes factures
+                <i class="bi bi-list me-1"></i><?= __('my_invoices') ?>
             </a>
         </div>
     </div>
@@ -85,44 +90,47 @@ include '../includes/header.php';
     <!-- ========================================== -->
     <div class="d-none d-md-block">
     <!-- En-tête -->
-    <div class="page-header">
-        <h1><i class="bi bi-speedometer2 me-2"></i>Tableau de bord</h1>
-        <p class="text-muted">Bonjour, <?= e(getCurrentUserName()) ?></p>
+    <div class="page-header d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="bi bi-speedometer2 me-2"></i><?= __('dashboard') ?></h1>
+            <p class="text-muted"><?= __('hello') ?>, <?= e(getCurrentUserName()) ?></p>
+        </div>
+        <div><?= renderLanguageToggle() ?></div>
     </div>
-    
+
     <?php displayFlashMessage(); ?>
-    
+
     <!-- Statistiques -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-value"><?= $totalFactures ?></div>
-            <div class="stat-label">Factures soumises</div>
+            <div class="stat-label"><?= __('submitted_invoices') ?></div>
         </div>
         <div class="stat-card warning">
             <div class="stat-value"><?= $facturesEnAttente ?></div>
-            <div class="stat-label">En attente</div>
+            <div class="stat-label"><?= __('pending') ?></div>
         </div>
         <div class="stat-card success">
             <div class="stat-value"><?= $facturesApprouvees ?></div>
-            <div class="stat-label">Approuvées</div>
+            <div class="stat-label"><?= __('approved') ?></div>
         </div>
         <div class="stat-card primary">
             <div class="stat-value"><?= formatMoney($totalMontant) ?></div>
-            <div class="stat-label">Total approuvé</div>
+            <div class="stat-label"><?= __('total_approved') ?></div>
         </div>
     </div>
     
     <!-- Projets actifs -->
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-building me-2"></i>Projets actifs</span>
+            <span><i class="bi bi-building me-2"></i><?= __('active_projects') ?></span>
         </div>
         <div class="card-body">
             <?php if (empty($projets)): ?>
                 <div class="empty-state">
                     <i class="bi bi-building"></i>
-                    <h4>Aucun projet actif</h4>
-                    <p>Il n'y a pas de projet en cours pour le moment.</p>
+                    <h4><?= __('no_active_projects') ?></h4>
+                    <p><?= __('no_projects_msg') ?></p>
                 </div>
             <?php else: ?>
                 <div class="row">
@@ -142,10 +150,10 @@ include '../includes/header.php';
                                     </span>
                                 </div>
                                 <div class="card-footer bg-transparent">
-                                    <a href="<?= url('/employe/nouvelle-facture.php?projet_id=' . $projet['id']) ?>" 
+                                    <a href="<?= url('/employe/nouvelle-facture.php?projet_id=' . $projet['id']) ?>"
                                        class="btn btn-primary btn-sm">
                                         <i class="bi bi-plus-circle me-1"></i>
-                                        Nouvelle facture
+                                        <?= __('new_invoice') ?>
                                     </a>
                                 </div>
                             </div>
@@ -159,20 +167,20 @@ include '../includes/header.php';
     <!-- Dernières factures -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-receipt me-2"></i>Mes dernières factures</span>
+            <span><i class="bi bi-receipt me-2"></i><?= __('my_last_invoices') ?></span>
             <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-primary btn-sm">
-                Voir tout
+                <?= __('see_all') ?>
             </a>
         </div>
         <div class="card-body p-0">
             <?php if (empty($mesFactures)): ?>
                 <div class="empty-state">
                     <i class="bi bi-receipt"></i>
-                    <h4>Aucune facture</h4>
-                    <p>Vous n'avez pas encore soumis de facture.</p>
+                    <h4><?= __('no_invoices') ?></h4>
+                    <p><?= __('no_invoice_yet') ?></p>
                     <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary">
                         <i class="bi bi-plus-circle me-1"></i>
-                        Soumettre une facture
+                        <?= __('submit_invoice') ?>
                     </a>
                 </div>
             <?php else: ?>
@@ -180,12 +188,12 @@ include '../includes/header.php';
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Projet</th>
-                                <th>Fournisseur</th>
-                                <th>Catégorie</th>
-                                <th class="text-end">Montant</th>
-                                <th class="text-center">Statut</th>
+                                <th><?= __('date') ?></th>
+                                <th><?= __('project') ?></th>
+                                <th><?= __('supplier') ?></th>
+                                <th><?= __('category') ?></th>
+                                <th class="text-end"><?= __('amount') ?></th>
+                                <th class="text-center"><?= __('status') ?></th>
                                 <th></th>
                             </tr>
                         </thead>

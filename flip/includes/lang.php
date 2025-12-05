@@ -74,6 +74,51 @@ $TRANSLATIONS = [
         'language' => 'Langue',
         'french' => 'Français',
         'spanish' => 'Español',
+
+        // Page d'accueil employé
+        'hello' => 'Bonjour',
+        'what_to_do' => 'Que souhaitez-vous faire?',
+        'add_invoice' => 'Ajouter une facture',
+        'add_hours' => 'Ajouter des heures',
+        'submitted_invoices' => 'Factures soumises',
+        'active_projects' => 'Projets actifs',
+        'no_active_projects' => 'Aucun projet actif',
+        'no_projects_msg' => 'Il n\'y a pas de projet en cours pour le moment.',
+        'my_last_invoices' => 'Mes dernières factures',
+        'see_all' => 'Voir tout',
+        'no_invoice_yet' => 'Vous n\'avez pas encore soumis de facture.',
+        'submit_invoice' => 'Soumettre une facture',
+        'total_approved' => 'Total approuvé',
+
+        // Mes factures
+        'all_projects' => 'Tous les projets',
+        'all_statuses' => 'Tous les statuts',
+        'filter' => 'Filtrer',
+        'reset' => 'Réinitialiser',
+        'invoices_found' => 'facture(s) trouvée(s)',
+        'no_match' => 'Aucune facture ne correspond à vos critères.',
+        'rejected' => 'Rejetée',
+        'refund' => 'Remb.',
+        'back' => 'Retour',
+
+        // Nouvelle facture
+        'select_project' => 'Sélectionner un projet...',
+        'select_supplier' => 'Sélectionner un fournisseur...',
+        'other_new_supplier' => '➕ Autre (nouveau fournisseur)',
+        'enter_new_supplier' => 'Entrez le nom du nouveau fournisseur...',
+        'select_category' => 'Sélectionner une catégorie...',
+        'items_description' => 'Description des articles/services',
+        'refund_toggle' => 'Remboursement',
+        'refund_reduces_cost' => 'réduit le coût du projet',
+        'without_taxes' => 'Sans taxes',
+        'taxes_auto_calc' => 'Les taxes sont calculées automatiquement. Utilisez "Sans taxes" pour les cas particuliers.',
+        'invoice_photo' => 'Photo/PDF de la facture',
+        'drag_file' => 'Glisser un fichier ou cliquer pour sélectionner',
+        'file_formats' => 'JPG, PNG, PDF - Max 5 MB',
+        'notes' => 'Notes',
+        'notes_optional' => 'Notes (optionnel)',
+        'additional_notes' => 'Notes supplémentaires...',
+        'errors' => 'Erreur(s)',
     ],
 
     'es' => [
@@ -140,6 +185,51 @@ $TRANSLATIONS = [
         'language' => 'Idioma',
         'french' => 'Français',
         'spanish' => 'Español',
+
+        // Page d'accueil employé
+        'hello' => 'Hola',
+        'what_to_do' => '¿Qué quieres hacer?',
+        'add_invoice' => 'Agregar una factura',
+        'add_hours' => 'Agregar horas',
+        'submitted_invoices' => 'Facturas enviadas',
+        'active_projects' => 'Proyectos activos',
+        'no_active_projects' => 'Sin proyectos activos',
+        'no_projects_msg' => 'No hay proyectos en curso por el momento.',
+        'my_last_invoices' => 'Mis últimas facturas',
+        'see_all' => 'Ver todo',
+        'no_invoice_yet' => 'Aún no has enviado ninguna factura.',
+        'submit_invoice' => 'Enviar una factura',
+        'total_approved' => 'Total aprobado',
+
+        // Mes factures
+        'all_projects' => 'Todos los proyectos',
+        'all_statuses' => 'Todos los estados',
+        'filter' => 'Filtrar',
+        'reset' => 'Reiniciar',
+        'invoices_found' => 'factura(s) encontrada(s)',
+        'no_match' => 'Ninguna factura corresponde a tus criterios.',
+        'rejected' => 'Rechazada',
+        'refund' => 'Reemb.',
+        'back' => 'Volver',
+
+        // Nouvelle facture
+        'select_project' => 'Seleccionar un proyecto...',
+        'select_supplier' => 'Seleccionar un proveedor...',
+        'other_new_supplier' => '➕ Otro (nuevo proveedor)',
+        'enter_new_supplier' => 'Ingresa el nombre del nuevo proveedor...',
+        'select_category' => 'Seleccionar una categoría...',
+        'items_description' => 'Descripción de artículos/servicios',
+        'refund_toggle' => 'Reembolso',
+        'refund_reduces_cost' => 'reduce el costo del proyecto',
+        'without_taxes' => 'Sin impuestos',
+        'taxes_auto_calc' => 'Los impuestos se calculan automáticamente. Usa "Sin impuestos" para casos particulares.',
+        'invoice_photo' => 'Foto/PDF de la factura',
+        'drag_file' => 'Arrastra un archivo o haz clic para seleccionar',
+        'file_formats' => 'JPG, PNG, PDF - Máx 5 MB',
+        'notes' => 'Notas',
+        'notes_optional' => 'Notas (opcional)',
+        'additional_notes' => 'Notas adicionales...',
+        'errors' => 'Error(es)',
     ]
 ];
 
@@ -185,4 +275,20 @@ function __($key, $default = null) {
  */
 function _e($key, $default = null) {
     echo e(__($key, $default));
+}
+
+/**
+ * Générer le bouton de changement de langue (pour employés)
+ */
+function renderLanguageToggle() {
+    $currentLang = getCurrentLanguage();
+    $otherLang = $currentLang === 'fr' ? 'es' : 'fr';
+    $otherLabel = $currentLang === 'fr' ? 'ES' : 'FR';
+    $flagIcon = $currentLang === 'fr' ? '🇪🇸' : '🇫🇷';
+
+    return '<a href="' . url('/set-language.php?lang=' . $otherLang) . '"
+               class="btn btn-outline-secondary btn-sm"
+               title="' . __('language') . '">
+               ' . $flagIcon . ' ' . $otherLabel . '
+            </a>';
 }

@@ -133,27 +133,6 @@ $isAdmin = isAdmin();
 
             <!-- Contrôles à droite -->
             <ul class="navbar-nav ms-auto">
-                <?php if (!$isAdmin): ?>
-                <!-- Sélecteur de langue pour employés -->
-                <li class="nav-item dropdown me-2">
-                    <a class="nav-link dropdown-toggle py-1 px-2" href="#" data-bs-toggle="dropdown" title="<?= __('language') ?>">
-                        <i class="bi bi-globe2"></i>
-                        <span class="d-none d-sm-inline ms-1"><?= getCurrentLanguage() === 'es' ? 'ES' : 'FR' ?></span>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li>
-                            <a class="dropdown-item <?= getCurrentLanguage() === 'fr' ? 'active' : '' ?>" href="<?= url('/set-language.php?lang=fr') ?>">
-                                <span class="fi fi-fr me-2"></span> <?= __('french') ?>
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item <?= getCurrentLanguage() === 'es' ? 'active' : '' ?>" href="<?= url('/set-language.php?lang=es') ?>">
-                                <span class="fi fi-es me-2"></span> <?= __('spanish') ?>
-                            </a>
-                        </li>
-                    </ul>
-                </li>
-                <?php endif; ?>
                 <!-- User menu -->
                 <li class="nav-item dropdown">
                     <?php
