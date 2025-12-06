@@ -621,25 +621,53 @@ include '../../includes/header.php';
                     </div>
                 </div>
 
+                <?php
+                // Calcul commission courtier avec taxes
+                $commHT = (float)$projet['valeur_potentielle'] * ((float)$projet['taux_commission'] / 100);
+                $commTPS = $commHT * 0.05;
+                $commTVQ = $commHT * 0.09975;
+                $commTTC = $commHT + $commTPS + $commTVQ;
+                // Calcul contingence
+                $totalBudgetBase = 0;
+                foreach ($categoriesAvecBudget as $cat) {
+                    $totalBudgetBase += (float)$cat['montant_extrapole'];
+                }
+                $contingenceBase = $totalBudgetBase * ((float)$projet['taux_contingence'] / 100);
+                ?>
                 <div class="card">
                     <div class="card-header"><i class="bi bi-percent me-1"></i>Taux & Notes</div>
                     <div class="card-body">
                         <div class="row g-2">
-                            <div class="col-6">
-                                <label class="form-label">Courtier immo.</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" name="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label">Contingence</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" name="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
-                                    <span class="input-group-text">%</span>
+                            <div class="col-12">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label class="form-label mb-0">Courtier immo.</label>
+                                        <div class="input-group" style="width: 100px;">
+                                            <input type="number" class="form-control form-control-sm" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
+                                            <span class="input-group-text py-0">%</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="fw-bold" id="comm_montant"><?= formatMoney($commTTC) ?></span>
+                                        <small class="text-muted d-block" style="font-size:0.7rem" id="comm_taxes">
+                                            HT: <?= formatMoney($commHT) ?> + TPS/TVQ
+                                        </small>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-12">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <label class="form-label mb-0">Contingence</label>
+                                        <div class="input-group" style="width: 100px;">
+                                            <input type="number" class="form-control form-control-sm" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
+                                            <span class="input-group-text py-0">%</span>
+                                        </div>
+                                    </div>
+                                    <span class="fw-bold" id="contingence_montant"><?= formatMoney($contingenceBase) ?></span>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-2">
                                 <label class="form-label">Notes</label>
                                 <textarea class="form-control" name="notes" rows="2"><?= e($projet['notes']) ?></textarea>
                             </div>
