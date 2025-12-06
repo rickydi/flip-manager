@@ -141,7 +141,7 @@ $stmt = $pdo->query("
     JOIN users u ON f.user_id = u.id
     WHERE f.statut = 'en_attente'
     ORDER BY f.date_creation ASC
-    LIMIT 4
+    LIMIT 20
 ");
 $facturesAttente = $stmt->fetchAll();
 
@@ -563,6 +563,7 @@ include '../includes/header.php';
                                 </div>
                                 <div class="activity-meta">
                                     <div class="amount"><?= formatMoney($facture['montant_total']) ?></div>
+                                    <div class="date"><?= formatDate($facture['date_creation']) ?></div>
                                     <span class="btn btn-success btn-sm approve-btn"
                                           onclick="event.preventDefault(); event.stopPropagation(); window.location.href='<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>';"
                                           title="Approuver">
