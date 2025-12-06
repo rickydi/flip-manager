@@ -319,6 +319,13 @@ include '../includes/header.php';
     color: var(--text-muted);
 }
 
+.activity-meta .date-action {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
 .activity-user {
     display: inline-flex;
     align-items: center;
@@ -563,12 +570,14 @@ include '../includes/header.php';
                                 </div>
                                 <div class="activity-meta">
                                     <div class="amount"><?= formatMoney($facture['montant_total']) ?></div>
-                                    <div class="date"><?= formatDate($facture['date_creation']) ?></div>
-                                    <span class="btn btn-success btn-sm approve-btn"
-                                          onclick="event.preventDefault(); event.stopPropagation(); window.location.href='<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>';"
-                                          title="Approuver">
-                                        <i class="bi bi-check"></i>
-                                    </span>
+                                    <div class="date-action">
+                                        <span class="date"><?= formatDate($facture['date_creation']) ?></span>
+                                        <span class="btn btn-success btn-sm approve-btn"
+                                              onclick="event.preventDefault(); event.stopPropagation(); window.location.href='<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>';"
+                                              title="Approuver">
+                                            <i class="bi bi-check"></i>
+                                        </span>
+                                    </div>
                                 </div>
                             </a>
                         <?php endforeach; ?>
