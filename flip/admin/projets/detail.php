@@ -458,7 +458,7 @@ include '../../includes/header.php';
 
         <div class="row">
             <!-- Colonne gauche -->
-            <div class="col-lg-6">
+            <div class="col-lg-6 d-flex flex-column gap-3">
                 <div class="card">
                     <div class="card-header"><i class="bi bi-info-circle me-1"></i>Infos</div>
                     <div class="card-body">
@@ -564,8 +564,8 @@ include '../../includes/header.php';
             </div>
 
             <!-- Colonne droite -->
-            <div class="col-lg-6">
-                <div class="card">
+            <div class="col-lg-6 d-flex flex-column gap-3">
+                <div class="card flex-grow-1">
                     <div class="card-header"><i class="bi bi-arrow-repeat me-1"></i>Récurrents</div>
                     <div class="card-body">
                         <div class="row g-2">
@@ -634,8 +634,8 @@ include '../../includes/header.php';
                 }
                 $contingenceBase = $totalBudgetBase * ((float)$projet['taux_contingence'] / 100);
                 ?>
-                <div class="card">
-                    <div class="card-header"><i class="bi bi-percent me-1"></i>Taux & Notes</div>
+                <div class="card h-100">
+                    <div class="card-header"><i class="bi bi-percent me-1"></i>Taux</div>
                     <div class="card-body">
                         <div class="row g-2">
                             <div class="col-12">
@@ -667,11 +667,8 @@ include '../../includes/header.php';
                                     <span class="fw-bold" id="contingence_montant"><?= formatMoney($contingenceBase) ?></span>
                                 </div>
                             </div>
-                            <div class="col-12 mt-2">
-                                <label class="form-label">Notes</label>
-                                <textarea class="form-control" name="notes" rows="2"><?= e($projet['notes']) ?></textarea>
-                            </div>
                         </div>
+                        <input type="hidden" name="notes" value="<?= e($projet['notes']) ?>">
                     </div>
                 </div>
             </div>
