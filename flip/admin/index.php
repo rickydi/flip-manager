@@ -404,16 +404,15 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="row dashboard-row">
-        <!-- TEST VERSION 2 - Si tu vois ce commentaire, les changements sont déployés -->
+    <div class="row">
         <!-- Colonne Activités récentes -->
         <div class="col-lg-6 mb-4">
-            <div class="section-title">
+            <div class="section-title" style="height: 40px;">
                 <h4><i class="bi bi-activity me-2"></i>Dernières activités</h4>
             </div>
 
-            <div class="card" style="height: 340px; overflow: hidden;">
-                <div class="card-body p-0" style="overflow: hidden;">
+            <div class="card" style="height: 320px; overflow: hidden;">
+                <div class="card-body p-0" style="height: 100%; overflow: hidden;">
                     <?php if (empty($activites)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-inbox text-secondary" style="font-size: 4rem;"></i>
@@ -524,16 +523,16 @@ include '../includes/header.php';
 
         <!-- Colonne À approuver -->
         <div class="col-lg-6 mb-4">
-            <!-- Factures en attente -->
-            <div class="section-title">
-                <h4><i class="bi bi-clock-history me-2"></i>À approuver</h4>
+            <div class="section-title" style="height: 40px;">
+                <h4><i class="bi bi-clock-history me-2"></i>À approuver
                 <?php if ($facturesEnAttente > 0): ?>
-                    <span class="badge bg-danger"><?= $facturesEnAttente ?></span>
+                    <span class="badge bg-danger ms-2"><?= $facturesEnAttente ?></span>
                 <?php endif; ?>
+                </h4>
             </div>
 
-            <div class="card" style="height: 340px; overflow: hidden;">
-                <div class="card-body p-0" style="overflow: hidden;">
+            <div class="card" style="height: 320px; overflow: hidden;">
+                <div class="card-body p-0" style="height: 100%; overflow: hidden;">
                     <?php if (empty($facturesAttente)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
