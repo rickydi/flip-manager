@@ -215,6 +215,12 @@ include '../includes/header.php';
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+    align-items: stretch;
+}
+
+.dashboard-grid > div {
+    display: flex;
+    flex-direction: column;
 }
 
 @media (max-width: 991px) {
@@ -226,26 +232,17 @@ include '../includes/header.php';
 .dashboard-grid .card {
     display: flex;
     flex-direction: column;
+    flex: 1;
 }
 
 .dashboard-grid .card-body {
     flex: 1;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
 
 .dashboard-grid .card-body .activity-list {
     flex: 1;
-    overflow: hidden;
-}
-
-.dashboard-grid .card-body .voir-plus {
-    flex-shrink: 0;
-    border-top: 1px solid var(--border-color);
-    padding: 0.75rem;
-    text-align: center;
-    background: var(--bg-card);
 }
 
 /* Activités récentes */
