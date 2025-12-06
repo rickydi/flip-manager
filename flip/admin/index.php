@@ -124,12 +124,12 @@ try {
     // Ignorer
 }
 
-// Trier par date décroissante et limiter à 4 pour l'affichage
+// Trier par date décroissante et limiter à 20 pour l'affichage
 usort($activites, function($a, $b) {
     return strtotime($b['date_activite']) - strtotime($a['date_activite']);
 });
 $totalActivites = count($activites);
-$activites = array_slice($activites, 0, 4);
+$activites = array_slice($activites, 0, 20);
 
 // Factures en attente
 $stmt = $pdo->query("
@@ -224,8 +224,6 @@ include '../includes/header.php';
 }
 
 .dashboard-grid .card {
-    height: 320px;
-    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -254,9 +252,9 @@ include '../includes/header.php';
 .activity-item {
     display: flex;
     align-items: flex-start;
-    padding: 1rem;
+    padding: 0.4rem 0.75rem;
     border-bottom: 1px solid var(--border-color);
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .activity-item:last-child {
@@ -269,13 +267,14 @@ include '../includes/header.php';
 }
 
 .activity-icon {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    font-size: 0.85rem;
 }
 
 .activity-icon.facture { background: rgba(37, 99, 235, 0.15); color: var(--primary-color); }
@@ -296,10 +295,12 @@ include '../includes/header.php';
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    font-size: 0.85rem;
 }
 
 .activity-content small {
     color: var(--text-secondary);
+    font-size: 0.75rem;
 }
 
 .activity-meta {
@@ -310,23 +311,24 @@ include '../includes/header.php';
 .activity-meta .amount {
     font-weight: 600;
     color: var(--text-primary);
+    font-size: 0.8rem;
 }
 
 .activity-meta .date {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
 }
 
 .activity-user {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
-    font-size: 0.8rem;
+    gap: 0.2rem;
+    font-size: 0.7rem;
     color: var(--text-secondary);
     background: var(--bg-table-hover);
-    padding: 0.15rem 0.5rem;
+    padding: 0.1rem 0.4rem;
     border-radius: 1rem;
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
 }
 
 /* Pending factures mini */
