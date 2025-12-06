@@ -583,11 +583,6 @@ include '../includes/header.php';
                         <?php endforeach; ?>
                     <?php endif; ?>
                     </div>
-                    <div class="voir-plus">
-                        <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
-                            Voir +
-                        </a>
-                    </div>
                 </div>
             </div>
         </div>
