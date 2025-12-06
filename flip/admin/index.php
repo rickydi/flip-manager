@@ -343,6 +343,13 @@ include '../includes/header.php';
     color: var(--text-primary);
     margin-right: 1rem;
 }
+
+/* Bouton approuver dans la colonne À approuver */
+.approve-btn {
+    margin-top: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
 </style>
 
 <div class="container-fluid">
@@ -528,22 +535,28 @@ include '../includes/header.php';
                         </div>
                     <?php else: ?>
                         <?php foreach ($facturesAttente as $facture): ?>
-                            <div class="activity-item">
+                            <a href="<?= url('/admin/factures/modifier.php?id=' . $facture['id']) ?>" class="activity-item" style="text-decoration: none; color: inherit; cursor: pointer;">
                                 <div class="activity-icon facture">
                                     <i class="bi bi-receipt"></i>
                                 </div>
                                 <div class="activity-content">
                                     <strong><?= e($facture['fournisseur']) ?></strong>
                                     <small><?= e($facture['projet_nom']) ?></small>
+                                    <div class="activity-user">
+                                        <i class="bi bi-person-fill"></i>
+                                        <?= e($facture['employe_nom']) ?>
+                                    </div>
                                 </div>
                                 <div class="activity-meta">
                                     <div class="amount"><?= formatMoney($facture['montant_total']) ?></div>
-                                    <a href="<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>"
-                                       class="btn btn-success btn-sm mt-1" title="Approuver">
+                                    <div class="date"><?= formatDate($facture['date_creation']) ?></div>
+                                    <span class="btn btn-success btn-sm approve-btn"
+                                          onclick="event.preventDefault(); event.stopPropagation(); window.location.href='<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>';"
+                                          title="Approuver">
                                         <i class="bi bi-check"></i>
-                                    </a>
+                                    </span>
                                 </div>
-                            </div>
+                            </a>
                         <?php endforeach; ?>
 
                         <div class="text-center py-3 border-top">
