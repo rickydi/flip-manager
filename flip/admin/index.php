@@ -215,12 +215,18 @@ include '../includes/header.php';
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
-    align-items: stretch;
+    align-items: start;
 }
 
 .dashboard-grid > div {
     display: flex;
     flex-direction: column;
+}
+
+.dashboard-grid > div > h5 {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
 }
 
 @media (max-width: 991px) {
