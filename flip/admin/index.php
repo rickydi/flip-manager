@@ -210,35 +210,27 @@ include '../includes/header.php';
     color: var(--text-primary);
 }
 
-/* Dashboard cards égales */
-.dashboard-row {
-    display: flex;
-    flex-wrap: wrap;
+/* Dashboard cards égales avec CSS Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
 }
 
-.dashboard-row > .col-lg-6 {
-    display: flex;
-    flex-direction: column;
+@media (max-width: 991px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
-.dashboard-row .section-title {
-    flex-shrink: 0;
+.dashboard-grid .card {
+    height: 320px;
+    overflow: hidden;
 }
 
-.dashboard-card {
-    height: 340px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden !important;
-}
-
-.dashboard-card .card-body {
-    flex: 1;
-    overflow: hidden !important;
-}
-
-.dashboard-card .card-body::-webkit-scrollbar {
-    display: none;
+.dashboard-grid .card-body {
+    height: calc(100% - 0px);
+    overflow: hidden;
 }
 
 /* Activités récentes */
@@ -404,15 +396,12 @@ include '../includes/header.php';
         </div>
     </div>
     
-    <div class="row" style="display: flex !important; flex-wrap: wrap !important;">
+    <div class="dashboard-grid mb-4">
         <!-- Colonne Activités récentes -->
-        <div class="col-lg-6 mb-4" style="display: flex !important; flex-direction: column !important;">
-            <div style="margin-bottom: 1rem;">
-                <h4 style="margin: 0;"><i class="bi bi-activity me-2"></i>Dernières activités</h4>
-            </div>
-
-            <div class="card" style="flex: 1 !important; min-height: 300px !important; max-height: 300px !important; overflow: hidden !important;">
-                <div class="card-body p-0" style="overflow: hidden !important;">
+        <div>
+            <h5 class="mb-3"><i class="bi bi-activity me-2"></i>Dernières activités</h5>
+            <div class="card">
+                <div class="card-body p-0">
                     <?php if (empty($activites)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-inbox text-secondary" style="font-size: 4rem;"></i>
@@ -522,17 +511,15 @@ include '../includes/header.php';
         </div>
 
         <!-- Colonne À approuver -->
-        <div class="col-lg-6 mb-4" style="display: flex !important; flex-direction: column !important;">
-            <div style="margin-bottom: 1rem;">
-                <h4 style="margin: 0;"><i class="bi bi-clock-history me-2"></i>À approuver
+        <div>
+            <h5 class="mb-3">
+                <i class="bi bi-clock-history me-2"></i>À approuver
                 <?php if ($facturesEnAttente > 0): ?>
                     <span class="badge bg-danger ms-2"><?= $facturesEnAttente ?></span>
                 <?php endif; ?>
-                </h4>
-            </div>
-
-            <div class="card" style="flex: 1 !important; min-height: 300px !important; max-height: 300px !important; overflow: hidden !important;">
-                <div class="card-body p-0" style="overflow: hidden !important;">
+            </h5>
+            <div class="card">
+                <div class="card-body p-0">
                     <?php if (empty($facturesAttente)): ?>
                         <div class="text-center py-5">
                             <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
