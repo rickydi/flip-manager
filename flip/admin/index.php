@@ -392,7 +392,7 @@ include '../includes/header.php';
                     <i class="bi bi-building"></i>
                 </div>
                 <div class="stat-content">
-                    <h3><?= $totalProjets ?></h3>
+                    <h3 class="counter" data-target="<?= $totalProjets ?>">0</h3>
                     <p>Projets actifs</p>
                 </div>
             </div>
@@ -403,7 +403,7 @@ include '../includes/header.php';
                     <i class="bi bi-clock-history"></i>
                 </div>
                 <div class="stat-content">
-                    <h3><?= $facturesEnAttente ?></h3>
+                    <h3 class="counter" data-target="<?= $facturesEnAttente ?>">0</h3>
                     <p>Factures en attente</p>
                 </div>
             </div>
@@ -414,7 +414,7 @@ include '../includes/header.php';
                     <i class="bi bi-check-circle"></i>
                 </div>
                 <div class="stat-content">
-                    <h3><?= $facturesApprouvees ?></h3>
+                    <h3 class="counter" data-target="<?= $facturesApprouvees ?>">0</h3>
                     <p>Factures approuvées</p>
                 </div>
             </div>
@@ -425,7 +425,7 @@ include '../includes/header.php';
                     <i class="bi bi-cash-stack"></i>
                 </div>
                 <div class="stat-content">
-                    <h3><?= formatMoney($totalDepenses) ?></h3>
+                    <h3 class="counter-money" data-target="<?= $totalDepenses ?>">0,00 $</h3>
                     <p>Total dépensé</p>
                 </div>
             </div>
@@ -621,5 +621,69 @@ include '../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Animation des compteurs
+document.addEventListener('DOMContentLoaded', function() {
+    const duration = 1500; // Durée de l'animation en ms
+
+    // Compteurs simples (nombres entiers)
+    document.querySelectorAll('.counter').forEach(counter => {
+        const target = parseInt(counter.dataset.target) || 0;
+        const startTime = performance.now();
+
+        function updateCounter(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Easing function pour un effet plus naturel
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = Math.floor(easeOut * target);
+
+            counter.textContent = current;
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCounter);
+            } else {
+                counter.textContent = target;
+            }
+        }
+
+        requestAnimationFrame(updateCounter);
+    });
+
+    // Compteur argent (avec format monétaire)
+    document.querySelectorAll('.counter-money').forEach(counter => {
+        const target = parseFloat(counter.dataset.target) || 0;
+        const startTime = performance.now();
+
+        function formatMoney(value) {
+            return value.toLocaleString('fr-CA', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }) + ' $';
+        }
+
+        function updateCounter(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Easing function
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = easeOut * target;
+
+            counter.textContent = formatMoney(current);
+
+            if (progress < 1) {
+                requestAnimationFrame(updateCounter);
+            } else {
+                counter.textContent = formatMoney(target);
+            }
+        }
+
+        requestAnimationFrame(updateCounter);
+    });
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
