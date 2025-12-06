@@ -226,11 +226,28 @@ include '../includes/header.php';
 .dashboard-grid .card {
     height: 320px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .dashboard-grid .card-body {
-    height: calc(100% - 0px);
+    flex: 1;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-grid .card-body .activity-list {
+    flex: 1;
+    overflow: hidden;
+}
+
+.dashboard-grid .card-body .voir-plus {
+    flex-shrink: 0;
+    border-top: 1px solid var(--border-color);
+    padding: 0.75rem;
+    text-align: center;
+    background: var(--bg-card);
 }
 
 /* Activités récentes */
@@ -409,11 +426,11 @@ include '../includes/header.php';
             <h5 class="mb-3"><i class="bi bi-activity me-2"></i>Dernières activités</h5>
             <div class="card">
                 <div class="card-body p-0">
+                    <div class="activity-list">
                     <?php if (empty($activites)): ?>
-                        <div class="text-center py-5">
-                            <i class="bi bi-inbox text-secondary" style="font-size: 4rem;"></i>
-                            <h4 class="mt-3">Aucune activité</h4>
-                            <p class="text-muted">Les dernières entrées apparaîtront ici</p>
+                        <div class="text-center py-4">
+                            <i class="bi bi-inbox text-secondary" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">Aucune activité</p>
                         </div>
                     <?php else: ?>
                         <?php foreach ($activites as $activite):
@@ -506,13 +523,13 @@ include '../includes/header.php';
                                 </div>
                             </a>
                         <?php endforeach; ?>
-
-                        <div class="text-center py-3 border-top">
-                            <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-arrow-right me-1"></i>Voir plus
-                            </a>
-                        </div>
                     <?php endif; ?>
+                    </div>
+                    <div class="voir-plus">
+                        <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-primary btn-sm">
+                            Voir +
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -527,11 +544,11 @@ include '../includes/header.php';
             </h5>
             <div class="card">
                 <div class="card-body p-0">
+                    <div class="activity-list">
                     <?php if (empty($facturesAttente)): ?>
-                        <div class="text-center py-5">
-                            <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
-                            <h4 class="mt-3">Aucune facture</h4>
-                            <p class="text-muted">Toutes les factures sont approuvées</p>
+                        <div class="text-center py-4">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                            <p class="text-muted mt-2">Tout est approuvé!</p>
                         </div>
                     <?php else: ?>
                         <?php foreach ($facturesAttente as $facture): ?>
@@ -549,7 +566,6 @@ include '../includes/header.php';
                                 </div>
                                 <div class="activity-meta">
                                     <div class="amount"><?= formatMoney($facture['montant_total']) ?></div>
-                                    <div class="date"><?= formatDate($facture['date_creation']) ?></div>
                                     <span class="btn btn-success btn-sm approve-btn"
                                           onclick="event.preventDefault(); event.stopPropagation(); window.location.href='<?= url('/admin/factures/approuver.php?action=approuver&id=' . $facture['id']) ?>';"
                                           title="Approuver">
@@ -558,13 +574,13 @@ include '../includes/header.php';
                                 </div>
                             </a>
                         <?php endforeach; ?>
-
-                        <div class="text-center py-3 border-top">
-                            <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
-                                <i class="bi bi-arrow-right me-1"></i>Voir plus
-                            </a>
-                        </div>
                     <?php endif; ?>
+                    </div>
+                    <div class="voir-plus">
+                        <a href="<?= url('/admin/factures/approuver.php') ?>" class="btn btn-outline-primary btn-sm">
+                            Voir +
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
