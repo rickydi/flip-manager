@@ -636,38 +636,29 @@ include '../../includes/header.php';
                 ?>
                 <div class="card h-100">
                     <div class="card-header"><i class="bi bi-percent me-1"></i>Taux</div>
-                    <div class="card-body">
-                        <div class="row g-2">
-                            <div class="col-12">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <label class="form-label mb-0">Courtier immo.</label>
-                                        <div class="input-group" style="width: 100px;">
-                                            <input type="number" class="form-control form-control-sm" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
-                                            <span class="input-group-text py-0">%</span>
-                                        </div>
+                    <div class="card-body p-2">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td style="width:40%"><label class="form-label mb-0">Courtier</label></td>
+                                <td style="width:30%">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
+                                        <span class="input-group-text">%</span>
                                     </div>
-                                    <div class="text-end">
-                                        <span class="fw-bold" id="comm_montant"><?= formatMoney($commTTC) ?></span>
-                                        <small class="text-muted d-block" style="font-size:0.7rem" id="comm_taxes">
-                                            HT: <?= formatMoney($commHT) ?> + TPS/TVQ
-                                        </small>
+                                </td>
+                                <td class="text-end fw-bold"><?= formatMoney($commTTC) ?></td>
+                            </tr>
+                            <tr>
+                                <td><label class="form-label mb-0">Contingence</label></td>
+                                <td>
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" class="form-control" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
+                                        <span class="input-group-text">%</span>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="col-12">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <label class="form-label mb-0">Contingence</label>
-                                        <div class="input-group" style="width: 100px;">
-                                            <input type="number" class="form-control form-control-sm" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
-                                            <span class="input-group-text py-0">%</span>
-                                        </div>
-                                    </div>
-                                    <span class="fw-bold" id="contingence_montant"><?= formatMoney($contingenceBase) ?></span>
-                                </div>
-                            </div>
-                        </div>
+                                </td>
+                                <td class="text-end fw-bold"><?= formatMoney($contingenceBase) ?></td>
+                            </tr>
+                        </table>
                         <input type="hidden" name="notes" value="<?= e($projet['notes']) ?>">
                     </div>
                 </div>
