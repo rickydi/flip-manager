@@ -160,7 +160,31 @@ include '../../includes/header.php';
             </div>
         </div>
     </div>
-    
+
+    <!-- Onglets de navigation -->
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link active" href="<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>">
+                <i class="bi bi-house-door me-1"></i>Base
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/projets/financement.php?id=' . $projet['id']) ?>">
+                <i class="bi bi-bank me-1"></i>Financement
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/projets/budgets.php?id=' . $projet['id']) ?>">
+                <i class="bi bi-wallet2 me-1"></i>Budgets
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/projets/main-doeuvre.php?id=' . $projet['id']) ?>">
+                <i class="bi bi-people me-1"></i>Main-d'œuvre
+            </a>
+        </li>
+    </ul>
+
     <?php displayFlashMessage(); ?>
     
     <!-- Indicateurs rapides -->
