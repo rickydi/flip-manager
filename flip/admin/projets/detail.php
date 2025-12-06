@@ -162,32 +162,34 @@ include '../../includes/header.php';
     </div>
 
     <!-- Onglets de navigation -->
-    <ul class="nav nav-tabs mb-3">
-        <li class="nav-item">
-            <a class="nav-link active" href="<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>">
+    <ul class="nav nav-tabs mb-3" id="projetTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="base-tab" data-bs-toggle="tab" data-bs-target="#base" type="button" role="tab">
                 <i class="bi bi-house-door me-1"></i>Base
-            </a>
+            </button>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/projets/financement.php?id=' . $projet['id']) ?>">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="financement-tab" data-bs-toggle="tab" data-bs-target="#financement" type="button" role="tab">
                 <i class="bi bi-bank me-1"></i>Financement
-            </a>
+            </button>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/projets/budgets.php?id=' . $projet['id']) ?>">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="budgets-tab" data-bs-toggle="tab" data-bs-target="#budgets" type="button" role="tab">
                 <i class="bi bi-wallet2 me-1"></i>Budgets
-            </a>
+            </button>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/projets/main-doeuvre.php?id=' . $projet['id']) ?>">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="maindoeuvre-tab" data-bs-toggle="tab" data-bs-target="#maindoeuvre" type="button" role="tab">
                 <i class="bi bi-people me-1"></i>Main-d'œuvre
-            </a>
+            </button>
         </li>
     </ul>
 
     <?php displayFlashMessage(); ?>
-    
-    <!-- Indicateurs rapides -->
+
+    <div class="tab-content" id="projetTabsContent">
+    <!-- TAB BASE -->
+    <div class="tab-pane fade show active" id="base" role="tabpanel">
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
             <div class="card text-center p-2">
@@ -483,12 +485,14 @@ include '../../includes/header.php';
             </table>
         </div>
     </div>
-    
-    <!-- FINANCEMENT -->
-    <div class="row g-2 mt-3">
+    </div><!-- Fin TAB BASE -->
+
+    <!-- TAB FINANCEMENT -->
+    <div class="tab-pane fade" id="financement" role="tabpanel">
+    <div class="row g-3">
         <div class="col-md-6">
             <div class="card border-warning h-100">
-                <div class="card-header py-1 bg-warning text-dark small">
+                <div class="card-header bg-warning text-dark">
                     <i class="bi bi-bank me-1"></i> Prêteurs
                 </div>
                 <?php if (!empty($indicateurs['preteurs'])): ?>
@@ -547,7 +551,146 @@ include '../../includes/header.php';
             </div>
         </div>
     </div>
-    
+    </div><!-- Fin TAB FINANCEMENT -->
+
+    <!-- TAB BUDGETS -->
+    <div class="tab-pane fade" id="budgets" role="tabpanel">
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card text-center p-3">
+                <small class="text-muted">Budget total</small>
+                <h4 class="mb-0 text-primary"><?= formatMoney($indicateurs['renovation']['budget']) ?></h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center p-3">
+                <small class="text-muted">Dépensé</small>
+                <h4 class="mb-0 text-danger"><?= formatMoney($indicateurs['renovation']['reel']) ?></h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center p-3">
+                <small class="text-muted">Restant</small>
+                <?php $restant = $indicateurs['renovation']['budget'] - $indicateurs['renovation']['reel']; ?>
+                <h4 class="mb-0 <?= $restant >= 0 ? 'text-success' : 'text-danger' ?>"><?= formatMoney($restant) ?></h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center p-3">
+                <small class="text-muted">Contingence <?= $projet['taux_contingence'] ?>%</small>
+                <h4 class="mb-0 text-warning"><?= formatMoney($indicateurs['contingence']) ?></h4>
+            </div>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header"><i class="bi bi-list-check me-2"></i>Budgets par catégorie</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr><th>Catégorie</th><th class="text-end">Budget</th><th class="text-end">Dépensé</th><th class="text-end">Écart</th><th style="width:150px">Progression</th></tr>
+                </thead>
+                <tbody>
+                <?php foreach ($categories as $cat):
+                    $budget = $budgets[$cat['id']] ?? 0;
+                    $depense = $depenses[$cat['id']] ?? 0;
+                    if ($budget == 0 && $depense == 0) continue;
+                    $ecart = $budget - $depense;
+                    $pct = $budget > 0 ? min(100, ($depense / $budget) * 100) : ($depense > 0 ? 100 : 0);
+                    $progressClass = $pct > 100 ? 'bg-danger' : ($pct > 80 ? 'bg-warning' : 'bg-success');
+                ?>
+                <tr>
+                    <td><?= e($cat['nom']) ?></td>
+                    <td class="text-end"><?= formatMoney($budget) ?></td>
+                    <td class="text-end"><?= formatMoney($depense) ?></td>
+                    <td class="text-end <?= $ecart >= 0 ? 'text-success' : 'text-danger' ?>"><?= formatMoney($ecart) ?></td>
+                    <td>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar <?= $progressClass ?>" style="width: <?= min(100, $pct) ?>%"></div>
+                        </div>
+                        <small class="text-muted"><?= number_format($pct, 0) ?>%</small>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div><!-- Fin TAB BUDGETS -->
+
+    <!-- TAB MAIN-D'ŒUVRE -->
+    <div class="tab-pane fade" id="maindoeuvre" role="tabpanel">
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card text-center p-3 border-info">
+                <small class="text-muted">Heures planifiées</small>
+                <h4 class="mb-0 text-info"><?= number_format($moExtrapole['heures'], 0) ?>h</h4>
+                <small class="text-muted"><?= $moExtrapole['jours'] ?> jours ouvrables</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center p-3 border-primary">
+                <small class="text-muted">Heures réelles</small>
+                <h4 class="mb-0 text-primary"><?= number_format($moReel['heures'], 1) ?>h</h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center p-3 border-warning">
+                <small class="text-muted">Coût planifié</small>
+                <h4 class="mb-0 text-warning"><?= formatMoney($moExtrapole['cout']) ?></h4>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center p-3 border-success">
+                <small class="text-muted">Coût réel</small>
+                <h4 class="mb-0 text-success"><?= formatMoney($moReel['cout']) ?></h4>
+            </div>
+        </div>
+    </div>
+    <?php
+    // Heures réelles par employé
+    $heuresReelles = [];
+    try {
+        $stmt = $pdo->prepare("
+            SELECT h.user_id, CONCAT(u.prenom, ' ', u.nom) as employe_nom,
+                   SUM(h.heures) as total_heures,
+                   SUM(h.heures * IF(h.taux_horaire > 0, h.taux_horaire, u.taux_horaire)) as total_cout
+            FROM heures_travaillees h
+            JOIN users u ON h.user_id = u.id
+            WHERE h.projet_id = ? AND h.statut != 'rejetee'
+            GROUP BY h.user_id
+            ORDER BY total_heures DESC
+        ");
+        $stmt->execute([$projetId]);
+        $heuresReelles = $stmt->fetchAll();
+    } catch (Exception $e) {}
+    ?>
+    <div class="card">
+        <div class="card-header"><i class="bi bi-clock-history me-2"></i>Heures par employé</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr><th>Employé</th><th class="text-end">Heures</th><th class="text-end">Coût</th></tr>
+                </thead>
+                <tbody>
+                <?php if (empty($heuresReelles)): ?>
+                <tr><td colspan="3" class="text-center text-muted py-3">Aucune heure enregistrée</td></tr>
+                <?php else: ?>
+                <?php foreach ($heuresReelles as $h): ?>
+                <tr>
+                    <td><?= e($h['employe_nom']) ?></td>
+                    <td class="text-end"><?= number_format($h['total_heures'], 1) ?>h</td>
+                    <td class="text-end"><?= formatMoney($h['total_cout']) ?></td>
+                </tr>
+                <?php endforeach; ?>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    </div><!-- Fin TAB MAIN-D'ŒUVRE -->
+
+    </div><!-- Fin tab-content -->
+
     <!-- Actions -->
     <div class="d-flex justify-content-between mt-3 mb-4">
         <a href="<?= url('/admin/projets/liste.php') ?>" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
