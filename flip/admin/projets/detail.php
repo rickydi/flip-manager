@@ -57,10 +57,6 @@ try {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_budget') {
     header('Content-Type: application/json');
 
-    // Debug: log des données reçues
-    error_log("AJAX Budget Save - Projet ID: $projetId");
-    error_log("POST data: " . print_r($_POST, true));
-
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         echo json_encode(['success' => false, 'error' => 'Token invalide']);
         exit;
@@ -69,10 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     $postes = $_POST['postes'] ?? [];
     $items = $_POST['items'] ?? [];
 
-    error_log("Postes reçus: " . print_r($postes, true));
-
     try {
-        // Supprimer tous les postes existants
+        // Supprimer tous les items et postes existants (items d'abord car FK vers postes)
+        $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ?")->execute([$projetId]);
         $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
         $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
 
