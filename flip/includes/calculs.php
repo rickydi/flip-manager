@@ -507,6 +507,9 @@ function calculerIndicateursProjet($pdo, $projet) {
     $totalBudgetRenovation = calculerTotalBudgetRenovation($pdo, $projet['id']);
     $totalFacturesReelles = calculerTotalFacturesReelles($pdo, $projet['id']);
     $contingence = calculerContingence($totalBudgetRenovation, (float) $projet['taux_contingence']);
+
+    // Budget avec taxes
+    $budgetComplet = calculerBudgetRenovationComplet($pdo, $projet['id'], (float) $projet['taux_contingence']);
     
     // D'abord récupérer les prêteurs pour avoir les intérêts réels (avec durée réelle)
     $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], 0, $mois);
@@ -585,7 +588,12 @@ function calculerIndicateursProjet($pdo, $projet) {
             'budget' => $totalBudgetRenovation,
             'reel' => $totalFacturesReelles,
             'ecart' => $totalBudgetAvecMO - $totalReelAvecMO,
-            'progression' => $progressionBudget
+            'progression' => $progressionBudget,
+            'contingence' => $budgetComplet['contingence'],
+            'sous_total_avant_taxes' => $budgetComplet['sous_total_avant_taxes'],
+            'tps' => $budgetComplet['tps'],
+            'tvq' => $budgetComplet['tvq'],
+            'total_ttc' => $budgetComplet['total_ttc']
         ],
         'main_doeuvre' => [
             'heures' => $mainDoeuvreReelle['heures'],
@@ -628,11 +636,37 @@ function calculerTaxes($montantAvantTaxes) {
     $tps = $montantAvantTaxes * 0.05; // 5%
     $tvq = $montantAvantTaxes * 0.09975; // 9.975%
     $total = $montantAvantTaxes + $tps + $tvq;
-    
+
     return [
         'avant_taxes' => $montantAvantTaxes,
         'tps' => round($tps, 2),
         'tvq' => round($tvq, 2),
         'total' => round($total, 2)
+    ];
+}
+
+/**
+ * Calcule le budget de rénovation complet avec contingence et taxes
+ * @param PDO $pdo
+ * @param int $projetId
+ * @param float $tauxContingence
+ * @return array
+ */
+function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
+    $budgetHT = calculerTotalBudgetRenovation($pdo, $projetId);
+    $contingence = $budgetHT * ($tauxContingence / 100);
+    $sousTotalAvantTaxes = $budgetHT + $contingence;
+
+    $tps = $sousTotalAvantTaxes * 0.05; // 5%
+    $tvq = $sousTotalAvantTaxes * 0.09975; // 9.975%
+    $totalTTC = $sousTotalAvantTaxes + $tps + $tvq;
+
+    return [
+        'budget_ht' => round($budgetHT, 2),
+        'contingence' => round($contingence, 2),
+        'sous_total_avant_taxes' => round($sousTotalAvantTaxes, 2),
+        'tps' => round($tps, 2),
+        'tvq' => round($tvq, 2),
+        'total_ttc' => round($totalTTC, 2)
     ];
 }
