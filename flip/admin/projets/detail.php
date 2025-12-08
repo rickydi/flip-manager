@@ -316,13 +316,14 @@ $projetItems = [];
 
 try {
     // Charger les templates (sous-catégories et matériaux par catégorie)
+    // Inclut TOUTES les sous-catégories (même imbriquées) pour avoir tous les matériaux
     $stmt = $pdo->query("
         SELECT c.id as categorie_id, c.nom as categorie_nom, c.groupe,
-               sc.id as sc_id, sc.nom as sc_nom,
+               sc.id as sc_id, sc.nom as sc_nom, sc.parent_id as sc_parent_id,
                m.id as mat_id, m.nom as mat_nom, m.prix_defaut,
                COALESCE(m.quantite_defaut, 1) as quantite_defaut
         FROM categories c
-        LEFT JOIN sous_categories sc ON sc.categorie_id = c.id AND sc.actif = 1 AND sc.parent_id IS NULL
+        LEFT JOIN sous_categories sc ON sc.categorie_id = c.id AND sc.actif = 1
         LEFT JOIN materiaux m ON m.sous_categorie_id = sc.id AND m.actif = 1
         ORDER BY c.groupe, c.ordre, sc.ordre, m.ordre
     ");
@@ -1472,7 +1473,7 @@ include '../../includes/header.php';
                                                 $isChecked = isset($projetItems[$catId][$mat['id']]);
                                                 $prixItem = $isChecked ? (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] : $mat['prix_defaut'];
                                                 $qteItem = $isChecked ? (int)$projetItems[$catId][$mat['id']]['quantite'] : ($mat['quantite_defaut'] ?? 1);
-                                                $totalItem = $prixItem * $qteItem;
+                                                $totalItem = $prixItem * $qteItem * $quantite; // Inclure quantité catégorie
                                             ?>
                                                 <div class="d-flex align-items-center mb-1 item-row" data-cat-id="<?= $catId ?>">
                                                     <div class="form-check me-2">
