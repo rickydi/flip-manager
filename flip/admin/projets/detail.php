@@ -647,57 +647,72 @@ include '../../includes/header.php';
 /* Chevron rotation pour accordion catégories */
 .cat-chevron { transition: transform 0.2s ease; }
 button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
+
+/* Header sticky seulement sur desktop */
+@media (min-width: 768px) {
+    .sticky-header {
+        position: sticky;
+        top: 0;
+        z-index: 1020;
+        background: white;
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+}
 </style>
 
 <div class="container-fluid">
-    <!-- En-tête -->
-    <div class="page-header">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="<?= url('/admin/projets/liste.php') ?>">Projets</a></li>
-                <li class="breadcrumb-item active"><?= e($projet['nom']) ?></li>
-            </ol>
-        </nav>
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <div>
-                <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
-                    <h1 class="mb-0 fs-4"><?= e($projet['nom']) ?></h1>
-                    <span class="badge <?= getStatutProjetClass($projet['statut']) ?>"><?= getStatutProjetLabel($projet['statut']) ?></span>
+    <!-- En-tête sticky sur desktop -->
+    <div class="sticky-header">
+        <div class="page-header">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                    <li class="breadcrumb-item"><a href="<?= url('/admin/projets/liste.php') ?>">Projets</a></li>
+                    <li class="breadcrumb-item active"><?= e($projet['nom']) ?></li>
+                </ol>
+            </nav>
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                        <h1 class="mb-0 fs-4"><?= e($projet['nom']) ?></h1>
+                        <span class="badge <?= getStatutProjetClass($projet['statut']) ?>"><?= getStatutProjetLabel($projet['statut']) ?></span>
+                    </div>
+                    <small class="text-muted"><i class="bi bi-geo-alt"></i> <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?></small>
                 </div>
-                <small class="text-muted"><i class="bi bi-geo-alt"></i> <?= e($projet['adresse']) ?>, <?= e($projet['ville']) ?></small>
-            </div>
-            <div class="d-flex align-items-center gap-1">
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(-1)" title="Réduire"><i class="bi bi-dash-lg"></i></button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(1)" title="Agrandir"><i class="bi bi-plus-lg"></i></button>
-                <button onclick="window.print()" class="btn btn-outline-secondary btn-sm" title="Imprimer"><i class="bi bi-printer"></i></button>
+                <div class="d-flex align-items-center gap-1">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(-1)" title="Réduire"><i class="bi bi-dash-lg"></i></button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="changeTextSize(1)" title="Agrandir"><i class="bi bi-plus-lg"></i></button>
+                    <button onclick="window.print()" class="btn btn-outline-secondary btn-sm" title="Imprimer"><i class="bi bi-printer"></i></button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Onglets de navigation - sticky -->
-    <ul class="nav nav-tabs mb-3 sticky-top bg-white pt-2" id="projetTabs" role="tablist" style="top: 0; z-index: 1020;">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link <?= $tab === 'base' ? 'active' : '' ?>" id="base-tab" data-bs-toggle="tab" data-bs-target="#base" type="button" role="tab">
-                <i class="bi bi-house-door me-1"></i>Base
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link <?= $tab === 'financement' ? 'active' : '' ?>" id="financement-tab" data-bs-toggle="tab" data-bs-target="#financement" type="button" role="tab">
-                <i class="bi bi-bank me-1"></i>Financement
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link <?= $tab === 'budgets' ? 'active' : '' ?>" id="budgets-tab" data-bs-toggle="tab" data-bs-target="#budgets" type="button" role="tab">
-                <i class="bi bi-wallet2 me-1"></i>Budgets
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link <?= $tab === 'maindoeuvre' ? 'active' : '' ?>" id="maindoeuvre-tab" data-bs-toggle="tab" data-bs-target="#maindoeuvre" type="button" role="tab">
-                <i class="bi bi-people me-1"></i>Main-d'œuvre
-            </button>
-        </li>
-    </ul>
+        <!-- Onglets de navigation -->
+        <ul class="nav nav-tabs mb-0" id="projetTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'base' ? 'active' : '' ?>" id="base-tab" data-bs-toggle="tab" data-bs-target="#base" type="button" role="tab">
+                    <i class="bi bi-house-door me-1"></i>Base
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'financement' ? 'active' : '' ?>" id="financement-tab" data-bs-toggle="tab" data-bs-target="#financement" type="button" role="tab">
+                    <i class="bi bi-bank me-1"></i>Financement
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'budgets' ? 'active' : '' ?>" id="budgets-tab" data-bs-toggle="tab" data-bs-target="#budgets" type="button" role="tab">
+                    <i class="bi bi-wallet2 me-1"></i>Budgets
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'maindoeuvre' ? 'active' : '' ?>" id="maindoeuvre-tab" data-bs-toggle="tab" data-bs-target="#maindoeuvre" type="button" role="tab">
+                    <i class="bi bi-people me-1"></i>Main-d'œuvre
+                </button>
+            </li>
+        </ul>
+    </div>
 
     <?php displayFlashMessage(); ?>
 
