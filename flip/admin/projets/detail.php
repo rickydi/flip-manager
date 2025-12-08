@@ -1729,7 +1729,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#cat_<?= $catId ?>">
-                            <i class="bi bi-chevron-right me-1 cat-chevron"></i>
+                            <i class="bi bi-caret-right-fill me-1 cat-chevron"></i>
                             <strong><?= e($cat['nom']) ?></strong>
                             <?php if (!empty($cat['sous_categories'])): ?>
                                 <small class="text-muted ms-2">(<?= count($cat['sous_categories']) ?> sous-cat.)</small>
