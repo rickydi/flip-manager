@@ -1751,9 +1751,9 @@ include '../../includes/header.php';
                             </button>
                         </div>
 
-                        <!-- Budget extrapolé -->
-                        <div class="input-group input-group-sm" style="width: 140px;">
-                            <span class="input-group-text">$</span>
+                        <!-- Budget extrapolé HT -->
+                        <div class="input-group input-group-sm" style="width: 100px;">
+                            <span class="input-group-text px-1">$</span>
                             <input type="text"
                                    class="form-control text-end budget-extrapole"
                                    name="postes[<?= $catId ?>][budget_extrapole]"
@@ -1762,11 +1762,11 @@ include '../../includes/header.php';
                                    data-calc="<?= $totalItemsCalc ?>"
                                    <?= !$isImported ? 'disabled' : '' ?>>
                         </div>
-                        <!-- Taxes catégorie -->
-                        <div class="d-flex align-items-center ms-2 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.7rem;">
-                            <span class="text-muted me-2">TPS: <strong class="cat-tps"><?= formatMoney($catTPS) ?></strong></span>
-                            <span class="text-muted me-2">TVQ: <strong class="cat-tvq"><?= formatMoney($catTVQ) ?></strong></span>
-                            <span class="text-success fw-bold">Total: <strong class="cat-total-ttc"><?= formatMoney($catTotalTTC) ?></strong></span>
+                        <!-- Taxes catégorie - style uniforme avec items -->
+                        <div class="d-flex align-items-center cat-taxes-display" data-cat-id="<?= $catId ?>">
+                            <span class="text-muted small text-end ms-2" style="width: 70px;">TPS <strong class="cat-tps"><?= formatMoney($catTPS) ?></strong></span>
+                            <span class="text-muted small text-end ms-1" style="width: 70px;">TVQ <strong class="cat-tvq"><?= formatMoney($catTVQ) ?></strong></span>
+                            <span class="text-end fw-bold small ms-2" style="width: 85px;"><strong class="cat-total-ttc"><?= formatMoney($catTotalTTC) ?> $</strong></span>
                         </div>
                     </div>
                 </h2>
@@ -2075,7 +2075,7 @@ include '../../includes/header.php';
             if (taxesDisplay) {
                 taxesDisplay.querySelector('.cat-tps').textContent = formatMoney(catTPS);
                 taxesDisplay.querySelector('.cat-tvq').textContent = formatMoney(catTVQ);
-                taxesDisplay.querySelector('.cat-total-ttc').textContent = formatMoney(catTotalTTC);
+                taxesDisplay.querySelector('.cat-total-ttc').textContent = formatMoney(catTotalTTC) + ' $';
             }
 
             updateTotals();
