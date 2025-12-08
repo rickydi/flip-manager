@@ -1317,16 +1317,10 @@ include '../../includes/header.php';
     <!-- TAB BUDGETS -->
     <div class="tab-pane fade <?= $tab === 'budgets' ? 'show active' : '' ?>" id="budgets" role="tabpanel">
     <?php
-    // Calculer le total depuis les postes existants
+    // Calculer le total depuis les postes existants (nouveau système uniquement)
     $totalBudgetTab = 0;
     foreach ($projetPostes as $poste) {
         $totalBudgetTab += (float)$poste['budget_extrapole'];
-    }
-    // Fallback sur ancien système si pas de postes
-    if ($totalBudgetTab == 0) {
-        foreach ($categoriesAvecBudget as $cat) {
-            $totalBudgetTab += (float)$cat['montant_extrapole'];
-        }
     }
     $contingenceTab = $totalBudgetTab * ((float)$projet['taux_contingence'] / 100);
     ?>
