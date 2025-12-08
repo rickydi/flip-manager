@@ -89,7 +89,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     $items = $_POST['items'] ?? [];
     $groupes = $_POST['groupes'] ?? [];
 
+    // Debug: log received data
+    error_log("=== SAVE BUDGET DEBUG ===");
+    error_log("Postes received: " . json_encode($postes));
+
     try {
+        $pdo->beginTransaction();
+
         // Supprimer tous les items et postes existants (items d'abord car FK vers postes)
         $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ?")->execute([$projetId]);
         $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
@@ -108,6 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             if (!empty($data['checked'])) {
                 $quantite = max(1, (int)($data['quantite'] ?? 1));
                 $budgetExtrapole = parseNumber($data['budget_extrapole'] ?? '0');
+                error_log("Saving cat $categorieId with qty=$quantite, budget=$budgetExtrapole");
 
                 $stmt = $pdo->prepare("
                     INSERT INTO projet_postes (projet_id, categorie_id, quantite, budget_extrapole)
@@ -143,6 +150,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             }
         }
 
+        $pdo->commit();
+        error_log("Transaction committed successfully");
+
         // Calculer les nouveaux totaux
         $projet = getProjetById($pdo, $projetId);
         $indicateurs = calculerIndicateursProjet($pdo, $projet);
@@ -156,6 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             ]
         ]);
     } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Transaction rolled back: " . $e->getMessage());
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;
@@ -366,50 +378,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Gestion des postes (catégories importées avec quantité)
             $postes = $_POST['postes'] ?? [];
             $items = $_POST['items'] ?? [];
+            $groupes = $_POST['groupes'] ?? [];
 
-            // Supprimer tous les postes existants (et leurs items en cascade)
-            $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
-            // Supprimer aussi les budgets pour éviter les données obsolètes
-            $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
+            try {
+                $pdo->beginTransaction();
 
-            // Réinsérer les postes cochés
-            foreach ($postes as $categorieId => $data) {
-                if (!empty($data['checked'])) {
-                    $quantite = max(1, (int)($data['quantite'] ?? 1));
-                    $budgetExtrapole = parseNumber($data['budget_extrapole'] ?? '0');
+                // Supprimer dans le bon ordre (FK constraints)
+                $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ?")->execute([$projetId]);
+                $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
+                $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
+                $pdo->prepare("DELETE FROM projet_groupes WHERE projet_id = ?")->execute([$projetId]);
 
-                    $stmt = $pdo->prepare("
-                        INSERT INTO projet_postes (projet_id, categorie_id, quantite, budget_extrapole)
-                        VALUES (?, ?, ?, ?)
-                    ");
-                    $stmt->execute([$projetId, $categorieId, $quantite, $budgetExtrapole]);
-                    $posteId = $pdo->lastInsertId();
+                // Sauvegarder les quantités de groupes
+                foreach ($groupes as $groupeNom => $qte) {
+                    $qte = max(1, (int)$qte);
+                    $stmt = $pdo->prepare("INSERT INTO projet_groupes (projet_id, groupe_nom, quantite) VALUES (?, ?, ?)");
+                    $stmt->execute([$projetId, $groupeNom, $qte]);
+                }
 
-                    // Insérer les items cochés pour ce poste
-                    if (isset($items[$categorieId])) {
-                        foreach ($items[$categorieId] as $materiauId => $itemData) {
-                            if (!empty($itemData['checked'])) {
-                                $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
-                                $qteItem = max(1, (int)($itemData['qte'] ?? 1));
-                                $sansTaxe = !empty($itemData['sans_taxe']) ? 1 : 0;
+                // Réinsérer les postes cochés
+                foreach ($postes as $categorieId => $data) {
+                    if (!empty($data['checked'])) {
+                        $quantite = max(1, (int)($data['quantite'] ?? 1));
+                        $budgetExtrapole = parseNumber($data['budget_extrapole'] ?? '0');
 
-                                $stmt = $pdo->prepare("
-                                    INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
-                                    VALUES (?, ?, ?, ?, ?, ?)
-                                ");
-                                $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem, $sansTaxe]);
+                        $stmt = $pdo->prepare("
+                            INSERT INTO projet_postes (projet_id, categorie_id, quantite, budget_extrapole)
+                            VALUES (?, ?, ?, ?)
+                        ");
+                        $stmt->execute([$projetId, $categorieId, $quantite, $budgetExtrapole]);
+                        $posteId = $pdo->lastInsertId();
+
+                        // Insérer les items cochés pour ce poste
+                        if (isset($items[$categorieId])) {
+                            foreach ($items[$categorieId] as $materiauId => $itemData) {
+                                if (!empty($itemData['checked'])) {
+                                    $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
+                                    $qteItem = max(1, (int)($itemData['qte'] ?? 1));
+                                    $sansTaxe = !empty($itemData['sans_taxe']) ? 1 : 0;
+
+                                    $stmt = $pdo->prepare("
+                                        INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                                        VALUES (?, ?, ?, ?, ?, ?)
+                                    ");
+                                    $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem, $sansTaxe]);
+                                }
                             }
                         }
-                    }
 
-                    // Mettre à jour aussi la table budgets pour compatibilité
-                    $stmt = $pdo->prepare("
-                        INSERT INTO budgets (projet_id, categorie_id, montant_extrapole)
-                        VALUES (?, ?, ?)
-                        ON DUPLICATE KEY UPDATE montant_extrapole = ?
-                    ");
-                    $stmt->execute([$projetId, $categorieId, $budgetExtrapole, $budgetExtrapole]);
+                        // Mettre à jour aussi la table budgets pour compatibilité
+                        $stmt = $pdo->prepare("
+                            INSERT INTO budgets (projet_id, categorie_id, montant_extrapole)
+                            VALUES (?, ?, ?)
+                            ON DUPLICATE KEY UPDATE montant_extrapole = ?
+                        ");
+                        $stmt->execute([$projetId, $categorieId, $budgetExtrapole, $budgetExtrapole]);
+                    }
                 }
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                setFlashMessage('danger', 'Erreur lors de la sauvegarde: ' . $e->getMessage());
+                redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=budgets');
             }
 
             setFlashMessage('success', 'Budgets détaillés mis à jour!');
