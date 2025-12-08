@@ -1079,19 +1079,27 @@ include '../../includes/header.php';
                     <tr class="section-header" data-section="renovation">
                         <td colspan="4"><i class="bi bi-tools me-1"></i> Rénovation (+ <?= $projet['taux_contingence'] ?>% contingence) <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
-                    <?php 
+                    <?php
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
-                    foreach ($categories as $cat): 
-                        $budget = $budgets[$cat['id']] ?? 0;
+                    foreach ($categories as $cat):
+                        $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
-                        if ($budget == 0 && $depense == 0) continue;
+                        if ($budgetUnit == 0 && $depense == 0) continue;
+                        // Multiplier par la quantité du groupe
+                        $qteGroupe = $projetGroupes[$cat['groupe']] ?? 1;
+                        $budget = $budgetUnit * $qteGroupe;
                         $ecart = $budget - $depense;
                         $totalBudgetReno += $budget;
                         $totalReelReno += $depense;
                     ?>
                     <tr class="sub-item">
-                        <td><?= e($cat['nom']) ?></td>
+                        <td>
+                            <?= e($cat['nom']) ?>
+                            <?php if ($qteGroupe > 1): ?>
+                                <small class="text-muted">(×<?= $qteGroupe ?>)</small>
+                            <?php endif; ?>
+                        </td>
                         <td class="text-end"><?= formatMoney($budget) ?></td>
                         <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
                         <td class="text-end"><?= formatMoney($depense) ?></td>
