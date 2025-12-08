@@ -1145,7 +1145,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <small class="text-muted">(×<?= $qteGroupe ?>)</small>
                             <?php endif; ?>
                         </td>
-                        <td class="text-end"><?= formatMoney($budgetTTC) ?> <small class="text-muted opacity-75">TTC</small></td>
+                        <td class="text-end"><?= formatMoney($budgetTTC) ?> <small class="text-muted opacity-75">Tx in</small></td>
                         <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
                         <td class="text-end"><?= formatMoney($depense) ?></td>
                     </tr>
