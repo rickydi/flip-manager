@@ -1610,7 +1610,7 @@ include '../../includes/header.php';
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const tauxContingence = <?= (float)$projet['taux_contingence'] ?>;
-        const csrfToken = '<?= getCSRFToken() ?>';
+        const csrfToken = '<?= generateCSRFToken() ?>';
         let saveTimeout = null;
 
         function parseValue(str) {
