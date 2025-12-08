@@ -228,6 +228,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             setFlashMessage('success', 'Planification mise à jour!');
             redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=maindoeuvre');
+
+        } elseif ($action === 'postes_budgets') {
+            // Gestion des postes (catégories importées avec quantité)
+            $postes = $_POST['postes'] ?? [];
+            $items = $_POST['items'] ?? [];
+
+            // Supprimer tous les postes existants (et leurs items en cascade)
+            $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
+
+            // Réinsérer les postes cochés
+            foreach ($postes as $categorieId => $data) {
+                if (!empty($data['checked'])) {
+                    $quantite = max(1, (int)($data['quantite'] ?? 1));
+                    $budgetExtrapole = parseNumber($data['budget_extrapole'] ?? '0');
+
+                    $stmt = $pdo->prepare("
+                        INSERT INTO projet_postes (projet_id, categorie_id, quantite, budget_extrapole)
+                        VALUES (?, ?, ?, ?)
+                    ");
+                    $stmt->execute([$projetId, $categorieId, $quantite, $budgetExtrapole]);
+                    $posteId = $pdo->lastInsertId();
+
+                    // Insérer les items cochés pour ce poste
+                    if (isset($items[$categorieId])) {
+                        foreach ($items[$categorieId] as $materiauId => $itemData) {
+                            if (!empty($itemData['checked'])) {
+                                $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
+
+                                $stmt = $pdo->prepare("
+                                    INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite)
+                                    VALUES (?, ?, ?, ?, ?)
+                                ");
+                                $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $quantite]);
+                            }
+                        }
+                    }
+
+                    // Mettre à jour aussi la table budgets pour compatibilité
+                    $stmt = $pdo->prepare("
+                        INSERT INTO budgets (projet_id, categorie_id, montant_extrapole)
+                        VALUES (?, ?, ?)
+                        ON DUPLICATE KEY UPDATE montant_extrapole = ?
+                    ");
+                    $stmt->execute([$projetId, $categorieId, $budgetExtrapole, $budgetExtrapole]);
+                }
+            }
+
+            setFlashMessage('success', 'Budgets détaillés mis à jour!');
+            redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=budgets');
         }
     }
 }
@@ -254,6 +303,76 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
 $categories = getCategories($pdo);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
+
+// ========================================
+// DONNÉES TEMPLATES BUDGETS DÉTAILLÉS
+// ========================================
+$templatesBudgets = [];
+$projetPostes = [];
+$projetItems = [];
+
+try {
+    // Charger les templates (sous-catégories et matériaux par catégorie)
+    $stmt = $pdo->query("
+        SELECT c.id as categorie_id, c.nom as categorie_nom, c.groupe,
+               sc.id as sc_id, sc.nom as sc_nom,
+               m.id as mat_id, m.nom as mat_nom, m.prix_defaut
+        FROM categories c
+        LEFT JOIN sous_categories sc ON sc.categorie_id = c.id AND sc.actif = 1
+        LEFT JOIN materiaux m ON m.sous_categorie_id = sc.id AND m.actif = 1
+        ORDER BY c.groupe, c.ordre, sc.ordre, m.ordre
+    ");
+
+    foreach ($stmt->fetchAll() as $row) {
+        $catId = $row['categorie_id'];
+        if (!isset($templatesBudgets[$catId])) {
+            $templatesBudgets[$catId] = [
+                'id' => $catId,
+                'nom' => $row['categorie_nom'],
+                'groupe' => $row['groupe'],
+                'sous_categories' => []
+            ];
+        }
+        if ($row['sc_id']) {
+            $scId = $row['sc_id'];
+            if (!isset($templatesBudgets[$catId]['sous_categories'][$scId])) {
+                $templatesBudgets[$catId]['sous_categories'][$scId] = [
+                    'id' => $scId,
+                    'nom' => $row['sc_nom'],
+                    'materiaux' => []
+                ];
+            }
+            if ($row['mat_id']) {
+                $templatesBudgets[$catId]['sous_categories'][$scId]['materiaux'][] = [
+                    'id' => $row['mat_id'],
+                    'nom' => $row['mat_nom'],
+                    'prix_defaut' => (float)$row['prix_defaut']
+                ];
+            }
+        }
+    }
+
+    // Charger les postes existants du projet
+    $stmt = $pdo->prepare("SELECT * FROM projet_postes WHERE projet_id = ?");
+    $stmt->execute([$projetId]);
+    foreach ($stmt->fetchAll() as $row) {
+        $projetPostes[$row['categorie_id']] = $row;
+    }
+
+    // Charger les items existants du projet
+    $stmt = $pdo->prepare("
+        SELECT pi.*, pp.categorie_id
+        FROM projet_items pi
+        JOIN projet_postes pp ON pi.projet_poste_id = pp.id
+        WHERE pi.projet_id = ?
+    ");
+    $stmt->execute([$projetId]);
+    foreach ($stmt->fetchAll() as $row) {
+        $projetItems[$row['categorie_id']][$row['materiau_id']] = $row;
+    }
+} catch (Exception $e) {
+    // Tables pas encore créées, ignorer
+}
 
 // ========================================
 // CALCUL MAIN D'ŒUVRE EXTRAPOLÉE (depuis planification)
@@ -1192,9 +1311,16 @@ include '../../includes/header.php';
     <!-- TAB BUDGETS -->
     <div class="tab-pane fade <?= $tab === 'budgets' ? 'show active' : '' ?>" id="budgets" role="tabpanel">
     <?php
+    // Calculer le total depuis les postes existants
     $totalBudgetTab = 0;
-    foreach ($categoriesAvecBudget as $cat) {
-        $totalBudgetTab += (float)$cat['montant_extrapole'];
+    foreach ($projetPostes as $poste) {
+        $totalBudgetTab += (float)$poste['budget_extrapole'];
+    }
+    // Fallback sur ancien système si pas de postes
+    if ($totalBudgetTab == 0) {
+        foreach ($categoriesAvecBudget as $cat) {
+            $totalBudgetTab += (float)$cat['montant_extrapole'];
+        }
     }
     $contingenceTab = $totalBudgetTab * ((float)$projet['taux_contingence'] / 100);
     ?>
@@ -1207,13 +1333,13 @@ include '../../includes/header.php';
                     <i class="bi bi-calculator fs-4"></i>
                 </div>
                 <div class="col">
-                    <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
-                            <small class="opacity-75">Total Budget Rénovation</small>
+                            <small class="opacity-75">Total Budget</small>
                             <h4 class="mb-0" id="totalBudget"><?= formatMoney($totalBudgetTab) ?></h4>
                         </div>
                         <div class="text-end">
-                            <small class="opacity-75">+ Contingence <?= $projet['taux_contingence'] ?>%</small>
+                            <small class="opacity-75">Contingence <?= $projet['taux_contingence'] ?>%</small>
                             <h5 class="mb-0" id="totalContingence"><?= formatMoney($contingenceTab) ?></h5>
                         </div>
                         <div class="text-end border-start ps-3 ms-3">
@@ -1226,85 +1352,262 @@ include '../../includes/header.php';
         </div>
     </div>
 
-    <form method="POST" action="" id="formBudgets">
+    <form method="POST" action="" id="formBudgetsDetail">
         <?php csrfField(); ?>
-        <input type="hidden" name="action" value="budgets">
+        <input type="hidden" name="action" value="postes_budgets">
 
-        <div class="table-responsive">
-            <table class="table table-sm table-hover">
-                <?php
-                $currentGroupe = '';
-                foreach ($categoriesAvecBudget as $cat):
-                    if ($cat['groupe'] !== $currentGroupe):
-                        $currentGroupe = $cat['groupe'];
-                ?>
-                <thead class="table-dark">
-                    <tr>
-                        <th colspan="2" class="py-2">
-                            <i class="bi bi-folder me-1"></i><?= $groupeLabels[$currentGroupe] ?? ucfirst($currentGroupe) ?>
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                <?php endif; ?>
-                    <tr>
-                        <td class="ps-3" style="width: 70%"><?= e($cat['nom']) ?></td>
-                        <td style="width: 30%">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">$</span>
-                                <input type="text"
-                                       class="form-control budget-input"
-                                       name="budget[<?= $cat['id'] ?>]"
-                                       value="<?= formatMoney($cat['montant_extrapole'], false) ?>"
-                                       data-id="<?= $cat['id'] ?>">
-                            </div>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-                </tbody>
-            </table>
+        <?php if (empty($templatesBudgets)): ?>
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Templates non configurés.</strong>
+            <a href="<?= url('/admin/templates/liste.php') ?>">Configurer les templates</a> ou exécuter les migrations SQL.
+        </div>
+        <?php else: ?>
+
+        <div class="accordion" id="accordionBudgets">
+        <?php
+        $currentGroupe = '';
+        foreach ($templatesBudgets as $catId => $cat):
+            $isImported = isset($projetPostes[$catId]);
+            $poste = $projetPostes[$catId] ?? null;
+            $quantite = $poste ? (int)$poste['quantite'] : 1;
+            $budgetExtrapole = $poste ? (float)$poste['budget_extrapole'] : 0;
+
+            // Calculer le total des items cochés
+            $totalItemsCalc = 0;
+            if (!empty($cat['sous_categories'])) {
+                foreach ($cat['sous_categories'] as $sc) {
+                    foreach ($sc['materiaux'] as $mat) {
+                        if (isset($projetItems[$catId][$mat['id']])) {
+                            $totalItemsCalc += (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] * $quantite;
+                        }
+                    }
+                }
+            }
+
+            // Groupe header
+            if ($cat['groupe'] !== $currentGroupe):
+                $currentGroupe = $cat['groupe'];
+        ?>
+            <div class="bg-dark text-white px-3 py-2 mt-3 rounded-top">
+                <i class="bi bi-folder me-1"></i><?= $groupeLabels[$currentGroupe] ?? ucfirst($currentGroupe) ?>
+            </div>
+        <?php endif; ?>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <div class="d-flex align-items-center w-100 px-3 py-2 bg-light border-bottom">
+                        <!-- Checkbox import -->
+                        <div class="form-check me-2">
+                            <input type="checkbox"
+                                   class="form-check-input poste-checkbox"
+                                   id="poste_<?= $catId ?>"
+                                   name="postes[<?= $catId ?>][checked]"
+                                   value="1"
+                                   <?= $isImported ? 'checked' : '' ?>
+                                   data-cat-id="<?= $catId ?>">
+                        </div>
+
+                        <!-- Nom catégorie (cliquable pour expand) -->
+                        <button class="btn btn-link text-start flex-grow-1 text-decoration-none p-0 collapsed"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#cat_<?= $catId ?>">
+                            <strong><?= e($cat['nom']) ?></strong>
+                            <?php if (!empty($cat['sous_categories'])): ?>
+                                <small class="text-muted ms-2">(<?= count($cat['sous_categories']) ?> sous-cat.)</small>
+                            <?php endif; ?>
+                        </button>
+
+                        <!-- Quantité -->
+                        <div class="input-group input-group-sm me-2" style="width: 80px;">
+                            <span class="input-group-text px-1">Qté</span>
+                            <input type="number"
+                                   class="form-control text-center qte-input"
+                                   name="postes[<?= $catId ?>][quantite]"
+                                   value="<?= $quantite ?>"
+                                   min="1"
+                                   max="10"
+                                   data-cat-id="<?= $catId ?>"
+                                   <?= !$isImported ? 'disabled' : '' ?>>
+                        </div>
+
+                        <!-- Budget extrapolé -->
+                        <div class="input-group input-group-sm" style="width: 140px;">
+                            <span class="input-group-text">$</span>
+                            <input type="text"
+                                   class="form-control text-end budget-extrapole"
+                                   name="postes[<?= $catId ?>][budget_extrapole]"
+                                   value="<?= $budgetExtrapole > 0 ? formatMoney($budgetExtrapole, false) : ($totalItemsCalc > 0 ? formatMoney($totalItemsCalc, false) : '0') ?>"
+                                   data-cat-id="<?= $catId ?>"
+                                   data-calc="<?= $totalItemsCalc ?>"
+                                   <?= !$isImported ? 'disabled' : '' ?>>
+                        </div>
+                    </div>
+                </h2>
+
+                <div id="cat_<?= $catId ?>" class="accordion-collapse collapse" data-bs-parent="#accordionBudgets">
+                    <div class="accordion-body p-2 bg-white">
+                        <?php if (empty($cat['sous_categories'])): ?>
+                            <p class="text-muted small mb-0">
+                                Aucune sous-catégorie.
+                                <a href="<?= url('/admin/templates/liste.php?categorie=' . $catId) ?>">Configurer</a>
+                            </p>
+                        <?php else: ?>
+                            <?php foreach ($cat['sous_categories'] as $scId => $sc): ?>
+                                <div class="mb-2">
+                                    <div class="fw-bold small text-primary mb-1">
+                                        <i class="bi bi-caret-right-fill me-1"></i><?= e($sc['nom']) ?>
+                                    </div>
+                                    <?php if (!empty($sc['materiaux'])): ?>
+                                        <div class="ps-3">
+                                            <?php foreach ($sc['materiaux'] as $mat):
+                                                $isChecked = isset($projetItems[$catId][$mat['id']]);
+                                                $prixItem = $isChecked ? (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] : $mat['prix_defaut'];
+                                            ?>
+                                                <div class="d-flex align-items-center mb-1 item-row" data-cat-id="<?= $catId ?>">
+                                                    <div class="form-check me-2">
+                                                        <input type="checkbox"
+                                                               class="form-check-input item-checkbox"
+                                                               name="items[<?= $catId ?>][<?= $mat['id'] ?>][checked]"
+                                                               value="1"
+                                                               <?= $isChecked ? 'checked' : '' ?>
+                                                               data-cat-id="<?= $catId ?>"
+                                                               data-prix="<?= $mat['prix_defaut'] ?>">
+                                                    </div>
+                                                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+                                                    <div class="input-group input-group-sm" style="width: 100px;">
+                                                        <span class="input-group-text px-1">$</span>
+                                                        <input type="text"
+                                                               class="form-control text-end item-prix"
+                                                               name="items[<?= $catId ?>][<?= $mat['id'] ?>][prix]"
+                                                               value="<?= formatMoney($prixItem, false) ?>"
+                                                               data-cat-id="<?= $catId ?>">
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    <?php else: ?>
+                                        <p class="text-muted small ps-3 mb-1">Aucun matériau</p>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+        <?php endforeach; ?>
         </div>
 
-        <div class="text-end mt-2">
+        <?php endif; ?>
+
+        <div class="d-flex justify-content-between mt-3">
+            <a href="<?= url('/admin/templates/liste.php') ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-gear me-1"></i>Gérer les templates
+            </a>
             <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-circle me-1"></i>Enregistrer les budgets
+                <i class="bi bi-check-circle me-1"></i>Enregistrer
             </button>
         </div>
     </form>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const inputs = document.querySelectorAll('.budget-input');
-        const totalEl = document.getElementById('totalBudget');
-        const contingenceEl = document.getElementById('totalContingence');
-        const grandTotalEl = document.getElementById('grandTotal');
         const tauxContingence = <?= (float)$projet['taux_contingence'] ?>;
 
         function parseValue(str) {
-            return parseFloat(str.replace(/\s/g, '').replace(',', '.')) || 0;
+            return parseFloat(String(str).replace(/\s/g, '').replace(',', '.')) || 0;
         }
 
         function formatMoney(val) {
-            return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+            return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
 
-        function updateTotal() {
-            let total = 0;
-            inputs.forEach(input => {
-                total += parseValue(input.value);
+        function updateTotals() {
+            let grandTotal = 0;
+
+            // Calculer le total de chaque catégorie cochée
+            document.querySelectorAll('.poste-checkbox:checked').forEach(checkbox => {
+                const catId = checkbox.dataset.catId;
+                const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+                if (budgetInput) {
+                    grandTotal += parseValue(budgetInput.value);
+                }
             });
 
-            const contingence = total * (tauxContingence / 100);
-            const grandTotal = total + contingence;
+            const contingence = grandTotal * (tauxContingence / 100);
+            const total = grandTotal + contingence;
 
-            totalEl.textContent = formatMoney(total);
-            contingenceEl.textContent = formatMoney(contingence);
-            grandTotalEl.textContent = formatMoney(grandTotal);
+            document.getElementById('totalBudget').textContent = formatMoney(grandTotal) + ' $';
+            document.getElementById('totalContingence').textContent = formatMoney(contingence) + ' $';
+            document.getElementById('grandTotal').textContent = formatMoney(total) + ' $';
         }
 
-        inputs.forEach(input => {
-            input.addEventListener('input', updateTotal);
-            input.addEventListener('change', updateTotal);
+        function updateCategoryTotal(catId) {
+            let total = 0;
+            const qteInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+            const qte = qteInput ? parseInt(qteInput.value) || 1 : 1;
+
+            document.querySelectorAll(`.item-checkbox[data-cat-id="${catId}"]:checked`).forEach(checkbox => {
+                const row = checkbox.closest('.item-row');
+                const prixInput = row.querySelector('.item-prix');
+                if (prixInput) {
+                    total += parseValue(prixInput.value) * qte;
+                }
+            });
+
+            const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+            if (budgetInput) {
+                budgetInput.value = formatMoney(total);
+            }
+
+            updateTotals();
+        }
+
+        // Event: checkbox poste (import catégorie)
+        document.querySelectorAll('.poste-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const catId = this.dataset.catId;
+                const qteInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+
+                if (this.checked) {
+                    if (qteInput) qteInput.disabled = false;
+                    if (budgetInput) budgetInput.disabled = false;
+                } else {
+                    if (qteInput) qteInput.disabled = true;
+                    if (budgetInput) budgetInput.disabled = true;
+                }
+
+                updateTotals();
+            });
+        });
+
+        // Event: checkbox item
+        document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                updateCategoryTotal(this.dataset.catId);
+            });
+        });
+
+        // Event: prix item
+        document.querySelectorAll('.item-prix').forEach(input => {
+            input.addEventListener('change', function() {
+                updateCategoryTotal(this.dataset.catId);
+            });
+        });
+
+        // Event: quantité
+        document.querySelectorAll('.qte-input').forEach(input => {
+            input.addEventListener('change', function() {
+                updateCategoryTotal(this.dataset.catId);
+            });
+        });
+
+        // Event: budget extrapolé manuel
+        document.querySelectorAll('.budget-extrapole').forEach(input => {
+            input.addEventListener('change', updateTotals);
         });
     });
     </script>
