@@ -56,8 +56,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $action = $_POST['action'] ?? '';
 
+        // === CATÉGORIES ===
+        if ($action === 'ajouter_categorie') {
+            $nom = trim($_POST['nom'] ?? '');
+            $groupe = $_POST['groupe'] ?? 'autre';
+
+            if (empty($nom)) {
+                $errors[] = 'Le nom est requis.';
+            } else {
+                $stmt = $pdo->prepare("SELECT MAX(ordre) FROM categories WHERE groupe = ?");
+                $stmt->execute([$groupe]);
+                $maxOrdre = $stmt->fetchColumn() ?: 0;
+
+                $stmt = $pdo->prepare("INSERT INTO categories (nom, groupe, ordre) VALUES (?, ?, ?)");
+                if ($stmt->execute([$nom, $groupe, $maxOrdre + 1])) {
+                    $newCatId = $pdo->lastInsertId();
+                    setFlashMessage('success', 'Catégorie ajoutée!');
+                    redirect('/admin/templates/liste.php?categorie=' . $newCatId);
+                }
+            }
+        }
+
+        elseif ($action === 'modifier_categorie') {
+            $id = (int)($_POST['id'] ?? 0);
+            $nom = trim($_POST['nom'] ?? '');
+            $groupe = $_POST['groupe'] ?? 'autre';
+
+            if ($id && !empty($nom)) {
+                $stmt = $pdo->prepare("UPDATE categories SET nom = ?, groupe = ? WHERE id = ?");
+                if ($stmt->execute([$nom, $groupe, $id])) {
+                    setFlashMessage('success', 'Catégorie modifiée!');
+                    redirect('/admin/templates/liste.php?categorie=' . $id);
+                }
+            }
+        }
+
+        elseif ($action === 'supprimer_categorie') {
+            $id = (int)($_POST['id'] ?? 0);
+
+            if ($id) {
+                // Supprimer les sous-catégories et matériaux associés
+                $stmt = $pdo->prepare("SELECT id FROM sous_categories WHERE categorie_id = ?");
+                $stmt->execute([$id]);
+                foreach ($stmt->fetchAll() as $sc) {
+                    supprimerSousCategorieRecursif($pdo, $sc['id']);
+                }
+
+                // Supprimer la catégorie
+                $pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$id]);
+                setFlashMessage('success', 'Catégorie supprimée!');
+                redirect('/admin/templates/liste.php');
+            }
+        }
+
         // === SOUS-CATÉGORIES ===
-        if ($action === 'ajouter_sous_categorie') {
+        elseif ($action === 'ajouter_sous_categorie') {
             $nom = trim($_POST['nom'] ?? '');
             $catId = (int)($_POST['categorie_id'] ?? 0);
             $parentId = !empty($_POST['parent_id']) ? (int)$_POST['parent_id'] : null;
@@ -603,8 +656,11 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
         <!-- Colonne gauche: Liste des catégories -->
         <div class="col-md-3">
             <div class="card">
-                <div class="card-header">
-                    <i class="bi bi-folder me-1"></i>Catégories
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-folder me-1"></i>Catégories</span>
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addCategorieModal" title="Nouvelle catégorie">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
                 </div>
                 <div class="list-group list-group-flush" style="max-height: 70vh; overflow-y: auto;">
                     <?php foreach ($groupeLabels as $groupe => $label): ?>
@@ -613,25 +669,99 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                                 <?= $label ?>
                             </div>
                             <?php foreach ($categoriesGroupees[$groupe] as $cat): ?>
-                                <a href="?categorie=<?= $cat['id'] ?>"
-                                   class="list-group-item list-group-item-action py-2 <?= $categorieId == $cat['id'] ? 'active' : '' ?>">
-                                    <?= e($cat['nom']) ?>
-                                    <?php
-                                    // Compter les sous-catégories de premier niveau
-                                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM sous_categories WHERE categorie_id = ? AND parent_id IS NULL AND actif = 1");
-                                    $stmt->execute([$cat['id']]);
-                                    $nbSc = $stmt->fetchColumn();
-                                    ?>
-                                    <?php if ($nbSc > 0): ?>
-                                        <span class="badge bg-secondary float-end"><?= $nbSc ?></span>
-                                    <?php endif; ?>
-                                </a>
+                                <div class="list-group-item py-1 d-flex justify-content-between align-items-center <?= $categorieId == $cat['id'] ? 'active' : '' ?>">
+                                    <a href="?categorie=<?= $cat['id'] ?>" class="text-decoration-none flex-grow-1 <?= $categorieId == $cat['id'] ? 'text-white' : '' ?>">
+                                        <?= e($cat['nom']) ?>
+                                        <?php
+                                        $stmt = $pdo->prepare("SELECT COUNT(*) FROM sous_categories WHERE categorie_id = ? AND parent_id IS NULL AND actif = 1");
+                                        $stmt->execute([$cat['id']]);
+                                        $nbSc = $stmt->fetchColumn();
+                                        ?>
+                                        <?php if ($nbSc > 0): ?>
+                                            <span class="badge <?= $categorieId == $cat['id'] ? 'bg-light text-dark' : 'bg-secondary' ?>"><?= $nbSc ?></span>
+                                        <?php endif; ?>
+                                    </a>
+                                    <div class="btn-group btn-group-sm ms-1">
+                                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCatModal<?= $cat['id'] ?>" title="Modifier">
+                                            <i class="bi bi-pencil" style="font-size: 0.7rem;"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteCatModal<?= $cat['id'] ?>" title="Supprimer">
+                                            <i class="bi bi-trash" style="font-size: 0.7rem;"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
         </div>
+
+        <!-- Modals pour les catégories -->
+        <?php foreach ($categories as $cat): ?>
+        <!-- Modal Modifier Catégorie -->
+        <div class="modal fade" id="editCatModal<?= $cat['id'] ?>" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="POST">
+                        <?php csrfField(); ?>
+                        <input type="hidden" name="action" value="modifier_categorie">
+                        <input type="hidden" name="id" value="<?= $cat['id'] ?>">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Modifier la catégorie</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Nom *</label>
+                                <input type="text" class="form-control" name="nom" value="<?= e($cat['nom']) ?>" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Groupe (volet)</label>
+                                <select class="form-select" name="groupe">
+                                    <?php foreach ($groupeLabels as $g => $l): ?>
+                                        <option value="<?= $g ?>" <?= $cat['groupe'] === $g ? 'selected' : '' ?>><?= $l ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Supprimer Catégorie -->
+        <div class="modal fade" id="deleteCatModal<?= $cat['id'] ?>" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Supprimer la catégorie</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Êtes-vous sûr de vouloir supprimer <strong><?= e($cat['nom']) ?></strong>?</p>
+                        <div class="alert alert-warning mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Toutes les sous-catégories et matériaux associés seront aussi supprimés!
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <form method="POST" class="d-inline">
+                            <?php csrfField(); ?>
+                            <input type="hidden" name="action" value="supprimer_categorie">
+                            <input type="hidden" name="id" value="<?= $cat['id'] ?>">
+                            <button type="submit" class="btn btn-danger">Supprimer</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
 
         <!-- Colonne droite: Détails de la catégorie -->
         <div class="col-md-9">
@@ -698,5 +828,42 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Modal Ajouter Catégorie -->
+<div class="modal fade" id="addCategorieModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="ajouter_categorie">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>Nouvelle catégorie</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nom de la catégorie *</label>
+                        <input type="text" class="form-control" name="nom" required placeholder="Ex: Salle de bain, Cuisine, Toiture...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Groupe (volet)</label>
+                        <select class="form-select" name="groupe">
+                            <?php foreach ($groupeLabels as $g => $l): ?>
+                                <option value="<?= $g ?>"><?= $l ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="text-muted">Choisir dans quel volet la catégorie apparaîtra</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-plus-lg me-1"></i>Créer la catégorie
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 <?php include '../../includes/footer.php'; ?>
