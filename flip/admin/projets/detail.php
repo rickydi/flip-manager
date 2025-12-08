@@ -1140,14 +1140,29 @@ include '../../includes/header.php';
                         <td class="text-end">-</td>
                         <td class="text-end">-</td>
                     </tr>
-                    
-                    <?php 
+
+                    <tr class="sub-item">
+                        <td>TPS 5%</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['tps']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end">-</td>
+                    </tr>
+
+                    <tr class="sub-item">
+                        <td>TVQ 9.975%</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['tvq']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end">-</td>
+                    </tr>
+
+                    <?php
                     $renoReel = $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'];
-                    $diffReno = $indicateurs['renovation']['budget'] - $renoReel;
+                    $renoBudgetTTC = $indicateurs['renovation']['total_ttc'] + $indicateurs['main_doeuvre_extrapole']['cout'];
+                    $diffReno = $renoBudgetTTC - $renoReel;
                     ?>
                     <tr class="total-row">
-                        <td>Sous-total Rénovation</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['budget']) ?></td>
+                        <td>Sous-total Rénovation (avec taxes)</td>
+                        <td class="text-end"><?= formatMoney($renoBudgetTTC) ?></td>
                         <td class="text-end <?= $diffReno >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffReno) ?></td>
                         <td class="text-end"><?= formatMoney($renoReel) ?></td>
                     </tr>
