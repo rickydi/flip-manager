@@ -1589,12 +1589,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <small class="opacity-75">Matériaux</small>
                         <h5 class="mb-0" id="totalBudget"><?= formatMoney($totalBudgetTab) ?></h5>
                     </div>
-                    <div>
+                </div>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="text-end">
                         <small class="opacity-75">Conting. <?= $projet['taux_contingence'] ?>%</small>
                         <h6 class="mb-0" id="totalContingence"><?= formatMoney($contingenceTab) ?></h6>
                     </div>
-                </div>
-                <div class="d-flex align-items-center gap-3">
                     <div class="text-end">
                         <small class="opacity-75">TPS 5%</small>
                         <h6 class="mb-0" id="totalTPS"><?= formatMoney($tpsTab) ?></h6>
