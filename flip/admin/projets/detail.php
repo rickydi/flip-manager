@@ -1689,7 +1689,9 @@ include '../../includes/header.php';
                                                 $prixItem = $isChecked ? (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] : $mat['prix_defaut'];
                                                 $qteItem = $isChecked ? (int)$projetItems[$catId][$mat['id']]['quantite'] : ($mat['quantite_defaut'] ?? 1);
                                                 $sansTaxe = $isChecked ? (int)($projetItems[$catId][$mat['id']]['sans_taxe'] ?? 0) : 0;
-                                                $totalItem = $prixItem * $qteItem * $quantite; // Inclure quantité catégorie
+                                                $totalItemHT = $prixItem * $qteItem * $quantite; // Inclure quantité catégorie
+                                                // Total avec taxes si taxable
+                                                $totalItem = $sansTaxe ? $totalItemHT : $totalItemHT * 1.14975;
                                             ?>
                                                 <div class="d-flex align-items-center mb-1 item-row" data-cat-id="<?= $catId ?>" data-sans-taxe="<?= $sansTaxe ?>">
                                                     <div class="form-check me-2">
@@ -1702,8 +1704,8 @@ include '../../includes/header.php';
                                                                data-prix="<?= $mat['prix_defaut'] ?>"
                                                                data-qte="<?= $mat['quantite_defaut'] ?? 1 ?>">
                                                     </div>
-                                                    <button type="button" class="btn btn-sm py-0 px-1 me-1 item-sans-taxe <?= $sansTaxe ? 'btn-danger' : 'btn-outline-secondary' ?>" title="Sans taxe" data-cat-id="<?= $catId ?>" data-mat-id="<?= $mat['id'] ?>">
-                                                        <i class="bi bi-percent"></i>
+                                                    <button type="button" class="btn btn-sm py-0 px-1 me-1 item-sans-taxe <?= $sansTaxe ? 'btn-outline-danger' : 'btn-outline-secondary' ?>" title="Sans taxe" data-cat-id="<?= $catId ?>" data-mat-id="<?= $mat['id'] ?>" style="font-size: 0.65rem;">
+                                                        Sans Tx
                                                     </button>
                                                     <input type="hidden" class="item-sans-taxe-input" name="items[<?= $catId ?>][<?= $mat['id'] ?>][sans_taxe]" value="<?= $sansTaxe ?>">
                                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
@@ -1903,6 +1905,7 @@ include '../../includes/header.php';
             const prixInput = row.querySelector('.item-prix');
             const qteInput = row.querySelector('.item-qte');
             const totalSpan = row.querySelector('.item-total');
+            const sansTaxeInput = row.querySelector('.item-sans-taxe-input');
 
             if (checkbox && prixInput && qteInput && totalSpan) {
                 const prix = parseValue(prixInput.value);
@@ -1910,7 +1913,10 @@ include '../../includes/header.php';
                 const catId = checkbox.dataset.catId;
                 const qteCatInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
                 const qteCat = qteCatInput ? parseInt(qteCatInput.value) || 1 : 1;
-                const total = prix * qte * qteCat;
+                const sansTaxe = sansTaxeInput ? parseInt(sansTaxeInput.value) || 0 : 0;
+                const totalHT = prix * qte * qteCat;
+                // Ajouter taxes si taxable (14.975% = TPS 5% + TVQ 9.975%)
+                const total = sansTaxe ? totalHT : totalHT * 1.14975;
                 totalSpan.textContent = formatMoney(total) + ' $';
             }
         }
@@ -2029,17 +2035,20 @@ include '../../includes/header.php';
                     const newVal = currentVal ? 0 : 1;
                     input.value = newVal;
 
-                    // Toggle le style du bouton
+                    // Toggle le style du bouton (bordure seulement)
                     if (newVal) {
                         this.classList.remove('btn-outline-secondary');
-                        this.classList.add('btn-danger');
+                        this.classList.add('btn-outline-danger');
                     } else {
-                        this.classList.remove('btn-danger');
+                        this.classList.remove('btn-outline-danger');
                         this.classList.add('btn-outline-secondary');
                     }
 
                     // Mettre à jour le data attribute
                     row.dataset.sansTaxe = newVal;
+
+                    // Mettre à jour le total de l'item (avec/sans taxes)
+                    updateItemTotal(row);
 
                     // Recalculer les totaux
                     updateCategoryTotal(catId);
