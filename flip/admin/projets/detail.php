@@ -613,6 +613,9 @@ include '../../includes/header.php';
     .cost-table { font-size: 0.75rem; }
     .cost-table th, .cost-table td { padding: 4px 6px; }
 }
+/* Chevron rotation pour accordion catégories */
+.cat-chevron { transition: transform 0.2s ease; }
+button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 </style>
 
 <div class="container-fluid">
@@ -1726,6 +1729,7 @@ include '../../includes/header.php';
                                 type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#cat_<?= $catId ?>">
+                            <i class="bi bi-chevron-right me-1 cat-chevron"></i>
                             <strong><?= e($cat['nom']) ?></strong>
                             <?php if (!empty($cat['sous_categories'])): ?>
                                 <small class="text-muted ms-2">(<?= count($cat['sous_categories']) ?> sous-cat.)</small>
