@@ -51,6 +51,22 @@ try {
     ");
 }
 
+// Table pour stocker les quantités de groupes par projet
+try {
+    $pdo->query("SELECT 1 FROM projet_groupes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_groupes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL,
+            groupe_nom VARCHAR(50) NOT NULL,
+            quantite INT DEFAULT 1,
+            FOREIGN KEY (projet_id) REFERENCES projets(id) ON DELETE CASCADE,
+            UNIQUE KEY unique_projet_groupe (projet_id, groupe_nom)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 // ========================================
 // AJAX: Sauvegarde automatique des budgets
 // ========================================
@@ -64,12 +80,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
     $postes = $_POST['postes'] ?? [];
     $items = $_POST['items'] ?? [];
+    $groupes = $_POST['groupes'] ?? [];
 
     try {
         // Supprimer tous les items et postes existants (items d'abord car FK vers postes)
         $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ?")->execute([$projetId]);
         $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
         $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
+        $pdo->prepare("DELETE FROM projet_groupes WHERE projet_id = ?")->execute([$projetId]);
+
+        // Sauvegarder les quantités de groupes
+        foreach ($groupes as $groupeNom => $qte) {
+            $qte = max(1, (int)$qte);
+            $stmt = $pdo->prepare("INSERT INTO projet_groupes (projet_id, groupe_nom, quantite) VALUES (?, ?, ?)");
+            $stmt->execute([$projetId, $groupeNom, $qte]);
+        }
 
         // Réinsérer les postes cochés
         foreach ($postes as $categorieId => $data) {
@@ -413,6 +438,7 @@ $depenses = calculerDepensesParCategorie($pdo, $projetId);
 $templatesBudgets = [];
 $projetPostes = [];
 $projetItems = [];
+$projetGroupes = [];
 
 try {
     // Charger les templates (sous-catégories et matériaux par catégorie)
@@ -475,6 +501,13 @@ try {
     $stmt->execute([$projetId]);
     foreach ($stmt->fetchAll() as $row) {
         $projetItems[$row['categorie_id']][$row['materiau_id']] = $row;
+    }
+
+    // Charger les quantités de groupes existantes
+    $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
+    $stmt->execute([$projetId]);
+    foreach ($stmt->fetchAll() as $row) {
+        $projetGroupes[$row['groupe_nom']] = (int)$row['quantite'];
     }
 } catch (Exception $e) {
     // Tables pas encore créées, ignorer
@@ -1417,10 +1450,14 @@ include '../../includes/header.php';
     <!-- TAB BUDGETS -->
     <div class="tab-pane fade <?= $tab === 'budgets' ? 'show active' : '' ?>" id="budgets" role="tabpanel">
     <?php
-    // Calculer le total depuis les postes existants (nouveau système uniquement)
+    // Calculer le total depuis les postes existants (avec quantité de groupe)
     $totalBudgetTab = 0;
-    foreach ($projetPostes as $poste) {
-        $totalBudgetTab += (float)$poste['budget_extrapole'];
+    foreach ($projetPostes as $categorieId => $poste) {
+        $budgetPoste = (float)$poste['budget_extrapole'];
+        // Trouver le groupe de cette catégorie
+        $groupePoste = $templatesBudgets[$categorieId]['groupe'] ?? 'autre';
+        $qteGroupe = $projetGroupes[$groupePoste] ?? 1;
+        $totalBudgetTab += $budgetPoste * $qteGroupe;
     }
     $contingenceTab = $totalBudgetTab * ((float)$projet['taux_contingence'] / 100);
     ?>
@@ -1490,9 +1527,28 @@ include '../../includes/header.php';
             // Groupe header
             if ($cat['groupe'] !== $currentGroupe):
                 $currentGroupe = $cat['groupe'];
+                $qteGroupe = $projetGroupes[$currentGroupe] ?? 1;
         ?>
-            <div class="bg-dark text-white px-3 py-2 mt-3 rounded-top">
-                <i class="bi bi-folder me-1"></i><?= $groupeLabels[$currentGroupe] ?? ucfirst($currentGroupe) ?>
+            <div class="bg-dark text-white px-3 py-2 mt-3 rounded-top d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-folder me-1"></i><?= $groupeLabels[$currentGroupe] ?? ucfirst($currentGroupe) ?></span>
+                <div class="d-flex align-items-center">
+                    <span class="me-2 small opacity-75">Qté:</span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-light groupe-qte-minus" data-groupe="<?= $currentGroupe ?>">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <input type="number"
+                               class="form-control form-control-sm text-center bg-dark text-white border-light groupe-qte-input"
+                               name="groupes[<?= $currentGroupe ?>]"
+                               value="<?= $qteGroupe ?>"
+                               min="1" max="20"
+                               data-groupe="<?= $currentGroupe ?>"
+                               style="width: 50px;">
+                        <button type="button" class="btn btn-outline-light groupe-qte-plus" data-groupe="<?= $currentGroupe ?>">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         <?php endif; ?>
 
@@ -1507,7 +1563,8 @@ include '../../includes/header.php';
                                    name="postes[<?= $catId ?>][checked]"
                                    value="1"
                                    <?= $isImported ? 'checked' : '' ?>
-                                   data-cat-id="<?= $catId ?>">
+                                   data-cat-id="<?= $catId ?>"
+                                   data-groupe="<?= $cat['groupe'] ?>">
                         </div>
 
                         <!-- Nom catégorie (cliquable pour expand) -->
@@ -1728,9 +1785,13 @@ include '../../includes/header.php';
 
             document.querySelectorAll('.poste-checkbox:checked').forEach(checkbox => {
                 const catId = checkbox.dataset.catId;
+                const groupe = checkbox.dataset.groupe;
                 const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+                const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+                const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
+
                 if (budgetInput) {
-                    grandTotal += parseValue(budgetInput.value);
+                    grandTotal += parseValue(budgetInput.value) * qteGroupe;
                 }
             });
 
@@ -1857,6 +1918,54 @@ include '../../includes/header.php';
                 }
             });
         });
+
+        // ========================================
+        // BOUTONS +/- GROUPES
+        // ========================================
+        document.querySelectorAll('.groupe-qte-minus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const groupe = this.dataset.groupe;
+                const input = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+                if (input) {
+                    const val = parseInt(input.value) || 1;
+                    if (val > 1) {
+                        input.value = val - 1;
+                        updateGroupeTotals(groupe);
+                        autoSave();
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.groupe-qte-plus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const groupe = this.dataset.groupe;
+                const input = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+                if (input) {
+                    const val = parseInt(input.value) || 1;
+                    if (val < 20) {
+                        input.value = val + 1;
+                        updateGroupeTotals(groupe);
+                        autoSave();
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.groupe-qte-input').forEach(input => {
+            input.addEventListener('change', function() {
+                updateGroupeTotals(this.dataset.groupe);
+                autoSave();
+            });
+        });
+
+        function updateGroupeTotals(groupe) {
+            // Recalculer tous les totaux des catégories de ce groupe
+            document.querySelectorAll(`.poste-checkbox:checked`).forEach(checkbox => {
+                const catId = checkbox.dataset.catId;
+                updateCategoryTotal(catId);
+            });
+        }
 
         // ========================================
         // EVENTS: CHECKBOX CATÉGORIE
