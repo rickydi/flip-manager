@@ -1752,7 +1752,7 @@ include '../../includes/header.php';
                         </div>
 
                         <!-- Budget extrapolé HT -->
-                        <div class="input-group input-group-sm" style="width: 100px;">
+                        <div class="input-group input-group-sm" style="width: 90px;">
                             <span class="input-group-text px-1">$</span>
                             <input type="text"
                                    class="form-control text-end budget-extrapole"
@@ -1762,12 +1762,11 @@ include '../../includes/header.php';
                                    data-calc="<?= $totalItemsCalc ?>"
                                    <?= !$isImported ? 'disabled' : '' ?>>
                         </div>
-                        <!-- Taxes catégorie - style uniforme avec items -->
-                        <div class="d-flex align-items-center cat-taxes-display" data-cat-id="<?= $catId ?>">
-                            <span class="text-muted small text-end ms-2" style="width: 70px;">TPS <strong class="cat-tps"><?= formatMoney($catTPS) ?></strong></span>
-                            <span class="text-muted small text-end ms-1" style="width: 70px;">TVQ <strong class="cat-tvq"><?= formatMoney($catTVQ) ?></strong></span>
-                            <span class="text-end fw-bold small ms-2" style="width: 85px;"><strong class="cat-total-ttc"><?= formatMoney($catTotalTTC) ?> $</strong></span>
-                        </div>
+                        <!-- Taxes catégorie -->
+                        <span class="badge bg-secondary ms-1 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.65rem;">TPS <span class="cat-tps"><?= formatMoney($catTPS) ?></span></span>
+                        <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">TVQ <span class="cat-tvq" data-cat-id="<?= $catId ?>"><?= formatMoney($catTVQ) ?></span></span>
+                        <!-- Total TTC -->
+                        <span class="cat-total-ttc text-end fw-bold small ms-2" style="min-width: 80px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?> $</span>
                     </div>
                 </h2>
 
@@ -2071,12 +2070,14 @@ include '../../includes/header.php';
             const catTVQ = catTaxable * 0.09975;
             const catTotalTTC = catBudgetHT + catTPS + catTVQ;
 
-            const taxesDisplay = document.querySelector(`.cat-taxes-display[data-cat-id="${catId}"]`);
-            if (taxesDisplay) {
-                taxesDisplay.querySelector('.cat-tps').textContent = formatMoney(catTPS);
-                taxesDisplay.querySelector('.cat-tvq').textContent = formatMoney(catTVQ);
-                taxesDisplay.querySelector('.cat-total-ttc').textContent = formatMoney(catTotalTTC) + ' $';
-            }
+            // Mettre à jour les taxes de la catégorie
+            const tpsSpan = document.querySelector(`.cat-taxes-display[data-cat-id="${catId}"] .cat-tps`);
+            const tvqSpan = document.querySelector(`.cat-tvq[data-cat-id="${catId}"]`);
+            const totalSpan = document.querySelector(`.cat-total-ttc[data-cat-id="${catId}"]`);
+
+            if (tpsSpan) tpsSpan.textContent = formatMoney(catTPS);
+            if (tvqSpan) tvqSpan.textContent = formatMoney(catTVQ);
+            if (totalSpan) totalSpan.textContent = formatMoney(catTotalTTC) + ' $';
 
             updateTotals();
 
