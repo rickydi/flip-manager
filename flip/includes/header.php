@@ -7,11 +7,10 @@
 
     <!-- Anti-flash: couleur de fond immédiate -->
     <style>
-    html, body {
+    html {
         background-color: #f1f5f9;
-        visibility: hidden;
     }
-    html[data-theme="dark"], html[data-theme="dark"] body {
+    html[data-theme="dark"] {
         background-color: #0f172a;
     }
     </style>

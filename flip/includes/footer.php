@@ -29,7 +29,5 @@
         <?= $extraJs ?>
     <?php endif; ?>
 
-    <!-- Afficher la page une fois tout chargé -->
-    <script>document.documentElement.style.visibility = 'visible';</script>
 </body>
 </html>
