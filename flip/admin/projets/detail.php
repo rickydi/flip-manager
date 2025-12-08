@@ -1704,9 +1704,6 @@ include '../../includes/header.php';
                                                                data-prix="<?= $mat['prix_defaut'] ?>"
                                                                data-qte="<?= $mat['quantite_defaut'] ?? 1 ?>">
                                                     </div>
-                                                    <button type="button" class="btn btn-sm py-0 px-1 me-1 item-sans-taxe <?= $sansTaxe ? 'btn-outline-danger' : 'btn-outline-secondary' ?>" title="Sans taxe" data-cat-id="<?= $catId ?>" data-mat-id="<?= $mat['id'] ?>" style="font-size: 0.65rem;">
-                                                        Sans Tx
-                                                    </button>
                                                     <input type="hidden" class="item-sans-taxe-input" name="items[<?= $catId ?>][<?= $mat['id'] ?>][sans_taxe]" value="<?= $sansTaxe ?>">
                                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
                                                     <div class="input-group input-group-sm me-1" style="width: 85px;">
@@ -1732,6 +1729,9 @@ include '../../includes/header.php';
                                                                value="<?= formatMoney($prixItem, false) ?>"
                                                                data-cat-id="<?= $catId ?>">
                                                     </div>
+                                                    <button type="button" class="btn btn-sm py-0 px-1 ms-1 item-sans-taxe btn-outline-danger <?= $sansTaxe ? 'active' : '' ?>" title="Sans taxe" data-cat-id="<?= $catId ?>" data-mat-id="<?= $mat['id'] ?>" style="font-size: 0.6rem; white-space: nowrap;">
+                                                        Sans Tx
+                                                    </button>
                                                     <span class="item-total text-end fw-bold small ms-1" style="width: 70px;" data-cat-id="<?= $catId ?>"><?= formatMoney($totalItem) ?></span>
                                                 </div>
                                             <?php endforeach; ?>
@@ -2035,14 +2035,8 @@ include '../../includes/header.php';
                     const newVal = currentVal ? 0 : 1;
                     input.value = newVal;
 
-                    // Toggle le style du bouton (bordure seulement)
-                    if (newVal) {
-                        this.classList.remove('btn-outline-secondary');
-                        this.classList.add('btn-outline-danger');
-                    } else {
-                        this.classList.remove('btn-outline-danger');
-                        this.classList.add('btn-outline-secondary');
-                    }
+                    // Toggle le style du bouton (active = sans taxe)
+                    this.classList.toggle('active', newVal === 1);
 
                     // Mettre à jour le data attribute
                     row.dataset.sansTaxe = newVal;
