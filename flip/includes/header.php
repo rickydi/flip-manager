@@ -4,21 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle ?? 'Flip Manager') ?> - <?= APP_NAME ?></title>
-    
-    <!-- Mode sombre: appliquer immédiatement pour éviter flash -->
+
+    <!-- Anti-flash: couleur de fond immédiate -->
+    <style>
+    html, body {
+        background-color: #f1f5f9;
+        visibility: hidden;
+    }
+    html[data-theme="dark"], html[data-theme="dark"] body {
+        background-color: #0f172a;
+    }
+    </style>
     <script>
     (function() {
         var dm = localStorage.getItem('darkMode');
         if (dm === 'true' || (!dm && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark-mode');
+            document.documentElement.setAttribute('data-theme', 'dark');
         }
     })();
     </script>
-    <style>
-    html.dark-mode { background-color: #1a1d21; }
-    html.dark-mode body { background-color: #1a1d21; }
-    </style>
-    
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     
