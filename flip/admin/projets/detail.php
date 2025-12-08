@@ -1580,24 +1580,24 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     ?>
 
     <!-- TOTAL EN HAUT - STICKY -->
-    <div class="bg-primary text-white px-3 py-2 mb-3 sticky-top d-flex justify-content-end align-items-center gap-4" style="top: 60px; z-index: 100; font-size: 0.85rem;">
-        <span>
+    <div class="bg-primary text-white px-3 py-2 mb-3 sticky-top d-flex justify-content-end align-items-center" style="top: 60px; z-index: 100; font-size: 0.85rem;">
+        <span class="px-3 border-end">
             <span class="opacity-75">Matériaux:</span>
             <strong id="totalBudget"><?= formatMoney($totalBudgetTab) ?></strong>
         </span>
-        <span>
+        <span class="px-3 border-end">
             <span class="opacity-75">Conting. <?= $projet['taux_contingence'] ?>%:</span>
             <strong id="totalContingence"><?= formatMoney($contingenceTab) ?></strong>
         </span>
-        <span>
+        <span class="px-3 border-end">
             <span class="opacity-75">TPS:</span>
             <strong id="totalTPS"><?= formatMoney($tpsTab) ?></strong>
         </span>
-        <span>
+        <span class="px-3 border-end">
             <span class="opacity-75">TVQ:</span>
             <strong id="totalTVQ"><?= formatMoney($tvqTab) ?></strong>
         </span>
-        <span class="border-start ps-4">
+        <span class="px-3">
             <span class="opacity-75">Total:</span>
             <strong class="fs-5" id="grandTotal"><?= formatMoney($grandTotalTab) ?></strong>
         </span>
