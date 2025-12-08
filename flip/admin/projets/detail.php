@@ -1574,6 +1574,52 @@ include '../../includes/header.php';
         </div>
         <?php else: ?>
 
+        <?php
+        // Calculer les totaux par groupe avec taxes
+        $groupeTotaux = [];
+        foreach ($templatesBudgets as $catId => $cat) {
+            $groupe = $cat['groupe'];
+            if (!isset($groupeTotaux[$groupe])) {
+                $groupeTotaux[$groupe] = ['taxable' => 0, 'non_taxable' => 0];
+            }
+
+            if (isset($projetPostes[$catId])) {
+                $posteG = $projetPostes[$catId];
+                $qteCatG = (int)$posteG['quantite'];
+                $qteGroupeG = $projetGroupes[$groupe] ?? 1;
+
+                if (!empty($cat['sous_categories'])) {
+                    foreach ($cat['sous_categories'] as $sc) {
+                        foreach ($sc['materiaux'] as $mat) {
+                            if (isset($projetItems[$catId][$mat['id']])) {
+                                $item = $projetItems[$catId][$mat['id']];
+                                $prixItem = (float)$item['prix_unitaire'];
+                                $qteItem = (int)($item['quantite'] ?? 1);
+                                $sansTaxe = (int)($item['sans_taxe'] ?? 0);
+                                $montant = $prixItem * $qteItem * $qteCatG * $qteGroupeG;
+
+                                if ($sansTaxe) {
+                                    $groupeTotaux[$groupe]['non_taxable'] += $montant;
+                                } else {
+                                    $groupeTotaux[$groupe]['taxable'] += $montant;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Calculer TPS/TVQ par groupe
+        foreach ($groupeTotaux as $groupe => &$totaux) {
+            $totaux['budget_ht'] = $totaux['taxable'] + $totaux['non_taxable'];
+            $totaux['tps'] = $totaux['taxable'] * 0.05;
+            $totaux['tvq'] = $totaux['taxable'] * 0.09975;
+            $totaux['total_ttc'] = $totaux['budget_ht'] + $totaux['tps'] + $totaux['tvq'];
+        }
+        unset($totaux);
+        ?>
+
         <div class="accordion" id="accordionBudgets">
         <?php
         $currentGroupe = '';
@@ -1601,6 +1647,7 @@ include '../../includes/header.php';
             if ($cat['groupe'] !== $currentGroupe):
                 $currentGroupe = $cat['groupe'];
                 $qteGroupe = $projetGroupes[$currentGroupe] ?? 1;
+                $grpTotaux = $groupeTotaux[$currentGroupe] ?? ['budget_ht' => 0, 'tps' => 0, 'tvq' => 0, 'total_ttc' => 0];
         ?>
             <div class="bg-dark text-white px-3 py-2 mt-3 rounded-top d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-folder me-1"></i><?= $groupeLabels[$currentGroupe] ?? ucfirst($currentGroupe) ?></span>
@@ -1622,6 +1669,25 @@ include '../../includes/header.php';
                         </button>
                     </div>
                 </div>
+            </div>
+            <!-- Totaux du groupe avec taxes -->
+            <div class="bg-secondary text-white px-3 py-1 d-flex justify-content-end align-items-center gap-3 groupe-totaux-bar" data-groupe="<?= $currentGroupe ?>" style="font-size: 0.8rem;">
+                <span>
+                    <span class="opacity-75">Matériaux:</span>
+                    <strong class="groupe-budget-ht"><?= formatMoney($grpTotaux['budget_ht']) ?></strong>
+                </span>
+                <span>
+                    <span class="opacity-75">TPS:</span>
+                    <strong class="groupe-tps"><?= formatMoney($grpTotaux['tps']) ?></strong>
+                </span>
+                <span>
+                    <span class="opacity-75">TVQ:</span>
+                    <strong class="groupe-tvq"><?= formatMoney($grpTotaux['tvq']) ?></strong>
+                </span>
+                <span class="border-start ps-3">
+                    <span class="opacity-75">Total:</span>
+                    <strong class="groupe-total-ttc"><?= formatMoney($grpTotaux['total_ttc']) ?></strong>
+                </span>
             </div>
         <?php endif; ?>
 
@@ -1959,6 +2025,13 @@ include '../../includes/header.php';
             }
 
             updateTotals();
+
+            // Mettre à jour aussi les totaux du groupe
+            const posteCheckbox = document.querySelector(`.poste-checkbox[data-cat-id="${catId}"]`);
+            if (posteCheckbox) {
+                const groupe = posteCheckbox.dataset.groupe;
+                updateGroupeTotauxBar(groupe);
+            }
         }
 
         function updateAllItemTotals(catId) {
@@ -2111,6 +2184,62 @@ include '../../includes/header.php';
             document.querySelectorAll(`.poste-checkbox:checked`).forEach(checkbox => {
                 const catId = checkbox.dataset.catId;
                 updateCategoryTotal(catId);
+            });
+
+            // Mettre à jour la barre de totaux du groupe
+            updateGroupeTotauxBar(groupe);
+        }
+
+        function updateGroupeTotauxBar(groupe) {
+            const bar = document.querySelector(`.groupe-totaux-bar[data-groupe="${groupe}"]`);
+            if (!bar) return;
+
+            let totalTaxable = 0;
+            let totalNonTaxable = 0;
+
+            // Parcourir les items cochés de ce groupe
+            document.querySelectorAll(`.poste-checkbox[data-groupe="${groupe}"]:checked`).forEach(posteCheckbox => {
+                const catId = posteCheckbox.dataset.catId;
+                const qteCatInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                const qteCat = qteCatInput ? parseInt(qteCatInput.value) || 1 : 1;
+                const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+                const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
+
+                document.querySelectorAll(`.item-checkbox[data-cat-id="${catId}"]:checked`).forEach(itemCheckbox => {
+                    const row = itemCheckbox.closest('.item-row');
+                    const prixInput = row.querySelector('.item-prix');
+                    const qteInput = row.querySelector('.item-qte');
+                    const sansTaxeInput = row.querySelector('.item-sans-taxe-input');
+
+                    if (prixInput && qteInput) {
+                        const prix = parseValue(prixInput.value);
+                        const qte = parseInt(qteInput.value) || 1;
+                        const sansTaxe = sansTaxeInput ? parseInt(sansTaxeInput.value) || 0 : 0;
+                        const montant = prix * qte * qteCat * qteGroupe;
+
+                        if (sansTaxe) {
+                            totalNonTaxable += montant;
+                        } else {
+                            totalTaxable += montant;
+                        }
+                    }
+                });
+            });
+
+            const budgetHT = totalTaxable + totalNonTaxable;
+            const tps = totalTaxable * 0.05;
+            const tvq = totalTaxable * 0.09975;
+            const totalTTC = budgetHT + tps + tvq;
+
+            bar.querySelector('.groupe-budget-ht').textContent = formatMoney(budgetHT);
+            bar.querySelector('.groupe-tps').textContent = formatMoney(tps);
+            bar.querySelector('.groupe-tvq').textContent = formatMoney(tvq);
+            bar.querySelector('.groupe-total-ttc').textContent = formatMoney(totalTTC);
+        }
+
+        function updateAllGroupeTotaux() {
+            document.querySelectorAll('.groupe-totaux-bar').forEach(bar => {
+                updateGroupeTotauxBar(bar.dataset.groupe);
             });
         }
 
