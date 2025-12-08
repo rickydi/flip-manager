@@ -1629,19 +1629,34 @@ include '../../includes/header.php';
             $quantite = $poste ? (int)$poste['quantite'] : 1;
             $budgetExtrapole = $poste ? (float)$poste['budget_extrapole'] : 0;
 
-            // Calculer le total des items cochés
+            // Calculer le total des items cochés avec taxes
             $totalItemsCalc = 0;
+            $catTaxable = 0;
+            $catNonTaxable = 0;
+            $qteGroupeCat = $projetGroupes[$cat['groupe']] ?? 1;
+
             if (!empty($cat['sous_categories'])) {
                 foreach ($cat['sous_categories'] as $sc) {
                     foreach ($sc['materiaux'] as $mat) {
                         if (isset($projetItems[$catId][$mat['id']])) {
                             $item = $projetItems[$catId][$mat['id']];
                             $qteItem = (int)($item['quantite'] ?? 1);
+                            $montantItem = (float)$item['prix_unitaire'] * $qteItem * $quantite * $qteGroupeCat;
                             $totalItemsCalc += (float)$item['prix_unitaire'] * $qteItem * $quantite;
+
+                            if (!empty($item['sans_taxe'])) {
+                                $catNonTaxable += $montantItem;
+                            } else {
+                                $catTaxable += $montantItem;
+                            }
                         }
                     }
                 }
             }
+            $catBudgetHT = $catTaxable + $catNonTaxable;
+            $catTPS = $catTaxable * 0.05;
+            $catTVQ = $catTaxable * 0.09975;
+            $catTotalTTC = $catBudgetHT + $catTPS + $catTVQ;
 
             // Groupe header
             if ($cat['groupe'] !== $currentGroupe):
@@ -1746,6 +1761,12 @@ include '../../includes/header.php';
                                    data-cat-id="<?= $catId ?>"
                                    data-calc="<?= $totalItemsCalc ?>"
                                    <?= !$isImported ? 'disabled' : '' ?>>
+                        </div>
+                        <!-- Taxes catégorie -->
+                        <div class="d-flex align-items-center ms-2 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.7rem;">
+                            <span class="text-muted me-2">TPS: <strong class="cat-tps"><?= formatMoney($catTPS) ?></strong></span>
+                            <span class="text-muted me-2">TVQ: <strong class="cat-tvq"><?= formatMoney($catTVQ) ?></strong></span>
+                            <span class="text-success fw-bold">Total: <strong class="cat-total-ttc"><?= formatMoney($catTotalTTC) ?></strong></span>
                         </div>
                     </div>
                 </h2>
@@ -2004,17 +2025,37 @@ include '../../includes/header.php';
 
         function updateCategoryTotal(catId) {
             let total = 0;
+            let catTaxable = 0;
+            let catNonTaxable = 0;
+
             const qteInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
             const qteCat = qteInput ? parseInt(qteInput.value) || 1 : 1;
+
+            // Trouver la quantité du groupe
+            const posteCheckbox = document.querySelector(`.poste-checkbox[data-cat-id="${catId}"]`);
+            const groupe = posteCheckbox ? posteCheckbox.dataset.groupe : 'autre';
+            const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+            const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
             document.querySelectorAll(`.item-checkbox[data-cat-id="${catId}"]:checked`).forEach(checkbox => {
                 const row = checkbox.closest('.item-row');
                 const prixInput = row.querySelector('.item-prix');
                 const qteItemInput = row.querySelector('.item-qte');
+                const sansTaxeInput = row.querySelector('.item-sans-taxe-input');
+
                 if (prixInput && qteItemInput) {
                     const prix = parseValue(prixInput.value);
                     const qteItem = parseInt(qteItemInput.value) || 1;
+                    const sansTaxe = sansTaxeInput ? parseInt(sansTaxeInput.value) || 0 : 0;
+                    const montant = prix * qteItem * qteCat * qteGroupe;
+
                     total += prix * qteItem * qteCat;
+
+                    if (sansTaxe) {
+                        catNonTaxable += montant;
+                    } else {
+                        catTaxable += montant;
+                    }
                 }
                 updateItemTotal(row);
             });
@@ -2024,12 +2065,23 @@ include '../../includes/header.php';
                 budgetInput.value = formatMoney(total);
             }
 
+            // Mettre à jour les taxes de la catégorie
+            const catBudgetHT = catTaxable + catNonTaxable;
+            const catTPS = catTaxable * 0.05;
+            const catTVQ = catTaxable * 0.09975;
+            const catTotalTTC = catBudgetHT + catTPS + catTVQ;
+
+            const taxesDisplay = document.querySelector(`.cat-taxes-display[data-cat-id="${catId}"]`);
+            if (taxesDisplay) {
+                taxesDisplay.querySelector('.cat-tps').textContent = formatMoney(catTPS);
+                taxesDisplay.querySelector('.cat-tvq').textContent = formatMoney(catTVQ);
+                taxesDisplay.querySelector('.cat-total-ttc').textContent = formatMoney(catTotalTTC);
+            }
+
             updateTotals();
 
             // Mettre à jour aussi les totaux du groupe
-            const posteCheckbox = document.querySelector(`.poste-checkbox[data-cat-id="${catId}"]`);
             if (posteCheckbox) {
-                const groupe = posteCheckbox.dataset.groupe;
                 updateGroupeTotauxBar(groupe);
             }
         }
