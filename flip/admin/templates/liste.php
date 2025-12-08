@@ -218,6 +218,16 @@ include '../../includes/header.php';
                 <i class="bi bi-shop me-1"></i>Fournisseurs
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/rapports/paie-hebdo.php') ?>">
+                <i class="bi bi-calendar-week me-1"></i>Paie hebdo
+            </a>
+        </li>
     </ul>
 
     <?php displayFlashMessages(); ?>
