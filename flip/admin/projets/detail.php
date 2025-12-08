@@ -1131,9 +1131,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         if ($budgetUnit == 0 && $depense == 0) continue;
                         // Multiplier par la quantité du groupe
                         $qteGroupe = $projetGroupes[$cat['groupe']] ?? 1;
-                        $budget = $budgetUnit * $qteGroupe;
-                        $ecart = $budget - $depense;
-                        $totalBudgetReno += $budget;
+                        $budgetHT = $budgetUnit * $qteGroupe;
+                        // Ajouter taxes (14.975% = TPS 5% + TVQ 9.975%)
+                        $budgetTTC = $budgetHT * 1.14975;
+                        $ecart = $budgetTTC - $depense;
+                        $totalBudgetReno += $budgetHT;
                         $totalReelReno += $depense;
                     ?>
                     <tr class="sub-item">
@@ -1143,7 +1145,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <small class="text-muted">(×<?= $qteGroupe ?>)</small>
                             <?php endif; ?>
                         </td>
-                        <td class="text-end"><?= formatMoney($budget) ?></td>
+                        <td class="text-end"><?= formatMoney($budgetTTC) ?> <small class="text-muted opacity-75">TTC</small></td>
                         <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
                         <td class="text-end"><?= formatMoney($depense) ?></td>
                     </tr>
