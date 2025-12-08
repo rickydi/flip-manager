@@ -37,8 +37,9 @@ function parseNumber($value) {
     if (is_numeric($value)) {
         return (float)$value;
     }
-    // Remplacer la virgule par un point et enlever les espaces
-    $value = str_replace([' ', ','], ['', '.'], $value);
+    // Enlever tous les types d'espaces (normal, insécable, fine) et remplacer virgule par point
+    $value = preg_replace('/[\s\x{00A0}\x{202F}]+/u', '', $value);
+    $value = str_replace(',', '.', $value);
     return (float)$value;
 }
 
