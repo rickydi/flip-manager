@@ -191,22 +191,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=financement');
 
-        } elseif ($action === 'budgets') {
-            $budgetsPost = $_POST['budget'] ?? [];
-
-            foreach ($budgetsPost as $categorieId => $montant) {
-                $montant = parseNumber($montant);
-                $stmt = $pdo->prepare("
-                    INSERT INTO budgets (projet_id, categorie_id, montant_extrapole)
-                    VALUES (?, ?, ?)
-                    ON DUPLICATE KEY UPDATE montant_extrapole = ?
-                ");
-                $stmt->execute([$projetId, $categorieId, $montant, $montant]);
-            }
-
-            setFlashMessage('success', 'Budgets mis à jour!');
-            redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=budgets');
-
         } elseif ($action === 'planification') {
             $heures = $_POST['heures'] ?? [];
 
