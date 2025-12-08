@@ -800,6 +800,11 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/recurrents/liste.php') ?>">
+                <i class="bi bi-arrow-repeat me-1"></i>Récurrents
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
                 <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
             </a>

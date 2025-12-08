@@ -472,6 +472,10 @@ $categories = getCategories($pdo);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
 
+// Calcul des coûts récurrents réels basés sur le temps écoulé depuis l'achat
+$recurrentsReels = calculerCoutsRecurrentsReels($projet);
+$moisEcoules = $recurrentsReels['mois_ecoules'];
+
 // ========================================
 // DONNÉES TEMPLATES BUDGETS DÉTAILLÉS
 // ========================================
@@ -1081,55 +1085,69 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     
                     <!-- COÛTS RÉCURRENTS -->
                     <tr class="section-header" data-section="recurrents">
-                        <td colspan="4"><i class="bi bi-arrow-repeat me-1"></i> Récurrents (<?= $dureeReelle ?> mois) <i class="bi bi-chevron-down toggle-icon"></i></td>
+                        <td colspan="4">
+                            <i class="bi bi-arrow-repeat me-1"></i> Récurrents (<?= $dureeReelle ?> mois prévu / <?= number_format($moisEcoules, 1) ?> mois écoulés)
+                            <i class="bi bi-chevron-down toggle-icon"></i>
+                        </td>
                     </tr>
+                    <?php
+                    // Calcul écarts pour chaque type de récurrent
+                    $ecartTaxesMun = $indicateurs['couts_recurrents']['taxes_municipales']['extrapole'] - $recurrentsReels['taxes_municipales'];
+                    $ecartTaxesSco = $indicateurs['couts_recurrents']['taxes_scolaires']['extrapole'] - $recurrentsReels['taxes_scolaires'];
+                    $ecartElec = $indicateurs['couts_recurrents']['electricite']['extrapole'] - $recurrentsReels['electricite'];
+                    $ecartAssur = $indicateurs['couts_recurrents']['assurances']['extrapole'] - $recurrentsReels['assurances'];
+                    $ecartDeneig = $indicateurs['couts_recurrents']['deneigement']['extrapole'] - $recurrentsReels['deneigement'];
+                    $ecartCondo = $indicateurs['couts_recurrents']['frais_condo']['extrapole'] - $recurrentsReels['frais_condo'];
+                    $ecartHypo = $indicateurs['couts_recurrents']['hypotheque']['extrapole'] - $recurrentsReels['hypotheque'];
+                    $ecartTotalRec = $indicateurs['couts_recurrents']['total'] - $recurrentsReels['total'];
+                    ?>
                     <tr class="sub-item">
                         <td>Taxes municipales</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartTaxesMun >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTaxesMun) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['taxes_municipales']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Taxes scolaires</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartTaxesSco >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTaxesSco) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['taxes_scolaires']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Électricité</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartElec >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartElec) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['electricite']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Assurances</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartAssur >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartAssur) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['assurances']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Déneigement</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartDeneig >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartDeneig) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['deneigement']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Frais condo</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartCondo >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartCondo) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['frais_condo']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Hypothèque</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
+                        <td class="text-end <?= $ecartHypo >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartHypo) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['hypotheque']) ?></td>
                     </tr>
                     <tr class="total-row">
                         <td>Sous-total Récurrents</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
+                        <td class="text-end <?= $ecartTotalRec >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTotalRec) ?></td>
+                        <td class="text-end"><?= formatMoney($recurrentsReels['total']) ?></td>
                     </tr>
                     
                     <!-- RÉNOVATION -->

@@ -32,7 +32,7 @@ function calculerCoutsAcquisition($projet) {
 function calculerCoutsRecurrents($projet) {
     $mois = (int) $projet['temps_assume_mois'];
     $facteur = $mois / 12;
-    
+
     $taxes_municipales = (float) $projet['taxes_municipales_annuel'] * $facteur;
     $taxes_scolaires = (float) $projet['taxes_scolaires_annuel'] * $facteur;
     $electricite = (float) $projet['electricite_annuel'] * $facteur;
@@ -41,7 +41,7 @@ function calculerCoutsRecurrents($projet) {
     $frais_condo = (float) $projet['frais_condo_annuel'] * $facteur;
     $hypotheque = (float) $projet['hypotheque_mensuel'] * $mois;
     $loyer = (float) $projet['loyer_mensuel'] * $mois;
-    
+
     return [
         'taxes_municipales' => [
             'annuel' => (float) $projet['taxes_municipales_annuel'],
@@ -75,6 +75,64 @@ function calculerCoutsRecurrents($projet) {
             'mensuel' => (float) $projet['loyer_mensuel'],
             'extrapole' => $loyer
         ],
+        'total' => $taxes_municipales + $taxes_scolaires + $electricite +
+                   $assurances + $deneigement + $frais_condo + $hypotheque - $loyer
+    ];
+}
+
+/**
+ * Calcule le nombre de mois écoulés depuis la date d'achat
+ * @param array $projet
+ * @return float Nombre de mois (peut être décimal)
+ */
+function calculerMoisEcoules($projet) {
+    if (empty($projet['date_acquisition'])) {
+        return 0;
+    }
+
+    $dateAchat = new DateTime($projet['date_acquisition']);
+    $dateFin = !empty($projet['date_vente']) ? new DateTime($projet['date_vente']) : new DateTime();
+
+    $diff = $dateAchat->diff($dateFin);
+    $mois = ($diff->y * 12) + $diff->m;
+
+    // Ajouter une fraction pour les jours
+    $joursRestants = $diff->d;
+    if ($joursRestants > 0) {
+        $mois += $joursRestants / 30;
+    }
+
+    return max(0, $mois);
+}
+
+/**
+ * Calcule les coûts récurrents RÉELS basés sur le temps écoulé depuis la date d'achat
+ * @param array $projet
+ * @return array
+ */
+function calculerCoutsRecurrentsReels($projet) {
+    $moisEcoules = calculerMoisEcoules($projet);
+    $facteur = $moisEcoules / 12;
+
+    $taxes_municipales = (float) $projet['taxes_municipales_annuel'] * $facteur;
+    $taxes_scolaires = (float) $projet['taxes_scolaires_annuel'] * $facteur;
+    $electricite = (float) $projet['electricite_annuel'] * $facteur;
+    $assurances = (float) $projet['assurances_annuel'] * $facteur;
+    $deneigement = (float) $projet['deneigement_annuel'] * $facteur;
+    $frais_condo = (float) $projet['frais_condo_annuel'] * $facteur;
+    $hypotheque = (float) $projet['hypotheque_mensuel'] * $moisEcoules;
+    $loyer = (float) $projet['loyer_mensuel'] * $moisEcoules;
+
+    return [
+        'mois_ecoules' => $moisEcoules,
+        'taxes_municipales' => $taxes_municipales,
+        'taxes_scolaires' => $taxes_scolaires,
+        'electricite' => $electricite,
+        'assurances' => $assurances,
+        'deneigement' => $deneigement,
+        'frais_condo' => $frais_condo,
+        'hypotheque' => $hypotheque,
+        'loyer' => $loyer,
         'total' => $taxes_municipales + $taxes_scolaires + $electricite +
                    $assurances + $deneigement + $frais_condo + $hypotheque - $loyer
     ];
