@@ -669,6 +669,7 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
     // Calculer les totaux taxables et non-taxables par item
     $totalTaxable = 0;
     $totalNonTaxable = 0;
+    $hasItems = false;
 
     try {
         $stmt = $pdo->prepare("
@@ -680,8 +681,10 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
             WHERE pi.projet_id = ?
         ");
         $stmt->execute([$projetId]);
+        $items = $stmt->fetchAll();
 
-        foreach ($stmt->fetchAll() as $row) {
+        foreach ($items as $row) {
+            $hasItems = true;
             $prix = (float)$row['prix_unitaire'];
             $qteItem = (int)$row['qte_item'];
             $qteCat = (int)$row['qte_cat'];
@@ -698,7 +701,11 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
             }
         }
     } catch (Exception $e) {
-        // Fallback à l'ancienne méthode si erreur
+        // Table n'existe pas
+    }
+
+    // Si pas d'items, utiliser le budget total comme taxable (fallback pour anciens projets)
+    if (!$hasItems) {
         $totalTaxable = calculerTotalBudgetRenovation($pdo, $projetId);
     }
 
