@@ -274,7 +274,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                 <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addMatModal<?= $uniqueId ?>" title="Ajouter matériau">
                     <i class="bi bi-plus-circle"></i>
                 </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#editSousCatModal<?= $uniqueId ?>" title="Modifier">
+                <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editSousCatModal<?= $uniqueId ?>" title="Modifier">
                     <i class="bi bi-pencil"></i>
                 </button>
                 <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteSousCatModal<?= $uniqueId ?>" title="Supprimer">
