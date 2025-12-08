@@ -74,6 +74,55 @@ try {
     ");
 }
 
+// Table pour stocker les valeurs de coûts récurrents par projet (types dynamiques)
+try {
+    $pdo->query("SELECT 1 FROM projet_recurrents LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_recurrents (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL,
+            recurrent_type_id INT NOT NULL,
+            montant DECIMAL(12,2) DEFAULT 0,
+            FOREIGN KEY (projet_id) REFERENCES projets(id) ON DELETE CASCADE,
+            UNIQUE KEY unique_projet_recurrent (projet_id, recurrent_type_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// Auto-créer la table recurrents_types si elle n'existe pas
+try {
+    $pdo->query("SELECT 1 FROM recurrents_types LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS recurrents_types (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(100) NOT NULL,
+            code VARCHAR(50) NOT NULL UNIQUE,
+            frequence ENUM('annuel', 'mensuel') DEFAULT 'annuel',
+            ordre INT DEFAULT 0,
+            actif TINYINT(1) DEFAULT 1,
+            est_systeme TINYINT(1) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    // Insérer les types par défaut
+    $defaults = [
+        ['Taxes municipales', 'taxes_municipales', 'annuel', 1, 1],
+        ['Taxes scolaires', 'taxes_scolaires', 'annuel', 2, 1],
+        ['Électricité', 'electricite', 'annuel', 3, 1],
+        ['Assurances', 'assurances', 'annuel', 4, 1],
+        ['Déneigement', 'deneigement', 'annuel', 5, 1],
+        ['Frais condo', 'frais_condo', 'annuel', 6, 1],
+        ['Hypothèque', 'hypotheque', 'mensuel', 7, 1],
+        ['Loyer reçu', 'loyer', 'mensuel', 8, 1],
+    ];
+    $stmt = $pdo->prepare("INSERT INTO recurrents_types (nom, code, frequence, ordre, est_systeme) VALUES (?, ?, ?, ?, ?)");
+    foreach ($defaults as $d) {
+        $stmt->execute($d);
+    }
+}
+
 // ========================================
 // AJAX: Sauvegarde automatique des budgets
 // ========================================
@@ -322,6 +371,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $projetId
                 ]);
 
+                // Sauvegarder les coûts récurrents dynamiques
+                if (isset($_POST['recurrents']) && is_array($_POST['recurrents'])) {
+                    $stmtRec = $pdo->prepare("
+                        INSERT INTO projet_recurrents (projet_id, recurrent_type_id, montant)
+                        VALUES (?, ?, ?)
+                        ON DUPLICATE KEY UPDATE montant = VALUES(montant)
+                    ");
+                    foreach ($_POST['recurrents'] as $typeId => $montant) {
+                        $montantVal = parseNumber($montant);
+                        $stmtRec->execute([$projetId, (int)$typeId, $montantVal]);
+                    }
+                }
+
                 setFlashMessage('success', 'Projet mis à jour!');
                 redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=base');
             }
@@ -475,6 +537,61 @@ $depenses = calculerDepensesParCategorie($pdo, $projetId);
 // Calcul des coûts récurrents réels basés sur le temps écoulé depuis l'achat
 $recurrentsReels = calculerCoutsRecurrentsReels($projet);
 $moisEcoules = $recurrentsReels['mois_ecoules'];
+
+// ========================================
+// TYPES DE COÛTS RÉCURRENTS DYNAMIQUES
+// ========================================
+$recurrentsTypes = [];
+$projetRecurrents = [];
+
+// Charger les types de récurrents actifs
+try {
+    $stmt = $pdo->query("SELECT * FROM recurrents_types WHERE actif = 1 ORDER BY ordre, nom");
+    $recurrentsTypes = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas encore
+}
+
+// Charger les valeurs récurrentes pour ce projet
+try {
+    $stmt = $pdo->prepare("SELECT recurrent_type_id, montant FROM projet_recurrents WHERE projet_id = ?");
+    $stmt->execute([$projetId]);
+    foreach ($stmt->fetchAll() as $row) {
+        $projetRecurrents[$row['recurrent_type_id']] = (float)$row['montant'];
+    }
+} catch (Exception $e) {
+    // Table n'existe pas encore
+}
+
+// Migrer les valeurs existantes des colonnes projets vers projet_recurrents (une seule fois)
+if (empty($projetRecurrents) && !empty($recurrentsTypes)) {
+    $codeToValue = [
+        'taxes_municipales' => (float)$projet['taxes_municipales_annuel'],
+        'taxes_scolaires' => (float)$projet['taxes_scolaires_annuel'],
+        'electricite' => (float)$projet['electricite_annuel'],
+        'assurances' => (float)$projet['assurances_annuel'],
+        'deneigement' => (float)$projet['deneigement_annuel'],
+        'frais_condo' => (float)$projet['frais_condo_annuel'],
+        'hypotheque' => (float)$projet['hypotheque_mensuel'],
+        'loyer' => (float)$projet['loyer_mensuel'],
+    ];
+
+    $hasValues = array_filter($codeToValue, fn($v) => $v > 0);
+    if (!empty($hasValues)) {
+        try {
+            $stmtInsert = $pdo->prepare("INSERT IGNORE INTO projet_recurrents (projet_id, recurrent_type_id, montant) VALUES (?, ?, ?)");
+            foreach ($recurrentsTypes as $type) {
+                $value = $codeToValue[$type['code']] ?? 0;
+                if ($value > 0) {
+                    $stmtInsert->execute([$projetId, $type['id'], $value]);
+                    $projetRecurrents[$type['id']] = $value;
+                }
+            }
+        } catch (Exception $e) {
+            // Ignorer les erreurs de migration
+        }
+    }
+}
 
 // ========================================
 // DONNÉES TEMPLATES BUDGETS DÉTAILLÉS
@@ -885,9 +1002,29 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             <!-- Colonne droite -->
             <div class="col-lg-6 d-flex flex-column gap-3">
                 <div class="card flex-grow-1">
-                    <div class="card-header"><i class="bi bi-arrow-repeat me-1"></i>Récurrents</div>
+                    <div class="card-header">
+                        <i class="bi bi-arrow-repeat me-1"></i>Récurrents
+                        <a href="<?= url('/admin/recurrents/liste.php') ?>" class="float-end small text-decoration-none" title="Gérer les types">
+                            <i class="bi bi-gear"></i>
+                        </a>
+                    </div>
                     <div class="card-body">
                         <div class="row g-2">
+                            <?php foreach ($recurrentsTypes as $type):
+                                $valeur = $projetRecurrents[$type['id']] ?? 0;
+                                $freq = $type['frequence'] === 'mensuel' ? '/mois' : '/an';
+                                // Tronquer le nom si trop long
+                                $nomCourt = mb_strlen($type['nom']) > 15 ? mb_substr($type['nom'], 0, 12) . '...' : $type['nom'];
+                            ?>
+                            <div class="col-6">
+                                <label class="form-label" title="<?= e($type['nom']) ?>"><?= e($nomCourt) ?> <?= $freq ?></label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="recurrents[<?= $type['id'] ?>]" value="<?= formatMoney($valeur, false) ?>">
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                            <?php if (empty($recurrentsTypes)): ?>
+                            <!-- Fallback si pas de types (anciens champs pour compatibilité) -->
                             <div class="col-6">
                                 <label class="form-label">Taxes mun. /an</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
@@ -936,6 +1073,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     <input type="text" class="form-control money-input" name="loyer_mensuel" value="<?= formatMoney($projet['loyer_mensuel'], false) ?>">
                                 </div>
                             </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -1091,63 +1229,53 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </td>
                     </tr>
                     <?php
-                    // Calcul écarts pour chaque type de récurrent
-                    $ecartTaxesMun = $indicateurs['couts_recurrents']['taxes_municipales']['extrapole'] - $recurrentsReels['taxes_municipales'];
-                    $ecartTaxesSco = $indicateurs['couts_recurrents']['taxes_scolaires']['extrapole'] - $recurrentsReels['taxes_scolaires'];
-                    $ecartElec = $indicateurs['couts_recurrents']['electricite']['extrapole'] - $recurrentsReels['electricite'];
-                    $ecartAssur = $indicateurs['couts_recurrents']['assurances']['extrapole'] - $recurrentsReels['assurances'];
-                    $ecartDeneig = $indicateurs['couts_recurrents']['deneigement']['extrapole'] - $recurrentsReels['deneigement'];
-                    $ecartCondo = $indicateurs['couts_recurrents']['frais_condo']['extrapole'] - $recurrentsReels['frais_condo'];
-                    $ecartHypo = $indicateurs['couts_recurrents']['hypotheque']['extrapole'] - $recurrentsReels['hypotheque'];
-                    $ecartTotalRec = $indicateurs['couts_recurrents']['total'] - $recurrentsReels['total'];
+                    // Calcul dynamique des coûts récurrents
+                    $totalRecExtrapole = 0;
+                    $totalRecReel = 0;
+                    $facteurExtrapole = $dureeReelle / 12;
+                    $facteurReel = $moisEcoules / 12;
+
+                    foreach ($recurrentsTypes as $type):
+                        $montant = $projetRecurrents[$type['id']] ?? 0;
+                        if ($montant == 0) continue; // Ne pas afficher les types sans valeur
+
+                        // Calculer extrapolé et réel selon la fréquence
+                        if ($type['frequence'] === 'mensuel') {
+                            $extrapole = $montant * $dureeReelle;
+                            $reel = $montant * $moisEcoules;
+                        } else {
+                            // annuel
+                            $extrapole = $montant * $facteurExtrapole;
+                            $reel = $montant * $facteurReel;
+                        }
+
+                        // Loyer est un revenu (soustraire)
+                        $isLoyer = ($type['code'] === 'loyer');
+                        if ($isLoyer) {
+                            $totalRecExtrapole -= $extrapole;
+                            $totalRecReel -= $reel;
+                        } else {
+                            $totalRecExtrapole += $extrapole;
+                            $totalRecReel += $reel;
+                        }
+
+                        $ecart = $extrapole - $reel;
                     ?>
                     <tr class="sub-item">
-                        <td>Taxes municipales</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_municipales']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartTaxesMun >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTaxesMun) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['taxes_municipales']) ?></td>
+                        <td><?= e($type['nom']) ?><?= $isLoyer ? ' <small class="text-success">(revenu)</small>' : '' ?></td>
+                        <td class="text-end"><?= $isLoyer ? '-' : '' ?><?= formatMoney($extrapole) ?></td>
+                        <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecart) ?></td>
+                        <td class="text-end"><?= $isLoyer ? '-' : '' ?><?= formatMoney($reel) ?></td>
                     </tr>
-                    <tr class="sub-item">
-                        <td>Taxes scolaires</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['taxes_scolaires']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartTaxesSco >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTaxesSco) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['taxes_scolaires']) ?></td>
-                    </tr>
-                    <tr class="sub-item">
-                        <td>Électricité</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['electricite']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartElec >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartElec) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['electricite']) ?></td>
-                    </tr>
-                    <tr class="sub-item">
-                        <td>Assurances</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['assurances']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartAssur >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartAssur) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['assurances']) ?></td>
-                    </tr>
-                    <tr class="sub-item">
-                        <td>Déneigement</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['deneigement']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartDeneig >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartDeneig) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['deneigement']) ?></td>
-                    </tr>
-                    <tr class="sub-item">
-                        <td>Frais condo</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['frais_condo']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartCondo >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartCondo) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['frais_condo']) ?></td>
-                    </tr>
-                    <tr class="sub-item">
-                        <td>Hypothèque</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['hypotheque']['extrapole']) ?></td>
-                        <td class="text-end <?= $ecartHypo >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartHypo) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['hypotheque']) ?></td>
-                    </tr>
+                    <?php endforeach; ?>
+                    <?php
+                    $ecartTotalRec = $totalRecExtrapole - $totalRecReel;
+                    ?>
                     <tr class="total-row">
                         <td>Sous-total Récurrents</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_recurrents']['total']) ?></td>
+                        <td class="text-end"><?= formatMoney($totalRecExtrapole) ?></td>
                         <td class="text-end <?= $ecartTotalRec >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTotalRec) ?></td>
-                        <td class="text-end"><?= formatMoney($recurrentsReels['total']) ?></td>
+                        <td class="text-end"><?= formatMoney($totalRecReel) ?></td>
                     </tr>
                     
                     <!-- RÉNOVATION -->
