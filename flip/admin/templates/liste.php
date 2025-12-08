@@ -39,6 +39,16 @@ try {
     // Ignorer
 }
 
+// Vérifier si la colonne quantite_defaut existe dans materiaux
+try {
+    $stmt = $pdo->query("SHOW COLUMNS FROM materiaux LIKE 'quantite_defaut'");
+    if ($stmt->rowCount() === 0) {
+        $pdo->exec("ALTER TABLE materiaux ADD COLUMN quantite_defaut INT DEFAULT 1 AFTER prix_defaut");
+    }
+} catch (Exception $e) {
+    // Ignorer
+}
+
 // Traitement des actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -96,6 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $nom = trim($_POST['nom'] ?? '');
             $scId = (int)($_POST['sous_categorie_id'] ?? 0);
             $prix = (float)str_replace([' ', ',', '$'], ['', '.', ''], $_POST['prix_defaut'] ?? '0');
+            $quantite = max(1, (int)($_POST['quantite_defaut'] ?? 1));
 
             if (empty($nom) || !$scId) {
                 $errors[] = 'Données invalides.';
@@ -104,8 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([$scId]);
                 $maxOrdre = $stmt->fetchColumn() ?: 0;
 
-                $stmt = $pdo->prepare("INSERT INTO materiaux (sous_categorie_id, nom, prix_defaut, ordre) VALUES (?, ?, ?, ?)");
-                if ($stmt->execute([$scId, $nom, $prix, $maxOrdre + 1])) {
+                $stmt = $pdo->prepare("INSERT INTO materiaux (sous_categorie_id, nom, prix_defaut, quantite_defaut, ordre) VALUES (?, ?, ?, ?, ?)");
+                if ($stmt->execute([$scId, $nom, $prix, $quantite, $maxOrdre + 1])) {
                     setFlashMessage('success', 'Matériau ajouté!');
                     redirect('/admin/templates/liste.php?categorie=' . $categorieId);
                 }
@@ -116,10 +127,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $id = (int)($_POST['id'] ?? 0);
             $nom = trim($_POST['nom'] ?? '');
             $prix = (float)str_replace([' ', ',', '$'], ['', '.', ''], $_POST['prix_defaut'] ?? '0');
+            $quantite = max(1, (int)($_POST['quantite_defaut'] ?? 1));
 
             if ($id && !empty($nom)) {
-                $stmt = $pdo->prepare("UPDATE materiaux SET nom = ?, prix_defaut = ? WHERE id = ?");
-                if ($stmt->execute([$nom, $prix, $id])) {
+                $stmt = $pdo->prepare("UPDATE materiaux SET nom = ?, prix_defaut = ?, quantite_defaut = ? WHERE id = ?");
+                if ($stmt->execute([$nom, $prix, $quantite, $id])) {
                     setFlashMessage('success', 'Matériau modifié!');
                     redirect('/admin/templates/liste.php?categorie=' . $categorieId);
                 }
@@ -291,15 +303,22 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                         <thead class="table-light">
                             <tr>
                                 <th>Matériau</th>
-                                <th class="text-end" style="width: 120px;">Prix défaut</th>
+                                <th class="text-center" style="width: 60px;">Qté</th>
+                                <th class="text-end" style="width: 100px;">Prix unit.</th>
+                                <th class="text-end" style="width: 100px;">Total</th>
                                 <th style="width: 80px;"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($sc['materiaux'] as $mat): ?>
+                            <?php foreach ($sc['materiaux'] as $mat):
+                                $qte = $mat['quantite_defaut'] ?? 1;
+                                $total = $mat['prix_defaut'] * $qte;
+                            ?>
                                 <tr>
                                     <td><i class="bi bi-box-seam me-1 text-muted"></i><?= e($mat['nom']) ?></td>
+                                    <td class="text-center"><?= $qte ?></td>
                                     <td class="text-end"><?= formatMoney($mat['prix_defaut']) ?></td>
+                                    <td class="text-end fw-bold"><?= formatMoney($total) ?></td>
                                     <td class="text-end">
                                         <button type="button" class="btn btn-outline-primary btn-sm py-0 px-1"
                                                 data-bs-toggle="modal" data-bs-target="#editMatModal<?= $mat['id'] ?>">
@@ -329,11 +348,17 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                                                         <label class="form-label">Nom</label>
                                                         <input type="text" class="form-control" name="nom" value="<?= e($mat['nom']) ?>" required>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Prix par défaut</label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text">$</span>
-                                                            <input type="text" class="form-control" name="prix_defaut" value="<?= $mat['prix_defaut'] ?>">
+                                                    <div class="row">
+                                                        <div class="col-6 mb-3">
+                                                            <label class="form-label">Prix unitaire</label>
+                                                            <div class="input-group">
+                                                                <span class="input-group-text">$</span>
+                                                                <input type="text" class="form-control" name="prix_defaut" value="<?= $mat['prix_defaut'] ?>">
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-6 mb-3">
+                                                            <label class="form-label">Quantité</label>
+                                                            <input type="number" class="form-control" name="quantite_defaut" value="<?= $mat['quantite_defaut'] ?? 1 ?>" min="1">
                                                         </div>
                                                     </div>
                                                 </div>
@@ -486,11 +511,17 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                             <label class="form-label">Nom du matériau *</label>
                             <input type="text" class="form-control" name="nom" required>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">Prix par défaut</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="text" class="form-control" name="prix_defaut" value="0">
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Prix unitaire</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text" class="form-control" name="prix_defaut" value="0">
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Quantité</label>
+                                <input type="number" class="form-control" name="quantite_defaut" value="1" min="1">
                             </div>
                         </div>
                     </div>
