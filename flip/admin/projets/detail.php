@@ -12,6 +12,83 @@ require_once '../../includes/calculs.php';
 requireAdmin();
 
 $projetId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// ========================================
+// AJAX: Sauvegarde automatique des budgets
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_budget') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $postes = $_POST['postes'] ?? [];
+    $items = $_POST['items'] ?? [];
+
+    try {
+        // Supprimer tous les postes existants
+        $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
+        $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
+
+        // Réinsérer les postes cochés
+        foreach ($postes as $categorieId => $data) {
+            if (!empty($data['checked'])) {
+                $quantite = max(1, (int)($data['quantite'] ?? 1));
+                $budgetExtrapole = parseNumber($data['budget_extrapole'] ?? '0');
+
+                $stmt = $pdo->prepare("
+                    INSERT INTO projet_postes (projet_id, categorie_id, quantite, budget_extrapole)
+                    VALUES (?, ?, ?, ?)
+                ");
+                $stmt->execute([$projetId, $categorieId, $quantite, $budgetExtrapole]);
+                $posteId = $pdo->lastInsertId();
+
+                // Insérer les items cochés
+                if (isset($items[$categorieId])) {
+                    foreach ($items[$categorieId] as $materiauId => $itemData) {
+                        if (!empty($itemData['checked'])) {
+                            $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
+                            $qteItem = max(1, (int)($itemData['qte'] ?? 1));
+
+                            $stmt = $pdo->prepare("
+                                INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite)
+                                VALUES (?, ?, ?, ?, ?)
+                            ");
+                            $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem]);
+                        }
+                    }
+                }
+
+                // Sync avec table budgets
+                $stmt = $pdo->prepare("
+                    INSERT INTO budgets (projet_id, categorie_id, montant_extrapole)
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE montant_extrapole = ?
+                ");
+                $stmt->execute([$projetId, $categorieId, $budgetExtrapole, $budgetExtrapole]);
+            }
+        }
+
+        // Calculer les nouveaux totaux
+        $projet = getProjetById($pdo, $projetId);
+        $indicateurs = calculerIndicateursProjet($pdo, $projet);
+
+        echo json_encode([
+            'success' => true,
+            'totals' => [
+                'budget' => $indicateurs['renovation']['budget'],
+                'contingence' => $indicateurs['contingence'],
+                'equite' => $indicateurs['equite_potentielle']
+            ]
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 $projet = getProjetById($pdo, $projetId);
 
 if (!$projet) {
@@ -1405,17 +1482,23 @@ include '../../includes/header.php';
                             <?php endif; ?>
                         </button>
 
-                        <!-- Quantité -->
-                        <div class="input-group input-group-sm me-2" style="width: 80px;">
-                            <span class="input-group-text px-1">Qté</span>
+                        <!-- Quantité avec +/- -->
+                        <div class="input-group input-group-sm me-2" style="width: 110px;">
+                            <button type="button" class="btn btn-outline-secondary qte-minus" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
+                                <i class="bi bi-dash"></i>
+                            </button>
                             <input type="number"
-                                   class="form-control text-center qte-input"
+                                   class="form-control text-center qte-input px-0"
                                    name="postes[<?= $catId ?>][quantite]"
                                    value="<?= $quantite ?>"
                                    min="1"
                                    max="10"
                                    data-cat-id="<?= $catId ?>"
+                                   style="max-width: 40px;"
                                    <?= !$isImported ? 'disabled' : '' ?>>
+                            <button type="button" class="btn btn-outline-secondary qte-plus" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
+                                <i class="bi bi-plus"></i>
+                            </button>
                         </div>
 
                         <!-- Budget extrapolé -->
@@ -1465,13 +1548,21 @@ include '../../includes/header.php';
                                                                data-qte="<?= $mat['quantite_defaut'] ?? 1 ?>">
                                                     </div>
                                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
-                                                    <input type="number"
-                                                           class="form-control form-control-sm text-center item-qte me-1"
-                                                           name="items[<?= $catId ?>][<?= $mat['id'] ?>][qte]"
-                                                           value="<?= $qteItem ?>"
-                                                           min="1"
-                                                           style="width: 50px;"
-                                                           data-cat-id="<?= $catId ?>">
+                                                    <div class="input-group input-group-sm me-1" style="width: 85px;">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm item-qte-minus py-0 px-1" data-cat-id="<?= $catId ?>">
+                                                            <i class="bi bi-dash"></i>
+                                                        </button>
+                                                        <input type="number"
+                                                               class="form-control form-control-sm text-center item-qte px-0"
+                                                               name="items[<?= $catId ?>][<?= $mat['id'] ?>][qte]"
+                                                               value="<?= $qteItem ?>"
+                                                               min="1"
+                                                               style="max-width: 35px;"
+                                                               data-cat-id="<?= $catId ?>">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm item-qte-plus py-0 px-1" data-cat-id="<?= $catId ?>">
+                                                            <i class="bi bi-plus"></i>
+                                                        </button>
+                                                    </div>
                                                     <div class="input-group input-group-sm" style="width: 90px;">
                                                         <span class="input-group-text px-1">$</span>
                                                         <input type="text"
@@ -1499,19 +1590,28 @@ include '../../includes/header.php';
 
         <?php endif; ?>
 
-        <div class="d-flex justify-content-between mt-3">
+        <div class="d-flex justify-content-between align-items-center mt-3">
             <a href="<?= url('/admin/templates/liste.php') ?>" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-gear me-1"></i>Gérer les templates
             </a>
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-circle me-1"></i>Enregistrer
-            </button>
+            <div id="saveStatus" class="text-muted small">
+                <span id="saveIdle"><i class="bi bi-cloud-check me-1"></i>Sauvegarde auto</span>
+                <span id="saveSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Enregistrement...</span>
+                <span id="saveSaved" class="d-none text-success"><i class="bi bi-check-circle me-1"></i>Enregistré!</span>
+            </div>
         </div>
     </form>
+
+    <style>
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         const tauxContingence = <?= (float)$projet['taux_contingence'] ?>;
+        const csrfToken = '<?= getCSRFToken() ?>';
+        let saveTimeout = null;
 
         function parseValue(str) {
             return parseFloat(String(str).replace(/\s/g, '').replace(',', '.')) || 0;
@@ -1521,10 +1621,54 @@ include '../../includes/header.php';
             return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         }
 
+        // ========================================
+        // AUTO-SAVE
+        // ========================================
+        function showSaveStatus(status) {
+            document.getElementById('saveIdle').classList.add('d-none');
+            document.getElementById('saveSaving').classList.add('d-none');
+            document.getElementById('saveSaved').classList.add('d-none');
+            document.getElementById('save' + status.charAt(0).toUpperCase() + status.slice(1)).classList.remove('d-none');
+        }
+
+        function autoSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+
+            saveTimeout = setTimeout(function() {
+                showSaveStatus('saving');
+
+                const form = document.getElementById('formBudgetsDetail');
+                const formData = new FormData(form);
+                formData.set('ajax_action', 'save_budget');
+                formData.set('csrf_token', csrfToken);
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showSaveStatus('saved');
+                        setTimeout(() => showSaveStatus('idle'), 2000);
+                    } else {
+                        console.error('Erreur:', data.error);
+                        showSaveStatus('idle');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur réseau:', error);
+                    showSaveStatus('idle');
+                });
+            }, 500); // Debounce 500ms
+        }
+
+        // ========================================
+        // CALCULS
+        // ========================================
         function updateTotals() {
             let grandTotal = 0;
 
-            // Calculer le total de chaque catégorie cochée
             document.querySelectorAll('.poste-checkbox:checked').forEach(checkbox => {
                 const catId = checkbox.dataset.catId;
                 const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
@@ -1572,7 +1716,6 @@ include '../../includes/header.php';
                     const qteItem = parseInt(qteItemInput.value) || 1;
                     total += prix * qteItem * qteCat;
                 }
-                // Mettre à jour le total de l'item
                 updateItemTotal(row);
             });
 
@@ -1590,62 +1733,156 @@ include '../../includes/header.php';
             });
         }
 
-        // Event: checkbox poste (import catégorie)
+        // ========================================
+        // BOUTONS +/- CATÉGORIE
+        // ========================================
+        document.querySelectorAll('.qte-minus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const catId = this.dataset.catId;
+                const input = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                if (input && !input.disabled) {
+                    const val = parseInt(input.value) || 1;
+                    if (val > 1) {
+                        input.value = val - 1;
+                        updateAllItemTotals(catId);
+                        updateCategoryTotal(catId);
+                        autoSave();
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.qte-plus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const catId = this.dataset.catId;
+                const input = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                if (input && !input.disabled) {
+                    const val = parseInt(input.value) || 1;
+                    if (val < 10) {
+                        input.value = val + 1;
+                        updateAllItemTotals(catId);
+                        updateCategoryTotal(catId);
+                        autoSave();
+                    }
+                }
+            });
+        });
+
+        // ========================================
+        // BOUTONS +/- ITEMS
+        // ========================================
+        document.querySelectorAll('.item-qte-minus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('.item-row');
+                const input = row.querySelector('.item-qte');
+                if (input) {
+                    const val = parseInt(input.value) || 1;
+                    if (val > 1) {
+                        input.value = val - 1;
+                        updateItemTotal(row);
+                        updateCategoryTotal(this.dataset.catId);
+                        autoSave();
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.item-qte-plus').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('.item-row');
+                const input = row.querySelector('.item-qte');
+                if (input) {
+                    const val = parseInt(input.value) || 1;
+                    input.value = val + 1;
+                    updateItemTotal(row);
+                    updateCategoryTotal(this.dataset.catId);
+                    autoSave();
+                }
+            });
+        });
+
+        // ========================================
+        // EVENTS: CHECKBOX CATÉGORIE
+        // ========================================
         document.querySelectorAll('.poste-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 const catId = this.dataset.catId;
                 const qteInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
                 const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+                const minusBtn = document.querySelector(`.qte-minus[data-cat-id="${catId}"]`);
+                const plusBtn = document.querySelector(`.qte-plus[data-cat-id="${catId}"]`);
 
                 if (this.checked) {
                     if (qteInput) qteInput.disabled = false;
                     if (budgetInput) budgetInput.disabled = false;
+                    if (minusBtn) minusBtn.disabled = false;
+                    if (plusBtn) plusBtn.disabled = false;
                 } else {
                     if (qteInput) qteInput.disabled = true;
                     if (budgetInput) budgetInput.disabled = true;
+                    if (minusBtn) minusBtn.disabled = true;
+                    if (plusBtn) plusBtn.disabled = true;
                 }
 
                 updateTotals();
+                autoSave();
             });
         });
 
-        // Event: checkbox item
+        // ========================================
+        // EVENTS: CHECKBOX ITEM
+        // ========================================
         document.querySelectorAll('.item-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
                 updateCategoryTotal(this.dataset.catId);
+                autoSave();
             });
         });
 
-        // Event: prix item
+        // ========================================
+        // EVENTS: PRIX ITEM
+        // ========================================
         document.querySelectorAll('.item-prix').forEach(input => {
             input.addEventListener('change', function() {
                 const row = this.closest('.item-row');
                 if (row) updateItemTotal(row);
                 updateCategoryTotal(this.dataset.catId);
+                autoSave();
             });
         });
 
-        // Event: quantité item
+        // ========================================
+        // EVENTS: QUANTITÉ ITEM
+        // ========================================
         document.querySelectorAll('.item-qte').forEach(input => {
             input.addEventListener('change', function() {
                 const row = this.closest('.item-row');
                 if (row) updateItemTotal(row);
                 updateCategoryTotal(this.dataset.catId);
+                autoSave();
             });
         });
 
-        // Event: quantité catégorie (multiplicateur)
+        // ========================================
+        // EVENTS: QUANTITÉ CATÉGORIE
+        // ========================================
         document.querySelectorAll('.qte-input').forEach(input => {
             input.addEventListener('change', function() {
                 const catId = this.dataset.catId;
                 updateAllItemTotals(catId);
                 updateCategoryTotal(catId);
+                autoSave();
             });
         });
 
-        // Event: budget extrapolé manuel
+        // ========================================
+        // EVENTS: BUDGET EXTRAPOLÉ MANUEL
+        // ========================================
         document.querySelectorAll('.budget-extrapole').forEach(input => {
-            input.addEventListener('change', updateTotals);
+            input.addEventListener('change', function() {
+                updateTotals();
+                autoSave();
+            });
         });
     });
     </script>
