@@ -184,7 +184,7 @@ function calculerTotalFacturesReelles($pdo, $projetId) {
 function calculerCoutMainDoeuvre($pdo, $projetId) {
     try {
         $stmt = $pdo->prepare("
-            SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout 
+            SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout
             FROM heures_travaillees h
             JOIN users u ON h.user_id = u.id
             WHERE h.projet_id = ? AND h.statut != 'rejetee'
@@ -198,6 +198,63 @@ function calculerCoutMainDoeuvre($pdo, $projetId) {
     } catch (Exception $e) {
         return ['heures' => 0, 'cout' => 0];
     }
+}
+
+/**
+ * Calcule le coût EXTRAPOLÉ/PLANIFIÉ de la main d'œuvre (depuis projet_planification_heures)
+ * C'est le budget prévu, pas les heures réellement travaillées
+ * @param PDO $pdo
+ * @param array $projet
+ * @return array
+ */
+function calculerCoutMainDoeuvreExtrapole($pdo, $projet) {
+    $result = ['heures' => 0, 'cout' => 0, 'jours' => 0];
+
+    $dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+    $dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+
+    if (!$dateDebutTravaux || !$dateFinPrevue) {
+        return $result;
+    }
+
+    try {
+        $d1 = new DateTime($dateDebutTravaux);
+        $d2 = new DateTime($dateFinPrevue);
+
+        // Calcul des jours ouvrables (Lundi-Vendredi)
+        $d2Inclusive = clone $d2;
+        $d2Inclusive->modify('+1 day');
+        $period = new DatePeriod($d1, new DateInterval('P1D'), $d2Inclusive);
+
+        $joursOuvrables = 0;
+        foreach ($period as $dt) {
+            if ((int)$dt->format('N') < 6) $joursOuvrables++;
+        }
+        $result['jours'] = max(1, $joursOuvrables);
+
+        // Récupérer les planifications avec taux horaire
+        $stmt = $pdo->prepare("
+            SELECT p.heures_semaine_estimees, u.taux_horaire
+            FROM projet_planification_heures p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.projet_id = ?
+        ");
+        $stmt->execute([$projet['id']]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $heuresSemaine = (float)$row['heures_semaine_estimees'];
+            $tauxHoraire = (float)$row['taux_horaire'];
+            // heures/jour = heures/semaine ÷ 5
+            $heuresJour = $heuresSemaine / 5;
+            $totalHeures = $heuresJour * $result['jours'];
+            $result['heures'] += $totalHeures;
+            $result['cout'] += $totalHeures * $tauxHoraire;
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas ou erreur
+    }
+
+    return $result;
 }
 
 /**
@@ -482,39 +539,43 @@ function calculerIndicateursProjet($pdo, $projet) {
     $pctRenovation = calculerPourcentageValeur($totalBudgetRenovation, $valeurPotentielle);
     $pctPrixAchat = calculerPourcentageValeur((float) $projet['prix_achat'], $valeurPotentielle);
     
-    // Main d'œuvre
-    $mainDoeuvre = calculerCoutMainDoeuvre($pdo, $projet['id']);
-    
-    // Coût total incluant main d'œuvre
-    $coutTotalProjet = $coutTotalProjet + $mainDoeuvre['cout'];
-    
-    // Recalculer l'équité avec la main d'œuvre
+    // Main d'œuvre RÉELLE (heures travaillées)
+    $mainDoeuvreReelle = calculerCoutMainDoeuvre($pdo, $projet['id']);
+
+    // Main d'œuvre EXTRAPOLÉE/PLANIFIÉE (budget prévu)
+    $mainDoeuvreExtrapole = calculerCoutMainDoeuvreExtrapole($pdo, $projet);
+
+    // Coût total BUDGET incluant main d'œuvre PLANIFIÉE
+    $coutTotalProjet = $coutTotalProjet + $mainDoeuvreExtrapole['cout'];
+
+    // Recalculer l'équité avec la main d'œuvre PLANIFIÉE
     $equitePotentielle = calculerEquitePotentielle($valeurPotentielle, $coutTotalProjet);
-    
+
     // Recalculer les profits des investisseurs avec l'équité correcte
     $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], $equitePotentielle, $mois);
-    
-    // Recalculer les ROI
+
+    // Recalculer les ROI (budget)
     $roiLeverage = calculerROILeverage($equitePotentielle, $dataFinancement['mise_totale']);
     $roiAllCash = calculerROIAllCash($equitePotentielle, $coutTotalProjet);
-    
-    // Progression du budget de rénovation (factures + main d'œuvre)
-    $totalReelAvecMO = $totalFacturesReelles + $mainDoeuvre['cout'];
-    $progressionBudget = $totalBudgetRenovation > 0 ? ($totalReelAvecMO / $totalBudgetRenovation) * 100 : 0;
-    
+
+    // Progression du budget de rénovation (factures réelles + main d'œuvre réelle vs budget + MO planifiée)
+    $totalReelAvecMO = $totalFacturesReelles + $mainDoeuvreReelle['cout'];
+    $totalBudgetAvecMO = $totalBudgetRenovation + $mainDoeuvreExtrapole['cout'];
+    $progressionBudget = $totalBudgetAvecMO > 0 ? ($totalReelAvecMO / $totalBudgetAvecMO) * 100 : 0;
+
     // ÉQUITÉ RÉELLE basée sur les dépenses réelles
-    $coutTotalReel = (float) $projet['prix_achat'] 
-        + $coutsAcquisition['total'] 
-        + $coutsRecurrents['total'] 
+    $coutTotalReel = (float) $projet['prix_achat']
+        + $coutsAcquisition['total']
+        + $coutsRecurrents['total']
         + $coutsVente['total']
-        + $totalFacturesReelles  // Factures réelles au lieu du budget
-        + $mainDoeuvre['cout'];   // Main d'œuvre
+        + $totalFacturesReelles       // Factures réelles
+        + $mainDoeuvreReelle['cout']; // Main d'œuvre réelle
     $equiteReelle = $valeurPotentielle - $coutTotalReel;
-    
+
     // ROI réels
     $roiLeverageReel = $dataFinancement['mise_totale'] > 0 ? ($equiteReelle / $dataFinancement['mise_totale']) * 100 : 0;
     $roiAllCashReel = $coutTotalReel > 0 ? ($equiteReelle / $coutTotalReel) * 100 : 0;
-    
+
     return [
         'couts_acquisition' => $coutsAcquisition,
         'couts_recurrents' => $coutsRecurrents,
@@ -523,12 +584,17 @@ function calculerIndicateursProjet($pdo, $projet) {
         'renovation' => [
             'budget' => $totalBudgetRenovation,
             'reel' => $totalFacturesReelles,
-            'ecart' => $totalBudgetRenovation - $totalReelAvecMO,
+            'ecart' => $totalBudgetAvecMO - $totalReelAvecMO,
             'progression' => $progressionBudget
         ],
         'main_doeuvre' => [
-            'heures' => $mainDoeuvre['heures'],
-            'cout' => $mainDoeuvre['cout']
+            'heures' => $mainDoeuvreReelle['heures'],
+            'cout' => $mainDoeuvreReelle['cout']
+        ],
+        'main_doeuvre_extrapole' => [
+            'heures' => $mainDoeuvreExtrapole['heures'],
+            'cout' => $mainDoeuvreExtrapole['cout'],
+            'jours' => $mainDoeuvreExtrapole['jours']
         ],
         'contingence' => $contingence,
         'cout_total_projet' => $coutTotalProjet,
