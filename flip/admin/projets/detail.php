@@ -1758,7 +1758,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
             <div class="accordion-item">
                 <h2 class="accordion-header">
-                    <div class="d-flex align-items-center w-100 px-3 py-2 bg-light border-bottom">
+                    <div class="d-flex align-items-center w-100 px-3 py-2 bg-dark text-white">
                         <!-- Checkbox import -->
                         <div class="form-check me-2">
                             <input type="checkbox"
@@ -1772,14 +1772,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </div>
 
                         <!-- Nom catégorie (cliquable pour expand) -->
-                        <button class="btn btn-link text-start flex-grow-1 text-decoration-none p-0 collapsed"
+                        <button class="btn btn-link text-start flex-grow-1 text-decoration-none text-white p-0 collapsed"
                                 type="button"
                                 data-bs-toggle="collapse"
                                 data-bs-target="#cat_<?= $catId ?>">
                             <i class="bi bi-caret-right-fill me-1 cat-chevron"></i>
                             <strong><?= e($cat['nom']) ?></strong>
                             <?php if (!empty($cat['sous_categories'])): ?>
-                                <small class="text-muted ms-2">(<?= count($cat['sous_categories']) ?> sous-cat.)</small>
+                                <small class="text-white-50 ms-2">(<?= count($cat['sous_categories']) ?> sous-cat.)</small>
                             <?php endif; ?>
                         </button>
 
