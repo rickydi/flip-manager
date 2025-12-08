@@ -14,10 +14,52 @@ requireAdmin();
 $projetId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // ========================================
+// AUTO-MIGRATION: Créer tables si manquantes
+// ========================================
+try {
+    $pdo->query("SELECT 1 FROM projet_postes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_postes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL,
+            categorie_id INT NOT NULL,
+            quantite INT DEFAULT 1,
+            budget_extrapole DECIMAL(12,2) DEFAULT 0,
+            FOREIGN KEY (projet_id) REFERENCES projets(id) ON DELETE CASCADE,
+            FOREIGN KEY (categorie_id) REFERENCES categories(id) ON DELETE CASCADE,
+            UNIQUE KEY unique_projet_cat (projet_id, categorie_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+try {
+    $pdo->query("SELECT 1 FROM projet_items LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL,
+            projet_poste_id INT NOT NULL,
+            materiau_id INT NOT NULL,
+            prix_unitaire DECIMAL(10,2) DEFAULT 0,
+            quantite INT DEFAULT 1,
+            FOREIGN KEY (projet_id) REFERENCES projets(id) ON DELETE CASCADE,
+            FOREIGN KEY (projet_poste_id) REFERENCES projet_postes(id) ON DELETE CASCADE,
+            FOREIGN KEY (materiau_id) REFERENCES materiaux(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// ========================================
 // AJAX: Sauvegarde automatique des budgets
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_budget') {
     header('Content-Type: application/json');
+
+    // Debug: log des données reçues
+    error_log("AJAX Budget Save - Projet ID: $projetId");
+    error_log("POST data: " . print_r($_POST, true));
 
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
         echo json_encode(['success' => false, 'error' => 'Token invalide']);
@@ -26,6 +68,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
     $postes = $_POST['postes'] ?? [];
     $items = $_POST['items'] ?? [];
+
+    error_log("Postes reçus: " . print_r($postes, true));
 
     try {
         // Supprimer tous les postes existants
@@ -1636,23 +1680,41 @@ include '../../includes/header.php';
 
             saveTimeout = setTimeout(function() {
                 showSaveStatus('saving');
+                console.log('Auto-save démarré...');
 
                 const form = document.getElementById('formBudgetsDetail');
                 const formData = new FormData(form);
                 formData.set('ajax_action', 'save_budget');
                 formData.set('csrf_token', csrfToken);
 
+                // Debug: afficher les données envoyées
+                for (let [key, value] of formData.entries()) {
+                    if (key.includes('postes') || key.includes('items')) {
+                        console.log(key + ': ' + value);
+                    }
+                }
+
                 fetch(window.location.href, {
                     method: 'POST',
                     body: formData
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showSaveStatus('saved');
-                        setTimeout(() => showSaveStatus('idle'), 2000);
-                    } else {
-                        console.error('Erreur:', data.error);
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.text();
+                })
+                .then(text => {
+                    console.log('Response text:', text);
+                    try {
+                        const data = JSON.parse(text);
+                        if (data.success) {
+                            showSaveStatus('saved');
+                            setTimeout(() => showSaveStatus('idle'), 2000);
+                        } else {
+                            console.error('Erreur:', data.error);
+                            showSaveStatus('idle');
+                        }
+                    } catch(e) {
+                        console.error('Parse error:', e, text);
                         showSaveStatus('idle');
                     }
                 })
