@@ -1799,8 +1799,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                    data-calc="<?= $totalItemsCalc ?>"
                                    <?= !$isImported ? 'disabled' : '' ?>>
                         </div>
-                        <!-- Total TTC - même style que items -->
-                        <span class="cat-total-ttc text-end fw-bold small ms-1" style="width: 70px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?></span>
+                        <!-- Total TTC - même taille que groupe -->
+                        <span class="cat-total-ttc text-end fw-bold ms-2" style="font-size: 0.9rem; min-width: 85px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?></span>
                     </div>
                 </h2>
 
