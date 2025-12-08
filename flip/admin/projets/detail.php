@@ -1737,7 +1737,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </button>
 
                         <!-- Quantité avec +/- -->
-                        <div class="input-group input-group-sm me-2" style="width: 85px;">
+                        <div class="input-group input-group-sm me-1" style="width: 85px;">
                             <button type="button" class="btn btn-outline-secondary btn-sm qte-minus py-0 px-1" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
                                 <i class="bi bi-dash"></i>
                             </button>
@@ -1767,10 +1767,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                    <?= !$isImported ? 'disabled' : '' ?>>
                         </div>
                         <!-- Taxes catégorie -->
-                        <span class="badge bg-secondary ms-1 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.65rem;">TPS <span class="cat-tps"><?= formatMoney($catTPS, false) ?></span></span>
-                        <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">TVQ <span class="cat-tvq" data-cat-id="<?= $catId ?>"><?= formatMoney($catTVQ, false) ?></span></span>
+                        <span class="badge bg-secondary ms-1 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.6rem;">TPS <span class="cat-tps"><?= formatMoney($catTPS, false) ?></span></span>
+                        <span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">TVQ <span class="cat-tvq" data-cat-id="<?= $catId ?>"><?= formatMoney($catTVQ, false) ?></span></span>
                         <!-- Total TTC -->
-                        <span class="cat-total-ttc text-end fw-bold small ms-2" style="min-width: 80px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?></span>
+                        <span class="cat-total-ttc text-end fw-bold small ms-1" style="width: 70px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?></span>
                     </div>
                 </h2>
 
