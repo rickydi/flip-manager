@@ -255,12 +255,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         foreach ($items[$categorieId] as $materiauId => $itemData) {
                             if (!empty($itemData['checked'])) {
                                 $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
+                                $qteItem = max(1, (int)($itemData['qte'] ?? 1));
 
                                 $stmt = $pdo->prepare("
                                     INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite)
                                     VALUES (?, ?, ?, ?, ?)
                                 ");
-                                $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $quantite]);
+                                $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem]);
                             }
                         }
                     }
@@ -316,9 +317,10 @@ try {
     $stmt = $pdo->query("
         SELECT c.id as categorie_id, c.nom as categorie_nom, c.groupe,
                sc.id as sc_id, sc.nom as sc_nom,
-               m.id as mat_id, m.nom as mat_nom, m.prix_defaut
+               m.id as mat_id, m.nom as mat_nom, m.prix_defaut,
+               COALESCE(m.quantite_defaut, 1) as quantite_defaut
         FROM categories c
-        LEFT JOIN sous_categories sc ON sc.categorie_id = c.id AND sc.actif = 1
+        LEFT JOIN sous_categories sc ON sc.categorie_id = c.id AND sc.actif = 1 AND sc.parent_id IS NULL
         LEFT JOIN materiaux m ON m.sous_categorie_id = sc.id AND m.actif = 1
         ORDER BY c.groupe, c.ordre, sc.ordre, m.ordre
     ");
@@ -346,7 +348,8 @@ try {
                 $templatesBudgets[$catId]['sous_categories'][$scId]['materiaux'][] = [
                     'id' => $row['mat_id'],
                     'nom' => $row['mat_nom'],
-                    'prix_defaut' => (float)$row['prix_defaut']
+                    'prix_defaut' => (float)$row['prix_defaut'],
+                    'quantite_defaut' => (int)$row['quantite_defaut']
                 ];
             }
         }
@@ -1379,7 +1382,9 @@ include '../../includes/header.php';
                 foreach ($cat['sous_categories'] as $sc) {
                     foreach ($sc['materiaux'] as $mat) {
                         if (isset($projetItems[$catId][$mat['id']])) {
-                            $totalItemsCalc += (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] * $quantite;
+                            $item = $projetItems[$catId][$mat['id']];
+                            $qteItem = (int)($item['quantite'] ?? 1);
+                            $totalItemsCalc += (float)$item['prix_unitaire'] * $qteItem * $quantite;
                         }
                     }
                 }
@@ -1464,6 +1469,8 @@ include '../../includes/header.php';
                                             <?php foreach ($sc['materiaux'] as $mat):
                                                 $isChecked = isset($projetItems[$catId][$mat['id']]);
                                                 $prixItem = $isChecked ? (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] : $mat['prix_defaut'];
+                                                $qteItem = $isChecked ? (int)$projetItems[$catId][$mat['id']]['quantite'] : ($mat['quantite_defaut'] ?? 1);
+                                                $totalItem = $prixItem * $qteItem;
                                             ?>
                                                 <div class="d-flex align-items-center mb-1 item-row" data-cat-id="<?= $catId ?>">
                                                     <div class="form-check me-2">
@@ -1473,10 +1480,18 @@ include '../../includes/header.php';
                                                                value="1"
                                                                <?= $isChecked ? 'checked' : '' ?>
                                                                data-cat-id="<?= $catId ?>"
-                                                               data-prix="<?= $mat['prix_defaut'] ?>">
+                                                               data-prix="<?= $mat['prix_defaut'] ?>"
+                                                               data-qte="<?= $mat['quantite_defaut'] ?? 1 ?>">
                                                     </div>
                                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
-                                                    <div class="input-group input-group-sm" style="width: 100px;">
+                                                    <input type="number"
+                                                           class="form-control form-control-sm text-center item-qte me-1"
+                                                           name="items[<?= $catId ?>][<?= $mat['id'] ?>][qte]"
+                                                           value="<?= $qteItem ?>"
+                                                           min="1"
+                                                           style="width: 50px;"
+                                                           data-cat-id="<?= $catId ?>">
+                                                    <div class="input-group input-group-sm" style="width: 90px;">
                                                         <span class="input-group-text px-1">$</span>
                                                         <input type="text"
                                                                class="form-control text-end item-prix"
@@ -1484,6 +1499,7 @@ include '../../includes/header.php';
                                                                value="<?= formatMoney($prixItem, false) ?>"
                                                                data-cat-id="<?= $catId ?>">
                                                     </div>
+                                                    <span class="item-total text-end fw-bold small ms-1" style="width: 70px;" data-cat-id="<?= $catId ?>"><?= formatMoney($totalItem) ?></span>
                                                 </div>
                                             <?php endforeach; ?>
                                         </div>
@@ -1544,17 +1560,39 @@ include '../../includes/header.php';
             document.getElementById('grandTotal').textContent = formatMoney(total) + ' $';
         }
 
+        function updateItemTotal(row) {
+            const checkbox = row.querySelector('.item-checkbox');
+            const prixInput = row.querySelector('.item-prix');
+            const qteInput = row.querySelector('.item-qte');
+            const totalSpan = row.querySelector('.item-total');
+
+            if (checkbox && prixInput && qteInput && totalSpan) {
+                const prix = parseValue(prixInput.value);
+                const qte = parseInt(qteInput.value) || 1;
+                const catId = checkbox.dataset.catId;
+                const qteCatInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                const qteCat = qteCatInput ? parseInt(qteCatInput.value) || 1 : 1;
+                const total = prix * qte * qteCat;
+                totalSpan.textContent = formatMoney(total) + ' $';
+            }
+        }
+
         function updateCategoryTotal(catId) {
             let total = 0;
             const qteInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
-            const qte = qteInput ? parseInt(qteInput.value) || 1 : 1;
+            const qteCat = qteInput ? parseInt(qteInput.value) || 1 : 1;
 
             document.querySelectorAll(`.item-checkbox[data-cat-id="${catId}"]:checked`).forEach(checkbox => {
                 const row = checkbox.closest('.item-row');
                 const prixInput = row.querySelector('.item-prix');
-                if (prixInput) {
-                    total += parseValue(prixInput.value) * qte;
+                const qteItemInput = row.querySelector('.item-qte');
+                if (prixInput && qteItemInput) {
+                    const prix = parseValue(prixInput.value);
+                    const qteItem = parseInt(qteItemInput.value) || 1;
+                    total += prix * qteItem * qteCat;
                 }
+                // Mettre à jour le total de l'item
+                updateItemTotal(row);
             });
 
             const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
@@ -1563,6 +1601,12 @@ include '../../includes/header.php';
             }
 
             updateTotals();
+        }
+
+        function updateAllItemTotals(catId) {
+            document.querySelectorAll(`.item-row[data-cat-id="${catId}"]`).forEach(row => {
+                updateItemTotal(row);
+            });
         }
 
         // Event: checkbox poste (import catégorie)
@@ -1594,14 +1638,27 @@ include '../../includes/header.php';
         // Event: prix item
         document.querySelectorAll('.item-prix').forEach(input => {
             input.addEventListener('change', function() {
+                const row = this.closest('.item-row');
+                if (row) updateItemTotal(row);
                 updateCategoryTotal(this.dataset.catId);
             });
         });
 
-        // Event: quantité
+        // Event: quantité item
+        document.querySelectorAll('.item-qte').forEach(input => {
+            input.addEventListener('change', function() {
+                const row = this.closest('.item-row');
+                if (row) updateItemTotal(row);
+                updateCategoryTotal(this.dataset.catId);
+            });
+        });
+
+        // Event: quantité catégorie (multiplicateur)
         document.querySelectorAll('.qte-input').forEach(input => {
             input.addEventListener('change', function() {
-                updateCategoryTotal(this.dataset.catId);
+                const catId = this.dataset.catId;
+                updateAllItemTotals(catId);
+                updateCategoryTotal(catId);
             });
         });
 
