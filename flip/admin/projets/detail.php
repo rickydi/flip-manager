@@ -1766,10 +1766,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                    data-calc="<?= $totalItemsCalc ?>"
                                    <?= !$isImported ? 'disabled' : '' ?>>
                         </div>
-                        <!-- Taxes catégorie -->
-                        <span class="badge bg-secondary ms-1 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.6rem;">TPS <span class="cat-tps"><?= formatMoney($catTPS, false) ?></span></span>
-                        <span class="badge bg-secondary ms-1" style="font-size: 0.6rem;">TVQ <span class="cat-tvq" data-cat-id="<?= $catId ?>"><?= formatMoney($catTVQ, false) ?></span></span>
-                        <!-- Total TTC -->
+                        <!-- Total TTC - même style que items -->
                         <span class="cat-total-ttc text-end fw-bold small ms-1" style="width: 70px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?></span>
                     </div>
                 </h2>
@@ -2074,13 +2071,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             const catTVQ = catTaxable * 0.09975;
             const catTotalTTC = catBudgetHT + catTPS + catTVQ;
 
-            // Mettre à jour les taxes de la catégorie
-            const tpsSpan = document.querySelector(`.cat-taxes-display[data-cat-id="${catId}"] .cat-tps`);
-            const tvqSpan = document.querySelector(`.cat-tvq[data-cat-id="${catId}"]`);
+            // Mettre à jour le total TTC de la catégorie
             const totalSpan = document.querySelector(`.cat-total-ttc[data-cat-id="${catId}"]`);
-
-            if (tpsSpan) tpsSpan.textContent = formatMoney(catTPS);
-            if (tvqSpan) tvqSpan.textContent = formatMoney(catTVQ);
             if (totalSpan) totalSpan.textContent = formatMoney(catTotalTTC) + ' $';
 
             updateTotals();
