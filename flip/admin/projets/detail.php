@@ -1767,10 +1767,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                    <?= !$isImported ? 'disabled' : '' ?>>
                         </div>
                         <!-- Taxes catégorie -->
-                        <span class="badge bg-secondary ms-1 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.65rem;">TPS <span class="cat-tps"><?= formatMoney($catTPS) ?></span></span>
-                        <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">TVQ <span class="cat-tvq" data-cat-id="<?= $catId ?>"><?= formatMoney($catTVQ) ?></span></span>
+                        <span class="badge bg-secondary ms-1 cat-taxes-display" data-cat-id="<?= $catId ?>" style="font-size: 0.65rem;">TPS <span class="cat-tps"><?= formatMoney($catTPS, false) ?></span></span>
+                        <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">TVQ <span class="cat-tvq" data-cat-id="<?= $catId ?>"><?= formatMoney($catTVQ, false) ?></span></span>
                         <!-- Total TTC -->
-                        <span class="cat-total-ttc text-end fw-bold small ms-2" style="min-width: 80px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?> $</span>
+                        <span class="cat-total-ttc text-end fw-bold small ms-2" style="min-width: 80px;" data-cat-id="<?= $catId ?>"><?= formatMoney($catTotalTTC) ?></span>
                     </div>
                 </h2>
 
