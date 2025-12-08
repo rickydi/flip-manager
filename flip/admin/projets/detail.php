@@ -1580,36 +1580,27 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     ?>
 
     <!-- TOTAL EN HAUT - STICKY -->
-    <div class="card bg-primary text-white mb-3 sticky-top" style="top: 60px; z-index: 100;">
-        <div class="card-body py-2">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div class="d-flex align-items-center gap-3">
-                    <i class="bi bi-calculator fs-4"></i>
-                    <div>
-                        <small class="opacity-75">Matériaux</small>
-                        <h5 class="mb-0" id="totalBudget"><?= formatMoney($totalBudgetTab) ?></h5>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center gap-3">
-                    <div class="text-end">
-                        <small class="opacity-75">Conting. <?= $projet['taux_contingence'] ?>%</small>
-                        <h6 class="mb-0" id="totalContingence"><?= formatMoney($contingenceTab) ?></h6>
-                    </div>
-                    <div class="text-end">
-                        <small class="opacity-75">TPS 5%</small>
-                        <h6 class="mb-0" id="totalTPS"><?= formatMoney($tpsTab) ?></h6>
-                    </div>
-                    <div class="text-end">
-                        <small class="opacity-75">TVQ 9.975%</small>
-                        <h6 class="mb-0" id="totalTVQ"><?= formatMoney($tvqTab) ?></h6>
-                    </div>
-                    <div class="text-end border-start ps-3">
-                        <small class="opacity-75">Total avec taxes</small>
-                        <h4 class="mb-0" id="grandTotal"><?= formatMoney($grandTotalTab) ?></h4>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="bg-primary text-white px-3 py-2 mb-3 sticky-top d-flex justify-content-end align-items-center gap-4" style="top: 60px; z-index: 100; font-size: 0.85rem;">
+        <span>
+            <span class="opacity-75">Matériaux:</span>
+            <strong id="totalBudget"><?= formatMoney($totalBudgetTab) ?></strong>
+        </span>
+        <span>
+            <span class="opacity-75">Conting. <?= $projet['taux_contingence'] ?>%:</span>
+            <strong id="totalContingence"><?= formatMoney($contingenceTab) ?></strong>
+        </span>
+        <span>
+            <span class="opacity-75">TPS:</span>
+            <strong id="totalTPS"><?= formatMoney($tpsTab) ?></strong>
+        </span>
+        <span>
+            <span class="opacity-75">TVQ:</span>
+            <strong id="totalTVQ"><?= formatMoney($tvqTab) ?></strong>
+        </span>
+        <span class="border-start ps-4">
+            <span class="opacity-75">Total:</span>
+            <strong class="fs-5" id="grandTotal"><?= formatMoney($grandTotalTab) ?></strong>
+        </span>
     </div>
 
     <form method="POST" action="" id="formBudgetsDetail">
