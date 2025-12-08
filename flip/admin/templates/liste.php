@@ -15,15 +15,44 @@ $pageTitle = 'Templates Budgets';
 $errors = [];
 $success = '';
 
-// Groupes de catégories
-$groupeLabels = [
-    'exterieur' => 'Extérieur',
-    'finition' => 'Finition intérieure',
-    'ebenisterie' => 'Ébénisterie',
-    'electricite' => 'Électricité',
-    'plomberie' => 'Plomberie',
-    'autre' => 'Autre'
-];
+// ========================================
+// AUTO-MIGRATION: Table des groupes
+// ========================================
+try {
+    $pdo->query("SELECT 1 FROM category_groups LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE category_groups (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            code VARCHAR(50) NOT NULL UNIQUE,
+            nom VARCHAR(100) NOT NULL,
+            ordre INT DEFAULT 0,
+            actif TINYINT(1) DEFAULT 1
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+    // Insérer les groupes par défaut
+    $defaultGroups = [
+        ['exterieur', 'Extérieur', 1],
+        ['finition', 'Finition intérieure', 2],
+        ['ebenisterie', 'Ébénisterie', 3],
+        ['electricite', 'Électricité', 4],
+        ['plomberie', 'Plomberie', 5],
+        ['autre', 'Autre', 6]
+    ];
+    $stmt = $pdo->prepare("INSERT INTO category_groups (code, nom, ordre) VALUES (?, ?, ?)");
+    foreach ($defaultGroups as $g) {
+        $stmt->execute($g);
+    }
+}
+
+// Récupérer les groupes dynamiques
+$stmt = $pdo->query("SELECT * FROM category_groups WHERE actif = 1 ORDER BY ordre, nom");
+$groupes = $stmt->fetchAll();
+$groupeLabels = [];
+foreach ($groupes as $g) {
+    $groupeLabels[$g['code']] = $g['nom'];
+}
 
 // Catégorie sélectionnée
 $categorieId = (int)($_GET['categorie'] ?? 0);
@@ -105,6 +134,148 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Supprimer la catégorie
                 $pdo->prepare("DELETE FROM categories WHERE id = ?")->execute([$id]);
                 setFlashMessage('success', 'Catégorie supprimée!');
+                redirect('/admin/templates/liste.php');
+            }
+        }
+
+        // Monter une catégorie
+        elseif ($action === 'monter_categorie') {
+            $id = (int)($_POST['id'] ?? 0);
+            if ($id) {
+                $stmt = $pdo->prepare("SELECT groupe, ordre FROM categories WHERE id = ?");
+                $stmt->execute([$id]);
+                $cat = $stmt->fetch();
+                if ($cat) {
+                    // Trouver la catégorie précédente dans le même groupe
+                    $stmt = $pdo->prepare("SELECT id, ordre FROM categories WHERE groupe = ? AND ordre < ? ORDER BY ordre DESC LIMIT 1");
+                    $stmt->execute([$cat['groupe'], $cat['ordre']]);
+                    $prev = $stmt->fetch();
+                    if ($prev) {
+                        // Échanger les ordres
+                        $pdo->prepare("UPDATE categories SET ordre = ? WHERE id = ?")->execute([$prev['ordre'], $id]);
+                        $pdo->prepare("UPDATE categories SET ordre = ? WHERE id = ?")->execute([$cat['ordre'], $prev['id']]);
+                    }
+                }
+                redirect('/admin/templates/liste.php' . ($categorieId ? '?categorie=' . $categorieId : ''));
+            }
+        }
+
+        // Descendre une catégorie
+        elseif ($action === 'descendre_categorie') {
+            $id = (int)($_POST['id'] ?? 0);
+            if ($id) {
+                $stmt = $pdo->prepare("SELECT groupe, ordre FROM categories WHERE id = ?");
+                $stmt->execute([$id]);
+                $cat = $stmt->fetch();
+                if ($cat) {
+                    // Trouver la catégorie suivante dans le même groupe
+                    $stmt = $pdo->prepare("SELECT id, ordre FROM categories WHERE groupe = ? AND ordre > ? ORDER BY ordre ASC LIMIT 1");
+                    $stmt->execute([$cat['groupe'], $cat['ordre']]);
+                    $next = $stmt->fetch();
+                    if ($next) {
+                        // Échanger les ordres
+                        $pdo->prepare("UPDATE categories SET ordre = ? WHERE id = ?")->execute([$next['ordre'], $id]);
+                        $pdo->prepare("UPDATE categories SET ordre = ? WHERE id = ?")->execute([$cat['ordre'], $next['id']]);
+                    }
+                }
+                redirect('/admin/templates/liste.php' . ($categorieId ? '?categorie=' . $categorieId : ''));
+            }
+        }
+
+        // === GROUPES ===
+        elseif ($action === 'ajouter_groupe') {
+            $nom = trim($_POST['nom'] ?? '');
+            $code = trim($_POST['code'] ?? '');
+
+            if (empty($nom)) {
+                $errors[] = 'Le nom est requis.';
+            } else {
+                // Générer un code si non fourni
+                if (empty($code)) {
+                    $code = strtolower(preg_replace('/[^a-zA-Z0-9]/', '_', $nom));
+                }
+
+                $stmt = $pdo->prepare("SELECT MAX(ordre) FROM category_groups");
+                $stmt->execute();
+                $maxOrdre = $stmt->fetchColumn() ?: 0;
+
+                try {
+                    $stmt = $pdo->prepare("INSERT INTO category_groups (code, nom, ordre) VALUES (?, ?, ?)");
+                    $stmt->execute([$code, $nom, $maxOrdre + 1]);
+                    setFlashMessage('success', 'Groupe ajouté!');
+                } catch (Exception $e) {
+                    $errors[] = 'Ce code existe déjà.';
+                }
+                redirect('/admin/templates/liste.php');
+            }
+        }
+
+        elseif ($action === 'modifier_groupe') {
+            $id = (int)($_POST['id'] ?? 0);
+            $nom = trim($_POST['nom'] ?? '');
+
+            if ($id && !empty($nom)) {
+                $stmt = $pdo->prepare("UPDATE category_groups SET nom = ? WHERE id = ?");
+                $stmt->execute([$nom, $id]);
+                setFlashMessage('success', 'Groupe modifié!');
+                redirect('/admin/templates/liste.php');
+            }
+        }
+
+        elseif ($action === 'supprimer_groupe') {
+            $id = (int)($_POST['id'] ?? 0);
+
+            if ($id) {
+                // Récupérer le code du groupe
+                $stmt = $pdo->prepare("SELECT code FROM category_groups WHERE id = ?");
+                $stmt->execute([$id]);
+                $code = $stmt->fetchColumn();
+
+                // Déplacer les catégories vers "autre"
+                if ($code) {
+                    $pdo->prepare("UPDATE categories SET groupe = 'autre' WHERE groupe = ?")->execute([$code]);
+                }
+
+                $pdo->prepare("DELETE FROM category_groups WHERE id = ?")->execute([$id]);
+                setFlashMessage('success', 'Groupe supprimé! Les catégories ont été déplacées vers "Autre".');
+                redirect('/admin/templates/liste.php');
+            }
+        }
+
+        // Monter un groupe
+        elseif ($action === 'monter_groupe') {
+            $id = (int)($_POST['id'] ?? 0);
+            if ($id) {
+                $stmt = $pdo->prepare("SELECT ordre FROM category_groups WHERE id = ?");
+                $stmt->execute([$id]);
+                $ordre = $stmt->fetchColumn();
+
+                $stmt = $pdo->prepare("SELECT id, ordre FROM category_groups WHERE ordre < ? ORDER BY ordre DESC LIMIT 1");
+                $stmt->execute([$ordre]);
+                $prev = $stmt->fetch();
+                if ($prev) {
+                    $pdo->prepare("UPDATE category_groups SET ordre = ? WHERE id = ?")->execute([$prev['ordre'], $id]);
+                    $pdo->prepare("UPDATE category_groups SET ordre = ? WHERE id = ?")->execute([$ordre, $prev['id']]);
+                }
+                redirect('/admin/templates/liste.php');
+            }
+        }
+
+        // Descendre un groupe
+        elseif ($action === 'descendre_groupe') {
+            $id = (int)($_POST['id'] ?? 0);
+            if ($id) {
+                $stmt = $pdo->prepare("SELECT ordre FROM category_groups WHERE id = ?");
+                $stmt->execute([$id]);
+                $ordre = $stmt->fetchColumn();
+
+                $stmt = $pdo->prepare("SELECT id, ordre FROM category_groups WHERE ordre > ? ORDER BY ordre ASC LIMIT 1");
+                $stmt->execute([$ordre]);
+                $next = $stmt->fetch();
+                if ($next) {
+                    $pdo->prepare("UPDATE category_groups SET ordre = ? WHERE id = ?")->execute([$next['ordre'], $id]);
+                    $pdo->prepare("UPDATE category_groups SET ordre = ? WHERE id = ?")->execute([$ordre, $next['id']]);
+                }
                 redirect('/admin/templates/liste.php');
             }
         }
@@ -655,6 +826,54 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
     <div class="row">
         <!-- Colonne gauche: Liste des catégories -->
         <div class="col-md-3">
+            <!-- Card Groupes -->
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <span><i class="bi bi-collection me-1"></i>Groupes (volets)</span>
+                    <button type="button" class="btn btn-success btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#addGroupeModal" title="Nouveau groupe">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+                <div class="list-group list-group-flush" style="max-height: 30vh; overflow-y: auto;">
+                    <?php foreach ($groupes as $idx => $grp): ?>
+                        <div class="list-group-item py-1 d-flex justify-content-between align-items-center small">
+                            <span><?= e($grp['nom']) ?></span>
+                            <div class="btn-group btn-group-sm">
+                                <?php if ($idx > 0): ?>
+                                <form method="POST" class="d-inline">
+                                    <?php csrfField(); ?>
+                                    <input type="hidden" name="action" value="monter_groupe">
+                                    <input type="hidden" name="id" value="<?= $grp['id'] ?>">
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Monter">
+                                        <i class="bi bi-arrow-up" style="font-size: 0.65rem;"></i>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                                <?php if ($idx < count($groupes) - 1): ?>
+                                <form method="POST" class="d-inline">
+                                    <?php csrfField(); ?>
+                                    <input type="hidden" name="action" value="descendre_groupe">
+                                    <input type="hidden" name="id" value="<?= $grp['id'] ?>">
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Descendre">
+                                        <i class="bi bi-arrow-down" style="font-size: 0.65rem;"></i>
+                                    </button>
+                                </form>
+                                <?php endif; ?>
+                                <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editGroupeModal<?= $grp['id'] ?>" title="Modifier">
+                                    <i class="bi bi-pencil" style="font-size: 0.65rem;"></i>
+                                </button>
+                                <?php if ($grp['code'] !== 'autre'): ?>
+                                <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteGroupeModal<?= $grp['id'] ?>" title="Supprimer">
+                                    <i class="bi bi-trash" style="font-size: 0.65rem;"></i>
+                                </button>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <!-- Card Catégories -->
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-folder me-1"></i>Catégories</span>
@@ -662,30 +881,46 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
-                <div class="list-group list-group-flush" style="max-height: 70vh; overflow-y: auto;">
+                <div class="list-group list-group-flush" style="max-height: 50vh; overflow-y: auto;">
                     <?php foreach ($groupeLabels as $groupe => $label): ?>
-                        <?php if (!empty($categoriesGroupees[$groupe])): ?>
-                            <div class="list-group-item bg-light py-1 small fw-bold text-muted">
-                                <?= $label ?>
-                            </div>
-                            <?php foreach ($categoriesGroupees[$groupe] as $cat): ?>
-                                <div class="list-group-item py-1 d-flex justify-content-between align-items-center <?= $categorieId == $cat['id'] ? 'active' : '' ?>">
-                                    <a href="?categorie=<?= $cat['id'] ?>" class="text-decoration-none flex-grow-1 <?= $categorieId == $cat['id'] ? 'text-white' : '' ?>">
-                                        <?= e($cat['nom']) ?>
-                                        <?php
-                                        $stmt = $pdo->prepare("SELECT COUNT(*) FROM sous_categories WHERE categorie_id = ? AND parent_id IS NULL AND actif = 1");
-                                        $stmt->execute([$cat['id']]);
-                                        $nbSc = $stmt->fetchColumn();
-                                        ?>
-                                        <?php if ($nbSc > 0): ?>
-                                            <span class="badge <?= $categorieId == $cat['id'] ? 'bg-light text-dark' : 'bg-secondary' ?>"><?= $nbSc ?></span>
-                                        <?php endif; ?>
-                                    </a>
-                                    <div class="btn-group btn-group-sm ms-1">
-                                        <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCatModal<?= $cat['id'] ?>" title="Modifier">
-                                            <i class="bi bi-pencil" style="font-size: 0.7rem;"></i>
+                        <?php
+                        $catsInGroupe = $categoriesGroupees[$groupe] ?? [];
+                        $nbCats = count($catsInGroupe);
+                        if ($nbCats > 0):
+                        ?>
+                        <div class="list-group-item bg-light py-1 small fw-bold text-muted">
+                            <?= $label ?> <span class="badge bg-secondary"><?= $nbCats ?></span>
+                        </div>
+                        <?php foreach ($catsInGroupe as $catIdx => $cat): ?>
+                            <div class="list-group-item py-1 d-flex justify-content-between align-items-center <?= $categorieId == $cat['id'] ? 'active' : '' ?>">
+                                <a href="?categorie=<?= $cat['id'] ?>" class="text-decoration-none flex-grow-1 small <?= $categorieId == $cat['id'] ? 'text-white' : '' ?>">
+                                    <?= e($cat['nom']) ?>
+                                </a>
+                                <div class="btn-group btn-group-sm ms-1">
+                                    <?php if ($catIdx > 0): ?>
+                                    <form method="POST" class="d-inline">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="monter_categorie">
+                                        <input type="hidden" name="id" value="<?= $cat['id'] ?>">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Monter">
+                                            <i class="bi bi-arrow-up" style="font-size: 0.6rem;"></i>
                                         </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteCatModal<?= $cat['id'] ?>" title="Supprimer">
+                                    </form>
+                                    <?php endif; ?>
+                                    <?php if ($catIdx < $nbCats - 1): ?>
+                                    <form method="POST" class="d-inline">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="descendre_categorie">
+                                        <input type="hidden" name="id" value="<?= $cat['id'] ?>">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Descendre">
+                                            <i class="bi bi-arrow-down" style="font-size: 0.6rem;"></i>
+                                        </button>
+                                    </form>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCatModal<?= $cat['id'] ?>" title="Modifier">
+                                        <i class="bi bi-pencil" style="font-size: 0.6rem;"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteCatModal<?= $cat['id'] ?>" title="Supprimer">
                                             <i class="bi bi-trash" style="font-size: 0.7rem;"></i>
                                         </button>
                                     </div>
@@ -865,5 +1100,101 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
         </div>
     </div>
 </div>
+
+<!-- Modal Ajouter Groupe -->
+<div class="modal fade" id="addGroupeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="ajouter_groupe">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-collection me-2"></i>Nouveau groupe (volet)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nom du groupe *</label>
+                        <input type="text" class="form-control" name="nom" required placeholder="Ex: Chauffage, Climatisation...">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Code (optionnel)</label>
+                        <input type="text" class="form-control" name="code" placeholder="Ex: chauffage">
+                        <small class="text-muted">Laissez vide pour générer automatiquement</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-plus-lg me-1"></i>Créer le groupe
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modals Modifier/Supprimer Groupes -->
+<?php foreach ($groupes as $grp): ?>
+<div class="modal fade" id="editGroupeModal<?= $grp['id'] ?>" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="modifier_groupe">
+                <input type="hidden" name="id" value="<?= $grp['id'] ?>">
+                <div class="modal-header">
+                    <h5 class="modal-title">Modifier le groupe</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nom *</label>
+                        <input type="text" class="form-control" name="nom" value="<?= e($grp['nom']) ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Code</label>
+                        <input type="text" class="form-control" value="<?= e($grp['code']) ?>" disabled>
+                        <small class="text-muted">Le code ne peut pas être modifié</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<?php if ($grp['code'] !== 'autre'): ?>
+<div class="modal fade" id="deleteGroupeModal<?= $grp['id'] ?>" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">Supprimer le groupe</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le groupe <strong><?= e($grp['nom']) ?></strong>?</p>
+                <div class="alert alert-warning mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    Les catégories de ce groupe seront déplacées vers "Autre".
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" class="d-inline">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="supprimer_groupe">
+                    <input type="hidden" name="id" value="<?= $grp['id'] ?>">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+<?php endforeach; ?>
 
 <?php include '../../includes/footer.php'; ?>
