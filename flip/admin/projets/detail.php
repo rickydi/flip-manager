@@ -1737,20 +1737,20 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </button>
 
                         <!-- Quantité avec +/- -->
-                        <div class="input-group input-group-sm me-2" style="width: 110px;">
-                            <button type="button" class="btn btn-outline-secondary qte-minus" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
+                        <div class="input-group input-group-sm me-2" style="width: 85px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm qte-minus py-0 px-1" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
                                 <i class="bi bi-dash"></i>
                             </button>
                             <input type="number"
-                                   class="form-control text-center qte-input px-0"
+                                   class="form-control form-control-sm text-center qte-input px-0"
                                    name="postes[<?= $catId ?>][quantite]"
                                    value="<?= $quantite ?>"
                                    min="1"
                                    max="10"
                                    data-cat-id="<?= $catId ?>"
-                                   style="max-width: 40px;"
+                                   style="max-width: 35px;"
                                    <?= !$isImported ? 'disabled' : '' ?>>
-                            <button type="button" class="btn btn-outline-secondary qte-plus" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
+                            <button type="button" class="btn btn-outline-secondary btn-sm qte-plus py-0 px-1" data-cat-id="<?= $catId ?>" <?= !$isImported ? 'disabled' : '' ?>>
                                 <i class="bi bi-plus"></i>
                             </button>
                         </div>
