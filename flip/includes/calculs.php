@@ -646,27 +646,82 @@ function calculerTaxes($montantAvantTaxes) {
 }
 
 /**
- * Calcule le budget de rénovation complet avec contingence et taxes
+ * Calcule le budget de rénovation complet avec contingence et taxes (par item)
+ * Les items marqués sans_taxe ne sont pas taxés
  * @param PDO $pdo
  * @param int $projetId
  * @param float $tauxContingence
  * @return array
  */
 function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
-    $budgetHT = calculerTotalBudgetRenovation($pdo, $projetId);
-    $contingence = $budgetHT * ($tauxContingence / 100);
-    $sousTotalAvantTaxes = $budgetHT + $contingence;
+    // Charger les quantités de groupes pour ce projet
+    $groupeQtes = [];
+    try {
+        $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+        foreach ($stmt->fetchAll() as $row) {
+            $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas encore
+    }
 
-    $tps = $sousTotalAvantTaxes * 0.05; // 5%
-    $tvq = $sousTotalAvantTaxes * 0.09975; // 9.975%
-    $totalTTC = $sousTotalAvantTaxes + $tps + $tvq;
+    // Calculer les totaux taxables et non-taxables par item
+    $totalTaxable = 0;
+    $totalNonTaxable = 0;
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT pi.prix_unitaire, pi.quantite as qte_item, pi.sans_taxe,
+                   pp.quantite as qte_cat, c.groupe
+            FROM projet_items pi
+            JOIN projet_postes pp ON pi.projet_poste_id = pp.id
+            JOIN categories c ON pp.categorie_id = c.id
+            WHERE pi.projet_id = ?
+        ");
+        $stmt->execute([$projetId]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $prix = (float)$row['prix_unitaire'];
+            $qteItem = (int)$row['qte_item'];
+            $qteCat = (int)$row['qte_cat'];
+            $groupe = $row['groupe'] ?? 'autre';
+            $qteGroupe = $groupeQtes[$groupe] ?? 1;
+            $sansTaxe = (int)($row['sans_taxe'] ?? 0);
+
+            $montant = $prix * $qteItem * $qteCat * $qteGroupe;
+
+            if ($sansTaxe) {
+                $totalNonTaxable += $montant;
+            } else {
+                $totalTaxable += $montant;
+            }
+        }
+    } catch (Exception $e) {
+        // Fallback à l'ancienne méthode si erreur
+        $totalTaxable = calculerTotalBudgetRenovation($pdo, $projetId);
+    }
+
+    $budgetHT = $totalTaxable + $totalNonTaxable;
+    $contingence = $budgetHT * ($tauxContingence / 100);
+
+    // Contingence proportionnelle taxable
+    $contingenceTaxable = $budgetHT > 0 ? $contingence * ($totalTaxable / $budgetHT) : 0;
+
+    // Base taxable = items taxables + portion taxable de la contingence
+    $baseTaxable = $totalTaxable + $contingenceTaxable;
+    $tps = $baseTaxable * 0.05; // 5%
+    $tvq = $baseTaxable * 0.09975; // 9.975%
+    $totalAvecTaxes = $budgetHT + $contingence + $tps + $tvq;
 
     return [
         'budget_ht' => round($budgetHT, 2),
+        'total_taxable' => round($totalTaxable, 2),
+        'total_non_taxable' => round($totalNonTaxable, 2),
         'contingence' => round($contingence, 2),
-        'sous_total_avant_taxes' => round($sousTotalAvantTaxes, 2),
+        'sous_total_avant_taxes' => round($budgetHT + $contingence, 2),
         'tps' => round($tps, 2),
         'tvq' => round($tvq, 2),
-        'total_ttc' => round($totalTTC, 2)
+        'total_ttc' => round($totalAvecTaxes, 2)
     ];
 }

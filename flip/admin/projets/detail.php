@@ -35,6 +35,12 @@ try {
 
 try {
     $pdo->query("SELECT 1 FROM projet_items LIMIT 1");
+    // Vérifier si colonne sans_taxe existe
+    try {
+        $pdo->query("SELECT sans_taxe FROM projet_items LIMIT 1");
+    } catch (Exception $e2) {
+        $pdo->exec("ALTER TABLE projet_items ADD COLUMN sans_taxe TINYINT(1) DEFAULT 0");
+    }
 } catch (Exception $e) {
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS projet_items (
@@ -44,6 +50,7 @@ try {
             materiau_id INT NOT NULL,
             prix_unitaire DECIMAL(10,2) DEFAULT 0,
             quantite INT DEFAULT 1,
+            sans_taxe TINYINT(1) DEFAULT 0,
             FOREIGN KEY (projet_id) REFERENCES projets(id) ON DELETE CASCADE,
             FOREIGN KEY (projet_poste_id) REFERENCES projet_postes(id) ON DELETE CASCADE,
             FOREIGN KEY (materiau_id) REFERENCES materiaux(id) ON DELETE CASCADE
@@ -115,12 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                         if (!empty($itemData['checked'])) {
                             $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
                             $qteItem = max(1, (int)($itemData['qte'] ?? 1));
+                            $sansTaxe = !empty($itemData['sans_taxe']) ? 1 : 0;
 
                             $stmt = $pdo->prepare("
-                                INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite)
-                                VALUES (?, ?, ?, ?, ?)
+                                INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                                VALUES (?, ?, ?, ?, ?, ?)
                             ");
-                            $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem]);
+                            $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem, $sansTaxe]);
                         }
                     }
                 }
@@ -383,12 +391,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (!empty($itemData['checked'])) {
                                 $prixUnitaire = parseNumber($itemData['prix'] ?? '0');
                                 $qteItem = max(1, (int)($itemData['qte'] ?? 1));
+                                $sansTaxe = !empty($itemData['sans_taxe']) ? 1 : 0;
 
                                 $stmt = $pdo->prepare("
-                                    INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite)
-                                    VALUES (?, ?, ?, ?, ?)
+                                    INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                                    VALUES (?, ?, ?, ?, ?, ?)
                                 ");
-                                $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem]);
+                                $stmt->execute([$projetId, $posteId, $materiauId, $prixUnitaire, $qteItem, $sansTaxe]);
                             }
                         }
                     }
@@ -1459,19 +1468,50 @@ include '../../includes/header.php';
     <div class="tab-pane fade <?= $tab === 'budgets' ? 'show active' : '' ?>" id="budgets" role="tabpanel">
     <?php
     // Calculer le total depuis les postes existants (avec quantité de groupe)
+    // et séparer les montants taxables des non-taxables
     $totalBudgetTab = 0;
+    $totalTaxable = 0;
+    $totalNonTaxable = 0;
+
     foreach ($projetPostes as $categorieId => $poste) {
-        $budgetPoste = (float)$poste['budget_extrapole'];
         // Trouver le groupe de cette catégorie
         $groupePoste = $templatesBudgets[$categorieId]['groupe'] ?? 'autre';
         $qteGroupe = $projetGroupes[$groupePoste] ?? 1;
-        $totalBudgetTab += $budgetPoste * $qteGroupe;
+        $qteCat = (int)$poste['quantite'];
+
+        // Calculer par item pour séparer taxable/non-taxable
+        if (isset($templatesBudgets[$categorieId]['sous_categories'])) {
+            foreach ($templatesBudgets[$categorieId]['sous_categories'] as $sc) {
+                foreach ($sc['materiaux'] as $mat) {
+                    if (isset($projetItems[$categorieId][$mat['id']])) {
+                        $item = $projetItems[$categorieId][$mat['id']];
+                        $prixItem = (float)$item['prix_unitaire'];
+                        $qteItem = (int)($item['quantite'] ?? 1);
+                        $sansTaxe = (int)($item['sans_taxe'] ?? 0);
+                        $montantItem = $prixItem * $qteItem * $qteCat * $qteGroupe;
+
+                        if ($sansTaxe) {
+                            $totalNonTaxable += $montantItem;
+                        } else {
+                            $totalTaxable += $montantItem;
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    $totalBudgetTab = $totalTaxable + $totalNonTaxable;
     $contingenceTab = $totalBudgetTab * ((float)$projet['taux_contingence'] / 100);
-    $sousTotalAvantTaxes = $totalBudgetTab + $contingenceTab;
-    $tpsTab = $sousTotalAvantTaxes * 0.05;
-    $tvqTab = $sousTotalAvantTaxes * 0.09975;
-    $grandTotalTab = $sousTotalAvantTaxes + $tpsTab + $tvqTab;
+
+    // Contingence proportionnelle taxable
+    $contingenceTaxable = $totalBudgetTab > 0 ? $contingenceTab * ($totalTaxable / $totalBudgetTab) : 0;
+
+    // Base taxable = items taxables + portion taxable de la contingence
+    $baseTaxable = $totalTaxable + $contingenceTaxable;
+    $tpsTab = $baseTaxable * 0.05;
+    $tvqTab = $baseTaxable * 0.09975;
+    $grandTotalTab = $totalBudgetTab + $contingenceTab + $tpsTab + $tvqTab;
     ?>
 
     <!-- TOTAL EN HAUT - STICKY -->
@@ -1499,7 +1539,7 @@ include '../../includes/header.php';
                         <h6 class="mb-0" id="totalTVQ"><?= formatMoney($tvqTab) ?></h6>
                     </div>
                     <div class="text-end border-start ps-3">
-                        <small class="opacity-75">Grand Total TTC</small>
+                        <small class="opacity-75">Total avec taxes</small>
                         <h4 class="mb-0" id="grandTotal"><?= formatMoney($grandTotalTab) ?></h4>
                     </div>
                 </div>
@@ -1648,9 +1688,10 @@ include '../../includes/header.php';
                                                 $isChecked = isset($projetItems[$catId][$mat['id']]);
                                                 $prixItem = $isChecked ? (float)$projetItems[$catId][$mat['id']]['prix_unitaire'] : $mat['prix_defaut'];
                                                 $qteItem = $isChecked ? (int)$projetItems[$catId][$mat['id']]['quantite'] : ($mat['quantite_defaut'] ?? 1);
+                                                $sansTaxe = $isChecked ? (int)($projetItems[$catId][$mat['id']]['sans_taxe'] ?? 0) : 0;
                                                 $totalItem = $prixItem * $qteItem * $quantite; // Inclure quantité catégorie
                                             ?>
-                                                <div class="d-flex align-items-center mb-1 item-row" data-cat-id="<?= $catId ?>">
+                                                <div class="d-flex align-items-center mb-1 item-row" data-cat-id="<?= $catId ?>" data-sans-taxe="<?= $sansTaxe ?>">
                                                     <div class="form-check me-2">
                                                         <input type="checkbox"
                                                                class="form-check-input item-checkbox"
@@ -1661,6 +1702,10 @@ include '../../includes/header.php';
                                                                data-prix="<?= $mat['prix_defaut'] ?>"
                                                                data-qte="<?= $mat['quantite_defaut'] ?? 1 ?>">
                                                     </div>
+                                                    <button type="button" class="btn btn-sm py-0 px-1 me-1 item-sans-taxe <?= $sansTaxe ? 'btn-danger' : 'btn-outline-secondary' ?>" title="Sans taxe" data-cat-id="<?= $catId ?>" data-mat-id="<?= $mat['id'] ?>">
+                                                        <i class="bi bi-percent"></i>
+                                                    </button>
+                                                    <input type="hidden" class="item-sans-taxe-input" name="items[<?= $catId ?>][<?= $mat['id'] ?>][sans_taxe]" value="<?= $sansTaxe ?>">
                                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
                                                     <div class="input-group input-group-sm me-1" style="width: 85px;">
                                                         <button type="button" class="btn btn-outline-secondary btn-sm item-qte-minus py-0 px-1" data-cat-id="<?= $catId ?>">
@@ -1799,33 +1844,58 @@ include '../../includes/header.php';
         // CALCULS
         // ========================================
         function updateTotals() {
-            let grandTotal = 0;
+            let totalTaxable = 0;
+            let totalNonTaxable = 0;
 
-            document.querySelectorAll('.poste-checkbox:checked').forEach(checkbox => {
-                const catId = checkbox.dataset.catId;
-                const groupe = checkbox.dataset.groupe;
-                const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+            // Parcourir tous les items cochés pour séparer taxable/non-taxable
+            document.querySelectorAll('.item-checkbox:checked').forEach(itemCheckbox => {
+                const row = itemCheckbox.closest('.item-row');
+                const catId = itemCheckbox.dataset.catId;
+                const prixInput = row.querySelector('.item-prix');
+                const qteInput = row.querySelector('.item-qte');
+                const sansTaxeInput = row.querySelector('.item-sans-taxe-input');
+
+                // Trouver la quantité de la catégorie
+                const qteCatInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                const qteCat = qteCatInput ? parseInt(qteCatInput.value) || 1 : 1;
+
+                // Trouver la quantité du groupe
+                const posteCheckbox = document.querySelector(`.poste-checkbox[data-cat-id="${catId}"]`);
+                const groupe = posteCheckbox ? posteCheckbox.dataset.groupe : 'autre';
                 const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
                 const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-                if (budgetInput) {
-                    grandTotal += parseValue(budgetInput.value) * qteGroupe;
+                if (prixInput && qteInput) {
+                    const prix = parseValue(prixInput.value);
+                    const qte = parseInt(qteInput.value) || 1;
+                    const sansTaxe = sansTaxeInput ? parseInt(sansTaxeInput.value) || 0 : 0;
+                    const montant = prix * qte * qteCat * qteGroupe;
+
+                    if (sansTaxe) {
+                        totalNonTaxable += montant;
+                    } else {
+                        totalTaxable += montant;
+                    }
                 }
             });
 
+            const grandTotal = totalTaxable + totalNonTaxable;
             const contingence = grandTotal * (tauxContingence / 100);
-            const sousTotalAvantTaxes = grandTotal + contingence;
 
-            // Taxes TPS (5%) et TVQ (9.975%)
-            const tps = sousTotalAvantTaxes * 0.05;
-            const tvq = sousTotalAvantTaxes * 0.09975;
-            const totalTTC = sousTotalAvantTaxes + tps + tvq;
+            // Contingence proportionnelle taxable
+            const contingenceTaxable = grandTotal > 0 ? contingence * (totalTaxable / grandTotal) : 0;
+
+            // Base taxable = items taxables + portion taxable de la contingence
+            const baseTaxable = totalTaxable + contingenceTaxable;
+            const tps = baseTaxable * 0.05;
+            const tvq = baseTaxable * 0.09975;
+            const totalAvecTaxes = grandTotal + contingence + tps + tvq;
 
             document.getElementById('totalBudget').textContent = formatMoney(grandTotal) + ' $';
             document.getElementById('totalContingence').textContent = formatMoney(contingence) + ' $';
             document.getElementById('totalTPS').textContent = formatMoney(tps) + ' $';
             document.getElementById('totalTVQ').textContent = formatMoney(tvq) + ' $';
-            document.getElementById('grandTotal').textContent = formatMoney(totalTTC) + ' $';
+            document.getElementById('grandTotal').textContent = formatMoney(totalAvecTaxes) + ' $';
         }
 
         function updateItemTotal(row) {
@@ -1939,6 +2009,40 @@ include '../../includes/header.php';
                     input.value = val + 1;
                     updateItemTotal(row);
                     updateCategoryTotal(this.dataset.catId);
+                    autoSave();
+                }
+            });
+        });
+
+        // ========================================
+        // BOUTONS SANS TAXE
+        // ========================================
+        document.querySelectorAll('.item-sans-taxe').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('.item-row');
+                const input = row.querySelector('.item-sans-taxe-input');
+                const catId = this.dataset.catId;
+
+                if (input) {
+                    // Toggle la valeur
+                    const currentVal = parseInt(input.value) || 0;
+                    const newVal = currentVal ? 0 : 1;
+                    input.value = newVal;
+
+                    // Toggle le style du bouton
+                    if (newVal) {
+                        this.classList.remove('btn-outline-secondary');
+                        this.classList.add('btn-danger');
+                    } else {
+                        this.classList.remove('btn-danger');
+                        this.classList.add('btn-outline-secondary');
+                    }
+
+                    // Mettre à jour le data attribute
+                    row.dataset.sansTaxe = newVal;
+
+                    // Recalculer les totaux
+                    updateCategoryTotal(catId);
                     autoSave();
                 }
             });
