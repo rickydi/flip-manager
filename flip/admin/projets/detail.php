@@ -236,6 +236,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Supprimer tous les postes existants (et leurs items en cascade)
             $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?")->execute([$projetId]);
+            // Supprimer aussi les budgets pour éviter les données obsolètes
+            $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
 
             // Réinsérer les postes cochés
             foreach ($postes as $categorieId => $data) {
