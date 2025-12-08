@@ -117,16 +117,48 @@ function calculerCoutsVente($projet) {
 }
 
 /**
- * Calcule le total des budgets de rénovation extrapolés
+ * Calcule le total des budgets de rénovation extrapolés (avec quantités de groupes)
  * @param PDO $pdo
  * @param int $projetId
  * @return float
  */
 function calculerTotalBudgetRenovation($pdo, $projetId) {
-    $stmt = $pdo->prepare("SELECT SUM(montant_extrapole) as total FROM budgets WHERE projet_id = ?");
-    $stmt->execute([$projetId]);
-    $result = $stmt->fetch();
-    return (float) ($result['total'] ?? 0);
+    // Charger les quantités de groupes pour ce projet
+    $groupeQtes = [];
+    try {
+        $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+        foreach ($stmt->fetchAll() as $row) {
+            $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas encore
+    }
+
+    // Calculer le total avec multiplication par quantité de groupe
+    $total = 0;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT b.montant_extrapole, c.groupe
+            FROM budgets b
+            JOIN categories c ON b.categorie_id = c.id
+            WHERE b.projet_id = ?
+        ");
+        $stmt->execute([$projetId]);
+        foreach ($stmt->fetchAll() as $row) {
+            $groupe = $row['groupe'] ?? 'autre';
+            $qteGroupe = $groupeQtes[$groupe] ?? 1;
+            $total += (float)$row['montant_extrapole'] * $qteGroupe;
+        }
+    } catch (Exception $e) {
+        // Fallback à l'ancienne méthode si erreur
+        $stmt = $pdo->prepare("SELECT SUM(montant_extrapole) as total FROM budgets WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+        $result = $stmt->fetch();
+        $total = (float) ($result['total'] ?? 0);
+    }
+
+    return $total;
 }
 
 /**
