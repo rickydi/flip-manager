@@ -675,8 +675,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         </div>
     </div>
 
-    <!-- Onglets de navigation -->
-    <ul class="nav nav-tabs mb-3" id="projetTabs" role="tablist">
+    <!-- Onglets de navigation - sticky -->
+    <ul class="nav nav-tabs mb-3 sticky-top bg-white pt-2" id="projetTabs" role="tablist" style="top: 0; z-index: 1020;">
         <li class="nav-item" role="presentation">
             <button class="nav-link <?= $tab === 'base' ? 'active' : '' ?>" id="base-tab" data-bs-toggle="tab" data-bs-target="#base" type="button" role="tab">
                 <i class="bi bi-house-door me-1"></i>Base
