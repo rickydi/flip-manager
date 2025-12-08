@@ -654,10 +654,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         position: sticky;
         top: 0;
         z-index: 1020;
-        background: white;
+        background: #f8f9fa;
         padding-bottom: 0.5rem;
         margin-bottom: 0.5rem;
-        border-bottom: 1px solid #dee2e6;
     }
 }
 </style>
