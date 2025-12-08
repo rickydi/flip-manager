@@ -1896,7 +1896,26 @@ include '../../includes/header.php';
         // ========================================
         document.querySelectorAll('.item-checkbox').forEach(checkbox => {
             checkbox.addEventListener('change', function() {
-                updateCategoryTotal(this.dataset.catId);
+                const catId = this.dataset.catId;
+
+                // Si on coche un item, cocher automatiquement la catégorie
+                if (this.checked) {
+                    const posteCheckbox = document.getElementById('poste_' + catId);
+                    if (posteCheckbox && !posteCheckbox.checked) {
+                        posteCheckbox.checked = true;
+                        // Activer les inputs de la catégorie
+                        const qteInput = document.querySelector(`.qte-input[data-cat-id="${catId}"]`);
+                        const budgetInput = document.querySelector(`.budget-extrapole[data-cat-id="${catId}"]`);
+                        const minusBtn = document.querySelector(`.qte-minus[data-cat-id="${catId}"]`);
+                        const plusBtn = document.querySelector(`.qte-plus[data-cat-id="${catId}"]`);
+                        if (qteInput) qteInput.disabled = false;
+                        if (budgetInput) budgetInput.disabled = false;
+                        if (minusBtn) minusBtn.disabled = false;
+                        if (plusBtn) plusBtn.disabled = false;
+                    }
+                }
+
+                updateCategoryTotal(catId);
                 autoSave();
             });
         });
