@@ -115,7 +115,9 @@ include '../../includes/header.php';
                         <th style="width: 10%;">Délai</th>
                         <th style="width: 10%;">Caractéristiques</th>
                         <th style="width: 15%;">État (Note IA)</th>
-                        <th style="width: 10%;">Ajustement</th>
+                        <th style="width: 10%;" title="Montant ajouté ou soustrait au prix vendu pour équivaloir à votre projet (ex: -20k car il a un garage et vous non)">
+                            Ajustement <i class="bi bi-info-circle text-muted small"></i>
+                        </th>
                         <th style="width: 15%;">Commentaire</th>
                     </tr>
                 </thead>
