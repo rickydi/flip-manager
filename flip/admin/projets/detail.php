@@ -3104,7 +3104,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <div class="tab-pane fade <?= $tab === 'photos' ? 'show active' : '' ?>" id="photos" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0"><i class="bi bi-camera me-2"></i>Photos du projet</h5>
-            <span class="badge bg-primary"><?= count($photosProjet) ?> photos</span>
+            <span class="badge bg-primary" id="photosCount"><?= count($photosProjet) ?> photos</span>
         </div>
 
         <?php if (empty($photosProjet)): ?>
@@ -3112,13 +3112,45 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet.
             </div>
         <?php else: ?>
-            <div class="row g-2">
+            <?php
+            // Extraire les employés et catégories uniques pour les filtres
+            $photosEmployes = array_unique(array_column($photosProjet, 'employe_nom'));
+            $photosCategories = array_unique(array_filter(array_column($photosProjet, 'description')));
+            sort($photosEmployes);
+            sort($photosCategories);
+            ?>
+            <!-- Filtres Photos -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm" id="filtrePhotosEmploye" onchange="filtrerPhotos()">
+                        <option value="">Tous les employés</option>
+                        <?php foreach ($photosEmployes as $emp): ?>
+                            <option value="<?= e($emp) ?>"><?= e($emp) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm" id="filtrePhotosCategorie" onchange="filtrerPhotos()">
+                        <option value="">Toutes les catégories</option>
+                        <?php foreach ($photosCategories as $cat): ?>
+                            <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetFiltresPhotos()">
+                        <i class="bi bi-x-circle me-1"></i>Reset
+                    </button>
+                </div>
+            </div>
+
+            <div class="row g-2" id="photosGrid">
                 <?php foreach ($photosProjet as $photo):
                     $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
                     $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                     $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
                 ?>
-                <div class="col-6 col-md-3 col-lg-2">
+                <div class="col-6 col-md-3 col-lg-2 photo-item" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>">
                     <div class="position-relative">
                         <a href="<?= $mediaUrl ?>" target="_blank" class="d-block">
                             <?php if ($isVideo): ?>
@@ -3151,7 +3183,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Factures</h5>
             <div>
-                <span class="badge bg-primary me-2"><?= count($facturesProjet) ?> factures</span>
+                <span class="badge bg-primary me-2" id="facturesCount"><?= count($facturesProjet) ?> factures</span>
                 <a href="<?= url('/admin/factures/nouvelle.php?projet=' . $projetId) ?>" class="btn btn-success btn-sm">
                     <i class="bi bi-plus"></i> Nouvelle
                 </a>
@@ -3165,18 +3197,46 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <?php else: ?>
             <?php
             $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
+            // Extraire les catégories uniques pour le filtre
+            $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'categorie_nom')));
+            sort($facturesCategories);
             ?>
             <div class="row g-2 mb-3">
                 <div class="col-6 col-md-3">
                     <div class="card text-center p-2 bg-danger bg-opacity-10">
                         <small class="text-muted">Total factures</small>
-                        <strong class="fs-5 text-danger"><?= formatMoney($totalFacturesTab) ?></strong>
+                        <strong class="fs-5 text-danger" id="facturesTotal"><?= formatMoney($totalFacturesTab) ?></strong>
                     </div>
                 </div>
             </div>
 
+            <!-- Filtres Factures -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filtreFacturesStatut" onchange="filtrerFactures()">
+                        <option value="">Tous les statuts</option>
+                        <option value="en_attente">En attente</option>
+                        <option value="approuvee">Approuvée</option>
+                        <option value="rejetee">Rejetée</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="filtreFacturesCategorie" onchange="filtrerFactures()">
+                        <option value="">Toutes les catégories</option>
+                        <?php foreach ($facturesCategories as $cat): ?>
+                            <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetFiltresFactures()">
+                        <i class="bi bi-x-circle me-1"></i>Reset
+                    </button>
+                </div>
+            </div>
+
             <div class="table-responsive">
-                <table class="table table-sm table-hover">
+                <table class="table table-sm table-hover" id="facturesTable">
                     <thead class="table-dark">
                         <tr>
                             <th>Date</th>
@@ -3189,7 +3249,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr>
+                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['categorie_nom'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>">
                             <td><?= formatDate($f['date_facture']) ?></td>
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
                             <td><?= e($f['categorie_nom'] ?? 'N/A') ?></td>
@@ -3640,5 +3700,74 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         autoSaveBase();
     });
 })();
+</script>
+
+<!-- Filtres Photos et Factures -->
+<script>
+// Filtrage des photos
+function filtrerPhotos() {
+    const employe = document.getElementById('filtrePhotosEmploye').value;
+    const categorie = document.getElementById('filtrePhotosCategorie').value;
+    const photos = document.querySelectorAll('.photo-item');
+    let count = 0;
+
+    photos.forEach(photo => {
+        const photoEmploye = photo.dataset.employe;
+        const photoCategorie = photo.dataset.categorie;
+
+        const matchEmploye = !employe || photoEmploye === employe;
+        const matchCategorie = !categorie || photoCategorie === categorie;
+
+        if (matchEmploye && matchCategorie) {
+            photo.style.display = '';
+            count++;
+        } else {
+            photo.style.display = 'none';
+        }
+    });
+
+    document.getElementById('photosCount').textContent = count + ' photos';
+}
+
+function resetFiltresPhotos() {
+    document.getElementById('filtrePhotosEmploye').value = '';
+    document.getElementById('filtrePhotosCategorie').value = '';
+    filtrerPhotos();
+}
+
+// Filtrage des factures
+function filtrerFactures() {
+    const statut = document.getElementById('filtreFacturesStatut').value;
+    const categorie = document.getElementById('filtreFacturesCategorie').value;
+    const factures = document.querySelectorAll('.facture-row');
+    let count = 0;
+    let total = 0;
+
+    factures.forEach(row => {
+        const rowStatut = row.dataset.statut;
+        const rowCategorie = row.dataset.categorie;
+        const rowMontant = parseFloat(row.dataset.montant) || 0;
+
+        const matchStatut = !statut || rowStatut === statut;
+        const matchCategorie = !categorie || rowCategorie === categorie;
+
+        if (matchStatut && matchCategorie) {
+            row.style.display = '';
+            count++;
+            total += rowMontant;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    document.getElementById('facturesCount').textContent = count + ' factures';
+    document.getElementById('facturesTotal').textContent = total.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+}
+
+function resetFiltresFactures() {
+    document.getElementById('filtreFacturesStatut').value = '';
+    document.getElementById('filtreFacturesCategorie').value = '';
+    filtrerFactures();
+}
 </script>
 <?php include '../../includes/footer.php'; ?>
