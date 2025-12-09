@@ -103,7 +103,7 @@ class ClaudeService {
 
         $payload = [
             'model' => $this->model,
-            'max_tokens' => 4096,
+            'max_tokens' => 8192,  // Augmenté pour les longues analyses
             'messages' => [
                 [
                     'role' => 'user',
@@ -144,9 +144,15 @@ class ClaudeService {
 
         $data = json_decode($response, true);
         $content = $data['content'][0]['text'] ?? '';
+        $stopReason = $data['stop_reason'] ?? '';
 
         // Log pour debug (à commenter en production)
         // file_put_contents(__DIR__ . '/../uploads/debug_claude_response.txt', $content);
+
+        // Vérifier si la réponse a été tronquée
+        if ($stopReason === 'max_tokens') {
+            throw new Exception("La réponse de l'IA a été tronquée (trop de données). Essayez avec moins de comparables dans le PDF.");
+        }
 
         // Nettoyer la réponse
         $cleanContent = $content;
