@@ -153,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $statut = $_POST['statut'] ?? 'acquisition';
 
         $prixAchat = parseNumber($_POST['prix_achat'] ?? 0);
+        $roleEvaluation = parseNumber($_POST['role_evaluation'] ?? 0);
         $cession = parseNumber($_POST['cession'] ?? 0);
         $notaire = parseNumber($_POST['notaire'] ?? 0);
         $taxeMutation = parseNumber($_POST['taxe_mutation'] ?? 0);
@@ -183,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             UPDATE projets SET
                 nom = ?, adresse = ?, ville = ?, code_postal = ?,
                 date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
-                statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
+                statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                 arpenteurs = ?, assurance_titre = ?,
                 temps_assume_mois = ?, valeur_potentielle = ?,
                 taux_commission = ?, taux_contingence = ?,
@@ -194,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $stmt->execute([
             $nom, $adresse, $ville, $codePostal,
             $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
-            $statut, $prixAchat, $cession, $notaire, $taxeMutation, $quittance,
+            $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
             $arpenteurs, $assuranceTitre,
             $tempsAssumeMois, $valeurPotentielle,
             $tauxCommission, $tauxContingence,
@@ -424,6 +425,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statut = $_POST['statut'] ?? 'acquisition';
 
             $prixAchat = parseNumber($_POST['prix_achat'] ?? 0);
+            $roleEvaluation = parseNumber($_POST['role_evaluation'] ?? 0);
             $cession = parseNumber($_POST['cession'] ?? 0);
             $notaire = parseNumber($_POST['notaire'] ?? 0);
             $taxeMutation = parseNumber($_POST['taxe_mutation'] ?? 0);
@@ -459,7 +461,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UPDATE projets SET
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
                         date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
-                        statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
+                        statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                         arpenteurs = ?, assurance_titre = ?,
                         taxes_municipales_annuel = ?, taxes_scolaires_annuel = ?,
                         electricite_annuel = ?, assurances_annuel = ?,
@@ -474,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([
                     $nom, $adresse, $ville, $codePostal,
                     $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
-                    $statut, $prixAchat, $cession, $notaire, $taxeMutation, $quittance,
+                    $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
                     $arpenteurs, $assuranceTitre,
                     $taxesMunicipalesAnnuel, $taxesScolairesAnnuel,
                     $electriciteAnnuel, $assurancesAnnuel,
@@ -1337,19 +1339,25 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <div class="card-header"><i class="bi bi-currency-dollar me-1"></i>Achat</div>
                     <div class="card-body">
                         <div class="row g-2">
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Prix achat</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="prix_achat" id="prix_achat" value="<?= formatMoney($projet['prix_achat'], false) ?>" onchange="calculerTaxeMutation()">
                                 </div>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
+                                <label class="form-label">Rôle éval.</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="role_evaluation" id="role_evaluation" value="<?= formatMoney($projet['role_evaluation'] ?? 0, false) ?>" onchange="calculerTaxeMutation()">
+                                </div>
+                            </div>
+                            <div class="col-3">
                                 <label class="form-label">Valeur pot.</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="valeur_potentielle" value="<?= formatMoney($projet['valeur_potentielle'], false) ?>">
                                 </div>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Durée (mois)</label>
                                 <input type="number" class="form-control bg-light" name="temps_assume_mois" id="duree_mois" value="<?= (int)$projet['temps_assume_mois'] ?>" readonly title="Calculé automatiquement: Date vente (ou fin travaux) - Date achat">
                             </div>
@@ -4015,18 +4023,26 @@ function calculerDuree() {
 }
 
 // Calcul automatique de la taxe de mutation (droits de mutation - "taxe de bienvenue")
+// Basé sur le MAX entre prix d'achat et rôle d'évaluation municipale
 // Taux standards du Québec (peuvent varier selon la municipalité pour la dernière tranche)
 function calculerTaxeMutation(triggerSave = false) {
     const prixAchatInput = document.getElementById('prix_achat');
+    const roleEvalInput = document.getElementById('role_evaluation');
     const taxeMutationInput = document.getElementById('taxe_mutation');
 
     if (!prixAchatInput || !taxeMutationInput) return;
 
-    // Parser le prix (enlever espaces et symboles)
+    // Parser les valeurs (enlever espaces et symboles)
     const prixStr = prixAchatInput.value.replace(/[^0-9.,]/g, '').replace(',', '.');
     const prixAchat = parseFloat(prixStr) || 0;
 
-    if (prixAchat <= 0) {
+    const roleStr = roleEvalInput ? roleEvalInput.value.replace(/[^0-9.,]/g, '').replace(',', '.') : '0';
+    const roleEval = parseFloat(roleStr) || 0;
+
+    // Prendre le maximum entre prix d'achat et rôle d'évaluation
+    const baseCalcul = Math.max(prixAchat, roleEval);
+
+    if (baseCalcul <= 0) {
         taxeMutationInput.value = '0';
         return;
     }
@@ -4039,24 +4055,24 @@ function calculerTaxeMutation(triggerSave = false) {
     let taxe = 0;
 
     // Tranche 1: 0 à 58 900$
-    const tranche1 = Math.min(prixAchat, 58900);
+    const tranche1 = Math.min(baseCalcul, 58900);
     taxe += tranche1 * 0.005;
 
     // Tranche 2: 58 900$ à 294 600$
-    if (prixAchat > 58900) {
-        const tranche2 = Math.min(prixAchat, 294600) - 58900;
+    if (baseCalcul > 58900) {
+        const tranche2 = Math.min(baseCalcul, 294600) - 58900;
         taxe += tranche2 * 0.01;
     }
 
     // Tranche 3: 294 600$ à 500 000$
-    if (prixAchat > 294600) {
-        const tranche3 = Math.min(prixAchat, 500000) - 294600;
+    if (baseCalcul > 294600) {
+        const tranche3 = Math.min(baseCalcul, 500000) - 294600;
         taxe += tranche3 * 0.015;
     }
 
     // Tranche 4: 500 000$ et plus
-    if (prixAchat > 500000) {
-        const tranche4 = prixAchat - 500000;
+    if (baseCalcul > 500000) {
+        const tranche4 = baseCalcul - 500000;
         taxe += tranche4 * 0.03;
     }
 
