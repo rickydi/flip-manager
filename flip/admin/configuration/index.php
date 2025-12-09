@@ -163,26 +163,20 @@ include '../../includes/header.php';
                                         <?php elseif ($conf['cle'] === 'CLAUDE_MODEL'): 
                                             $knownModels = [
                                                 'claude-3-5-sonnet-20241022',
-                                                'claude-3-opus-20240229',
-                                                'claude-3-sonnet-20240229',
-                                                'claude-3-haiku-20240307',
                                                 'claude-3-5-haiku-20241022',
-                                                'claude-3-7-sonnet-20250219' // Exemple prédictif si l'utilisateur insiste
+                                                'claude-3-opus-20240229',
+                                                'anthropic/claude-opus-4.5',
+                                                'anthropic/claude-sonnet-4.5'
                                             ];
-                                            // Ne pas forcer 'custom' si la valeur est connue, même si je ne l'ai pas listée ci-dessus dans $knownModels pour l'affichage PHP simple
-                                            // Ici on simplifie : si la valeur n'est pas dans les options ci-dessous, c'est custom.
-                                            $isCustom = !in_array($conf['valeur'], [
-                                                'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307',
-                                                'claude-3-5-haiku-20241022'
-                                            ]);
+                                            $isCustom = !in_array($conf['valeur'], $knownModels);
                                         ?>
                                             <select class="form-select" onchange="updateModelInput(this)">
-                                                <option value="claude-3-5-sonnet-20241022" <?= $conf['valeur'] == 'claude-3-5-sonnet-20241022' ? 'selected' : '' ?>>Claude 3.5 Sonnet (Recommandé)</option>
+                                                <option value="anthropic/claude-opus-4.5" <?= $conf['valeur'] == 'anthropic/claude-opus-4.5' ? 'selected' : '' ?>>Claude Opus 4.5</option>
+                                                <option value="anthropic/claude-sonnet-4.5" <?= $conf['valeur'] == 'anthropic/claude-sonnet-4.5' ? 'selected' : '' ?>>Claude Sonnet 4.5</option>
+                                                <option value="claude-3-5-sonnet-20241022" <?= $conf['valeur'] == 'claude-3-5-sonnet-20241022' ? 'selected' : '' ?>>Claude 3.5 Sonnet (Standard)</option>
                                                 <option value="claude-3-5-haiku-20241022" <?= $conf['valeur'] == 'claude-3-5-haiku-20241022' ? 'selected' : '' ?>>Claude 3.5 Haiku</option>
                                                 <option value="claude-3-opus-20240229" <?= $conf['valeur'] == 'claude-3-opus-20240229' ? 'selected' : '' ?>>Claude 3 Opus</option>
-                                                <option value="claude-3-sonnet-20240229" <?= $conf['valeur'] == 'claude-3-sonnet-20240229' ? 'selected' : '' ?>>Claude 3 Sonnet</option>
-                                                <option value="claude-3-haiku-20240307" <?= $conf['valeur'] == 'claude-3-haiku-20240307' ? 'selected' : '' ?>>Claude 3 Haiku</option>
-                                                <option value="custom" <?= $isCustom ? 'selected' : '' ?>>Autre / Futur modèle (ex: Claude 4.5)</option>
+                                                <option value="custom" <?= $isCustom ? 'selected' : '' ?>>Autre (Saisir manuellement)</option>
                                             </select>
                                         </div>
                                         
