@@ -917,35 +917,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     mkdir($destDir, 0777, true);
                 }
 
+                // Upload du fichier (HEIC est converti côté client en JPEG)
                 $uploadSuccess = false;
-
-                if (in_array($extension, ['heic', 'heif'])) {
-                    // Convertir HEIC/HEIF en JPEG avec heif-convert
-                    $tempHeic = $file['tmp_name'];
-
-                    // Vérifier que le fichier temp existe
-                    if (!file_exists($tempHeic)) {
-                        $errors[] = "HEIC: fichier temporaire introuvable";
-                    } else {
-                        // Utiliser le chemin complet de heif-convert
-                        $cmd = sprintf('/usr/bin/heif-convert -q 90 %s %s 2>&1', escapeshellarg($tempHeic), escapeshellarg($destination));
-                        $output = [];
-                        $returnCode = -1;
-                        exec($cmd, $output, $returnCode);
-
-                        if ($returnCode === 0 && file_exists($destination)) {
-                            $uploadSuccess = true;
-                        } else {
-                            $errors[] = "HEIC conversion (code $returnCode): " . implode(' ', $output);
-                        }
-                    }
+                if (move_uploaded_file($file['tmp_name'], $destination) || copy($file['tmp_name'], $destination)) {
+                    $uploadSuccess = true;
                 } else {
-                    // Upload normal
-                    if (move_uploaded_file($file['tmp_name'], $destination) || copy($file['tmp_name'], $destination)) {
-                        $uploadSuccess = true;
-                    } else {
-                        $errors[] = "Échec upload: " . ($file['name'] ?? 'fichier');
-                    }
+                    $errors[] = "Échec upload: " . ($file['name'] ?? 'fichier');
                 }
 
                 if ($uploadSuccess) {
@@ -4039,46 +4016,84 @@ function resetFiltresFactures() {
     filtrerFactures();
 }
 
-// Prévisualisation des photos dans le modal admin
-function previewAdminPhotos(input) {
+// Variable pour stocker les fichiers convertis
+let adminConvertedFiles = [];
+
+// Prévisualisation des photos dans le modal admin (avec conversion HEIC)
+async function previewAdminPhotos(input) {
     const preview = document.getElementById('adminPhotoPreview');
     const photoCount = document.getElementById('adminPhotoCount');
     const photoCountText = document.getElementById('adminPhotoCountText');
     const submitBtn = document.getElementById('adminSubmitBtn');
 
-    if (input.files && input.files.length > 0) {
-        preview.innerHTML = '';
-        preview.style.display = 'flex';
+    if (!input.files || input.files.length === 0) return;
 
-        for (let file of input.files) {
+    preview.innerHTML = '<div class="col-12 text-center"><i class="bi bi-hourglass-split"></i> Traitement...</div>';
+    preview.style.display = 'flex';
+    submitBtn.style.display = 'none';
+    adminConvertedFiles = [];
+
+    const processedFiles = [];
+
+    for (let file of input.files) {
+        const fileName = file.name.toLowerCase();
+        const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+
+        if (isHeic && typeof heic2any !== 'undefined') {
+            try {
+                // Convertir HEIC en JPEG
+                const convertedBlob = await heic2any({
+                    blob: file,
+                    toType: 'image/jpeg',
+                    quality: 0.9
+                });
+                const convertedFile = new File(
+                    [convertedBlob],
+                    file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'),
+                    { type: 'image/jpeg' }
+                );
+                processedFiles.push(convertedFile);
+            } catch (err) {
+                console.error('Erreur conversion HEIC:', err);
+                processedFiles.push(file); // Garder l'original si échec
+            }
+        } else {
+            processedFiles.push(file);
+        }
+    }
+
+    // Créer un nouveau FileList avec les fichiers convertis
+    const dt = new DataTransfer();
+    processedFiles.forEach(f => dt.items.add(f));
+    input.files = dt.files;
+    adminConvertedFiles = processedFiles;
+
+    // Afficher les previews
+    preview.innerHTML = '';
+    for (let file of processedFiles) {
+        const col = document.createElement('div');
+        col.className = 'col-4';
+
+        const isVideo = file.type.startsWith('video/');
+        if (isVideo) {
+            col.innerHTML = `
+                <div class="rounded" style="width:100%;height:80px;background:#1a1d21;display:flex;align-items:center;justify-content:center;">
+                    <i class="bi bi-play-circle text-white" style="font-size:2rem;"></i>
+                </div>
+            `;
+        } else {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const col = document.createElement('div');
-                col.className = 'col-4';
-
-                // Vérifier si c'est une vidéo
-                const isVideo = file.type.startsWith('video/');
-                if (isVideo) {
-                    col.innerHTML = `
-                        <div class="rounded" style="width:100%;height:80px;background:#1a1d21;display:flex;align-items:center;justify-content:center;">
-                            <i class="bi bi-play-circle text-white" style="font-size:2rem;"></i>
-                        </div>
-                    `;
-                } else {
-                    col.innerHTML = `
-                        <img src="${e.target.result}" class="img-fluid rounded"
-                             style="width:100%;height:80px;object-fit:cover;">
-                    `;
-                }
-                preview.appendChild(col);
+                col.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded" style="width:100%;height:80px;object-fit:cover;">`;
             };
             reader.readAsDataURL(file);
         }
-
-        photoCount.style.display = 'block';
-        photoCountText.textContent = input.files.length + ' fichier(s) sélectionné(s)';
-        submitBtn.style.display = 'inline-block';
+        preview.appendChild(col);
     }
+
+    photoCount.style.display = 'block';
+    photoCountText.textContent = processedFiles.length + ' fichier(s) prêt(s)';
+    submitBtn.style.display = 'inline-block';
 }
 
 // Afficher l'overlay de chargement lors de l'upload

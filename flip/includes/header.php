@@ -17,7 +17,10 @@
     
     <!-- Custom CSS -->
     <link href="<?= BASE_PATH ?>/assets/css/style.css?v=<?= date('YmdHi') ?>" rel="stylesheet">
-    
+
+    <!-- HEIC to JPEG converter (client-side) -->
+    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+
     <?php if (isset($extraCss)): ?>
         <?= $extraCss ?>
     <?php endif; ?>
