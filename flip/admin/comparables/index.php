@@ -227,7 +227,10 @@ async function handleAnalysis(e) {
         
         for (let i = 0; i < pageCount; i += CHUNK_SIZE) {
             const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
-            progressText.textContent = `Analyse du lot ${chunkIndex} / ${totalChunks} (IA en cours)...`;
+            const startPage = i + 1;
+            const endPage = Math.min(i + CHUNK_SIZE, pageCount);
+            
+            progressText.innerHTML = `Analyse du lot ${chunkIndex} / ${totalChunks} (Pages ${startPage}-${endPage})...<br><small class='text-muted'>L'IA analyse les propriétés, les photos et calcule les ajustements. Cela peut prendre 30-60 secondes par lot.</small>`;
             progressBar.style.width = `${((chunkIndex-1) / totalChunks) * 100}%`;
             progressBar.textContent = `${Math.round(((chunkIndex-1) / totalChunks) * 100)}%`;
             
