@@ -1239,26 +1239,26 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <!-- Indicateurs en haut -->
     <div class="row g-2 mb-3">
         <div class="col-6 col-md-3">
-            <div class="card text-center p-2 bg-primary bg-opacity-10">
-                <small class="text-muted">Valeur potentielle</small>
+            <div class="card text-center p-2 bg-primary bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Prix de vente estimé de la propriété après rénovations">
+                <small class="text-muted">Valeur potentielle <i class="bi bi-info-circle small"></i></small>
                 <strong class="fs-5 text-primary" id="indValeurPotentielle"><?= formatMoney($indicateurs['valeur_potentielle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card text-center p-2 bg-warning bg-opacity-10">
-                <small class="text-muted">Équité Budget</small>
+            <div class="card text-center p-2 bg-warning bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit prévu si vous respectez le budget. Calcul: Valeur potentielle - Prix d'achat - Budget total - Frais">
+                <small class="text-muted">Équité Budget <i class="bi bi-info-circle small"></i></small>
                 <strong class="fs-5 text-warning" id="indEquiteBudget"><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card text-center p-2 bg-success bg-opacity-10">
-                <small class="text-muted">Équité Réelle</small>
+            <div class="card text-center p-2 bg-success bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit réel basé sur les dépenses actuelles. Calcul: Valeur potentielle - Prix d'achat - Dépenses réelles - Frais">
+                <small class="text-muted">Équité Réelle <i class="bi bi-info-circle small"></i></small>
                 <strong class="fs-5 text-success" id="indEquiteReelle"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-md-3">
-            <div class="card text-center p-2">
-                <small class="text-muted">ROI Leverage</small>
+            <div class="card text-center p-2" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Retour sur investissement basé sur votre mise de fonds (cash investi). Calcul: Équité Réelle ÷ Mise de fonds × 100">
+                <small class="text-muted">ROI Leverage <i class="bi bi-info-circle small"></i></small>
                 <strong class="fs-5" id="indRoiLeverage"><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
             </div>
         </div>
