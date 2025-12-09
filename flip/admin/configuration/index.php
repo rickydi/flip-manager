@@ -151,6 +151,7 @@ include '../../includes/header.php';
                                     <label class="form-label fw-bold"><?= e($conf['description'] ?: $conf['cle']) ?></label>
                                     <div class="input-group">
                                         <span class="input-group-text font-monospace bg-light"><?= e($conf['cle']) ?></span>
+                                        
                                         <?php if ($conf['est_sensible']): ?>
                                             <input type="password" 
                                                    class="form-control" 
@@ -158,18 +159,65 @@ include '../../includes/header.php';
                                                    value="<?= !empty($conf['valeur']) ? '********************' : '' ?>"
                                                    placeholder="Saisir la clé pour modifier"
                                                    autocomplete="off">
+                                        
+                                        <?php elseif ($conf['cle'] === 'CLAUDE_MODEL'): 
+                                            $knownModels = [
+                                                'claude-3-5-sonnet-20241022',
+                                                'claude-3-opus-20240229',
+                                                'claude-3-sonnet-20240229',
+                                                'claude-3-haiku-20240307'
+                                            ];
+                                            $isCustom = !in_array($conf['valeur'], $knownModels);
+                                        ?>
+                                            <select class="form-select" onchange="updateModelInput(this)">
+                                                <option value="claude-3-5-sonnet-20241022" <?= $conf['valeur'] == 'claude-3-5-sonnet-20241022' ? 'selected' : '' ?>>Claude 3.5 Sonnet (Recommandé)</option>
+                                                <option value="claude-3-opus-20240229" <?= $conf['valeur'] == 'claude-3-opus-20240229' ? 'selected' : '' ?>>Claude 3 Opus</option>
+                                                <option value="claude-3-sonnet-20240229" <?= $conf['valeur'] == 'claude-3-sonnet-20240229' ? 'selected' : '' ?>>Claude 3 Sonnet</option>
+                                                <option value="claude-3-haiku-20240307" <?= $conf['valeur'] == 'claude-3-haiku-20240307' ? 'selected' : '' ?>>Claude 3 Haiku</option>
+                                                <option value="custom" <?= $isCustom ? 'selected' : '' ?>>Autre (Saisir manuellement)</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <!-- Champ caché ou visible pour la valeur réelle envoyée -->
+                                        <div class="mt-2 <?= $isCustom ? '' : 'd-none' ?>" id="custom_model_container">
+                                            <label class="form-label small text-muted">Identifiant du modèle :</label>
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   id="input_claude_model"
+                                                   name="config[<?= $conf['cle'] ?>]" 
+                                                   value="<?= e($conf['valeur']) ?>"
+                                                   placeholder="Ex: claude-4-5-opus...">
+                                        </div>
+                                        
+                                        <div class="form-text">
+                                            Sélectionnez un modèle ou choisissez "Autre" pour saisir un futur modèle (ex: <code>claude-4.5</code>).
+                                        </div>
+
+                                        <script>
+                                        function updateModelInput(select) {
+                                            var container = document.getElementById('custom_model_container');
+                                            var input = document.getElementById('input_claude_model');
+                                            
+                                            if (select.value === 'custom') {
+                                                container.classList.remove('d-none');
+                                                input.focus();
+                                                // On ne change pas la valeur de l'input, l'utilisateur doit saisir
+                                            } else {
+                                                container.classList.add('d-none');
+                                                input.value = select.value;
+                                            }
+                                        }
+                                        </script>
+                                        
                                         <?php else: ?>
                                             <input type="text" 
                                                    class="form-control" 
                                                    name="config[<?= $conf['cle'] ?>]" 
                                                    value="<?= e($conf['valeur']) ?>">
                                         <?php endif; ?>
-                                    </div>
-                                    <?php if ($conf['cle'] === 'CLAUDE_MODEL'): ?>
-                                        <div class="form-text">
-                                            Saisissez l'identifiant du modèle (ex: <code>claude-3-5-sonnet-20241022</code>).<br>
-                                            Compatible avec les futurs modèles (ex: <code>claude-3-7-sonnet...</code>, <code>claude-4-opus...</code>) dès leur sortie.
-                                        </div>
+                                        
+                                        <?php if ($conf['cle'] !== 'CLAUDE_MODEL'): ?>
+                                    </div> <!-- Fin input-group normal -->
                                     <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>
