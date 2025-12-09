@@ -166,13 +166,41 @@ class ClaudeService {
 
         $data = json_decode($response, true);
         $content = $data['content'][0]['text'] ?? '';
-        
-        // Extraire le JSON de la réponse (au cas où il y a du texte autour)
-        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
-            $json = json_decode($matches[0], true);
+
+        // Log pour debug (à commenter en production)
+        // file_put_contents(__DIR__ . '/../uploads/debug_claude_response.txt', $content);
+
+        // Nettoyer la réponse
+        $cleanContent = $content;
+
+        // 1. Supprimer les blocs markdown ```json ... ```
+        $cleanContent = preg_replace('/```json\s*/i', '', $cleanContent);
+        $cleanContent = preg_replace('/```\s*$/', '', $cleanContent);
+        $cleanContent = preg_replace('/```/', '', $cleanContent);
+
+        // 2. Extraire le JSON (chercher le premier { et le dernier })
+        $firstBrace = strpos($cleanContent, '{');
+        $lastBrace = strrpos($cleanContent, '}');
+
+        if ($firstBrace !== false && $lastBrace !== false && $lastBrace > $firstBrace) {
+            $jsonString = substr($cleanContent, $firstBrace, $lastBrace - $firstBrace + 1);
+
+            // 3. Corriger les single quotes en double quotes (si Claude utilise du JS-style)
+            // Attention: ne pas remplacer les apostrophes dans le texte
+            $jsonString = preg_replace("/(?<![\\\\])'([^']*)'(?=\s*:)/", '"$1"', $jsonString);
+            $jsonString = preg_replace("/:\s*'([^']*)'/", ': "$1"', $jsonString);
+
+            // 4. Supprimer les virgules trailing avant } ou ]
+            $jsonString = preg_replace('/,(\s*[}\]])/', '$1', $jsonString);
+
+            $json = json_decode($jsonString, true);
             if ($json) return $json;
+
+            // Debug: afficher l'erreur JSON
+            $jsonError = json_last_error_msg();
+            throw new Exception("JSON invalide: " . $jsonError . " - Début de la réponse: " . substr($jsonString, 0, 200));
         }
 
-        throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé).");
+        throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé). Début: " . substr($content, 0, 300));
     }
 }
