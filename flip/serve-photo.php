@@ -1,12 +1,9 @@
 <?php
 /**
- * Serveur de photos sécurisé
+ * Serveur de photos sécurisé - Version optimisée
  * Vérifie l'authentification avant de servir les fichiers
  * Flip Manager
  */
-
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/includes/auth.php';
 
 $file = $_GET['file'] ?? '';
 $token = $_GET['token'] ?? '';
@@ -21,11 +18,34 @@ if (empty($file)) {
 
 $filePath = __DIR__ . '/uploads/photos/' . $file;
 
-// Vérifier que le fichier existe
+// Vérifier que le fichier existe AVANT de charger config/auth
 if (!file_exists($filePath)) {
     http_response_code(404);
     die('Fichier non trouvé');
 }
+
+// Obtenir les infos du fichier pour le cache
+$fileModTime = filemtime($filePath);
+$fileSize = filesize($filePath);
+$etag = md5($file . $fileModTime . $fileSize);
+
+// Vérifier le cache du navigateur AVANT d'aller plus loin
+if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
+    http_response_code(304);
+    exit;
+}
+
+if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) {
+    $ifModifiedSince = strtotime($_SERVER['HTTP_IF_MODIFIED_SINCE']);
+    if ($ifModifiedSince >= $fileModTime) {
+        http_response_code(304);
+        exit;
+    }
+}
+
+// Maintenant charger l'authentification (seulement si pas en cache)
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/auth.php';
 
 // Vérifier l'accès
 $hasAccess = false;
@@ -37,7 +57,6 @@ if (isLoggedIn()) {
 
 // 2. Token de partage valide
 if (!$hasAccess && !empty($token)) {
-    // Vérifier le token dans la base de données
     try {
         $stmt = $pdo->prepare("
             SELECT * FROM photos_shares
@@ -67,6 +86,7 @@ $mimeTypes = [
     'gif' => 'image/gif',
     'webp' => 'image/webp',
     'heic' => 'image/heic',
+    'heif' => 'image/heif',
     'mp4' => 'video/mp4',
     'mov' => 'video/quicktime',
     'avi' => 'video/x-msvideo',
@@ -77,9 +97,36 @@ $mimeTypes = [
 
 $mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
 
+// Headers de cache optimisés
 header('Content-Type: ' . $mimeType);
-header('Content-Length: ' . filesize($filePath));
-header('Cache-Control: private, max-age=3600');
+header('Content-Length: ' . $fileSize);
+header('ETag: ' . $etag);
+header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $fileModTime) . ' GMT');
+header('Cache-Control: private, max-age=86400'); // 24 heures
+header('Expires: ' . gmdate('D, d M Y H:i:s', time() + 86400) . ' GMT');
+
+// Pour les gros fichiers vidéo, supporter le Range (streaming)
+if (strpos($mimeType, 'video/') === 0 && isset($_SERVER['HTTP_RANGE'])) {
+    header('Accept-Ranges: bytes');
+
+    $range = $_SERVER['HTTP_RANGE'];
+    list(, $range) = explode('=', $range, 2);
+    list($start, $end) = explode('-', $range);
+
+    $start = intval($start);
+    $end = $end === '' ? $fileSize - 1 : intval($end);
+    $length = $end - $start + 1;
+
+    http_response_code(206);
+    header("Content-Range: bytes $start-$end/$fileSize");
+    header("Content-Length: $length");
+
+    $fp = fopen($filePath, 'rb');
+    fseek($fp, $start);
+    echo fread($fp, $length);
+    fclose($fp);
+    exit;
+}
 
 readfile($filePath);
 exit;

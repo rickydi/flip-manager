@@ -110,14 +110,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
                         // Vérifier l'extension (photos et vidéos)
-                        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+                        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'heif', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
                         if (!in_array($extension, $allowedExtensions)) {
                             $debugInfo[] = "Extension non supportée: $extension ($originalName)";
                             continue;
                         }
 
-                        // Générer un nom unique
-                        $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
+                        // Pour HEIC/HEIF, on va convertir en JPEG
+                        $finalExtension = in_array($extension, ['heic', 'heif']) ? 'jpg' : $extension;
+                        $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $finalExtension;
                         $destination = __DIR__ . '/../uploads/photos/' . $newFilename;
 
                         // Vérifier que le fichier temp existe
@@ -142,27 +143,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
 
-                        // Essayer avec copy() si move_uploaded_file échoue
-                        if (move_uploaded_file($tmpName, $destination)) {
-                            // Insérer dans la base de données
-                            $stmt = $pdo->prepare("
-                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
-                                VALUES (?, ?, ?, ?, NOW(), ?)
-                            ");
-                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
-                            $uploadedCount++;
+                        $uploadSuccess = false;
+
+                        if (in_array($extension, ['heic', 'heif'])) {
+                            // Convertir HEIC/HEIF en JPEG avec heif-convert
+                            $cmd = sprintf('heif-convert -q 90 %s %s 2>&1', escapeshellarg($tmpName), escapeshellarg($destination));
+                            exec($cmd, $output, $returnCode);
+                            if ($returnCode === 0 && file_exists($destination)) {
+                                $uploadSuccess = true;
+                            } else {
+                                $debugInfo[] = "Erreur conversion HEIC ($originalName): " . implode(' ', $output);
+                            }
+                        } elseif (move_uploaded_file($tmpName, $destination)) {
+                            $uploadSuccess = true;
                         } elseif (copy($tmpName, $destination)) {
-                            // Fallback avec copy()
                             unlink($tmpName);
-                            $stmt = $pdo->prepare("
-                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
-                                VALUES (?, ?, ?, ?, NOW(), ?)
-                            ");
-                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
-                            $uploadedCount++;
+                            $uploadSuccess = true;
                         } else {
                             $lastError = error_get_last();
                             $debugInfo[] = "Échec upload $originalName: " . ($lastError['message'] ?? 'erreur inconnue');
+                        }
+
+                        if ($uploadSuccess) {
+                            $stmt = $pdo->prepare("
+                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
+                                VALUES (?, ?, ?, ?, NOW(), ?)
+                            ");
+                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
+                            $uploadedCount++;
                         }
                     } else {
                         // Décoder l'erreur d'upload

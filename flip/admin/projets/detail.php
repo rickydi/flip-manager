@@ -899,14 +899,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         foreach ($filesToProcess as $file) {
             if ($file['error'] === UPLOAD_ERR_OK) {
                 $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'heif', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
 
                 if (!in_array($extension, $allowedExtensions)) {
                     $errors[] = "Extension non supportée: $extension";
                     continue;
                 }
 
-                $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
+                // Pour HEIC/HEIF, on va convertir en JPEG
+                $finalExtension = in_array($extension, ['heic', 'heif']) ? 'jpg' : $extension;
+                $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $finalExtension;
                 $destination = __DIR__ . '/../../uploads/photos/' . $newFilename;
 
                 // Vérifier/créer le dossier
@@ -915,7 +917,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     mkdir($destDir, 0777, true);
                 }
 
-                if (move_uploaded_file($file['tmp_name'], $destination) || copy($file['tmp_name'], $destination)) {
+                $uploadSuccess = false;
+
+                if (in_array($extension, ['heic', 'heif'])) {
+                    // Convertir HEIC/HEIF en JPEG avec heif-convert
+                    $tempHeic = $file['tmp_name'];
+                    $cmd = sprintf('heif-convert -q 90 %s %s 2>&1', escapeshellarg($tempHeic), escapeshellarg($destination));
+                    exec($cmd, $output, $returnCode);
+                    if ($returnCode === 0 && file_exists($destination)) {
+                        $uploadSuccess = true;
+                    } else {
+                        $errors[] = "Erreur conversion HEIC: " . implode(' ', $output);
+                    }
+                } else {
+                    // Upload normal
+                    if (move_uploaded_file($file['tmp_name'], $destination) || copy($file['tmp_name'], $destination)) {
+                        $uploadSuccess = true;
+                    }
+                }
+
+                if ($uploadSuccess) {
                     $stmt = $pdo->prepare("
                         INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
                         VALUES (?, ?, ?, ?, NOW(), ?)
