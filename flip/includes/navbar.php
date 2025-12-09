@@ -99,7 +99,16 @@ $isAdmin = isAdmin();
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link px-2 <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false ? 'active' : '' ?>"
+                        <a class="nav-link px-2 <?= strpos($currentUri, '/admin/comparables/') !== false ? 'active' : '' ?>"
+                           href="<?= url('/admin/comparables/index.php') ?>" title="Analyse IA">
+                            <i class="bi bi-robot"></i>
+                            <span class="nav-text-short d-none d-xl-inline"> IA</span>
+                            <span class="nav-text-full"> Comparable X</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link px-2 <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false || strpos($currentUri, '/admin/configuration/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/utilisateurs/liste.php') ?>" title="Administration">
                             <i class="bi bi-gear"></i>
                             <span class="nav-text-short d-none d-xxl-inline"> Admin</span>
