@@ -107,19 +107,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($action === 'supprimer') {
             $id = (int)($_POST['id'] ?? 0);
 
-            // Vérifier que ce n'est pas un type système
-            $stmt = $pdo->prepare("SELECT est_systeme FROM recurrents_types WHERE id = ?");
-            $stmt->execute([$id]);
-            $type = $stmt->fetch();
-
-            if ($type && $type['est_systeme']) {
-                $errors[] = 'Impossible de supprimer un type système.';
-            } else {
-                $stmt = $pdo->prepare("DELETE FROM recurrents_types WHERE id = ? AND est_systeme = 0");
-                $stmt->execute([$id]);
-                setFlashMessage('success', 'Type supprimé.');
-                redirect('/admin/recurrents/liste.php');
+            // Supprimer aussi les valeurs liées dans projet_recurrents
+            try {
+                $pdo->prepare("DELETE FROM projet_recurrents WHERE recurrent_type_id = ?")->execute([$id]);
+            } catch (Exception $e) {
+                // Table n'existe pas encore
             }
+
+            $stmt = $pdo->prepare("DELETE FROM recurrents_types WHERE id = ?");
+            $stmt->execute([$id]);
+            setFlashMessage('success', 'Type supprimé.');
+            redirect('/admin/recurrents/liste.php');
         }
     }
 }
@@ -217,9 +215,6 @@ include '../../includes/header.php';
                             <tr>
                                 <td>
                                     <strong><?= e($type['nom']) ?></strong>
-                                    <?php if ($type['est_systeme']): ?>
-                                        <span class="badge bg-secondary ms-1">Système</span>
-                                    <?php endif; ?>
                                 </td>
                                 <td><code><?= e($type['code']) ?></code></td>
                                 <td>
@@ -244,17 +239,15 @@ include '../../includes/header.php';
                                             data-bs-target="#modalModifier<?= $type['id'] ?>">
                                         <i class="bi bi-pencil"></i>
                                     </button>
-                                    <?php if (!$type['est_systeme']): ?>
-                                        <form method="POST" action="" class="d-inline"
-                                              onsubmit="return confirm('Supprimer ce type ?');">
-                                            <?php csrfField(); ?>
-                                            <input type="hidden" name="action" value="supprimer">
-                                            <input type="hidden" name="id" value="<?= $type['id'] ?>">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
-                                    <?php endif; ?>
+                                    <form method="POST" action="" class="d-inline"
+                                          onsubmit="return confirm('Supprimer ce type ?');">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="supprimer">
+                                        <input type="hidden" name="id" value="<?= $type['id'] ?>">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
