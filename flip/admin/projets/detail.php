@@ -1396,34 +1396,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 </div>
 
-                <!-- Section Vente -->
-                <div class="card">
-                    <div class="card-header"><i class="bi bi-cash-stack me-1"></i>Vente</div>
-                    <div class="card-body">
-                        <div class="row g-2">
-                            <div class="col-4">
-                                <label class="form-label">Courtier</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label">Quittance</label>
-                                <div class="input-group"><span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" name="quittance" value="<?= formatMoney($projet['quittance'] ?? 0, false) ?>">
-                                </div>
-                            </div>
-                            <div class="col-4">
-                                <label class="form-label">Mutation</label>
-                                <div class="input-group"><span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" name="taxe_mutation" id="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="calculerTaxeMutation(true)" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Colonne droite -->
@@ -1505,6 +1477,35 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 </div>
                             </div>
                             <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Vente -->
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-cash-stack me-1"></i>Vente</div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label">Courtier</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Quittance</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="quittance" value="<?= formatMoney($projet['quittance'] ?? 0, false) ?>">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Mutation</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="taxe_mutation" id="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="calculerTaxeMutation(true)" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
