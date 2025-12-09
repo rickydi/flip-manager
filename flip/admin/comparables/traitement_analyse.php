@@ -1,6 +1,6 @@
 <?php
 /**
- * Traitement AJAX de l'analyse par lots (Chunks)
+ * Traitement AJAX de l'analyse (Mode Texte)
  * Flip Manager
  */
 
@@ -23,22 +23,23 @@ try {
         
         $stmt = $pdo->prepare("
             INSERT INTO analyses_marche (projet_id, nom_rapport, fichier_source, statut, date_analyse)
-            VALUES (?, ?, 'Upload partiel (JS)', 'en_cours', NOW())
+            VALUES (?, ?, 'Upload Texte (JS)', 'en_cours', NOW())
         ");
         $stmt->execute([$projetId, $nomRapport]);
         echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
         exit;
     }
     
-    if ($action === 'process_chunk') {
-        // 2. Traiter un morceau de PDF
+    if ($action === 'process_text') {
+        // 2. Traiter le texte complet
         $analyseId = (int)$_POST['analyse_id'];
+        $fullText = $_POST['full_text'] ?? '';
         
-        if (!isset($_FILES['pdf_chunk']) || $_FILES['pdf_chunk']['error'] !== UPLOAD_ERR_OK) {
-            throw new Exception("Erreur upload chunk");
+        if (empty($fullText)) {
+            throw new Exception("Aucun texte extrait.");
         }
         
-        // Récupérer infos projet pour le contexte
+        // Récupérer infos projet
         $stmt = $pdo->prepare("SELECT p.* FROM analyses_marche a JOIN projets p ON a.projet_id = p.id WHERE a.id = ?");
         $stmt->execute([$analyseId]);
         $projet = $stmt->fetch();
@@ -52,8 +53,8 @@ try {
             'garage' => 'N/A'
         ];
 
-        // Appel IA
-        $resultats = $claudeService->analyserComparables($_FILES['pdf_chunk']['tmp_name'], $projetInfo);
+        // Appel IA (Mode Texte)
+        $resultats = $claudeService->analyserComparablesTexte($fullText, $projetInfo);
         
         // Sauvegarder les items trouvés
         $stmtItem = $pdo->prepare("
@@ -83,20 +84,11 @@ try {
             }
         }
         
-        echo json_encode(['success' => true, 'items_found' => $count]);
-        exit;
-    }
-    
-    if ($action === 'finish') {
-        // 3. Finaliser (Calculer moyennes)
-        $analyseId = (int)$_POST['analyse_id'];
-        
-        // Calculer stats
+        // Finaliser stats directement
         $stmt = $pdo->prepare("SELECT AVG(prix_vendu) as moyen, COUNT(*) as nb FROM comparables_items WHERE analyse_id = ?");
         $stmt->execute([$analyseId]);
         $stats = $stmt->fetch();
         
-        // Médian (approximatif via SQL ou PHP)
         $stmt = $pdo->prepare("SELECT prix_vendu FROM comparables_items WHERE analyse_id = ? ORDER BY prix_vendu");
         $stmt->execute([$analyseId]);
         $prix = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -106,25 +98,29 @@ try {
             $median = $prix[$middle];
         }
         
-        // Prix suggéré (Moyenne ajustée par l'IA - on prend la moyenne des prix vendus + moyenne des ajustements)
-        $stmt = $pdo->prepare("SELECT AVG(prix_vendu + ajustement_ia) as suggere FROM comparables_items WHERE analyse_id = ?");
-        $stmt->execute([$analyseId]);
-        $suggere = $stmt->fetchColumn() ?: 0;
-        
         $stmt = $pdo->prepare("
             UPDATE analyses_marche 
             SET statut = 'termine', 
                 prix_moyen = ?, 
                 prix_median = ?, 
                 prix_suggere_ia = ?,
+                fourchette_basse = ?,
+                fourchette_haute = ?,
                 analyse_ia_texte = ?
             WHERE id = ?
         ");
         
-        $resume = "Analyse complétée sur " . $stats['nb'] . " comparables (via découpage automatique).";
-        $stmt->execute([$stats['moyen'], $median, $suggere, $resume, $analyseId]);
+        $stmt->execute([
+            $stats['moyen'] ?? 0,
+            $median,
+            $resultats['analyse_globale']['prix_suggere'] ?? 0,
+            $resultats['analyse_globale']['fourchette_basse'] ?? 0,
+            $resultats['analyse_globale']['fourchette_haute'] ?? 0,
+            $resultats['analyse_globale']['commentaire_general'] ?? '',
+            $analyseId
+        ]);
         
-        echo json_encode(['success' => true]);
+        echo json_encode(['success' => true, 'items_found' => $count]);
         exit;
     }
 

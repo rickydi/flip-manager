@@ -59,25 +59,20 @@ class ClaudeService {
     }
 
     /**
-     * Analyse un fichier PDF de comparables
-     * @param string $pdfPath Chemin absolu vers le fichier PDF
+     * Analyse un texte extrait de comparables (Centris)
+     * @param string $fullText Texte complet extrait du PDF
      * @param array $projetInfo Informations sur le projet sujet (pour comparaison)
      * @return array Résultats de l'analyse
      */
-    public function analyserComparables($pdfPath, $projetInfo) {
-        if (!file_exists($pdfPath)) {
-            throw new Exception("Fichier PDF introuvable.");
-        }
-
-        $pdfData = base64_encode(file_get_contents($pdfPath));
-
+    public function analyserComparablesTexte($fullText, $projetInfo) {
         $systemPrompt = "Tu es un expert en évaluation immobilière au Québec (Flip immobilier). " .
-                       "Ton rôle est d'analyser des fiches descriptives Centris (PDF) et de les comparer avec un projet sujet. " .
-                       "Tu dois extraire les données de chaque comparable vendu et estimer la valeur du sujet. " .
-                       "Sois précis, critique sur les rénovations visibles (regarde les photos si disponibles dans le PDF) et justifie chaque ajustement. " .
-                       "Réponds UNIQUEMENT en JSON valide.";
+                       "Ton rôle est d'analyser le TEXTE BRUT extrait de fiches descriptives Centris et de les comparer avec un projet sujet. " .
+                       "Tu dois extraire les données de chaque comparable vendu. " .
+                       "IMPORTANT : Base-toi uniquement sur les descriptions textuelles (remarques, addenda, inclusions) pour juger de l'état des rénovations. " .
+                       "Ignore les en-têtes de pages répétés. " .
+                       "Réponds UNIQUEMENT en JSON valide, sans texte avant ni après.";
 
-        $userMessage = "Voici un rapport de comparables vendus (PDF). \n" .
+        $userMessage = "Voici le contenu textuel d'un rapport de comparables vendus. \n\n" .
                       "PROJET SUJET (CE QUE JE VAIS VENDRE) : \n" .
                       "- Adresse : " . ($projetInfo['adresse'] ?? 'N/A') . "\n" .
                       "- Type : " . ($projetInfo['type'] ?? 'Maison unifamiliale') . "\n" .
@@ -86,9 +81,11 @@ class ClaudeService {
                       "- Superficie : " . ($projetInfo['superficie'] ?? 'N/A') . "\n" .
                       "- Garage : " . ($projetInfo['garage'] ?? 'Non') . "\n" .
                       "- État prévu à la vente : Entièrement rénové au goût du jour (Cuisine quartz, SDB moderne, planchers neufs).\n\n" .
+                      "CONTENU DU RAPPORT (TEXTE) : \n" . 
+                      substr($fullText, 0, 150000) . " \n\n" . // Limite de sécurité pour éviter erreur 400 si texte > context window (rare avec 200k)
                       "TACHE : \n" .
-                      "1. Extrais chaque propriété vendue du PDF. \n" .
-                      "2. Pour chaque propriété, note l'état des rénovations sur 10 (basé sur les photos et descriptions). \n" .
+                      "1. Repère chaque propriété vendue dans le texte (cherche 'No Centris', 'Vendu', 'Adresse'). \n" .
+                      "2. Pour chaque propriété, note l'état des rénovations sur 10 en lisant les remarques (ex: 'cuisine rénovée', 'à rénover'). \n" .
                       "3. Compare avec le sujet et propose un ajustement (+/- $) pour ramener le comparable au niveau du sujet. \n" .
                       "4. Estime le prix de vente final du sujet. \n\n" .
                       "Format JSON attendu : \n" .
@@ -110,20 +107,7 @@ class ClaudeService {
             'messages' => [
                 [
                     'role' => 'user',
-                    'content' => [
-                        [
-                            'type' => 'document',
-                            'source' => [
-                                'type' => 'base64',
-                                'media_type' => 'application/pdf',
-                                'data' => $pdfData
-                            ]
-                        ],
-                        [
-                            'type' => 'text',
-                            'text' => $userMessage
-                        ]
-                    ]
+                    'content' => $userMessage
                 ]
             ],
             'system' => $systemPrompt
@@ -140,8 +124,8 @@ class ClaudeService {
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'x-api-key: ' . $this->apiKey,
             'anthropic-version: 2023-06-01',
-            'content-type: application/json',
-            'anthropic-beta: pdfs-2024-09-25' // Header nécessaire pour le support PDF
+            'content-type: application/json'
+            // Header beta PDF retiré car on envoie du texte
         ]);
 
         $response = curl_exec($ch);
@@ -155,12 +139,6 @@ class ClaudeService {
         if ($httpCode !== 200) {
             $error = json_decode($response, true);
             $errorMessage = $error['error']['message'] ?? $response;
-
-            // Gestion spécifique erreur PDF trop long (limite Anthropic)
-            if (strpos($errorMessage, '100 PDF pages') !== false) {
-                throw new Exception("Le rapport PDF contient trop de pages (Limite de l'IA : 100 pages). Veuillez générer un rapport Centris avec moins de propriétés (ex: filtrer par date ou prix).");
-            }
-
             throw new Exception('Erreur API Claude (' . $httpCode . '): ' . $errorMessage);
         }
 

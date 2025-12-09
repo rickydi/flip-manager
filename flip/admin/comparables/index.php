@@ -27,6 +27,16 @@ try {
     }
 }
 
+// Traitement suppression
+if (isset($_POST['action']) && $_POST['action'] === 'supprimer') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $id = (int)$_POST['id'];
+        $pdo->prepare("DELETE FROM analyses_marche WHERE id = ?")->execute([$id]);
+        setFlashMessage('success', 'Analyse supprimée.');
+        redirect('index.php');
+    }
+}
+
 // Récupérer les analyses existantes
 $stmt = $pdo->query("
     SELECT a.*, p.nom as projet_nom 
@@ -42,8 +52,9 @@ $projets = getProjets($pdo);
 include '../../includes/header.php';
 ?>
 
-<!-- Librairie PDF-Lib pour le découpage côté client -->
-<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<!-- Librairie PDF.js pour extraction de texte -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
 
 <div class="container-fluid">
     <div class="page-header d-flex justify-content-between align-items-center">
@@ -107,9 +118,17 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
-                                        <a href="detail.php?id=<?= $analyse['id'] ?>" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-eye"></i> Voir
+                                        <a href="detail.php?id=<?= $analyse['id'] ?>" class="btn btn-sm btn-outline-primary me-1">
+                                            <i class="bi bi-eye"></i>
                                         </a>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette analyse ?');">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="supprimer">
+                                            <input type="hidden" name="id" value="<?= $analyse['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -133,7 +152,7 @@ include '../../includes/header.php';
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        Le système découpera automatiquement votre PDF s'il est trop volumineux pour l'analyser par lots.
+                        Le système va extraire le texte de votre PDF (rapide et illimité en pages) et l'envoyer à l'IA pour analyse comparative.
                     </div>
 
                     <div id="error-msg" class="alert alert-danger d-none"></div>
@@ -155,16 +174,14 @@ include '../../includes/header.php';
                     <div class="mb-3">
                         <label class="form-label">Fichier PDF Centris</label>
                         <input type="file" class="form-control" name="fichier_pdf" id="fichier_pdf" accept="application/pdf" required>
-                        <div class="form-text">Même les fichiers de plus de 100 pages sont acceptés (découpage auto).</div>
                     </div>
 
                     <!-- Barre de progression -->
                     <div id="progress-container" class="d-none mt-3">
-                        <label class="form-label mb-1" id="progress-text">Analyse en cours...</label>
+                        <label class="form-label mb-1" id="progress-text">Démarrage...</label>
                         <div class="progress" style="height: 25px;">
                             <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
                         </div>
-                        <small class="text-muted d-block mt-1">Ne fermez pas cette fenêtre.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -203,13 +220,29 @@ async function handleAnalysis(e) {
         const file = fileInput.files[0];
         const arrayBuffer = await file.arrayBuffer();
         
-        // Charger le PDF
-        progressText.textContent = "Lecture du fichier PDF...";
-        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
-        const pageCount = pdfDoc.getPageCount();
+        // 1. Extraction du texte côté client (Browser)
+        progressText.textContent = "Extraction du texte du PDF...";
+        progressBar.style.width = "10%";
         
-        // Initialiser l'analyse côté serveur
-        progressText.textContent = "Initialisation de l'analyse...";
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+        let fullText = "";
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(" ");
+            fullText += `--- PAGE ${i} ---\n${pageText}\n\n`;
+            
+            // Mise à jour progression extraction
+            const percent = 10 + Math.round((i / pdf.numPages) * 20); // 10% à 30%
+            progressBar.style.width = `${percent}%`;
+            progressText.textContent = `Lecture page ${i}/${pdf.numPages}...`;
+        }
+        
+        console.log("Texte extrait (taille):", fullText.length);
+        
+        // 2. Initialisation Analyse DB
+        progressText.textContent = "Envoi des données au serveur...";
         const formDataInit = new FormData();
         formDataInit.append('action', 'init');
         formDataInit.append('projet_id', projetId);
@@ -221,53 +254,23 @@ async function handleAnalysis(e) {
         if (!dataInit.success) throw new Error(dataInit.error || "Erreur init");
         const analyseId = dataInit.id;
         
-        // Découper et envoyer par lots de 50 pages
-        const CHUNK_SIZE = 50;
-        const totalChunks = Math.ceil(pageCount / CHUNK_SIZE);
+        // 3. Envoi du texte à l'IA (via PHP)
+        progressBar.style.width = "40%";
+        progressText.innerHTML = "Analyse IA en cours...<br><small class='text-muted'>Comparaison des données textuelles. Veuillez patienter.</small>";
         
-        for (let i = 0; i < pageCount; i += CHUNK_SIZE) {
-            const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
-            const startPage = i + 1;
-            const endPage = Math.min(i + CHUNK_SIZE, pageCount);
-            
-            progressText.innerHTML = `Analyse du lot ${chunkIndex} / ${totalChunks} (Pages ${startPage}-${endPage})...<br><small class='text-muted'>L'IA analyse les propriétés, les photos et calcule les ajustements. Cela peut prendre 30-60 secondes par lot.</small>`;
-            progressBar.style.width = `${((chunkIndex-1) / totalChunks) * 100}%`;
-            progressBar.textContent = `${Math.round(((chunkIndex-1) / totalChunks) * 100)}%`;
-            
-            // Créer un nouveau PDF avec ce lot de pages
-            const subPdf = await PDFLib.PDFDocument.create();
-            const pagesIndices = [];
-            for (let j = 0; j < CHUNK_SIZE && (i + j) < pageCount; j++) {
-                pagesIndices.push(i + j);
-            }
-            
-            const copiedPages = await subPdf.copyPages(pdfDoc, pagesIndices);
-            copiedPages.forEach(page => subPdf.addPage(page));
-            const pdfBytes = await subPdf.save();
-            
-            // Envoyer le chunk
-            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const formDataChunk = new FormData();
-            formDataChunk.append('action', 'process_chunk');
-            formDataChunk.append('analyse_id', analyseId);
-            formDataChunk.append('pdf_chunk', blob, `chunk_${chunkIndex}.pdf`);
-            
-            const resChunk = await fetch('traitement_analyse.php', { method: 'POST', body: formDataChunk });
-            const dataChunk = await resChunk.json();
-            
-            if (!dataChunk.success) throw new Error(dataChunk.error || `Erreur lot ${chunkIndex}`);
-        }
+        const formDataProcess = new FormData();
+        formDataProcess.append('action', 'process_text');
+        formDataProcess.append('analyse_id', analyseId);
+        formDataProcess.append('full_text', fullText);
         
-        // Finaliser
-        progressText.textContent = "Finalisation et calculs...";
+        const resProcess = await fetch('traitement_analyse.php', { method: 'POST', body: formDataProcess });
+        const dataProcess = await resProcess.json();
+        
+        if (!dataProcess.success) throw new Error(dataProcess.error || "Erreur analyse");
+        
+        // 4. Finalisation
         progressBar.style.width = "100%";
-        progressBar.textContent = "100%";
-        
-        const formDataFinish = new FormData();
-        formDataFinish.append('action', 'finish');
-        formDataFinish.append('analyse_id', analyseId);
-        
-        await fetch('traitement_analyse.php', { method: 'POST', body: formDataFinish });
+        progressText.textContent = "Terminé ! Redirection...";
         
         // Redirection
         window.location.href = `detail.php?id=${analyseId}`;

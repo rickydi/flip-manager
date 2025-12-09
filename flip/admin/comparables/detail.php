@@ -50,6 +50,14 @@ include '../../includes/header.php';
             <h1><i class="bi bi-file-earmark-bar-graph me-2"></i>Rapport d'analyse</h1>
         </div>
         <div class="d-flex gap-2">
+            <form method="POST" action="index.php" onsubmit="return confirm('Supprimer cette analyse définitivement ?');">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="supprimer">
+                <input type="hidden" name="id" value="<?= $analyseId ?>">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-trash me-1"></i>Supprimer
+                </button>
+            </form>
             <button onclick="window.print()" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-1"></i>Imprimer
             </button>
