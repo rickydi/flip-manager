@@ -326,6 +326,11 @@ include '../../includes/header.php';
                 <i class="bi bi-calendar-week me-1"></i>Paie hebdo
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/configuration/index.php') ?>">
+                <i class="bi bi-gear-wide-connected me-1"></i>Configuration
+            </a>
+        </li>
     </ul>
     
     <!-- Filtres -->
