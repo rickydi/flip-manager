@@ -166,7 +166,10 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </div>
                                     <?php if ($conf['cle'] === 'CLAUDE_MODEL'): ?>
-                                        <div class="form-text">Modèles disponibles : claude-3-5-sonnet-20241022 (recommandé), claude-3-opus-20240229.</div>
+                                        <div class="form-text">
+                                            Saisissez l'identifiant du modèle (ex: <code>claude-3-5-sonnet-20241022</code>).<br>
+                                            Compatible avec les futurs modèles (ex: <code>claude-3-7-sonnet...</code>, <code>claude-4-opus...</code>) dès leur sortie.
+                                        </div>
                                     <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>
