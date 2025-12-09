@@ -3190,9 +3190,35 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     <!-- TAB TEMPS -->
     <div class="tab-pane fade <?= $tab === 'temps' ? 'show active' : '' ?>" id="temps" role="tabpanel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="bi bi-clock me-2"></i>Heures travaillées</h5>
-            <span class="badge bg-primary"><?= count($heuresProjet) ?> entrées</span>
+        <?php
+        $totalHeuresTab = array_sum(array_column($heuresProjet, 'heures'));
+        $totalCoutTab = 0;
+        foreach ($heuresProjet as $h) {
+            $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
+            $totalCoutTab += $h['heures'] * $taux;
+        }
+        ?>
+
+        <!-- Barre compacte : Stats -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded" style="background: rgba(255,255,255,0.03);">
+            <!-- Total heures -->
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,110,253,0.15);">
+                <i class="bi bi-clock text-primary me-2"></i>
+                <span class="text-muted me-1">Heures:</span>
+                <strong class="text-primary"><?= number_format($totalHeuresTab, 1) ?> h</strong>
+            </div>
+
+            <!-- Coût total -->
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(25,135,84,0.15);">
+                <i class="bi bi-cash text-success me-2"></i>
+                <span class="text-muted me-1">Coût:</span>
+                <strong class="text-success"><?= formatMoney($totalCoutTab) ?></strong>
+            </div>
+
+            <!-- Spacer + Badge à droite -->
+            <div class="ms-auto">
+                <span class="badge bg-secondary"><?= count($heuresProjet) ?> entrées</span>
+            </div>
         </div>
 
         <?php if (empty($heuresProjet)): ?>
@@ -3200,29 +3226,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <i class="bi bi-info-circle me-2"></i>Aucune heure enregistrée pour ce projet.
             </div>
         <?php else: ?>
-            <?php
-            $totalHeuresTab = array_sum(array_column($heuresProjet, 'heures'));
-            $totalCoutTab = 0;
-            foreach ($heuresProjet as $h) {
-                $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
-                $totalCoutTab += $h['heures'] * $taux;
-            }
-            ?>
-            <div class="row g-2 mb-3">
-                <div class="col-6 col-md-3">
-                    <div class="card text-center p-2 bg-primary bg-opacity-10">
-                        <small class="text-muted">Total heures</small>
-                        <strong class="fs-5"><?= number_format($totalHeuresTab, 1) ?> h</strong>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="card text-center p-2 bg-success bg-opacity-10">
-                        <small class="text-muted">Coût total</small>
-                        <strong class="fs-5 text-success"><?= formatMoney($totalCoutTab) ?></strong>
-                    </div>
-                </div>
-            </div>
-
             <div class="table-responsive">
                 <table class="table table-sm table-hover">
                     <thead class="table-dark">
@@ -3273,16 +3276,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     <!-- TAB PHOTOS -->
     <div class="tab-pane fade <?= $tab === 'photos' ? 'show active' : '' ?>" id="photos" role="tabpanel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="bi bi-camera me-2"></i>Photos du projet</h5>
-            <div>
-                <span class="badge bg-primary me-2" id="photosCount"><?= count($photosProjet) ?> photos</span>
-                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAjoutPhoto">
-                    <i class="bi bi-plus"></i> Ajouter
-                </button>
-            </div>
-        </div>
-
         <?php
         // Extraire les employés et catégories uniques pour les filtres
         $photosEmployes = !empty($photosProjet) ? array_unique(array_column($photosProjet, 'employe_nom')) : [];
@@ -3291,27 +3284,41 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         sort($photosCategoriesFilter);
         ?>
 
-        <!-- Filtres Photos (toujours visibles) -->
-        <div class="row g-2 mb-3">
-            <div class="col-md-4">
-                <select class="form-select form-select-sm" id="filtrePhotosEmploye" onchange="filtrerPhotos()">
-                    <option value="">Tous les employés</option>
-                    <?php foreach ($photosEmployes as $emp): ?>
-                        <option value="<?= e($emp) ?>"><?= e($emp) ?></option>
-                    <?php endforeach; ?>
-                </select>
+        <!-- Barre compacte : Filtres + Actions -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded" style="background: rgba(255,255,255,0.03);">
+            <!-- Icône -->
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,110,253,0.15);">
+                <i class="bi bi-camera text-primary me-2"></i>
+                <strong class="text-primary" id="photosCount"><?= count($photosProjet) ?></strong>
+                <span class="text-muted ms-1">photos</span>
             </div>
-            <div class="col-md-4">
-                <select class="form-select form-select-sm" id="filtrePhotosCategorie" onchange="filtrerPhotos()">
-                    <option value="">Toutes les catégories</option>
-                    <?php foreach ($photosCategoriesFilter as $cat): ?>
-                        <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-4">
-                <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetFiltresPhotos()">
-                    <i class="bi bi-x-circle me-1"></i>Reset
+
+            <!-- Séparateur -->
+            <div class="vr mx-1 d-none d-md-block" style="height: 24px;"></div>
+
+            <!-- Filtres -->
+            <select class="form-select form-select-sm" id="filtrePhotosEmploye" onchange="filtrerPhotos()" style="width: auto; min-width: 140px;">
+                <option value="">Tous employés</option>
+                <?php foreach ($photosEmployes as $emp): ?>
+                    <option value="<?= e($emp) ?>"><?= e($emp) ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <select class="form-select form-select-sm" id="filtrePhotosCategorie" onchange="filtrerPhotos()" style="width: auto; min-width: 150px;">
+                <option value="">Toutes catégories</option>
+                <?php foreach ($photosCategoriesFilter as $cat): ?>
+                    <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetFiltresPhotos()" title="Réinitialiser">
+                <i class="bi bi-x-circle"></i>
+            </button>
+
+            <!-- Spacer + Actions à droite -->
+            <div class="ms-auto">
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAjoutPhoto">
+                    <i class="bi bi-plus me-1"></i>Ajouter
                 </button>
             </div>
         </div>
@@ -3434,61 +3441,57 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     <!-- TAB FACTURES -->
     <div class="tab-pane fade <?= $tab === 'factures' ? 'show active' : '' ?>" id="factures" role="tabpanel">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Factures</h5>
-            <div>
-                <span class="badge bg-primary me-2" id="facturesCount"><?= count($facturesProjet) ?> factures</span>
+        <?php
+        $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
+        $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'categorie_nom')));
+        sort($facturesCategories);
+        ?>
+
+        <!-- Barre compacte : Total + Filtres + Actions -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded" style="background: rgba(255,255,255,0.03);">
+            <!-- Total -->
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(220,53,69,0.15);">
+                <i class="bi bi-receipt text-danger me-2"></i>
+                <span class="text-muted me-2">Total:</span>
+                <strong class="text-danger" id="facturesTotal"><?= formatMoney($totalFacturesTab) ?></strong>
+            </div>
+
+            <!-- Séparateur -->
+            <div class="vr mx-1 d-none d-md-block" style="height: 24px;"></div>
+
+            <!-- Filtres -->
+            <select class="form-select form-select-sm" id="filtreFacturesStatut" onchange="filtrerFactures()" style="width: auto; min-width: 130px;">
+                <option value="">Tous statuts</option>
+                <option value="en_attente">En attente</option>
+                <option value="approuvee">Approuvée</option>
+                <option value="rejetee">Rejetée</option>
+            </select>
+
+            <select class="form-select form-select-sm" id="filtreFacturesCategorie" onchange="filtrerFactures()" style="width: auto; min-width: 150px;">
+                <option value="">Toutes catégories</option>
+                <?php foreach ($facturesCategories as $cat): ?>
+                    <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetFiltresFactures()" title="Réinitialiser">
+                <i class="bi bi-x-circle"></i>
+            </button>
+
+            <!-- Spacer + Actions à droite -->
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <span class="badge bg-secondary" id="facturesCount"><?= count($facturesProjet) ?> factures</span>
                 <a href="<?= url('/admin/factures/nouvelle.php?projet=' . $projetId) ?>" class="btn btn-success btn-sm">
-                    <i class="bi bi-plus"></i> Nouvelle
+                    <i class="bi bi-plus me-1"></i>Nouvelle
                 </a>
             </div>
         </div>
 
         <?php if (empty($facturesProjet)): ?>
             <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>Aucune facture pour ce projet.
+                <i class="bi bi-info-circle me-2"></i>Aucune facture pour ce projet. Cliquez sur "Nouvelle" pour en ajouter.
             </div>
         <?php else: ?>
-            <?php
-            $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
-            // Extraire les catégories uniques pour le filtre
-            $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'categorie_nom')));
-            sort($facturesCategories);
-            ?>
-            <div class="row g-2 mb-3">
-                <div class="col-6 col-md-3">
-                    <div class="card text-center p-2 bg-danger bg-opacity-10">
-                        <small class="text-muted">Total factures</small>
-                        <strong class="fs-5 text-danger" id="facturesTotal"><?= formatMoney($totalFacturesTab) ?></strong>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filtres Factures -->
-            <div class="row g-2 mb-3">
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" id="filtreFacturesStatut" onchange="filtrerFactures()">
-                        <option value="">Tous les statuts</option>
-                        <option value="en_attente">En attente</option>
-                        <option value="approuvee">Approuvée</option>
-                        <option value="rejetee">Rejetée</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" id="filtreFacturesCategorie" onchange="filtrerFactures()">
-                        <option value="">Toutes les catégories</option>
-                        <?php foreach ($facturesCategories as $cat): ?>
-                            <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetFiltresFactures()">
-                        <i class="bi bi-x-circle me-1"></i>Reset
-                    </button>
-                </div>
-            </div>
-
             <div class="table-responsive">
                 <table class="table table-sm table-hover" id="facturesTable">
                     <thead class="table-dark">
@@ -3980,7 +3983,7 @@ function filtrerPhotos() {
         }
     });
 
-    document.getElementById('photosCount').textContent = count + ' photos';
+    document.getElementById('photosCount').textContent = count;
 }
 
 function resetFiltresPhotos() {
@@ -4015,7 +4018,7 @@ function filtrerFactures() {
     });
 
     document.getElementById('facturesCount').textContent = count + ' factures';
-    document.getElementById('facturesTotal').textContent = total.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+    document.getElementById('facturesTotal').textContent = total.toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
 }
 
 function resetFiltresFactures() {
