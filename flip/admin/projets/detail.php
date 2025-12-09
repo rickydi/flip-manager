@@ -1377,6 +1377,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     <input type="text" class="form-control money-input" name="assurance_titre" value="<?= formatMoney($projet['assurance_titre'], false) ?>">
                                 </div>
                             </div>
+                            <div class="col-4">
+                                <label class="form-label">Contingence</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1493,28 +1500,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 </div>
 
-                <?php
-                // Calcul contingence
-                $totalBudgetBase = 0;
-                foreach ($categoriesAvecBudget as $cat) {
-                    $totalBudgetBase += (float)$cat['montant_extrapole'];
-                }
-                $contingenceBase = $totalBudgetBase * ((float)$projet['taux_contingence'] / 100);
-                ?>
-                <div class="card h-100">
-                    <div class="card-header"><i class="bi bi-percent me-1"></i>Contingence</div>
-                    <div class="card-body p-2">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="input-group input-group-sm" style="width: 120px;">
-                                <input type="number" class="form-control" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
-                                <span class="input-group-text">%</span>
-                            </div>
-                            <span class="fw-bold text-primary"><?= formatMoney($contingenceBase) ?></span>
-                        </div>
-                        <small class="text-muted mt-1 d-block">Réserve pour imprévus sur le budget rénovation</small>
-                        <input type="hidden" name="notes" value="<?= e($projet['notes']) ?>">
-                    </div>
-                </div>
+                <input type="hidden" name="notes" value="<?= e($projet['notes']) ?>">
             </div>
         </div>
 
