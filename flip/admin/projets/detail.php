@@ -968,25 +968,25 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <div class="col-6 col-md-3">
             <div class="card text-center p-2 bg-primary bg-opacity-10">
                 <small class="text-muted">Valeur potentielle</small>
-                <strong class="fs-5 text-primary"><?= formatMoney($indicateurs['valeur_potentielle']) ?></strong>
+                <strong class="fs-5 text-primary" id="indValeurPotentielle"><?= formatMoney($indicateurs['valeur_potentielle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card text-center p-2 bg-warning bg-opacity-10">
                 <small class="text-muted">Équité Budget</small>
-                <strong class="fs-5 text-warning"><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
+                <strong class="fs-5 text-warning" id="indEquiteBudget"><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card text-center p-2 bg-success bg-opacity-10">
                 <small class="text-muted">Équité Réelle</small>
-                <strong class="fs-5 text-success"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
+                <strong class="fs-5 text-success" id="indEquiteReelle"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-md-3">
             <div class="card text-center p-2">
                 <small class="text-muted">ROI Leverage</small>
-                <strong class="fs-5"><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
+                <strong class="fs-5" id="indRoiLeverage"><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
             </div>
         </div>
     </div>
@@ -3279,11 +3279,31 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
     const csrfToken = '<?= generateCSRFToken() ?>';
     let baseSaveTimeout = null;
 
+    function formatMoneyBase(val) {
+        return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+    }
+
+    function formatPercentBase(val) {
+        return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' %';
+    }
+
     function showBaseSaveStatus(status) {
         document.getElementById('baseIdle').classList.add('d-none');
         document.getElementById('baseSaving').classList.add('d-none');
         document.getElementById('baseSaved').classList.add('d-none');
         document.getElementById('base' + status.charAt(0).toUpperCase() + status.slice(1)).classList.remove('d-none');
+    }
+
+    function updateIndicateurs(ind) {
+        const elValeur = document.getElementById('indValeurPotentielle');
+        const elEquiteBudget = document.getElementById('indEquiteBudget');
+        const elEquiteReelle = document.getElementById('indEquiteReelle');
+        const elRoi = document.getElementById('indRoiLeverage');
+
+        if (elValeur) elValeur.textContent = formatMoneyBase(ind.valeur_potentielle);
+        if (elEquiteBudget) elEquiteBudget.textContent = formatMoneyBase(ind.equite_potentielle);
+        if (elEquiteReelle) elEquiteReelle.textContent = formatMoneyBase(ind.equite_reelle);
+        if (elRoi) elRoi.textContent = formatPercentBase(ind.roi_leverage);
     }
 
     function autoSaveBase() {
@@ -3306,9 +3326,9 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
                     showBaseSaveStatus('saved');
                     setTimeout(() => showBaseSaveStatus('idle'), 2000);
 
-                    // Mettre à jour les indicateurs si disponibles
+                    // Mettre à jour les indicateurs
                     if (data.indicateurs) {
-                        // Mise à jour optionnelle des cartes indicateurs
+                        updateIndicateurs(data.indicateurs);
                     }
                 } else {
                     console.error('Erreur:', data.error);
