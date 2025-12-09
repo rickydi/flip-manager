@@ -905,10 +905,9 @@ try {
 $facturesProjet = [];
 try {
     $stmt = $pdo->prepare("
-        SELECT f.*, c.nom as categorie_nom, fo.nom as fournisseur_nom
+        SELECT f.*, c.nom as categorie_nom
         FROM factures f
         LEFT JOIN categories c ON f.categorie_id = c.id
-        LEFT JOIN fournisseurs fo ON f.fournisseur_id = fo.id
         WHERE f.projet_id = ?
         ORDER BY f.date_facture DESC, f.id DESC
     ");
@@ -3113,18 +3112,31 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet.
             </div>
         <?php else: ?>
-            <div class="row g-3">
-                <?php foreach ($photosProjet as $photo): ?>
-                <div class="col-6 col-md-4 col-lg-3">
-                    <div class="card h-100">
-                        <a href="<?= url('/uploads/photos/' . $photo['fichier']) ?>" target="_blank">
-                            <img src="<?= url('/uploads/photos/' . $photo['fichier']) ?>" class="card-img-top" alt="Photo" style="height: 150px; object-fit: cover;">
+            <div class="row g-2">
+                <?php foreach ($photosProjet as $photo):
+                    $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
+                    $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
+                    $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
+                ?>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <div class="position-relative">
+                        <a href="<?= $mediaUrl ?>" target="_blank" class="d-block">
+                            <?php if ($isVideo): ?>
+                                <div class="video-thumbnail rounded" style="width:100%;height:120px;background:#1a1d21;display:flex;align-items:center;justify-content:center;position:relative;">
+                                    <video src="<?= $mediaUrl ?>" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" muted preload="metadata"></video>
+                                    <div style="position:absolute;z-index:2;background:rgba(0,0,0,0.6);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
+                                        <i class="bi bi-play-fill text-white" style="font-size:1.5rem;margin-left:3px;"></i>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <img src="<?= $mediaUrl ?>" alt="Photo" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;">
+                            <?php endif; ?>
                         </a>
-                        <div class="card-body p-2">
+                        <div class="mt-1">
                             <small class="text-muted d-block"><?= formatDate($photo['date_prise']) ?></small>
                             <small class="text-muted"><?= e($photo['employe_nom']) ?></small>
                             <?php if (!empty($photo['description'])): ?>
-                                <div class="mt-1"><span class="badge bg-secondary"><?= e($photo['description']) ?></span></div>
+                                <span class="badge bg-secondary ms-1" style="font-size:0.65rem;"><?= e($photo['description']) ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -3140,7 +3152,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Factures</h5>
             <div>
                 <span class="badge bg-primary me-2"><?= count($facturesProjet) ?> factures</span>
-                <a href="<?= url('/admin/factures/nouveau.php?projet=' . $projetId) ?>" class="btn btn-success btn-sm">
+                <a href="<?= url('/admin/factures/nouvelle.php?projet=' . $projetId) ?>" class="btn btn-success btn-sm">
                     <i class="bi bi-plus"></i> Nouvelle
                 </a>
             </div>
@@ -3179,7 +3191,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <?php foreach ($facturesProjet as $f): ?>
                         <tr>
                             <td><?= formatDate($f['date_facture']) ?></td>
-                            <td><?= e($f['fournisseur_nom'] ?? 'N/A') ?></td>
+                            <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
                             <td><?= e($f['categorie_nom'] ?? 'N/A') ?></td>
                             <td class="text-end fw-bold"><?= formatMoney($f['montant_total']) ?></td>
                             <td>
