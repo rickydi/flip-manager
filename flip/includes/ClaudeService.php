@@ -154,7 +154,14 @@ class ClaudeService {
 
         if ($httpCode !== 200) {
             $error = json_decode($response, true);
-            throw new Exception('Erreur API Claude (' . $httpCode . '): ' . ($error['error']['message'] ?? $response));
+            $errorMessage = $error['error']['message'] ?? $response;
+
+            // Gestion spécifique erreur PDF trop long (limite Anthropic)
+            if (strpos($errorMessage, '100 PDF pages') !== false) {
+                throw new Exception("Le rapport PDF contient trop de pages (Limite de l'IA : 100 pages). Veuillez générer un rapport Centris avec moins de propriétés (ex: filtrer par date ou prix).");
+            }
+
+            throw new Exception('Erreur API Claude (' . $httpCode . '): ' . $errorMessage);
         }
 
         $data = json_decode($response, true);
