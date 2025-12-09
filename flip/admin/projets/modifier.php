@@ -360,6 +360,7 @@ include '../../includes/header.php';
                             <div class="col-4">
                                 <label class="form-label">Statut</label>
                                 <select class="form-select" name="statut">
+                                    <option value="prospection" <?= $projet['statut'] === 'prospection' ? 'selected' : '' ?>>Prospection</option>
                                     <option value="acquisition" <?= $projet['statut'] === 'acquisition' ? 'selected' : '' ?>>Acquisition</option>
                                     <option value="renovation" <?= $projet['statut'] === 'renovation' ? 'selected' : '' ?>>Réno</option>
                                     <option value="vente" <?= $projet['statut'] === 'vente' ? 'selected' : '' ?>>Vente</option>

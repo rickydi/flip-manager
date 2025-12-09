@@ -273,6 +273,7 @@ function deleteUploadedFile($filename) {
  */
 function getStatutProjetLabel($statut) {
     $labels = [
+        'prospection' => 'Prospection',
         'acquisition' => 'Acquisition',
         'renovation' => 'Rénovation',
         'vente' => 'En vente',
@@ -289,11 +290,12 @@ function getStatutProjetLabel($statut) {
  */
 function getStatutProjetClass($statut) {
     $classes = [
+        'prospection' => 'bg-secondary',
         'acquisition' => 'bg-info',
         'renovation' => 'bg-warning',
         'vente' => 'bg-primary',
         'vendu' => 'bg-success',
-        'archive' => 'bg-secondary'
+        'archive' => 'bg-dark'
     ];
     return $classes[$statut] ?? 'bg-secondary';
 }

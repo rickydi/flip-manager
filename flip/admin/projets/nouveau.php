@@ -139,6 +139,7 @@ include '../../includes/header.php';
                         <div class="mb-3">
                             <label for="statut" class="form-label">Statut</label>
                             <select class="form-select" id="statut" name="statut">
+                                <option value="prospection">Prospection</option>
                                 <option value="acquisition">Acquisition</option>
                                 <option value="renovation">Rénovation</option>
                                 <option value="vente">En vente</option>
