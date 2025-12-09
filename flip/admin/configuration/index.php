@@ -79,50 +79,6 @@ include '../../includes/header.php';
 
     <?php displayFlashMessage(); ?>
 
-    <!-- Sous-navigation Administration -->
-    <ul class="nav nav-tabs mb-4">
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/utilisateurs/liste.php') ?>">
-                <i class="bi bi-person-badge me-1"></i>Utilisateurs
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/categories/liste.php') ?>">
-                <i class="bi bi-tags me-1"></i>Catégories
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/templates/liste.php') ?>">
-                <i class="bi bi-box-seam me-1"></i>Templates
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/fournisseurs/liste.php') ?>">
-                <i class="bi bi-shop me-1"></i>Fournisseurs
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/recurrents/liste.php') ?>">
-                <i class="bi bi-arrow-repeat me-1"></i>Récurrents
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
-                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/rapports/paie-hebdo.php') ?>">
-                <i class="bi bi-calendar-week me-1"></i>Paie hebdo
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link active" href="<?= url('/admin/configuration/index.php') ?>">
-                <i class="bi bi-gear-wide-connected me-1"></i>Configuration
-            </a>
-        </li>
-    </ul>
-
     <?php if (!empty($errors)): ?>
         <div class="alert alert-danger">
             <ul class="mb-0">
@@ -151,7 +107,6 @@ include '../../includes/header.php';
                                     <label class="form-label fw-bold"><?= e($conf['description'] ?: $conf['cle']) ?></label>
                                     <div class="input-group">
                                         <span class="input-group-text font-monospace bg-light"><?= e($conf['cle']) ?></span>
-                                        
                                         <?php if ($conf['est_sensible']): ?>
                                             <input type="password" 
                                                    class="form-control" 
@@ -159,67 +114,15 @@ include '../../includes/header.php';
                                                    value="<?= !empty($conf['valeur']) ? '********************' : '' ?>"
                                                    placeholder="Saisir la clé pour modifier"
                                                    autocomplete="off">
-                                        
-                                        <?php elseif ($conf['cle'] === 'CLAUDE_MODEL'): 
-                                            $knownModels = [
-                                                'claude-sonnet-4-5-20250929',
-                                                'claude-haiku-4-5-20251001',
-                                                'claude-3-5-sonnet-20241022',
-                                                'claude-3-5-haiku-20241022',
-                                                'claude-3-opus-20240229'
-                                            ];
-                                            $isCustom = !in_array($conf['valeur'], $knownModels);
-                                        ?>
-                                            <select class="form-select" onchange="updateModelInput(this)">
-                                                <option value="claude-sonnet-4-5-20250929" <?= $conf['valeur'] == 'claude-sonnet-4-5-20250929' ? 'selected' : '' ?>>Claude 4.5 Sonnet</option>
-                                                <option value="claude-haiku-4-5-20251001" <?= $conf['valeur'] == 'claude-haiku-4-5-20251001' ? 'selected' : '' ?>>Claude 4.5 Haiku</option>
-                                                <option value="claude-3-5-sonnet-20241022" <?= $conf['valeur'] == 'claude-3-5-sonnet-20241022' ? 'selected' : '' ?>>Claude 3.5 Sonnet (Standard)</option>
-                                                <option value="claude-3-5-haiku-20241022" <?= $conf['valeur'] == 'claude-3-5-haiku-20241022' ? 'selected' : '' ?>>Claude 3.5 Haiku</option>
-                                                <option value="claude-3-opus-20240229" <?= $conf['valeur'] == 'claude-3-opus-20240229' ? 'selected' : '' ?>>Claude 3 Opus</option>
-                                                <option value="custom" <?= $isCustom ? 'selected' : '' ?>>Autre (Saisir manuellement)</option>
-                                            </select>
-                                        </div>
-                                        
-                                        <!-- Champ caché ou visible pour la valeur réelle envoyée -->
-                                        <div class="mt-2 <?= $isCustom ? '' : 'd-none' ?>" id="custom_model_container">
-                                            <label class="form-label small text-muted">Identifiant du modèle :</label>
-                                            <input type="text" 
-                                                   class="form-control" 
-                                                   id="input_claude_model"
-                                                   name="config[<?= $conf['cle'] ?>]" 
-                                                   value="<?= e($conf['valeur']) ?>"
-                                                   placeholder="Ex: claude-4-5-opus...">
-                                        </div>
-                                        
-                                        <div class="form-text">
-                                            Sélectionnez un modèle ou choisissez "Autre" pour saisir un futur modèle (ex: <code>claude-4.5</code>).
-                                        </div>
-
-                                        <script>
-                                        function updateModelInput(select) {
-                                            var container = document.getElementById('custom_model_container');
-                                            var input = document.getElementById('input_claude_model');
-                                            
-                                            if (select.value === 'custom') {
-                                                container.classList.remove('d-none');
-                                                input.focus();
-                                                // On ne change pas la valeur de l'input, l'utilisateur doit saisir
-                                            } else {
-                                                container.classList.add('d-none');
-                                                input.value = select.value;
-                                            }
-                                        }
-                                        </script>
-                                        
                                         <?php else: ?>
                                             <input type="text" 
                                                    class="form-control" 
                                                    name="config[<?= $conf['cle'] ?>]" 
                                                    value="<?= e($conf['valeur']) ?>">
                                         <?php endif; ?>
-                                        
-                                        <?php if ($conf['cle'] !== 'CLAUDE_MODEL'): ?>
-                                    </div> <!-- Fin input-group normal -->
+                                    </div>
+                                    <?php if ($conf['cle'] === 'CLAUDE_MODEL'): ?>
+                                        <div class="form-text">Modèles disponibles : claude-3-5-sonnet-20241022 (recommandé), claude-3-opus-20240229.</div>
                                     <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>

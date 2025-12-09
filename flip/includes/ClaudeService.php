@@ -59,20 +59,25 @@ class ClaudeService {
     }
 
     /**
-     * Analyse un texte extrait de comparables (Centris)
-     * @param string $fullText Texte complet extrait du PDF
+     * Analyse un fichier PDF de comparables
+     * @param string $pdfPath Chemin absolu vers le fichier PDF
      * @param array $projetInfo Informations sur le projet sujet (pour comparaison)
      * @return array Résultats de l'analyse
      */
-    public function analyserComparablesTexte($fullText, $projetInfo) {
-        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec (Flip immobilier). " .
-                       "Ton rôle est d'analyser le TEXTE BRUT extrait de fiches descriptives Centris et de les comparer avec un projet sujet. " .
-                       "Tu dois extraire les données de chaque comparable vendu. " .
-                       "IMPORTANT : Base-toi uniquement sur les descriptions textuelles (remarques, addenda, inclusions) pour juger de l'état des rénovations. " .
-                       "Ignore les en-têtes de pages répétés. " .
-                       "Réponds UNIQUEMENT en JSON valide, sans texte avant ni après.";
+    public function analyserComparables($pdfPath, $projetInfo) {
+        if (!file_exists($pdfPath)) {
+            throw new Exception("Fichier PDF introuvable.");
+        }
 
-        $userMessage = "Voici le contenu textuel d'un rapport de comparables vendus. \n\n" .
+        $pdfData = base64_encode(file_get_contents($pdfPath));
+
+        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec (Flip immobilier). " .
+                       "Ton rôle est d'analyser des fiches descriptives Centris (PDF) et de les comparer avec un projet sujet. " .
+                       "Tu dois extraire les données de chaque comparable vendu et estimer la valeur du sujet. " .
+                       "Sois précis, critique sur les rénovations visibles (regarde les photos si disponibles dans le PDF) et justifie chaque ajustement. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        $userMessage = "Voici un rapport de comparables vendus (PDF). \n" .
                       "PROJET SUJET (CE QUE JE VAIS VENDRE) : \n" .
                       "- Adresse : " . ($projetInfo['adresse'] ?? 'N/A') . "\n" .
                       "- Type : " . ($projetInfo['type'] ?? 'Maison unifamiliale') . "\n" .
@@ -81,11 +86,9 @@ class ClaudeService {
                       "- Superficie : " . ($projetInfo['superficie'] ?? 'N/A') . "\n" .
                       "- Garage : " . ($projetInfo['garage'] ?? 'Non') . "\n" .
                       "- État prévu à la vente : Entièrement rénové au goût du jour (Cuisine quartz, SDB moderne, planchers neufs).\n\n" .
-                      "CONTENU DU RAPPORT (TEXTE) : \n" . 
-                      substr($fullText, 0, 150000) . " \n\n" . // Limite de sécurité pour éviter erreur 400 si texte > context window (rare avec 200k)
                       "TACHE : \n" .
-                      "1. Repère chaque propriété vendue dans le texte (cherche 'No Centris', 'Vendu', 'Adresse'). \n" .
-                      "2. Pour chaque propriété, note l'état des rénovations sur 10 en lisant les remarques (ex: 'cuisine rénovée', 'à rénover'). \n" .
+                      "1. Extrais chaque propriété vendue du PDF. \n" .
+                      "2. Pour chaque propriété, note l'état des rénovations sur 10 (basé sur les photos et descriptions). \n" .
                       "3. Compare avec le sujet et propose un ajustement (+/- $) pour ramener le comparable au niveau du sujet. \n" .
                       "4. Estime le prix de vente final du sujet. \n\n" .
                       "Format JSON attendu : \n" .
@@ -103,11 +106,24 @@ class ClaudeService {
 
         $payload = [
             'model' => $this->model,
-            'max_tokens' => 8192, // Augmenté pour les longues analyses
+            'max_tokens' => 4096,
             'messages' => [
                 [
                     'role' => 'user',
-                    'content' => $userMessage
+                    'content' => [
+                        [
+                            'type' => 'document',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => 'application/pdf',
+                                'data' => $pdfData
+                            ]
+                        ],
+                        [
+                            'type' => 'text',
+                            'text' => $userMessage
+                        ]
+                    ]
                 ]
             ],
             'system' => $systemPrompt
@@ -124,8 +140,8 @@ class ClaudeService {
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'x-api-key: ' . $this->apiKey,
             'anthropic-version: 2023-06-01',
-            'content-type: application/json'
-            // Header beta PDF retiré car on envoie du texte
+            'content-type: application/json',
+            'anthropic-beta: pdfs-2024-09-25' // Header nécessaire pour le support PDF
         ]);
 
         $response = curl_exec($ch);
@@ -138,48 +154,16 @@ class ClaudeService {
 
         if ($httpCode !== 200) {
             $error = json_decode($response, true);
-            $errorMessage = $error['error']['message'] ?? $response;
-            throw new Exception('Erreur API Claude (' . $httpCode . '): ' . $errorMessage);
+            throw new Exception('Erreur API Claude (' . $httpCode . '): ' . ($error['error']['message'] ?? $response));
         }
 
         $data = json_decode($response, true);
         $content = $data['content'][0]['text'] ?? '';
-        $stopReason = $data['stop_reason'] ?? '';
-
-        // Vérifier si la réponse a été tronquée
-        if ($stopReason === 'max_tokens') {
-            throw new Exception("La réponse de l'IA a été tronquée (trop de données). Essayez avec moins de comparables dans le PDF.");
-        }
-
-        // Nettoyage robuste du JSON
-        $cleanContent = $content;
-
-        // 1. Supprimer les blocs markdown ```json ... ```
-        $cleanContent = preg_replace('/```json\s*/i', '', $cleanContent);
-        $cleanContent = preg_replace('/```\s*$/', '', $cleanContent);
-        $cleanContent = preg_replace('/```/', '', $cleanContent);
-
-        // 2. Extraire le JSON (chercher le premier { et le dernier })
-        $firstBrace = strpos($cleanContent, '{');
-        $lastBrace = strrpos($cleanContent, '}');
-
-        if ($firstBrace !== false && $lastBrace !== false && $lastBrace > $firstBrace) {
-            $jsonString = substr($cleanContent, $firstBrace, $lastBrace - $firstBrace + 1);
-            
-            // Tentative de décodage direct
-            $json = json_decode($jsonString, true);
+        
+        // Extraire le JSON de la réponse (au cas où il y a du texte autour)
+        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
+            $json = json_decode($matches[0], true);
             if ($json) return $json;
-
-            // Si échec, tentative de nettoyage (virgules de fin, quotes)
-            // Supprimer les virgules trailing avant } ou ]
-            $jsonString = preg_replace('/,(\s*[}\]])/', '$1', $jsonString);
-
-            $json = json_decode($jsonString, true);
-            if ($json) return $json;
-
-            // Debug: afficher l'erreur JSON avec un extrait
-            $jsonError = json_last_error_msg();
-            throw new Exception("JSON invalide (" . $jsonError . "). L'IA a peut-être généré trop de texte.");
         }
 
         throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé).");

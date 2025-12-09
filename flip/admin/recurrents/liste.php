@@ -175,13 +175,8 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/rapports/paie-hebdo.php') ?>">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Paie hebdo
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/configuration/index.php') ?>">
-                <i class="bi bi-gear-wide-connected me-1"></i>Configuration
+            <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
             </a>
         </li>
     </ul>

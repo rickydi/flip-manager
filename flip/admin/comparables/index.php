@@ -7,10 +7,12 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/ClaudeService.php';
 
 requireAdmin();
 
 $pageTitle = 'Comparables & Analyse IA';
+$claudeService = new ClaudeService($pdo);
 
 // Auto-migration des tables analyses si elles n'existent pas
 try {
@@ -18,6 +20,7 @@ try {
 } catch (Exception $e) {
     // Exécuter le SQL de migration
     $sqlMigration = file_get_contents('../../sql/migration_comparables_ai.sql');
+    // Nettoyer les commentaires et exécuter
     $queries = explode(';', $sqlMigration);
     foreach ($queries as $query) {
         $query = trim($query);
@@ -27,13 +30,95 @@ try {
     }
 }
 
-// Traitement suppression
-if (isset($_POST['action']) && $_POST['action'] === 'supprimer') {
-    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $id = (int)$_POST['id'];
-        $pdo->prepare("DELETE FROM analyses_marche WHERE id = ?")->execute([$id]);
-        setFlashMessage('success', 'Analyse supprimée.');
-        redirect('index.php');
+$errors = [];
+$success = '';
+
+// Traitement du formulaire de nouvelle analyse
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'analyser') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $errors[] = 'Token invalide.';
+    } else {
+        $projetId = (int)$_POST['projet_id'];
+        $nomRapport = trim($_POST['nom_rapport']);
+        
+        if (empty($nomRapport)) $errors[] = 'Le nom du rapport est requis.';
+        if (!isset($_FILES['fichier_pdf']) || $_FILES['fichier_pdf']['error'] !== UPLOAD_ERR_OK) {
+            $errors[] = 'Veuillez sélectionner un fichier PDF valide.';
+        }
+
+        if (empty($errors)) {
+            try {
+                // Upload du fichier
+                $uploadDir = '../../uploads/comparables/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+                
+                $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '', $_FILES['fichier_pdf']['name']);
+                $filePath = $uploadDir . $fileName;
+                
+                if (move_uploaded_file($_FILES['fichier_pdf']['tmp_name'], $filePath)) {
+                    // Récupérer les infos du projet sujet
+                    $projet = getProjetById($pdo, $projetId);
+                    $projetInfo = [
+                        'adresse' => $projet['adresse'] . ', ' . $projet['ville'],
+                        'type' => 'Maison unifamiliale', // À raffiner si dispo
+                        'chambres' => 'N/A', // Idéalement ajouter ces champs dans la table projets
+                        'sdb' => 'N/A',
+                        'superficie' => 'N/A',
+                        'garage' => 'N/A'
+                    ];
+
+                    // Appel à l'IA
+                    $resultats = $claudeService->analyserComparables($filePath, $projetInfo);
+
+                    // Sauvegarder l'analyse
+                    $stmt = $pdo->prepare("
+                        INSERT INTO analyses_marche (projet_id, nom_rapport, fichier_source, statut, prix_suggere_ia, fourchette_basse, fourchette_haute, analyse_ia_texte)
+                        VALUES (?, ?, ?, 'termine', ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $projetId,
+                        $nomRapport,
+                        $filePath,
+                        $resultats['analyse_globale']['prix_suggere'] ?? 0,
+                        $resultats['analyse_globale']['fourchette_basse'] ?? 0,
+                        $resultats['analyse_globale']['fourchette_haute'] ?? 0,
+                        $resultats['analyse_globale']['commentaire_general'] ?? ''
+                    ]);
+                    $analyseId = $pdo->lastInsertId();
+
+                    // Sauvegarder les items
+                    $stmtItem = $pdo->prepare("
+                        INSERT INTO comparables_items (analyse_id, adresse, prix_vendu, date_vente, chambres, salles_bains, superficie_batiment, annee_construction, etat_general_note, etat_general_texte, renovations_mentionnees, ajustement_ia, commentaire_ia)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ");
+
+                    foreach ($resultats['comparables'] as $comp) {
+                        $stmtItem->execute([
+                            $analyseId,
+                            $comp['adresse'] ?? '',
+                            $comp['prix_vendu'] ?? 0,
+                            $comp['date_vente'] ?? null,
+                            $comp['chambres'] ?? '',
+                            $comp['sdb'] ?? '',
+                            $comp['superficie'] ?? '',
+                            $comp['annee'] ?? null,
+                            $comp['etat_note'] ?? 0,
+                            $comp['etat_texte'] ?? '',
+                            $comp['renovations'] ?? '',
+                            $comp['ajustement'] ?? 0,
+                            $comp['commentaire'] ?? ''
+                        ]);
+                    }
+
+                    redirect('/admin/comparables/detail.php?id=' . $analyseId);
+
+                } else {
+                    $errors[] = 'Erreur lors du téléchargement du fichier.';
+                }
+            } catch (Exception $e) {
+                $errors[] = 'Erreur lors de l\'analyse : ' . $e->getMessage();
+            }
+        }
     }
 }
 
@@ -52,10 +137,6 @@ $projets = getProjets($pdo);
 include '../../includes/header.php';
 ?>
 
-<!-- Librairie PDF.js pour extraction de texte -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';</script>
-
 <div class="container-fluid">
     <div class="page-header d-flex justify-content-between align-items-center">
         <div>
@@ -73,6 +154,16 @@ include '../../includes/header.php';
     </div>
 
     <?php displayFlashMessage(); ?>
+
+    <?php if (!empty($errors)): ?>
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 
     <div class="card">
         <div class="card-body p-0">
@@ -118,17 +209,9 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end">
-                                        <a href="detail.php?id=<?= $analyse['id'] ?>" class="btn btn-sm btn-outline-primary me-1">
-                                            <i class="bi bi-eye"></i>
+                                        <a href="detail.php?id=<?= $analyse['id'] ?>" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> Voir
                                         </a>
-                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette analyse ?');">
-                                            <?php csrfField(); ?>
-                                            <input type="hidden" name="action" value="supprimer">
-                                            <input type="hidden" name="id" value="<?= $analyse['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -144,7 +227,10 @@ include '../../includes/header.php';
 <div class="modal fade" id="modalNouveau" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form id="formAnalyseJS" onsubmit="handleAnalysis(event)">
+            <form method="POST" action="" enctype="multipart/form-data" id="formAnalyse">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="analyser">
+                
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-magic me-2"></i>Nouvelle Analyse IA</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -152,14 +238,12 @@ include '../../includes/header.php';
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        Le système va extraire le texte de votre PDF (rapide et illimité en pages) et l'envoyer à l'IA pour analyse comparative.
+                        L'IA va lire votre PDF Centris, extraire les données, analyser les photos pour juger de l'état des rénovations, et estimer la valeur de votre projet.
                     </div>
-
-                    <div id="error-msg" class="alert alert-danger d-none"></div>
 
                     <div class="mb-3">
                         <label class="form-label">Projet sujet (le vôtre)</label>
-                        <select class="form-select" name="projet_id" id="projet_id" required>
+                        <select class="form-select" name="projet_id" required>
                             <?php foreach ($projets as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
                             <?php endforeach; ?>
@@ -168,26 +252,20 @@ include '../../includes/header.php';
                     
                     <div class="mb-3">
                         <label class="form-label">Nom du rapport</label>
-                        <input type="text" class="form-control" name="nom_rapport" id="nom_rapport" placeholder="Ex: Comparables Rue Barbeau" required>
+                        <input type="text" class="form-control" name="nom_rapport" placeholder="Ex: Comparables Rue Barbeau - Octobre 2025" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Fichier PDF Centris</label>
-                        <input type="file" class="form-control" name="fichier_pdf" id="fichier_pdf" accept="application/pdf" required>
-                    </div>
-
-                    <!-- Barre de progression -->
-                    <div id="progress-container" class="d-none mt-3">
-                        <label class="form-label mb-1" id="progress-text">Démarrage...</label>
-                        <div class="progress" style="height: 25px;">
-                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
-                        </div>
+                        <input type="file" class="form-control" name="fichier_pdf" accept="application/pdf" required>
+                        <div class="form-text">Téléchargez le rapport PDF généré par Centris/Matrix contenant les comparables vendus.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnAnnuler">Annuler</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-primary" id="btnAnalyser">
-                        <i class="bi bi-play-fill me-1"></i>Lancer l'analyse
+                        <span id="btnText">Lancer l'analyse</span>
+                        <span id="btnSpinner" class="spinner-border spinner-border-sm d-none"></span>
                     </button>
                 </div>
             </form>
@@ -196,94 +274,15 @@ include '../../includes/header.php';
 </div>
 
 <script>
-async function handleAnalysis(e) {
-    e.preventDefault();
+document.getElementById('formAnalyse').addEventListener('submit', function() {
+    var btn = document.getElementById('btnAnalyser');
+    var txt = document.getElementById('btnText');
+    var spin = document.getElementById('btnSpinner');
     
-    const fileInput = document.getElementById('fichier_pdf');
-    const projetId = document.getElementById('projet_id').value;
-    const nomRapport = document.getElementById('nom_rapport').value;
-    const btn = document.getElementById('btnAnalyser');
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-    const errorMsg = document.getElementById('error-msg');
-
-    if (fileInput.files.length === 0) return;
-    
-    // UI Init
     btn.disabled = true;
-    document.getElementById('btnAnnuler').disabled = true;
-    progressContainer.classList.remove('d-none');
-    errorMsg.classList.add('d-none');
-    
-    try {
-        const file = fileInput.files[0];
-        const arrayBuffer = await file.arrayBuffer();
-        
-        // 1. Extraction du texte côté client (Browser)
-        progressText.textContent = "Extraction du texte du PDF...";
-        progressBar.style.width = "10%";
-        
-        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-        let fullText = "";
-        
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            const pageText = textContent.items.map(item => item.str).join(" ");
-            fullText += `--- PAGE ${i} ---\n${pageText}\n\n`;
-            
-            // Mise à jour progression extraction
-            const percent = 10 + Math.round((i / pdf.numPages) * 20); // 10% à 30%
-            progressBar.style.width = `${percent}%`;
-            progressText.textContent = `Lecture page ${i}/${pdf.numPages}...`;
-        }
-        
-        console.log("Texte extrait (taille):", fullText.length);
-        
-        // 2. Initialisation Analyse DB
-        progressText.textContent = "Envoi des données au serveur...";
-        const formDataInit = new FormData();
-        formDataInit.append('action', 'init');
-        formDataInit.append('projet_id', projetId);
-        formDataInit.append('nom_rapport', nomRapport);
-        
-        const resInit = await fetch('traitement_analyse.php', { method: 'POST', body: formDataInit });
-        const dataInit = await resInit.json();
-        
-        if (!dataInit.success) throw new Error(dataInit.error || "Erreur init");
-        const analyseId = dataInit.id;
-        
-        // 3. Envoi du texte à l'IA (via PHP)
-        progressBar.style.width = "40%";
-        progressText.innerHTML = "Analyse IA en cours...<br><small class='text-muted'>Comparaison des données textuelles. Veuillez patienter.</small>";
-        
-        const formDataProcess = new FormData();
-        formDataProcess.append('action', 'process_text');
-        formDataProcess.append('analyse_id', analyseId);
-        formDataProcess.append('full_text', fullText);
-        
-        const resProcess = await fetch('traitement_analyse.php', { method: 'POST', body: formDataProcess });
-        const dataProcess = await resProcess.json();
-        
-        if (!dataProcess.success) throw new Error(dataProcess.error || "Erreur analyse");
-        
-        // 4. Finalisation
-        progressBar.style.width = "100%";
-        progressText.textContent = "Terminé ! Redirection...";
-        
-        // Redirection
-        window.location.href = `detail.php?id=${analyseId}`;
-        
-    } catch (error) {
-        console.error(error);
-        errorMsg.textContent = "Erreur : " + error.message;
-        errorMsg.classList.remove('d-none');
-        btn.disabled = false;
-        document.getElementById('btnAnnuler').disabled = false;
-        progressContainer.classList.add('d-none');
-    }
-}
+    txt.textContent = 'Analyse en cours par l\'IA... (Patientez)';
+    spin.classList.remove('d-none');
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>

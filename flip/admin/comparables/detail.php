@@ -50,14 +50,6 @@ include '../../includes/header.php';
             <h1><i class="bi bi-file-earmark-bar-graph me-2"></i>Rapport d'analyse</h1>
         </div>
         <div class="d-flex gap-2">
-            <form method="POST" action="index.php" onsubmit="return confirm('Supprimer cette analyse définitivement ?');">
-                <?php csrfField(); ?>
-                <input type="hidden" name="action" value="supprimer">
-                <input type="hidden" name="id" value="<?= $analyseId ?>">
-                <button type="submit" class="btn btn-danger">
-                    <i class="bi bi-trash me-1"></i>Supprimer
-                </button>
-            </form>
             <button onclick="window.print()" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-1"></i>Imprimer
             </button>
@@ -123,9 +115,7 @@ include '../../includes/header.php';
                         <th style="width: 10%;">Délai</th>
                         <th style="width: 10%;">Caractéristiques</th>
                         <th style="width: 15%;">État (Note IA)</th>
-                        <th style="width: 10%;" title="Montant ajouté ou soustrait au prix vendu pour équivaloir à votre projet (ex: -20k car il a un garage et vous non)">
-                            Ajustement <i class="bi bi-info-circle text-muted small"></i>
-                        </th>
+                        <th style="width: 10%;">Ajustement</th>
                         <th style="width: 15%;">Commentaire</th>
                     </tr>
                 </thead>
