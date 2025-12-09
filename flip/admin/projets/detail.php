@@ -1278,6 +1278,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         .compact-form .card-header { padding: 0.5rem 1rem; font-size: 0.9rem; }
         .compact-form .card-body { padding: 0.75rem; }
     </style>
+    <div class="row">
+    <div class="col-xxl-8">
     <form method="POST" action="" class="compact-form" id="formBase">
         <?php csrfField(); ?>
         <input type="hidden" name="action" value="general">
@@ -1544,8 +1546,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
     </div>
-    
+    </div><!-- Fin col-xxl-8 -->
+
     <!-- TABLEAU UNIFIÉ : EXTRAPOLÉ | DIFF | RÉEL -->
+    <div class="col-xxl-4">
     <div class="card">
         <div class="card-header py-2">
             <i class="bi bi-calculator me-1"></i> Détail des coûts (<?= $dureeReelle ?> mois)
@@ -1824,6 +1828,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </table>
         </div>
     </div>
+    </div><!-- Fin col-xxl-4 -->
+    </div><!-- Fin row xxl -->
     </div><!-- Fin TAB BASE -->
 
     <!-- TAB FINANCEMENT -->
