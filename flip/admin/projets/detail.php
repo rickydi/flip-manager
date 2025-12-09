@@ -130,6 +130,113 @@ try {
 }
 
 // ========================================
+// AJAX: Sauvegarde automatique de l'onglet Base
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_base') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    try {
+        // Récupérer les valeurs
+        $nom = trim($_POST['nom'] ?? '');
+        $adresse = trim($_POST['adresse'] ?? '');
+        $ville = trim($_POST['ville'] ?? '');
+        $codePostal = trim($_POST['code_postal'] ?? '');
+        $dateAcquisition = $_POST['date_acquisition'] ?: null;
+        $dateDebutTravaux = $_POST['date_debut_travaux'] ?: null;
+        $dateFinPrevue = $_POST['date_fin_prevue'] ?: null;
+        $dateVente = $_POST['date_vente'] ?: null;
+        $statut = $_POST['statut'] ?? 'acquisition';
+
+        $prixAchat = parseNumber($_POST['prix_achat'] ?? 0);
+        $cession = parseNumber($_POST['cession'] ?? 0);
+        $notaire = parseNumber($_POST['notaire'] ?? 0);
+        $taxeMutation = parseNumber($_POST['taxe_mutation'] ?? 0);
+        $arpenteurs = parseNumber($_POST['arpenteurs'] ?? 0);
+        $assuranceTitre = parseNumber($_POST['assurance_titre'] ?? 0);
+
+        $tempsAssumeMois = (int)($_POST['temps_assume_mois'] ?? 6);
+        $valeurPotentielle = parseNumber($_POST['valeur_potentielle'] ?? 0);
+
+        $tauxCommission = parseNumber($_POST['taux_commission'] ?? 4);
+        $tauxContingence = parseNumber($_POST['taux_contingence'] ?? 15);
+        $tauxInteret = parseNumber($_POST['taux_interet'] ?? 10);
+        $montantPret = parseNumber($_POST['montant_pret'] ?? 0);
+
+        $notes = trim($_POST['notes'] ?? '');
+
+        // Validation minimale
+        if (empty($nom) || empty($adresse) || empty($ville)) {
+            echo json_encode(['success' => false, 'error' => 'Champs requis manquants']);
+            exit;
+        }
+
+        $pdo->beginTransaction();
+
+        // Mise à jour du projet
+        $stmt = $pdo->prepare("
+            UPDATE projets SET
+                nom = ?, adresse = ?, ville = ?, code_postal = ?,
+                date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
+                statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?,
+                arpenteurs = ?, assurance_titre = ?,
+                temps_assume_mois = ?, valeur_potentielle = ?,
+                taux_commission = ?, taux_contingence = ?,
+                taux_interet = ?, montant_pret = ?, notes = ?
+            WHERE id = ?
+        ");
+
+        $stmt->execute([
+            $nom, $adresse, $ville, $codePostal,
+            $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
+            $statut, $prixAchat, $cession, $notaire, $taxeMutation,
+            $arpenteurs, $assuranceTitre,
+            $tempsAssumeMois, $valeurPotentielle,
+            $tauxCommission, $tauxContingence,
+            $tauxInteret, $montantPret, $notes,
+            $projetId
+        ]);
+
+        // Sauvegarder les coûts récurrents dynamiques
+        if (isset($_POST['recurrents']) && is_array($_POST['recurrents'])) {
+            $stmtRec = $pdo->prepare("
+                INSERT INTO projet_recurrents (projet_id, recurrent_type_id, montant)
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE montant = VALUES(montant)
+            ");
+            foreach ($_POST['recurrents'] as $typeId => $montant) {
+                $montantVal = parseNumber($montant);
+                $stmtRec->execute([$projetId, (int)$typeId, $montantVal]);
+            }
+        }
+
+        $pdo->commit();
+
+        // Recalculer les indicateurs
+        $projet = getProjetById($pdo, $projetId);
+        $indicateurs = calculerIndicateursProjet($pdo, $projet);
+
+        echo json_encode([
+            'success' => true,
+            'indicateurs' => [
+                'valeur_potentielle' => $indicateurs['valeur_potentielle'],
+                'equite_potentielle' => $indicateurs['equite_potentielle'],
+                'equite_reelle' => $indicateurs['equite_reelle'],
+                'roi_leverage' => $indicateurs['roi_leverage']
+            ]
+        ]);
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
 // AJAX: Sauvegarde automatique des budgets
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_budget') {
@@ -894,7 +1001,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         .compact-form .card-header { padding: 0.5rem 1rem; font-size: 0.9rem; }
         .compact-form .card-body { padding: 0.75rem; }
     </style>
-    <form method="POST" action="" class="compact-form">
+    <form method="POST" action="" class="compact-form" id="formBase">
         <?php csrfField(); ?>
         <input type="hidden" name="action" value="general">
 
@@ -1133,9 +1240,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         </div>
 
         <div class="text-end mt-2">
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-check-circle me-1"></i>Enregistrer
-            </button>
+            <div id="baseStatusSave" class="text-muted small">
+                <span id="baseIdle"><i class="bi bi-cloud-check me-1"></i>Sauvegarde auto</span>
+                <span id="baseSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Enregistrement...</span>
+                <span id="baseSaved" class="d-none text-success"><i class="bi bi-check-circle me-1"></i>Enregistré!</span>
+            </div>
         </div>
     </form>
 
@@ -3157,6 +3266,78 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         } else {
             scheduleRefresh();
         }
+    });
+})();
+</script>
+
+<!-- Auto-save pour l'onglet Base -->
+<script>
+(function() {
+    const formBase = document.getElementById('formBase');
+    if (!formBase) return;
+
+    const csrfToken = '<?= generateCSRFToken() ?>';
+    let baseSaveTimeout = null;
+
+    function showBaseSaveStatus(status) {
+        document.getElementById('baseIdle').classList.add('d-none');
+        document.getElementById('baseSaving').classList.add('d-none');
+        document.getElementById('baseSaved').classList.add('d-none');
+        document.getElementById('base' + status.charAt(0).toUpperCase() + status.slice(1)).classList.remove('d-none');
+    }
+
+    function autoSaveBase() {
+        if (baseSaveTimeout) clearTimeout(baseSaveTimeout);
+
+        baseSaveTimeout = setTimeout(function() {
+            showBaseSaveStatus('saving');
+
+            const formData = new FormData(formBase);
+            formData.set('ajax_action', 'save_base');
+            formData.set('csrf_token', csrfToken);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showBaseSaveStatus('saved');
+                    setTimeout(() => showBaseSaveStatus('idle'), 2000);
+
+                    // Mettre à jour les indicateurs si disponibles
+                    if (data.indicateurs) {
+                        // Mise à jour optionnelle des cartes indicateurs
+                    }
+                } else {
+                    console.error('Erreur:', data.error);
+                    showBaseSaveStatus('idle');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur réseau:', error);
+                showBaseSaveStatus('idle');
+            });
+        }, 500); // Debounce 500ms
+    }
+
+    // Écouter les changements sur tous les inputs du formulaire Base
+    formBase.querySelectorAll('input, select, textarea').forEach(input => {
+        // Pour les inputs text/money, on écoute l'événement blur et change
+        if (input.type === 'text' || input.type === 'number' || input.tagName === 'TEXTAREA') {
+            input.addEventListener('blur', autoSaveBase);
+            input.addEventListener('change', autoSaveBase);
+        } else {
+            // Pour les selects et autres, on écoute change
+            input.addEventListener('change', autoSaveBase);
+        }
+    });
+
+    // Empêcher la soumission normale du formulaire (sauf si explicitement nécessaire)
+    formBase.addEventListener('submit', function(e) {
+        e.preventDefault();
+        autoSaveBase();
     });
 })();
 </script>
