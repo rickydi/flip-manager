@@ -851,6 +851,71 @@ try {
     $moReel['cout'] = (float)($res['total_cout'] ?? 0);
 } catch (Exception $e) {}
 
+// ========================================
+// DONNÉES POUR ONGLET TEMPS
+// ========================================
+$heuresProjet = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT h.*, CONCAT(u.prenom, ' ', u.nom) as employe_nom, u.taux_horaire as taux_actuel
+        FROM heures_travaillees h
+        JOIN users u ON h.user_id = u.id
+        WHERE h.projet_id = ?
+        ORDER BY h.date_travail DESC, h.id DESC
+    ");
+    $stmt->execute([$projetId]);
+    $heuresProjet = $stmt->fetchAll();
+} catch (Exception $e) {}
+
+// ========================================
+// DONNÉES POUR ONGLET PHOTOS
+// ========================================
+$photosProjet = [];
+$groupesPhotosProjet = [];
+try {
+    // Groupes de photos
+    $stmt = $pdo->prepare("
+        SELECT p.groupe_id, CONCAT(u.prenom, ' ', u.nom) as employe_nom,
+               MIN(p.date_prise) as premiere_photo, MAX(p.date_prise) as derniere_photo,
+               COUNT(*) as nb_photos, p.description
+        FROM photos_projet p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.projet_id = ?
+        GROUP BY p.groupe_id, u.prenom, u.nom, p.description
+        ORDER BY derniere_photo DESC
+    ");
+    $stmt->execute([$projetId]);
+    $groupesPhotosProjet = $stmt->fetchAll();
+
+    // Toutes les photos
+    $stmt = $pdo->prepare("
+        SELECT p.*, CONCAT(u.prenom, ' ', u.nom) as employe_nom
+        FROM photos_projet p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.projet_id = ?
+        ORDER BY p.date_prise DESC, p.id DESC
+    ");
+    $stmt->execute([$projetId]);
+    $photosProjet = $stmt->fetchAll();
+} catch (Exception $e) {}
+
+// ========================================
+// DONNÉES POUR ONGLET FACTURES
+// ========================================
+$facturesProjet = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT f.*, c.nom as categorie_nom, fo.nom as fournisseur_nom
+        FROM factures f
+        LEFT JOIN categories c ON f.categorie_id = c.id
+        LEFT JOIN fournisseurs fo ON f.fournisseur_id = fo.id
+        WHERE f.projet_id = ?
+        ORDER BY f.date_facture DESC, f.id DESC
+    ");
+    $stmt->execute([$projetId]);
+    $facturesProjet = $stmt->fetchAll();
+} catch (Exception $e) {}
+
 include '../../includes/header.php';
 ?>
 
@@ -942,6 +1007,21 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             <li class="nav-item" role="presentation">
                 <button class="nav-link <?= $tab === 'maindoeuvre' ? 'active' : '' ?>" id="maindoeuvre-tab" data-bs-toggle="tab" data-bs-target="#maindoeuvre" type="button" role="tab">
                     <i class="bi bi-people me-1"></i>Main-d'œuvre
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'temps' ? 'active' : '' ?>" id="temps-tab" data-bs-toggle="tab" data-bs-target="#temps" type="button" role="tab">
+                    <i class="bi bi-clock me-1"></i>Temps
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'photos' ? 'active' : '' ?>" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button" role="tab">
+                    <i class="bi bi-camera me-1"></i>Photos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'factures' ? 'active' : '' ?>" id="factures-tab" data-bs-toggle="tab" data-bs-target="#factures" type="button" role="tab">
+                    <i class="bi bi-receipt me-1"></i>Factures
                 </button>
             </li>
         </ul>
@@ -2937,6 +3017,193 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     });
     </script>
     </div><!-- Fin TAB MAIN-D'ŒUVRE -->
+
+    <!-- TAB TEMPS -->
+    <div class="tab-pane fade <?= $tab === 'temps' ? 'show active' : '' ?>" id="temps" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-clock me-2"></i>Heures travaillées</h5>
+            <span class="badge bg-primary"><?= count($heuresProjet) ?> entrées</span>
+        </div>
+
+        <?php if (empty($heuresProjet)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>Aucune heure enregistrée pour ce projet.
+            </div>
+        <?php else: ?>
+            <?php
+            $totalHeuresTab = array_sum(array_column($heuresProjet, 'heures'));
+            $totalCoutTab = 0;
+            foreach ($heuresProjet as $h) {
+                $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
+                $totalCoutTab += $h['heures'] * $taux;
+            }
+            ?>
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="card text-center p-2 bg-primary bg-opacity-10">
+                        <small class="text-muted">Total heures</small>
+                        <strong class="fs-5"><?= number_format($totalHeuresTab, 1) ?> h</strong>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card text-center p-2 bg-success bg-opacity-10">
+                        <small class="text-muted">Coût total</small>
+                        <strong class="fs-5 text-success"><?= formatMoney($totalCoutTab) ?></strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Employé</th>
+                            <th class="text-end">Heures</th>
+                            <th class="text-end">Taux</th>
+                            <th class="text-end">Montant</th>
+                            <th>Statut</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($heuresProjet as $h):
+                            $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
+                            $montant = $h['heures'] * $taux;
+                        ?>
+                        <tr>
+                            <td><?= formatDate($h['date_travail']) ?></td>
+                            <td><?= e($h['employe_nom']) ?></td>
+                            <td class="text-end"><?= number_format($h['heures'], 1) ?></td>
+                            <td class="text-end"><?= formatMoney($taux) ?>/h</td>
+                            <td class="text-end fw-bold"><?= formatMoney($montant) ?></td>
+                            <td>
+                                <?php
+                                $statusClass = match($h['statut']) {
+                                    'approuvee' => 'bg-success',
+                                    'rejetee' => 'bg-danger',
+                                    default => 'bg-warning'
+                                };
+                                $statusLabel = match($h['statut']) {
+                                    'approuvee' => 'Approuvée',
+                                    'rejetee' => 'Rejetée',
+                                    default => 'En attente'
+                                };
+                                ?>
+                                <span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span>
+                            </td>
+                            <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div><!-- Fin TAB TEMPS -->
+
+    <!-- TAB PHOTOS -->
+    <div class="tab-pane fade <?= $tab === 'photos' ? 'show active' : '' ?>" id="photos" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-camera me-2"></i>Photos du projet</h5>
+            <span class="badge bg-primary"><?= count($photosProjet) ?> photos</span>
+        </div>
+
+        <?php if (empty($photosProjet)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet.
+            </div>
+        <?php else: ?>
+            <div class="row g-3">
+                <?php foreach ($photosProjet as $photo): ?>
+                <div class="col-6 col-md-4 col-lg-3">
+                    <div class="card h-100">
+                        <a href="<?= url('/uploads/photos/' . $photo['fichier']) ?>" target="_blank">
+                            <img src="<?= url('/uploads/photos/' . $photo['fichier']) ?>" class="card-img-top" alt="Photo" style="height: 150px; object-fit: cover;">
+                        </a>
+                        <div class="card-body p-2">
+                            <small class="text-muted d-block"><?= formatDate($photo['date_prise']) ?></small>
+                            <small class="text-muted"><?= e($photo['employe_nom']) ?></small>
+                            <?php if (!empty($photo['description'])): ?>
+                                <div class="mt-1"><span class="badge bg-secondary"><?= e($photo['description']) ?></span></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+    </div><!-- Fin TAB PHOTOS -->
+
+    <!-- TAB FACTURES -->
+    <div class="tab-pane fade <?= $tab === 'factures' ? 'show active' : '' ?>" id="factures" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="bi bi-receipt me-2"></i>Factures</h5>
+            <div>
+                <span class="badge bg-primary me-2"><?= count($facturesProjet) ?> factures</span>
+                <a href="<?= url('/admin/factures/nouveau.php?projet=' . $projetId) ?>" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus"></i> Nouvelle
+                </a>
+            </div>
+        </div>
+
+        <?php if (empty($facturesProjet)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>Aucune facture pour ce projet.
+            </div>
+        <?php else: ?>
+            <?php
+            $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
+            ?>
+            <div class="row g-2 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="card text-center p-2 bg-danger bg-opacity-10">
+                        <small class="text-muted">Total factures</small>
+                        <strong class="fs-5 text-danger"><?= formatMoney($totalFacturesTab) ?></strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Date</th>
+                            <th>Fournisseur</th>
+                            <th>Catégorie</th>
+                            <th class="text-end">Montant</th>
+                            <th>Statut</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($facturesProjet as $f): ?>
+                        <tr>
+                            <td><?= formatDate($f['date_facture']) ?></td>
+                            <td><?= e($f['fournisseur_nom'] ?? 'N/A') ?></td>
+                            <td><?= e($f['categorie_nom'] ?? 'N/A') ?></td>
+                            <td class="text-end fw-bold"><?= formatMoney($f['montant_total']) ?></td>
+                            <td>
+                                <?php
+                                $statusClass = match($f['statut']) {
+                                    'approuvee' => 'bg-success',
+                                    'rejetee' => 'bg-danger',
+                                    default => 'bg-warning'
+                                };
+                                ?>
+                                <span class="badge <?= $statusClass ?>"><?= getStatutFactureLabel($f['statut']) ?></span>
+                            </td>
+                            <td>
+                                <a href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" class="btn btn-sm btn-outline-primary" title="Modifier">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div><!-- Fin TAB FACTURES -->
 
     </div><!-- Fin tab-content -->
 
