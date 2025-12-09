@@ -77,6 +77,50 @@ include '../../includes/header.php';
         <h1><i class="bi bi-gear-wide-connected me-2"></i>Configuration Système & IA</h1>
     </div>
 
+    <!-- Sous-navigation Administration -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/utilisateurs/liste.php') ?>">
+                <i class="bi bi-person-badge me-1"></i>Utilisateurs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/categories/liste.php') ?>">
+                <i class="bi bi-tags me-1"></i>Catégories
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/templates/liste.php') ?>">
+                <i class="bi bi-box-seam me-1"></i>Templates
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/fournisseurs/liste.php') ?>">
+                <i class="bi bi-shop me-1"></i>Fournisseurs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/recurrents/liste.php') ?>">
+                <i class="bi bi-arrow-repeat me-1"></i>Récurrents
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/checklists/liste.php') ?>">
+                <i class="bi bi-list-check me-1"></i>Checklists
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
+                <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" href="<?= url('/admin/configuration/index.php') ?>">
+                <i class="bi bi-gear me-1"></i>Configuration
+            </a>
+        </li>
+    </ul>
+
     <?php displayFlashMessage(); ?>
 
     <?php if (!empty($errors)): ?>
