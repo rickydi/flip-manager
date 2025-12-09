@@ -1340,7 +1340,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             <div class="col-4">
                                 <label class="form-label">Prix achat</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" name="prix_achat" value="<?= formatMoney($projet['prix_achat'], false) ?>">
+                                    <input type="text" class="form-control money-input" name="prix_achat" id="prix_achat" value="<?= formatMoney($projet['prix_achat'], false) ?>" onchange="calculerTaxeMutation()">
                                 </div>
                             </div>
                             <div class="col-4">
@@ -1400,9 +1400,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 </div>
                             </div>
                             <div class="col-4">
-                                <label class="form-label">Mutation</label>
+                                <label class="form-label">Mutation <button type="button" class="btn btn-link btn-sm p-0 ms-1" onclick="calculerTaxeMutation()" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button></label>
                                 <div class="input-group"><span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" name="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
+                                    <input type="text" class="form-control money-input" name="taxe_mutation" id="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
                                 </div>
                             </div>
                         </div>
@@ -4025,6 +4025,57 @@ function calculerDuree() {
     }
 
     dureeMois.value = Math.max(1, mois);
+}
+
+// Calcul automatique de la taxe de mutation (droits de mutation - "taxe de bienvenue")
+// Taux standards du Québec (peuvent varier selon la municipalité pour la dernière tranche)
+function calculerTaxeMutation() {
+    const prixAchatInput = document.getElementById('prix_achat');
+    const taxeMutationInput = document.getElementById('taxe_mutation');
+
+    if (!prixAchatInput || !taxeMutationInput) return;
+
+    // Parser le prix (enlever espaces et symboles)
+    const prixStr = prixAchatInput.value.replace(/[^0-9.,]/g, '').replace(',', '.');
+    const prixAchat = parseFloat(prixStr) || 0;
+
+    if (prixAchat <= 0) {
+        taxeMutationInput.value = '0';
+        return;
+    }
+
+    // Tranches progressives Québec (2024)
+    // 0 à 58 900$: 0.5%
+    // 58 900$ à 294 600$: 1.0%
+    // 294 600$ à 500 000$: 1.5%
+    // 500 000$ et +: 3.0% (peut varier selon municipalité)
+    let taxe = 0;
+
+    // Tranche 1: 0 à 58 900$
+    const tranche1 = Math.min(prixAchat, 58900);
+    taxe += tranche1 * 0.005;
+
+    // Tranche 2: 58 900$ à 294 600$
+    if (prixAchat > 58900) {
+        const tranche2 = Math.min(prixAchat, 294600) - 58900;
+        taxe += tranche2 * 0.01;
+    }
+
+    // Tranche 3: 294 600$ à 500 000$
+    if (prixAchat > 294600) {
+        const tranche3 = Math.min(prixAchat, 500000) - 294600;
+        taxe += tranche3 * 0.015;
+    }
+
+    // Tranche 4: 500 000$ et plus
+    if (prixAchat > 500000) {
+        const tranche4 = prixAchat - 500000;
+        taxe += tranche4 * 0.03;
+    }
+
+    // Arrondir à 2 décimales et formater
+    taxe = Math.round(taxe * 100) / 100;
+    taxeMutationInput.value = taxe.toLocaleString('fr-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 </script>
 
