@@ -978,6 +978,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ========================================
+// AJAX: Mise à jour de l'ordre des photos
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'update_photos_order') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $photoIds = $_POST['photo_ids'] ?? [];
+
+    if (!empty($photoIds) && is_array($photoIds)) {
+        try {
+            $pdo->beginTransaction();
+
+            $stmt = $pdo->prepare("UPDATE photos_projet SET ordre = ? WHERE id = ? AND projet_id = ?");
+            foreach ($photoIds as $ordre => $photoId) {
+                $stmt->execute([$ordre + 1, (int)$photoId, $projetId]);
+            }
+
+            $pdo->commit();
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Aucune photo à réorganiser']);
+    }
+    exit;
+}
+
+// ========================================
 // DONNÉES POUR ONGLET TEMPS
 // ========================================
 $heuresProjet = [];
@@ -1013,13 +1047,13 @@ try {
     $stmt->execute([$projetId]);
     $groupesPhotosProjet = $stmt->fetchAll();
 
-    // Toutes les photos
+    // Toutes les photos (triées par ordre personnalisé, puis par date)
     $stmt = $pdo->prepare("
         SELECT p.*, CONCAT(u.prenom, ' ', u.nom) as employe_nom
         FROM photos_projet p
         JOIN users u ON p.user_id = u.id
         WHERE p.projet_id = ?
-        ORDER BY p.date_prise DESC, p.id DESC
+        ORDER BY COALESCE(p.ordre, 999999) ASC, p.date_prise DESC, p.id DESC
     ");
     $stmt->execute([$projetId]);
     $photosProjet = $stmt->fetchAll();
@@ -3305,7 +3339,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </button>
 
             <!-- Spacer + Actions à droite -->
-            <div class="ms-auto">
+            <div class="ms-auto d-flex gap-2">
+                <?php if (count($photosProjet) > 1): ?>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnReorganiser" onclick="toggleReorganisation()">
+                    <i class="bi bi-arrows-move me-1"></i>Réorganiser
+                </button>
+                <?php endif; ?>
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAjoutPhoto">
                     <i class="bi bi-plus me-1"></i>Ajouter
                 </button>
@@ -3323,7 +3362,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                     $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
                 ?>
-                <div class="col-6 col-md-3 col-lg-2 photo-item" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>">
+                <div class="col-6 col-md-3 col-lg-2 photo-item" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>">
                     <div class="position-relative">
                         <a href="<?= $mediaUrl ?>" target="_blank" class="d-block">
                             <?php if ($isVideo): ?>
@@ -3334,7 +3373,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     </div>
                                 </div>
                             <?php else: ?>
-                                <img src="<?= $mediaUrl ?>" alt="Photo" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;">
+                                <img src="<?= $mediaUrl ?>&thumb=1" alt="Photo" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;" loading="lazy">
                             <?php endif; ?>
                         </a>
                         <!-- Bouton suppression -->
@@ -4126,11 +4165,206 @@ async function previewAdminPhotos(input) {
     submitBtn.style.display = 'inline-block';
 }
 
-// Afficher l'overlay de chargement lors de l'upload
-document.getElementById('formAjoutPhoto')?.addEventListener('submit', function() {
+// Upload AJAX avec barre de progression
+document.getElementById('formAjoutPhoto')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const form = this;
     const btn = document.getElementById('adminSubmitBtn');
+    const preview = document.getElementById('adminPhotoPreview');
+    const photoCount = document.getElementById('adminPhotoCount');
+
+    // Afficher la barre de progression d'upload
+    preview.innerHTML = `
+        <div class="col-12 text-center py-3">
+            <div class="mb-2"><i class="bi bi-cloud-upload me-2 spin-icon"></i><span id="uploadProgressText">Téléversement en cours...</span></div>
+            <div class="progress" style="height: 25px;">
+                <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-muted mt-2 d-block" id="uploadProgressDetail">Préparation...</small>
+        </div>
+    `;
+    preview.style.display = 'flex';
+    photoCount.style.display = 'none';
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
+
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(e) {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            const progressBar = document.getElementById('uploadProgressBar');
+            const progressDetail = document.getElementById('uploadProgressDetail');
+
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+
+            const loadedMB = (e.loaded / 1024 / 1024).toFixed(1);
+            const totalMB = (e.total / 1024 / 1024).toFixed(1);
+            progressDetail.textContent = loadedMB + ' Mo / ' + totalMB + ' Mo';
+
+            if (percent === 100) {
+                document.getElementById('uploadProgressText').textContent = 'Traitement par le serveur...';
+                progressDetail.textContent = 'Veuillez patienter...';
+            }
+        }
+    });
+
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            // Recharger la page pour afficher les nouvelles photos
+            window.location.href = window.location.pathname + '?id=<?= $projetId ?>&tab=photos&success=photos_added';
+        } else {
+            alert('Erreur lors du téléversement. Veuillez réessayer.');
+            window.location.reload();
+        }
+    });
+
+    xhr.addEventListener('error', function() {
+        alert('Erreur de connexion. Veuillez réessayer.');
+        window.location.reload();
+    });
+
+    xhr.open('POST', window.location.href);
+    xhr.send(formData);
 });
+
+// ===== RÉORGANISATION DES PHOTOS (Drag & Drop) =====
+let sortableInstance = null;
+let isReorganizing = false;
+
+function toggleReorganisation() {
+    const grid = document.getElementById('photosGrid');
+    const btn = document.getElementById('btnReorganiser');
+
+    if (!isReorganizing) {
+        // Activer le mode réorganisation
+        isReorganizing = true;
+        btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Terminer';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-primary');
+
+        // Ajouter une classe pour le style
+        grid.classList.add('sortable-mode');
+
+        // Initialiser Sortable
+        sortableInstance = new Sortable(grid, {
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            onEnd: function(evt) {
+                // Envoyer le nouvel ordre au serveur
+                savePhotosOrder();
+            }
+        });
+
+        // Afficher un message
+        showToast('Mode réorganisation activé. Glissez-déposez les photos pour les réorganiser.', 'info');
+    } else {
+        // Désactiver le mode réorganisation
+        isReorganizing = false;
+        btn.innerHTML = '<i class="bi bi-arrows-move me-1"></i>Réorganiser';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-primary');
+
+        grid.classList.remove('sortable-mode');
+
+        if (sortableInstance) {
+            sortableInstance.destroy();
+            sortableInstance = null;
+        }
+
+        showToast('Réorganisation terminée!', 'success');
+    }
+}
+
+function savePhotosOrder() {
+    const grid = document.getElementById('photosGrid');
+    const items = grid.querySelectorAll('.photo-item');
+    const photoIds = Array.from(items).map(item => item.dataset.id);
+
+    const formData = new FormData();
+    formData.append('ajax_action', 'update_photos_order');
+    formData.append('csrf_token', '<?= generateCSRFToken() ?>');
+    photoIds.forEach((id, index) => {
+        formData.append('photo_ids[]', id);
+    });
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            showToast('Erreur lors de la sauvegarde: ' + (data.error || 'Erreur inconnue'), 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Erreur de connexion', 'danger');
+    });
+}
+
+function showToast(message, type = 'info') {
+    // Créer un toast Bootstrap simple
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
 </script>
+
+<style>
+/* Styles pour le mode réorganisation */
+.sortable-mode .photo-item {
+    cursor: grab;
+}
+.sortable-mode .photo-item:active {
+    cursor: grabbing;
+}
+.sortable-ghost {
+    opacity: 0.4;
+}
+.sortable-chosen {
+    transform: scale(1.05);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.sortable-drag {
+    opacity: 0.9;
+}
+.sortable-mode .photo-item .position-relative::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 2px dashed #0d6efd;
+    border-radius: 0.375rem;
+    z-index: 5;
+    pointer-events: none;
+}
+</style>
 <?php include '../../includes/footer.php'; ?>

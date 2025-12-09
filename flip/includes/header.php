@@ -21,6 +21,9 @@
     <!-- HEIC to JPEG converter (client-side) -->
     <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
 
+    <!-- SortableJS for drag-and-drop -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
     <?php if (isset($extraCss)): ?>
         <?= $extraCss ?>
     <?php endif; ?>

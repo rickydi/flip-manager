@@ -2,11 +2,13 @@
 /**
  * Serveur de photos sécurisé - Version optimisée
  * Vérifie l'authentification avant de servir les fichiers
+ * Supporte les miniatures pour un chargement rapide
  * Flip Manager
  */
 
 $file = $_GET['file'] ?? '';
 $token = $_GET['token'] ?? '';
+$wantThumb = isset($_GET['thumb']) && $_GET['thumb'] == '1';
 
 // Nettoyer le nom de fichier (sécurité)
 $file = basename($file);
@@ -17,6 +19,8 @@ if (empty($file)) {
 }
 
 $filePath = __DIR__ . '/uploads/photos/' . $file;
+$thumbDir = __DIR__ . '/uploads/photos/thumbs';
+$thumbPath = $thumbDir . '/' . $file;
 
 // Vérifier que le fichier existe AVANT de charger config/auth
 if (!file_exists($filePath)) {
@@ -24,10 +28,92 @@ if (!file_exists($filePath)) {
     die('Fichier non trouvé');
 }
 
+// Si thumbnail demandée, vérifier/créer la miniature
+$servePath = $filePath;
+if ($wantThumb) {
+    $extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    // Seulement pour les images (pas vidéos)
+    if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+        // Créer le dossier thumbs si nécessaire
+        if (!is_dir($thumbDir)) {
+            mkdir($thumbDir, 0755, true);
+        }
+
+        // Générer la miniature si elle n'existe pas ou est plus vieille que l'original
+        if (!file_exists($thumbPath) || filemtime($thumbPath) < filemtime($filePath)) {
+            $thumbCreated = false;
+
+            // Utiliser GD pour créer la miniature
+            $sourceImage = null;
+            switch ($extension) {
+                case 'jpg':
+                case 'jpeg':
+                    $sourceImage = @imagecreatefromjpeg($filePath);
+                    break;
+                case 'png':
+                    $sourceImage = @imagecreatefrompng($filePath);
+                    break;
+                case 'gif':
+                    $sourceImage = @imagecreatefromgif($filePath);
+                    break;
+                case 'webp':
+                    $sourceImage = @imagecreatefromwebp($filePath);
+                    break;
+            }
+
+            if ($sourceImage) {
+                $origWidth = imagesx($sourceImage);
+                $origHeight = imagesy($sourceImage);
+
+                // Taille cible de la miniature (max 300px)
+                $maxSize = 300;
+                $ratio = min($maxSize / $origWidth, $maxSize / $origHeight);
+
+                // Si l'image est déjà petite, pas besoin de miniature
+                if ($ratio >= 1) {
+                    imagedestroy($sourceImage);
+                    // Utiliser l'original
+                } else {
+                    $newWidth = (int)($origWidth * $ratio);
+                    $newHeight = (int)($origHeight * $ratio);
+
+                    $thumbImage = imagecreatetruecolor($newWidth, $newHeight);
+
+                    // Préserver la transparence pour PNG
+                    if ($extension === 'png') {
+                        imagealphablending($thumbImage, false);
+                        imagesavealpha($thumbImage, true);
+                    }
+
+                    imagecopyresampled($thumbImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
+
+                    // Sauvegarder en JPEG pour les miniatures (plus petit)
+                    $thumbPathJpg = preg_replace('/\.[^.]+$/', '.jpg', $thumbPath);
+                    if (imagejpeg($thumbImage, $thumbPathJpg, 75)) {
+                        $thumbPath = $thumbPathJpg;
+                        $thumbCreated = true;
+                    }
+
+                    imagedestroy($thumbImage);
+                    imagedestroy($sourceImage);
+                }
+            }
+        }
+
+        // Utiliser la miniature si elle existe
+        $thumbPathJpg = preg_replace('/\.[^.]+$/', '.jpg', $thumbPath);
+        if (file_exists($thumbPathJpg)) {
+            $servePath = $thumbPathJpg;
+        } elseif (file_exists($thumbPath)) {
+            $servePath = $thumbPath;
+        }
+    }
+}
+
 // Obtenir les infos du fichier pour le cache
-$fileModTime = filemtime($filePath);
-$fileSize = filesize($filePath);
-$etag = md5($file . $fileModTime . $fileSize);
+$fileModTime = filemtime($servePath);
+$fileSize = filesize($servePath);
+$etag = md5($file . $fileModTime . $fileSize . ($wantThumb ? '_thumb' : ''));
 
 // Vérifier le cache du navigateur AVANT d'aller plus loin
 if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) === $etag) {
@@ -77,8 +163,8 @@ if (!$hasAccess) {
     die('Accès non autorisé. Veuillez vous connecter.');
 }
 
-// Servir le fichier
-$extension = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+// Servir le fichier (utiliser l'extension du fichier servi, pas l'original)
+$serveExtension = strtolower(pathinfo($servePath, PATHINFO_EXTENSION));
 $mimeTypes = [
     'jpg' => 'image/jpeg',
     'jpeg' => 'image/jpeg',
@@ -95,7 +181,7 @@ $mimeTypes = [
     'm4v' => 'video/x-m4v',
 ];
 
-$mimeType = $mimeTypes[$extension] ?? 'application/octet-stream';
+$mimeType = $mimeTypes[$serveExtension] ?? 'application/octet-stream';
 
 // Headers de cache optimisés
 header('Content-Type: ' . $mimeType);
@@ -121,12 +207,12 @@ if (strpos($mimeType, 'video/') === 0 && isset($_SERVER['HTTP_RANGE'])) {
     header("Content-Range: bytes $start-$end/$fileSize");
     header("Content-Length: $length");
 
-    $fp = fopen($filePath, 'rb');
+    $fp = fopen($servePath, 'rb');
     fseek($fp, $start);
     echo fread($fp, $length);
     fclose($fp);
     exit;
 }
 
-readfile($filePath);
+readfile($servePath);
 exit;

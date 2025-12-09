@@ -389,6 +389,7 @@ include '../includes/header.php';
                                 $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
                                 $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                                 $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
+                                $thumbUrl = $mediaUrl . '&thumb=1';
                             ?>
                                 <div class="col-4 col-md-3">
                                     <div class="position-relative">
@@ -403,10 +404,11 @@ include '../includes/header.php';
                                                     </div>
                                                 </div>
                                             <?php else: ?>
-                                                <img src="<?= $mediaUrl ?>"
+                                                <img src="<?= $thumbUrl ?>"
                                                      alt="Photo"
                                                      class="img-fluid rounded"
-                                                     style="width:100%;height:100px;object-fit:cover;">
+                                                     style="width:100%;height:100px;object-fit:cover;"
+                                                     loading="lazy">
                                             <?php endif; ?>
                                         </a>
                                         <form method="POST" class="position-absolute top-0 end-0" style="margin:2px;">
@@ -472,17 +474,18 @@ include '../includes/header.php';
     </div>
 </div>
 
-<!-- Overlay de chargement -->
-<div id="uploadOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
-    <div class="spinner-border text-light" role="status" style="width:4rem;height:4rem;">
-        <span class="visually-hidden">Chargement...</span>
-    </div>
-    <div class="text-white mt-4 fs-4" id="uploadStatus">
-        <i class="bi bi-cloud-upload me-2"></i>Téléversement en cours...
-    </div>
-    <div class="text-white-50 mt-2">Veuillez patienter, ne fermez pas cette page</div>
-    <div class="progress mt-3" style="width:200px;height:8px;">
-        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div>
+<!-- Overlay de chargement avec progression -->
+<div id="uploadOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
+    <div class="text-center" style="width:90%;max-width:400px;">
+        <i class="bi bi-cloud-upload text-primary" style="font-size:4rem;"></i>
+        <div class="text-white mt-3 fs-4" id="uploadStatusText">
+            Téléversement en cours...
+        </div>
+        <div class="progress mt-4" style="height:30px;">
+            <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width:0%">0%</div>
+        </div>
+        <div class="text-white-50 mt-3" id="uploadProgressDetail">Préparation...</div>
+        <div class="text-white-50 mt-2 small">Ne fermez pas cette page</div>
     </div>
 </div>
 
@@ -652,16 +655,57 @@ async function previewPhotos(input) {
     submitBtn.style.display = 'block';
 }
 
-// Afficher l'overlay pendant le téléversement
-document.getElementById('photoForm').addEventListener('submit', function() {
+// Upload AJAX avec barre de progression
+document.getElementById('photoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const form = this;
     const btn = document.getElementById('submitBtn');
     const overlay = document.getElementById('uploadOverlay');
+    const progressBar = document.getElementById('uploadProgressBar');
+    const progressDetail = document.getElementById('uploadProgressDetail');
+    const statusText = document.getElementById('uploadStatusText');
 
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
-
-    // Afficher l'overlay
     overlay.style.display = 'flex';
+
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(ev) {
+        if (ev.lengthComputable) {
+            const percent = Math.round((ev.loaded / ev.total) * 100);
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+
+            const loadedMB = (ev.loaded / 1024 / 1024).toFixed(1);
+            const totalMB = (ev.total / 1024 / 1024).toFixed(1);
+            progressDetail.textContent = loadedMB + ' Mo / ' + totalMB + ' Mo';
+
+            if (percent === 100) {
+                statusText.textContent = 'Traitement par le serveur...';
+                progressDetail.textContent = 'Veuillez patienter...';
+            }
+        }
+    });
+
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            window.location.href = window.location.pathname + '?success=upload';
+        } else {
+            alert('Erreur lors du téléversement. Veuillez réessayer.');
+            window.location.reload();
+        }
+    });
+
+    xhr.addEventListener('error', function() {
+        alert('Erreur de connexion. Veuillez réessayer.');
+        window.location.reload();
+    });
+
+    xhr.open('POST', window.location.href);
+    xhr.send(formData);
 });
 
 // ===== GALERIE LIGHTBOX =====
