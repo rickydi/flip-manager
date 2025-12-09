@@ -498,21 +498,16 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
                 $miseTotaleInvestisseurs += $montant;
             }
         }
-        
+
         // Calculer le profit pour chaque investisseur basé sur leur %
-        $totalPourcentage = array_sum(array_column($investisseurs, 'pourcentage'));
         $profitApresInterets = $equitePotentielle - $totalInterets;
-        
+
         foreach ($investisseurs as &$inv) {
-            if ($totalPourcentage > 0) {
-                $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
-            } else {
-                // Si pas de % défini, répartir selon mise de fonds
-                $inv['pourcentage_calcule'] = $miseTotaleInvestisseurs > 0 ? ($inv['mise_de_fonds'] / $miseTotaleInvestisseurs) * 100 : 0;
-                $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage_calcule'] / 100);
-            }
+            // Chaque investisseur reçoit exactement son % défini
+            // Si 0%, il reçoit 0$
+            $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
         }
-        
+
     } catch (Exception $e) {
         // Table n'existe pas ou erreur
     }

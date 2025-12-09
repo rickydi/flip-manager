@@ -1855,19 +1855,23 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
                     <?php if (!empty($indicateurs['investisseurs'])): ?>
                     <?php foreach ($indicateurs['investisseurs'] as $inv): ?>
+                    <?php if ($inv['pourcentage'] > 0): ?>
                     <tr class="sub-item">
                         <td><i class="bi bi-person text-info me-1"></i><?= e($inv['nom']) ?> (<?= $inv['pourcentage'] ?>%)</td>
                         <td class="text-end text-danger">-<?= formatMoney($inv['profit_estime']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end text-danger">-<?= formatMoney($inv['profit_estime']) ?></td>
                     </tr>
+                    <?php endif; ?>
                     <?php endforeach; ?>
                     <?php endif; ?>
 
                     <?php
                     $totalPartage = ($indicateurs['total_interets'] ?? 0);
                     foreach ($indicateurs['investisseurs'] ?? [] as $inv) {
-                        $totalPartage += $inv['profit_estime'];
+                        if ($inv['pourcentage'] > 0) {
+                            $totalPartage += $inv['profit_estime'];
+                        }
                     }
                     $profitNet = $indicateurs['equite_potentielle'] - $totalPartage;
                     ?>
