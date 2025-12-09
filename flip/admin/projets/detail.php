@@ -3973,7 +3973,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    window.location.href = '<?= url('/admin/projets/detail.php?id=' . $projetId . '&tab=checklist') ?>';
                 } else {
                     alert(data.error || 'Erreur lors de l\'upload');
                 }
