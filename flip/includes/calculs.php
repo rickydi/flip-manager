@@ -482,7 +482,7 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
                     'interets_total' => $interetsTotal,
                     'total_du' => $totalDu
                 ];
-                
+
                 $totalPrets += $montant;
                 $totalInterets += $interetsTotal;
             } elseif ($montant > 0) {
@@ -491,21 +491,23 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
                     'id' => $row['id'],
                     'nom' => $row['nom'],
                     'mise_de_fonds' => $montant,
-                    'pourcentage' => $taux,
+                    'pourcentage' => 0, // Sera calculé après selon mise de fonds
                     'profit_estime' => 0
                 ];
-                
+
                 $miseTotaleInvestisseurs += $montant;
             }
         }
 
-        // Calculer le profit pour chaque investisseur basé sur leur %
+        // Calculer le profit pour chaque investisseur basé sur leur mise de fonds
         $profitApresInterets = $equitePotentielle - $totalInterets;
 
         foreach ($investisseurs as &$inv) {
-            // Chaque investisseur reçoit exactement son % défini
-            // Si 0%, il reçoit 0$
-            $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
+            // Calculer le pourcentage selon la mise de fonds
+            if ($miseTotaleInvestisseurs > 0) {
+                $inv['pourcentage'] = ($inv['mise_de_fonds'] / $miseTotaleInvestisseurs) * 100;
+                $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
+            }
         }
 
     } catch (Exception $e) {
