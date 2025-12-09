@@ -580,10 +580,12 @@ function calculerIndicateursProjet($pdo, $projet) {
     
     // Coûts fixes totaux (maintenant avec les bons intérêts)
     $coutsFixesTotaux = calculerCoutsFixesTotaux($coutsAcquisition, $coutsRecurrents, $coutsVente);
-    
-    // Coût total projet
-    $coutTotalProjet = calculerCoutTotalProjet($projet, $coutsFixesTotaux, $totalBudgetRenovation, $contingence);
-    
+
+    // Coût total projet - UTILISER LE TTC (avec taxes) pour la rénovation!
+    // Avant: utilisait $totalBudgetRenovation (HT) + $contingence
+    // Maintenant: utilise $budgetComplet['total_ttc'] qui inclut HT + contingence + TPS + TVQ
+    $coutTotalProjet = (float) $projet['prix_achat'] + $coutsFixesTotaux + $budgetComplet['total_ttc'];
+
     // Équité potentielle
     $valeurPotentielle = (float) $projet['valeur_potentielle'];
     $equitePotentielle = calculerEquitePotentielle($valeurPotentielle, $coutTotalProjet);
