@@ -3369,13 +3369,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
                         <!-- Input caméra -->
                         <input type="file" id="adminCameraInput" name="camera_photo"
-                               accept="image/*" capture="environment"
+                               accept="image/*,image/heic,image/heif,.heic,.heif" capture="environment"
                                class="d-none"
                                onchange="previewAdminPhotos(this)">
 
                         <!-- Input galerie -->
                         <input type="file" id="adminGalleryInput" name="gallery_photos[]"
-                               accept="image/*,video/*" multiple
+                               accept="image/*,image/heic,image/heif,.heic,.heif,video/*" multiple
                                class="d-none"
                                onchange="previewAdminPhotos(this)">
 

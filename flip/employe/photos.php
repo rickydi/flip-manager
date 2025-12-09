@@ -320,13 +320,13 @@ include '../includes/header.php';
 
                             <!-- Input caméra (avec capture) -->
                             <input type="file" id="cameraInput" name="camera_photo"
-                                   accept="image/*" capture="environment"
+                                   accept="image/*,image/heic,image/heif,.heic,.heif" capture="environment"
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 
                             <!-- Input galerie (sans capture) -->
                             <input type="file" id="galleryInput" name="gallery_photos[]"
-                                   accept="image/*,video/*" multiple
+                                   accept="image/*,image/heic,image/heif,.heic,.heif,video/*" multiple
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 
