@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (empty($errors)) {
                 try {
-                    $stmt = $pdo->prepare("INSERT INTO recurrents_types (nom, code, frequence, ordre) VALUES (?, ?, ?, (SELECT COALESCE(MAX(ordre), 0) + 1 FROM recurrents_types rt))");
+                    $stmt = $pdo->prepare("INSERT INTO recurrents_types (nom, code, frequence, ordre, est_systeme) VALUES (?, ?, ?, (SELECT COALESCE(MAX(ordre), 0) + 1 FROM recurrents_types rt), 1)");
                     $stmt->execute([$nom, $code, $frequence]);
                     setFlashMessage('success', 'Type de coût récurrent créé.');
                     redirect('/admin/recurrents/liste.php');
