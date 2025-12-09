@@ -852,6 +852,122 @@ try {
 } catch (Exception $e) {}
 
 // ========================================
+// UPLOAD PHOTO (Admin)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_photo') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        setFlashMessage('error', 'Token de sécurité invalide.');
+        redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+    }
+
+    $groupeId = $_POST['groupe_id'] ?? uniqid('grp_', true);
+    $description = trim($_POST['description'] ?? '');
+    $userId = getCurrentUserId();
+
+    $uploadedCount = 0;
+    $errors = [];
+
+    // Collecter tous les fichiers
+    $filesToProcess = [];
+
+    // Photo de la caméra
+    if (isset($_FILES['camera_photo']) && $_FILES['camera_photo']['error'] === UPLOAD_ERR_OK && !empty($_FILES['camera_photo']['name'])) {
+        $filesToProcess[] = [
+            'name' => $_FILES['camera_photo']['name'],
+            'tmp_name' => $_FILES['camera_photo']['tmp_name'],
+            'error' => $_FILES['camera_photo']['error'],
+            'size' => $_FILES['camera_photo']['size']
+        ];
+    }
+
+    // Photos de la galerie
+    if (isset($_FILES['gallery_photos']) && !empty($_FILES['gallery_photos']['name'][0])) {
+        $totalGallery = count($_FILES['gallery_photos']['name']);
+        for ($i = 0; $i < $totalGallery; $i++) {
+            if (!empty($_FILES['gallery_photos']['name'][$i])) {
+                $filesToProcess[] = [
+                    'name' => $_FILES['gallery_photos']['name'][$i],
+                    'tmp_name' => $_FILES['gallery_photos']['tmp_name'][$i],
+                    'error' => $_FILES['gallery_photos']['error'][$i],
+                    'size' => $_FILES['gallery_photos']['size'][$i]
+                ];
+            }
+        }
+    }
+
+    if (!empty($filesToProcess)) {
+        foreach ($filesToProcess as $file) {
+            if ($file['error'] === UPLOAD_ERR_OK) {
+                $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+                $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+
+                if (!in_array($extension, $allowedExtensions)) {
+                    $errors[] = "Extension non supportée: $extension";
+                    continue;
+                }
+
+                $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
+                $destination = __DIR__ . '/../../uploads/photos/' . $newFilename;
+
+                // Vérifier/créer le dossier
+                $destDir = dirname($destination);
+                if (!is_dir($destDir)) {
+                    mkdir($destDir, 0777, true);
+                }
+
+                if (move_uploaded_file($file['tmp_name'], $destination) || copy($file['tmp_name'], $destination)) {
+                    $stmt = $pdo->prepare("
+                        INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
+                        VALUES (?, ?, ?, ?, NOW(), ?)
+                    ");
+                    $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
+                    $uploadedCount++;
+                }
+            }
+        }
+    }
+
+    if ($uploadedCount > 0) {
+        setFlashMessage('success', $uploadedCount . ' photo(s) ajoutée(s) avec succès.');
+    } else {
+        setFlashMessage('error', 'Aucune photo uploadée. ' . implode(', ', $errors));
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+}
+
+// ========================================
+// SUPPRESSION PHOTO (Admin)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_photo') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        setFlashMessage('error', 'Token de sécurité invalide.');
+        redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+    }
+
+    $photoId = (int)($_POST['photo_id'] ?? 0);
+
+    // Récupérer la photo
+    $stmt = $pdo->prepare("SELECT * FROM photos_projet WHERE id = ? AND projet_id = ?");
+    $stmt->execute([$photoId, $projetId]);
+    $photo = $stmt->fetch();
+
+    if ($photo) {
+        // Supprimer le fichier
+        $filePath = __DIR__ . '/../../uploads/photos/' . $photo['fichier'];
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+
+        // Supprimer de la base
+        $stmt = $pdo->prepare("DELETE FROM photos_projet WHERE id = ?");
+        $stmt->execute([$photoId]);
+
+        setFlashMessage('success', 'Photo supprimée.');
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+}
+
+// ========================================
 // DONNÉES POUR ONGLET TEMPS
 // ========================================
 $heuresProjet = [];
@@ -898,6 +1014,40 @@ try {
     $stmt->execute([$projetId]);
     $photosProjet = $stmt->fetchAll();
 } catch (Exception $e) {}
+
+// Catégories de photos pour le formulaire d'ajout
+$photoCategories = [];
+try {
+    $stmt = $pdo->query("SELECT cle, nom_fr as nom FROM photos_categories WHERE actif = 1 ORDER BY ordre, nom_fr");
+    $photoCategories = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas, utiliser les valeurs par défaut
+    $defaultCategories = [
+        'cat_interior_finishing', 'cat_exterior', 'cat_plumbing', 'cat_electrical',
+        'cat_structure', 'cat_foundation', 'cat_roofing', 'cat_windows_doors',
+        'cat_painting', 'cat_flooring', 'cat_before_work', 'cat_after_work',
+        'cat_progress', 'cat_other'
+    ];
+    $categoryLabels = [
+        'cat_interior_finishing' => 'Finition intérieure',
+        'cat_exterior' => 'Extérieur',
+        'cat_plumbing' => 'Plomberie',
+        'cat_electrical' => 'Électricité',
+        'cat_structure' => 'Structure',
+        'cat_foundation' => 'Fondation',
+        'cat_roofing' => 'Toiture',
+        'cat_windows_doors' => 'Portes et fenêtres',
+        'cat_painting' => 'Peinture',
+        'cat_flooring' => 'Plancher',
+        'cat_before_work' => 'Avant travaux',
+        'cat_after_work' => 'Après travaux',
+        'cat_progress' => 'Progression',
+        'cat_other' => 'Autre'
+    ];
+    foreach ($defaultCategories as $cat) {
+        $photoCategories[] = ['cle' => $cat, 'nom' => $categoryLabels[$cat] ?? $cat];
+    }
+}
 
 // ========================================
 // DONNÉES POUR ONGLET FACTURES
@@ -3104,46 +3254,52 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <div class="tab-pane fade <?= $tab === 'photos' ? 'show active' : '' ?>" id="photos" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0"><i class="bi bi-camera me-2"></i>Photos du projet</h5>
-            <span class="badge bg-primary" id="photosCount"><?= count($photosProjet) ?> photos</span>
+            <div>
+                <span class="badge bg-primary me-2" id="photosCount"><?= count($photosProjet) ?> photos</span>
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAjoutPhoto">
+                    <i class="bi bi-plus"></i> Ajouter
+                </button>
+            </div>
+        </div>
+
+        <?php
+        // Extraire les employés et catégories uniques pour les filtres
+        $photosEmployes = !empty($photosProjet) ? array_unique(array_column($photosProjet, 'employe_nom')) : [];
+        $photosCategoriesFilter = !empty($photosProjet) ? array_unique(array_filter(array_column($photosProjet, 'description'))) : [];
+        sort($photosEmployes);
+        sort($photosCategoriesFilter);
+        ?>
+
+        <!-- Filtres Photos (toujours visibles) -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-4">
+                <select class="form-select form-select-sm" id="filtrePhotosEmploye" onchange="filtrerPhotos()">
+                    <option value="">Tous les employés</option>
+                    <?php foreach ($photosEmployes as $emp): ?>
+                        <option value="<?= e($emp) ?>"><?= e($emp) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <select class="form-select form-select-sm" id="filtrePhotosCategorie" onchange="filtrerPhotos()">
+                    <option value="">Toutes les catégories</option>
+                    <?php foreach ($photosCategoriesFilter as $cat): ?>
+                        <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetFiltresPhotos()">
+                    <i class="bi bi-x-circle me-1"></i>Reset
+                </button>
+            </div>
         </div>
 
         <?php if (empty($photosProjet)): ?>
             <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet.
+                <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet. Cliquez sur "Ajouter" pour en téléverser.
             </div>
         <?php else: ?>
-            <?php
-            // Extraire les employés et catégories uniques pour les filtres
-            $photosEmployes = array_unique(array_column($photosProjet, 'employe_nom'));
-            $photosCategories = array_unique(array_filter(array_column($photosProjet, 'description')));
-            sort($photosEmployes);
-            sort($photosCategories);
-            ?>
-            <!-- Filtres Photos -->
-            <div class="row g-2 mb-3">
-                <div class="col-md-4">
-                    <select class="form-select form-select-sm" id="filtrePhotosEmploye" onchange="filtrerPhotos()">
-                        <option value="">Tous les employés</option>
-                        <?php foreach ($photosEmployes as $emp): ?>
-                            <option value="<?= e($emp) ?>"><?= e($emp) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <select class="form-select form-select-sm" id="filtrePhotosCategorie" onchange="filtrerPhotos()">
-                        <option value="">Toutes les catégories</option>
-                        <?php foreach ($photosCategories as $cat): ?>
-                            <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="resetFiltresPhotos()">
-                        <i class="bi bi-x-circle me-1"></i>Reset
-                    </button>
-                </div>
-            </div>
-
             <div class="row g-2" id="photosGrid">
                 <?php foreach ($photosProjet as $photo):
                     $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
@@ -3164,6 +3320,16 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <img src="<?= $mediaUrl ?>" alt="Photo" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;">
                             <?php endif; ?>
                         </a>
+                        <!-- Bouton suppression -->
+                        <form method="POST" class="position-absolute top-0 end-0" style="margin:3px;">
+                            <?php csrfField(); ?>
+                            <input type="hidden" name="action" value="delete_photo">
+                            <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
+                            <button type="submit" class="btn btn-danger btn-sm" style="padding:2px 5px;font-size:10px;line-height:1;"
+                                    onclick="return confirm('Supprimer cette photo ?')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
                         <div class="mt-1">
                             <small class="text-muted d-block"><?= formatDate($photo['date_prise']) ?></small>
                             <small class="text-muted"><?= e($photo['employe_nom']) ?></small>
@@ -3177,6 +3343,73 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         <?php endif; ?>
     </div><!-- Fin TAB PHOTOS -->
+
+    <!-- MODAL AJOUT PHOTO -->
+    <div class="modal fade" id="modalAjoutPhoto" tabindex="-1" aria-labelledby="modalAjoutPhotoLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalAjoutPhotoLabel"><i class="bi bi-camera-fill me-2"></i>Ajouter des photos</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                </div>
+                <form method="POST" enctype="multipart/form-data" id="formAjoutPhoto">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="upload_photo">
+                    <input type="hidden" name="groupe_id" value="<?= uniqid('grp_', true) ?>">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="photo_description" class="form-label">Catégorie</label>
+                            <select class="form-select" id="photo_description" name="description">
+                                <option value="">-- Sélectionner une catégorie --</option>
+                                <?php foreach ($photoCategories as $cat): ?>
+                                    <option value="<?= e($cat['cle']) ?>"><?= e($cat['nom']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+
+                        <!-- Input caméra -->
+                        <input type="file" id="adminCameraInput" name="camera_photo"
+                               accept="image/*" capture="environment"
+                               class="d-none"
+                               onchange="previewAdminPhotos(this)">
+
+                        <!-- Input galerie -->
+                        <input type="file" id="adminGalleryInput" name="gallery_photos[]"
+                               accept="image/*,video/*" multiple
+                               class="d-none"
+                               onchange="previewAdminPhotos(this)">
+
+                        <!-- Boutons -->
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="button" class="btn btn-primary py-3" onclick="document.getElementById('adminCameraInput').click()">
+                                <i class="bi bi-camera-fill me-2"></i>Prendre une photo
+                            </button>
+                        </div>
+                        <div class="text-center mb-3">
+                            <span class="badge bg-secondary">ou</span>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-primary py-3" onclick="document.getElementById('adminGalleryInput').click()">
+                                <i class="bi bi-images me-2"></i>Choisir depuis la galerie
+                            </button>
+                        </div>
+
+                        <!-- Prévisualisation -->
+                        <div id="adminPhotoPreview" class="row g-2 mt-3" style="display:none;"></div>
+                        <div id="adminPhotoCount" class="alert alert-info mt-2" style="display:none;">
+                            <i class="bi bi-images me-2"></i><span id="adminPhotoCountText"></span>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success" id="adminSubmitBtn" style="display:none;">
+                            <i class="bi bi-cloud-upload me-2"></i>Téléverser
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- TAB FACTURES -->
     <div class="tab-pane fade <?= $tab === 'factures' ? 'show active' : '' ?>" id="factures" role="tabpanel">
@@ -3769,5 +4002,54 @@ function resetFiltresFactures() {
     document.getElementById('filtreFacturesCategorie').value = '';
     filtrerFactures();
 }
+
+// Prévisualisation des photos dans le modal admin
+function previewAdminPhotos(input) {
+    const preview = document.getElementById('adminPhotoPreview');
+    const photoCount = document.getElementById('adminPhotoCount');
+    const photoCountText = document.getElementById('adminPhotoCountText');
+    const submitBtn = document.getElementById('adminSubmitBtn');
+
+    if (input.files && input.files.length > 0) {
+        preview.innerHTML = '';
+        preview.style.display = 'flex';
+
+        for (let file of input.files) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const col = document.createElement('div');
+                col.className = 'col-4';
+
+                // Vérifier si c'est une vidéo
+                const isVideo = file.type.startsWith('video/');
+                if (isVideo) {
+                    col.innerHTML = `
+                        <div class="rounded" style="width:100%;height:80px;background:#1a1d21;display:flex;align-items:center;justify-content:center;">
+                            <i class="bi bi-play-circle text-white" style="font-size:2rem;"></i>
+                        </div>
+                    `;
+                } else {
+                    col.innerHTML = `
+                        <img src="${e.target.result}" class="img-fluid rounded"
+                             style="width:100%;height:80px;object-fit:cover;">
+                    `;
+                }
+                preview.appendChild(col);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        photoCount.style.display = 'block';
+        photoCountText.textContent = input.files.length + ' fichier(s) sélectionné(s)';
+        submitBtn.style.display = 'inline-block';
+    }
+}
+
+// Afficher l'overlay de chargement lors de l'upload
+document.getElementById('formAjoutPhoto')?.addEventListener('submit', function() {
+    const btn = document.getElementById('adminSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
+});
 </script>
 <?php include '../../includes/footer.php'; ?>
