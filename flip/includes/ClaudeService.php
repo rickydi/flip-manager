@@ -103,7 +103,7 @@ class ClaudeService {
 
         $payload = [
             'model' => $this->model,
-            'max_tokens' => 8192,  // Augmenté pour les longues analyses
+            'max_tokens' => 8192, // Augmenté pour les longues analyses
             'messages' => [
                 [
                     'role' => 'user',
@@ -146,15 +146,12 @@ class ClaudeService {
         $content = $data['content'][0]['text'] ?? '';
         $stopReason = $data['stop_reason'] ?? '';
 
-        // Log pour debug (à commenter en production)
-        // file_put_contents(__DIR__ . '/../uploads/debug_claude_response.txt', $content);
-
         // Vérifier si la réponse a été tronquée
         if ($stopReason === 'max_tokens') {
             throw new Exception("La réponse de l'IA a été tronquée (trop de données). Essayez avec moins de comparables dans le PDF.");
         }
 
-        // Nettoyer la réponse
+        // Nettoyage robuste du JSON
         $cleanContent = $content;
 
         // 1. Supprimer les blocs markdown ```json ... ```
@@ -168,23 +165,23 @@ class ClaudeService {
 
         if ($firstBrace !== false && $lastBrace !== false && $lastBrace > $firstBrace) {
             $jsonString = substr($cleanContent, $firstBrace, $lastBrace - $firstBrace + 1);
+            
+            // Tentative de décodage direct
+            $json = json_decode($jsonString, true);
+            if ($json) return $json;
 
-            // 3. Corriger les single quotes en double quotes (si Claude utilise du JS-style)
-            // Attention: ne pas remplacer les apostrophes dans le texte
-            $jsonString = preg_replace("/(?<![\\\\])'([^']*)'(?=\s*:)/", '"$1"', $jsonString);
-            $jsonString = preg_replace("/:\s*'([^']*)'/", ': "$1"', $jsonString);
-
-            // 4. Supprimer les virgules trailing avant } ou ]
+            // Si échec, tentative de nettoyage (virgules de fin, quotes)
+            // Supprimer les virgules trailing avant } ou ]
             $jsonString = preg_replace('/,(\s*[}\]])/', '$1', $jsonString);
 
             $json = json_decode($jsonString, true);
             if ($json) return $json;
 
-            // Debug: afficher l'erreur JSON
+            // Debug: afficher l'erreur JSON avec un extrait
             $jsonError = json_last_error_msg();
-            throw new Exception("JSON invalide: " . $jsonError . " - Début de la réponse: " . substr($jsonString, 0, 200));
+            throw new Exception("JSON invalide (" . $jsonError . "). L'IA a peut-être généré trop de texte.");
         }
 
-        throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé). Début: " . substr($content, 0, 300));
+        throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé).");
     }
 }
