@@ -1835,6 +1835,49 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatPercent($indicateurs['roi_leverage_reel']) ?></td>
                     </tr>
+
+                    <!-- PARTAGE DES PROFITS -->
+                    <?php if (!empty($indicateurs['preteurs']) || !empty($indicateurs['investisseurs'])): ?>
+                    <tr class="section-header" data-section="partage">
+                        <td colspan="4"><i class="bi bi-pie-chart me-1"></i> Partage des profits <i class="bi bi-chevron-down toggle-icon"></i></td>
+                    </tr>
+
+                    <?php if (!empty($indicateurs['preteurs'])): ?>
+                    <?php foreach ($indicateurs['preteurs'] as $preteur): ?>
+                    <tr class="sub-item">
+                        <td><i class="bi bi-bank text-warning me-1"></i><?= e($preteur['nom']) ?> (<?= $preteur['taux'] ?>%)</td>
+                        <td class="text-end text-danger">-<?= formatMoney($preteur['interets_total']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end text-danger">-<?= formatMoney($preteur['interets_total']) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+
+                    <?php if (!empty($indicateurs['investisseurs'])): ?>
+                    <?php foreach ($indicateurs['investisseurs'] as $inv): ?>
+                    <tr class="sub-item">
+                        <td><i class="bi bi-person text-info me-1"></i><?= e($inv['nom']) ?> (<?= $inv['pourcentage'] ?>%)</td>
+                        <td class="text-end text-danger">-<?= formatMoney($inv['profit_estime']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end text-danger">-<?= formatMoney($inv['profit_estime']) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+
+                    <?php
+                    $totalPartage = ($indicateurs['total_interets'] ?? 0);
+                    foreach ($indicateurs['investisseurs'] ?? [] as $inv) {
+                        $totalPartage += $inv['profit_estime'];
+                    }
+                    $profitNet = $indicateurs['equite_potentielle'] - $totalPartage;
+                    ?>
+                    <tr class="total-row">
+                        <td>PROFIT NET (après partage)</td>
+                        <td class="text-end"><?= formatMoney($profitNet) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($profitNet) ?></td>
+                    </tr>
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
