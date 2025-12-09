@@ -1407,9 +1407,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 </div>
                             </div>
                             <div class="col-4">
-                                <label class="form-label">Mutation <button type="button" class="btn btn-link btn-sm p-0 ms-1" onclick="calculerTaxeMutation()" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button></label>
+                                <label class="form-label">Mutation</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="taxe_mutation" id="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="calculerTaxeMutation(true)" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -1579,12 +1580,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['notaire']) ?></td>
-                    </tr>
-                    <tr class="sub-item">
-                        <td>Taxe mutation</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Arpenteurs</td>
@@ -1772,6 +1767,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
+                    </tr>
+                    <tr class="sub-item">
+                        <td>Taxe mutation</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
                     </tr>
                     <tr class="total-row">
                         <td>Sous-total Vente</td>
@@ -4015,7 +4016,7 @@ function calculerDuree() {
 
 // Calcul automatique de la taxe de mutation (droits de mutation - "taxe de bienvenue")
 // Taux standards du Québec (peuvent varier selon la municipalité pour la dernière tranche)
-function calculerTaxeMutation() {
+function calculerTaxeMutation(triggerSave = false) {
     const prixAchatInput = document.getElementById('prix_achat');
     const taxeMutationInput = document.getElementById('taxe_mutation');
 
@@ -4062,6 +4063,11 @@ function calculerTaxeMutation() {
     // Arrondir à 2 décimales et formater
     taxe = Math.round(taxe * 100) / 100;
     taxeMutationInput.value = taxe.toLocaleString('fr-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    // Déclencher la sauvegarde automatique si demandé
+    if (triggerSave && typeof autoSaveBase === 'function') {
+        autoSaveBase();
+    }
 }
 </script>
 
