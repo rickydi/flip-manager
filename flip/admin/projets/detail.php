@@ -93,13 +93,19 @@ try {
 // Auto-créer la table recurrents_types si elle n'existe pas
 try {
     $pdo->query("SELECT 1 FROM recurrents_types LIMIT 1");
+    // Ajouter 'saisonnier' à l'ENUM si la table existe déjà
+    try {
+        $pdo->exec("ALTER TABLE recurrents_types MODIFY frequence ENUM('annuel', 'mensuel', 'saisonnier') DEFAULT 'annuel'");
+    } catch (Exception $e) {
+        // Déjà modifié ou erreur
+    }
 } catch (Exception $e) {
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS recurrents_types (
             id INT AUTO_INCREMENT PRIMARY KEY,
             nom VARCHAR(100) NOT NULL,
             code VARCHAR(50) NOT NULL UNIQUE,
-            frequence ENUM('annuel', 'mensuel') DEFAULT 'annuel',
+            frequence ENUM('annuel', 'mensuel', 'saisonnier') DEFAULT 'annuel',
             ordre INT DEFAULT 0,
             actif TINYINT(1) DEFAULT 1,
             est_systeme TINYINT(1) DEFAULT 0,
@@ -112,7 +118,7 @@ try {
         ['Taxes scolaires', 'taxes_scolaires', 'annuel', 2, 1],
         ['Électricité', 'electricite', 'annuel', 3, 1],
         ['Assurances', 'assurances', 'annuel', 4, 1],
-        ['Déneigement', 'deneigement', 'annuel', 5, 1],
+        ['Déneigement', 'deneigement', 'saisonnier', 5, 1],
         ['Frais condo', 'frais_condo', 'annuel', 6, 1],
         ['Hypothèque', 'hypotheque', 'mensuel', 7, 1],
         ['Loyer reçu', 'loyer', 'mensuel', 8, 1],
@@ -1012,12 +1018,16 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <div class="row g-2">
                             <?php foreach ($recurrentsTypes as $type):
                                 $valeur = $projetRecurrents[$type['id']] ?? 0;
-                                $freq = $type['frequence'] === 'mensuel' ? '/mois' : '/an';
+                                $freq = match($type['frequence']) {
+                                    'mensuel' => '/mois',
+                                    'saisonnier' => '',
+                                    default => '/an'
+                                };
                                 // Tronquer le nom si trop long
                                 $nomCourt = mb_strlen($type['nom']) > 15 ? mb_substr($type['nom'], 0, 12) . '...' : $type['nom'];
                             ?>
                             <div class="col-6">
-                                <label class="form-label" title="<?= e($type['nom']) ?>"><?= e($nomCourt) ?> <?= $freq ?></label>
+                                <label class="form-label" title="<?= e($type['nom']) ?>"><?= e($nomCourt) ?><?= $freq ?></label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="recurrents[<?= $type['id'] ?>]" value="<?= formatMoney($valeur, false) ?>">
                                 </div>
@@ -1243,6 +1253,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         if ($type['frequence'] === 'mensuel') {
                             $extrapole = $montant * $dureeReelle;
                             $reel = $montant * $moisEcoules;
+                        } elseif ($type['frequence'] === 'saisonnier') {
+                            // Saisonnier = montant fixe (ex: déneigement, gazon)
+                            $extrapole = $montant;
+                            $reel = $montant; // Coût fixe peu importe la durée
                         } else {
                             // annuel
                             $extrapole = $montant * $facteurExtrapole;

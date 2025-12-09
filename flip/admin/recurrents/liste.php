@@ -19,13 +19,20 @@ try {
             id INT AUTO_INCREMENT PRIMARY KEY,
             nom VARCHAR(100) NOT NULL,
             code VARCHAR(50) NOT NULL UNIQUE,
-            frequence ENUM('annuel', 'mensuel') DEFAULT 'annuel',
+            frequence ENUM('annuel', 'mensuel', 'saisonnier') DEFAULT 'annuel',
             ordre INT DEFAULT 0,
             actif TINYINT(1) DEFAULT 1,
             est_systeme TINYINT(1) DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
+
+    // Ajouter 'saisonnier' à l'ENUM si la table existe déjà
+    try {
+        $pdo->exec("ALTER TABLE recurrents_types MODIFY frequence ENUM('annuel', 'mensuel', 'saisonnier') DEFAULT 'annuel'");
+    } catch (Exception $e) {
+        // Déjà modifié ou erreur
+    }
 
     // Insérer les types par défaut s'ils n'existent pas
     $stmt = $pdo->query("SELECT COUNT(*) FROM recurrents_types");
@@ -35,7 +42,7 @@ try {
             ['Taxes scolaires', 'taxes_scolaires', 'annuel', 2, 1],
             ['Électricité', 'electricite', 'annuel', 3, 1],
             ['Assurances', 'assurances', 'annuel', 4, 1],
-            ['Déneigement', 'deneigement', 'annuel', 5, 1],
+            ['Déneigement', 'deneigement', 'saisonnier', 5, 1],
             ['Frais condo', 'frais_condo', 'annuel', 6, 1],
             ['Hypothèque', 'hypotheque', 'mensuel', 7, 1],
             ['Loyer reçu', 'loyer', 'mensuel', 8, 1],
@@ -216,9 +223,14 @@ include '../../includes/header.php';
                                 </td>
                                 <td><code><?= e($type['code']) ?></code></td>
                                 <td>
-                                    <span class="badge <?= $type['frequence'] === 'mensuel' ? 'bg-info' : 'bg-warning' ?>">
-                                        <?= $type['frequence'] === 'mensuel' ? 'Mensuel' : 'Annuel' ?>
-                                    </span>
+                                    <?php
+                                    $freqBadge = match($type['frequence']) {
+                                        'mensuel' => ['bg-info', 'Mensuel'],
+                                        'saisonnier' => ['bg-success', 'Saisonnier'],
+                                        default => ['bg-warning', 'Annuel']
+                                    };
+                                    ?>
+                                    <span class="badge <?= $freqBadge[0] ?>"><?= $freqBadge[1] ?></span>
                                 </td>
                                 <td>
                                     <span class="badge <?= $type['actif'] ? 'bg-success' : 'bg-danger' ?>">
@@ -282,6 +294,7 @@ include '../../includes/header.php';
                         <select class="form-select" name="frequence">
                             <option value="annuel" <?= $type['frequence'] === 'annuel' ? 'selected' : '' ?>>Annuel (/an)</option>
                             <option value="mensuel" <?= $type['frequence'] === 'mensuel' ? 'selected' : '' ?>>Mensuel (/mois)</option>
+                            <option value="saisonnier" <?= $type['frequence'] === 'saisonnier' ? 'selected' : '' ?>>Saisonnier (fixe)</option>
                         </select>
                     </div>
                     <div class="form-check">
@@ -326,7 +339,9 @@ include '../../includes/header.php';
                         <select class="form-select" name="frequence">
                             <option value="annuel">Annuel (/an)</option>
                             <option value="mensuel">Mensuel (/mois)</option>
+                            <option value="saisonnier">Saisonnier (fixe)</option>
                         </select>
+                        <small class="text-muted">Saisonnier = montant fixe peu importe la durée du projet</small>
                     </div>
                 </div>
                 <div class="modal-footer">
