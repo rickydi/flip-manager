@@ -156,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $cession = parseNumber($_POST['cession'] ?? 0);
         $notaire = parseNumber($_POST['notaire'] ?? 0);
         $taxeMutation = parseNumber($_POST['taxe_mutation'] ?? 0);
+        $quittance = parseNumber($_POST['quittance'] ?? 0);
         $arpenteurs = parseNumber($_POST['arpenteurs'] ?? 0);
         $assuranceTitre = parseNumber($_POST['assurance_titre'] ?? 0);
 
@@ -182,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             UPDATE projets SET
                 nom = ?, adresse = ?, ville = ?, code_postal = ?,
                 date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
-                statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?,
+                statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                 arpenteurs = ?, assurance_titre = ?,
                 temps_assume_mois = ?, valeur_potentielle = ?,
                 taux_commission = ?, taux_contingence = ?,
@@ -193,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $stmt->execute([
             $nom, $adresse, $ville, $codePostal,
             $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
-            $statut, $prixAchat, $cession, $notaire, $taxeMutation,
+            $statut, $prixAchat, $cession, $notaire, $taxeMutation, $quittance,
             $arpenteurs, $assuranceTitre,
             $tempsAssumeMois, $valeurPotentielle,
             $tauxCommission, $tauxContingence,
@@ -426,6 +427,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $cession = parseNumber($_POST['cession'] ?? 0);
             $notaire = parseNumber($_POST['notaire'] ?? 0);
             $taxeMutation = parseNumber($_POST['taxe_mutation'] ?? 0);
+            $quittance = parseNumber($_POST['quittance'] ?? 0);
             $arpenteurs = parseNumber($_POST['arpenteurs'] ?? 0);
             $assuranceTitre = parseNumber($_POST['assurance_titre'] ?? 0);
 
@@ -457,7 +459,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     UPDATE projets SET
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
                         date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
-                        statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?,
+                        statut = ?, prix_achat = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                         arpenteurs = ?, assurance_titre = ?,
                         taxes_municipales_annuel = ?, taxes_scolaires_annuel = ?,
                         electricite_annuel = ?, assurances_annuel = ?,
@@ -472,7 +474,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute([
                     $nom, $adresse, $ville, $codePostal,
                     $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
-                    $statut, $prixAchat, $cession, $notaire, $taxeMutation,
+                    $statut, $prixAchat, $cession, $notaire, $taxeMutation, $quittance,
                     $arpenteurs, $assuranceTitre,
                     $taxesMunicipalesAnnuel, $taxesScolairesAnnuel,
                     $electriciteAnnuel, $assurancesAnnuel,
@@ -1364,12 +1366,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 </div>
                             </div>
                             <div class="col-4">
-                                <label class="form-label">Mutation</label>
-                                <div class="input-group"><span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" name="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
-                                </div>
-                            </div>
-                            <div class="col-4">
                                 <label class="form-label">Arpenteurs</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="arpenteurs" value="<?= formatMoney($projet['arpenteurs'], false) ?>">
@@ -1379,6 +1375,34 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <label class="form-label">Ass. titre</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="assurance_titre" value="<?= formatMoney($projet['assurance_titre'], false) ?>">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Vente -->
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-cash-stack me-1"></i>Vente</div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-4">
+                                <label class="form-label">Courtier</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Quittance</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="quittance" value="<?= formatMoney($projet['quittance'] ?? 0, false) ?>">
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <label class="form-label">Mutation</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
                                 </div>
                             </div>
                         </div>
@@ -1470,11 +1494,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 </div>
 
                 <?php
-                // Calcul commission courtier avec taxes
-                $commHT = (float)$projet['valeur_potentielle'] * ((float)$projet['taux_commission'] / 100);
-                $commTPS = $commHT * 0.05;
-                $commTVQ = $commHT * 0.09975;
-                $commTTC = $commHT + $commTPS + $commTVQ;
                 // Calcul contingence
                 $totalBudgetBase = 0;
                 foreach ($categoriesAvecBudget as $cat) {
@@ -1483,30 +1502,16 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 $contingenceBase = $totalBudgetBase * ((float)$projet['taux_contingence'] / 100);
                 ?>
                 <div class="card h-100">
-                    <div class="card-header"><i class="bi bi-percent me-1"></i>Taux</div>
+                    <div class="card-header"><i class="bi bi-percent me-1"></i>Contingence</div>
                     <div class="card-body p-2">
-                        <table class="table table-sm table-borderless mb-0">
-                            <tr>
-                                <td style="width:40%"><label class="form-label mb-0">Courtier</label></td>
-                                <td style="width:30%">
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                </td>
-                                <td class="text-end fw-bold"><?= formatMoney($commTTC) ?></td>
-                            </tr>
-                            <tr>
-                                <td><label class="form-label mb-0">Contingence</label></td>
-                                <td>
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" class="form-control" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
-                                        <span class="input-group-text">%</span>
-                                    </div>
-                                </td>
-                                <td class="text-end fw-bold"><?= formatMoney($contingenceBase) ?></td>
-                            </tr>
-                        </table>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="input-group input-group-sm" style="width: 120px;">
+                                <input type="number" class="form-control" name="taux_contingence" id="taux_contingence" step="0.01" value="<?= $projet['taux_contingence'] ?>">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <span class="fw-bold text-primary"><?= formatMoney($contingenceBase) ?></span>
+                        </div>
+                        <small class="text-muted mt-1 d-block">Réserve pour imprévus sur le budget rénovation</small>
                         <input type="hidden" name="notes" value="<?= e($projet['notes']) ?>">
                     </div>
                 </div>

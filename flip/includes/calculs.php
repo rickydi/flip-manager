@@ -161,8 +161,8 @@ function calculerCoutsVente($projet) {
     $tauxMensuel = $tauxInteret / 100 / 12;
     $interets = $montantPret * (pow(1 + $tauxMensuel, $mois) - 1);
 
-    // Quittance (généralement 0 ou fixe)
-    $quittance = 0;
+    // Quittance (depuis le projet)
+    $quittance = (float) ($projet['quittance'] ?? 0);
 
     return [
         'commission' => $commissionHT,
