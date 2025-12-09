@@ -1278,6 +1278,29 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         .compact-form .card-header { padding: 0.5rem 1rem; font-size: 0.9rem; }
         .compact-form .card-body { padding: 0.75rem; }
     </style>
+
+    <!-- GRAPHIQUES -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header py-1 text-center small">Coûts vs Valeur</div>
+                <div class="card-body p-2"><canvas id="chartCouts" height="150"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header py-1 text-center small">Heures travaillées</div>
+                <div class="card-body p-2"><canvas id="chartBudget" height="150"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card h-100">
+                <div class="card-header py-1 text-center small">Budget vs Dépensé</div>
+                <div class="card-body p-2"><canvas id="chartProfits" height="150"></canvas></div>
+            </div>
+        </div>
+    </div>
+
     <div class="row">
     <div class="col-xxl-8">
     <form method="POST" action="" class="compact-form" id="formBase">
@@ -1524,28 +1547,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
     </form>
-
-    <!-- GRAPHIQUES -->
-    <div class="row g-2 mb-3 mt-3">
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header py-1 text-center small">Coûts vs Valeur</div>
-                <div class="card-body p-2"><canvas id="chartCouts" height="150"></canvas></div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header py-1 text-center small">Heures travaillées</div>
-                <div class="card-body p-2"><canvas id="chartBudget" height="150"></canvas></div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header py-1 text-center small">Budget vs Dépensé</div>
-                <div class="card-body p-2"><canvas id="chartProfits" height="150"></canvas></div>
-            </div>
-        </div>
-    </div>
     </div><!-- Fin col-xxl-8 -->
 
     <!-- TABLEAU UNIFIÉ : EXTRAPOLÉ | DIFF | RÉEL -->
