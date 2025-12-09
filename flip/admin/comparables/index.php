@@ -7,12 +7,10 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
-require_once '../../includes/ClaudeService.php';
 
 requireAdmin();
 
 $pageTitle = 'Comparables & Analyse IA';
-$claudeService = new ClaudeService($pdo);
 
 // Auto-migration des tables analyses si elles n'existent pas
 try {
@@ -20,104 +18,11 @@ try {
 } catch (Exception $e) {
     // Exécuter le SQL de migration
     $sqlMigration = file_get_contents('../../sql/migration_comparables_ai.sql');
-    // Nettoyer les commentaires et exécuter
     $queries = explode(';', $sqlMigration);
     foreach ($queries as $query) {
         $query = trim($query);
         if (!empty($query)) {
             try { $pdo->exec($query); } catch (Exception $ex) {}
-        }
-    }
-}
-
-$errors = [];
-$success = '';
-
-// Traitement du formulaire de nouvelle analyse
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'analyser') {
-    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $errors[] = 'Token invalide.';
-    } else {
-        $projetId = (int)$_POST['projet_id'];
-        $nomRapport = trim($_POST['nom_rapport']);
-        
-        if (empty($nomRapport)) $errors[] = 'Le nom du rapport est requis.';
-        if (!isset($_FILES['fichier_pdf']) || $_FILES['fichier_pdf']['error'] !== UPLOAD_ERR_OK) {
-            $errors[] = 'Veuillez sélectionner un fichier PDF valide.';
-        }
-
-        if (empty($errors)) {
-            try {
-                // Upload du fichier
-                $uploadDir = '../../uploads/comparables/';
-                if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-                
-                $fileName = time() . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '', $_FILES['fichier_pdf']['name']);
-                $filePath = $uploadDir . $fileName;
-                
-                if (move_uploaded_file($_FILES['fichier_pdf']['tmp_name'], $filePath)) {
-                    // Récupérer les infos du projet sujet
-                    $projet = getProjetById($pdo, $projetId);
-                    $projetInfo = [
-                        'adresse' => $projet['adresse'] . ', ' . $projet['ville'],
-                        'type' => 'Maison unifamiliale', // À raffiner si dispo
-                        'chambres' => 'N/A', // Idéalement ajouter ces champs dans la table projets
-                        'sdb' => 'N/A',
-                        'superficie' => 'N/A',
-                        'garage' => 'N/A'
-                    ];
-
-                    // Appel à l'IA
-                    $resultats = $claudeService->analyserComparables($filePath, $projetInfo);
-
-                    // Sauvegarder l'analyse
-                    $stmt = $pdo->prepare("
-                        INSERT INTO analyses_marche (projet_id, nom_rapport, fichier_source, statut, prix_suggere_ia, fourchette_basse, fourchette_haute, analyse_ia_texte)
-                        VALUES (?, ?, ?, 'termine', ?, ?, ?, ?)
-                    ");
-                    $stmt->execute([
-                        $projetId,
-                        $nomRapport,
-                        $filePath,
-                        $resultats['analyse_globale']['prix_suggere'] ?? 0,
-                        $resultats['analyse_globale']['fourchette_basse'] ?? 0,
-                        $resultats['analyse_globale']['fourchette_haute'] ?? 0,
-                        $resultats['analyse_globale']['commentaire_general'] ?? ''
-                    ]);
-                    $analyseId = $pdo->lastInsertId();
-
-                    // Sauvegarder les items
-                    $stmtItem = $pdo->prepare("
-                        INSERT INTO comparables_items (analyse_id, adresse, prix_vendu, date_vente, chambres, salles_bains, superficie_batiment, annee_construction, etat_general_note, etat_general_texte, renovations_mentionnees, ajustement_ia, commentaire_ia)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ");
-
-                    foreach ($resultats['comparables'] as $comp) {
-                        $stmtItem->execute([
-                            $analyseId,
-                            $comp['adresse'] ?? '',
-                            $comp['prix_vendu'] ?? 0,
-                            $comp['date_vente'] ?? null,
-                            $comp['chambres'] ?? '',
-                            $comp['sdb'] ?? '',
-                            $comp['superficie'] ?? '',
-                            $comp['annee'] ?? null,
-                            $comp['etat_note'] ?? 0,
-                            $comp['etat_texte'] ?? '',
-                            $comp['renovations'] ?? '',
-                            $comp['ajustement'] ?? 0,
-                            $comp['commentaire'] ?? ''
-                        ]);
-                    }
-
-                    redirect('/admin/comparables/detail.php?id=' . $analyseId);
-
-                } else {
-                    $errors[] = 'Erreur lors du téléchargement du fichier.';
-                }
-            } catch (Exception $e) {
-                $errors[] = 'Erreur lors de l\'analyse : ' . $e->getMessage();
-            }
         }
     }
 }
@@ -137,6 +42,9 @@ $projets = getProjets($pdo);
 include '../../includes/header.php';
 ?>
 
+<!-- Librairie PDF-Lib pour le découpage côté client -->
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
 <div class="container-fluid">
     <div class="page-header d-flex justify-content-between align-items-center">
         <div>
@@ -154,16 +62,6 @@ include '../../includes/header.php';
     </div>
 
     <?php displayFlashMessage(); ?>
-
-    <?php if (!empty($errors)): ?>
-        <div class="alert alert-danger">
-            <ul class="mb-0">
-                <?php foreach ($errors as $error): ?>
-                    <li><?= e($error) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-    <?php endif; ?>
 
     <div class="card">
         <div class="card-body p-0">
@@ -227,10 +125,7 @@ include '../../includes/header.php';
 <div class="modal fade" id="modalNouveau" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-            <form method="POST" action="" enctype="multipart/form-data" id="formAnalyse">
-                <?php csrfField(); ?>
-                <input type="hidden" name="action" value="analyser">
-                
+            <form id="formAnalyseJS" onsubmit="handleAnalysis(event)">
                 <div class="modal-header">
                     <h5 class="modal-title"><i class="bi bi-magic me-2"></i>Nouvelle Analyse IA</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -238,12 +133,14 @@ include '../../includes/header.php';
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle me-2"></i>
-                        L'IA va lire votre PDF Centris, extraire les données, analyser les photos pour juger de l'état des rénovations, et estimer la valeur de votre projet.
+                        Le système découpera automatiquement votre PDF s'il est trop volumineux pour l'analyser par lots.
                     </div>
+
+                    <div id="error-msg" class="alert alert-danger d-none"></div>
 
                     <div class="mb-3">
                         <label class="form-label">Projet sujet (le vôtre)</label>
-                        <select class="form-select" name="projet_id" required>
+                        <select class="form-select" name="projet_id" id="projet_id" required>
                             <?php foreach ($projets as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
                             <?php endforeach; ?>
@@ -252,20 +149,28 @@ include '../../includes/header.php';
                     
                     <div class="mb-3">
                         <label class="form-label">Nom du rapport</label>
-                        <input type="text" class="form-control" name="nom_rapport" placeholder="Ex: Comparables Rue Barbeau - Octobre 2025" required>
+                        <input type="text" class="form-control" name="nom_rapport" id="nom_rapport" placeholder="Ex: Comparables Rue Barbeau" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Fichier PDF Centris</label>
-                        <input type="file" class="form-control" name="fichier_pdf" accept="application/pdf" required>
-                        <div class="form-text">Téléchargez le rapport PDF généré par Centris/Matrix contenant les comparables vendus.</div>
+                        <input type="file" class="form-control" name="fichier_pdf" id="fichier_pdf" accept="application/pdf" required>
+                        <div class="form-text">Même les fichiers de plus de 100 pages sont acceptés (découpage auto).</div>
+                    </div>
+
+                    <!-- Barre de progression -->
+                    <div id="progress-container" class="d-none mt-3">
+                        <label class="form-label mb-1" id="progress-text">Analyse en cours...</label>
+                        <div class="progress" style="height: 25px;">
+                            <div id="progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                        <small class="text-muted d-block mt-1">Ne fermez pas cette fenêtre.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btnAnnuler">Annuler</button>
                     <button type="submit" class="btn btn-primary" id="btnAnalyser">
-                        <span id="btnText">Lancer l'analyse</span>
-                        <span id="btnSpinner" class="spinner-border spinner-border-sm d-none"></span>
+                        <i class="bi bi-play-fill me-1"></i>Lancer l'analyse
                     </button>
                 </div>
             </form>
@@ -274,15 +179,105 @@ include '../../includes/header.php';
 </div>
 
 <script>
-document.getElementById('formAnalyse').addEventListener('submit', function() {
-    var btn = document.getElementById('btnAnalyser');
-    var txt = document.getElementById('btnText');
-    var spin = document.getElementById('btnSpinner');
+async function handleAnalysis(e) {
+    e.preventDefault();
     
+    const fileInput = document.getElementById('fichier_pdf');
+    const projetId = document.getElementById('projet_id').value;
+    const nomRapport = document.getElementById('nom_rapport').value;
+    const btn = document.getElementById('btnAnalyser');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const errorMsg = document.getElementById('error-msg');
+
+    if (fileInput.files.length === 0) return;
+    
+    // UI Init
     btn.disabled = true;
-    txt.textContent = 'Analyse en cours par l\'IA... (Patientez)';
-    spin.classList.remove('d-none');
-});
+    document.getElementById('btnAnnuler').disabled = true;
+    progressContainer.classList.remove('d-none');
+    errorMsg.classList.add('d-none');
+    
+    try {
+        const file = fileInput.files[0];
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Charger le PDF
+        progressText.textContent = "Lecture du fichier PDF...";
+        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+        const pageCount = pdfDoc.getPageCount();
+        
+        // Initialiser l'analyse côté serveur
+        progressText.textContent = "Initialisation de l'analyse...";
+        const formDataInit = new FormData();
+        formDataInit.append('action', 'init');
+        formDataInit.append('projet_id', projetId);
+        formDataInit.append('nom_rapport', nomRapport);
+        
+        const resInit = await fetch('traitement_analyse.php', { method: 'POST', body: formDataInit });
+        const dataInit = await resInit.json();
+        
+        if (!dataInit.success) throw new Error(dataInit.error || "Erreur init");
+        const analyseId = dataInit.id;
+        
+        // Découper et envoyer par lots de 50 pages
+        const CHUNK_SIZE = 50;
+        const totalChunks = Math.ceil(pageCount / CHUNK_SIZE);
+        
+        for (let i = 0; i < pageCount; i += CHUNK_SIZE) {
+            const chunkIndex = Math.floor(i / CHUNK_SIZE) + 1;
+            progressText.textContent = `Analyse du lot ${chunkIndex} / ${totalChunks} (IA en cours)...`;
+            progressBar.style.width = `${((chunkIndex-1) / totalChunks) * 100}%`;
+            progressBar.textContent = `${Math.round(((chunkIndex-1) / totalChunks) * 100)}%`;
+            
+            // Créer un nouveau PDF avec ce lot de pages
+            const subPdf = await PDFLib.PDFDocument.create();
+            const pagesIndices = [];
+            for (let j = 0; j < CHUNK_SIZE && (i + j) < pageCount; j++) {
+                pagesIndices.push(i + j);
+            }
+            
+            const copiedPages = await subPdf.copyPages(pdfDoc, pagesIndices);
+            copiedPages.forEach(page => subPdf.addPage(page));
+            const pdfBytes = await subPdf.save();
+            
+            // Envoyer le chunk
+            const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+            const formDataChunk = new FormData();
+            formDataChunk.append('action', 'process_chunk');
+            formDataChunk.append('analyse_id', analyseId);
+            formDataChunk.append('pdf_chunk', blob, `chunk_${chunkIndex}.pdf`);
+            
+            const resChunk = await fetch('traitement_analyse.php', { method: 'POST', body: formDataChunk });
+            const dataChunk = await resChunk.json();
+            
+            if (!dataChunk.success) throw new Error(dataChunk.error || `Erreur lot ${chunkIndex}`);
+        }
+        
+        // Finaliser
+        progressText.textContent = "Finalisation et calculs...";
+        progressBar.style.width = "100%";
+        progressBar.textContent = "100%";
+        
+        const formDataFinish = new FormData();
+        formDataFinish.append('action', 'finish');
+        formDataFinish.append('analyse_id', analyseId);
+        
+        await fetch('traitement_analyse.php', { method: 'POST', body: formDataFinish });
+        
+        // Redirection
+        window.location.href = `detail.php?id=${analyseId}`;
+        
+    } catch (error) {
+        console.error(error);
+        errorMsg.textContent = "Erreur : " + error.message;
+        errorMsg.classList.remove('d-none');
+        btn.disabled = false;
+        document.getElementById('btnAnnuler').disabled = false;
+        progressContainer.classList.add('d-none');
+    }
+}
 </script>
 
 <?php include '../../includes/footer.php'; ?>
