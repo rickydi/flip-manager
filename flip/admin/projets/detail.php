@@ -1846,9 +1846,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php foreach ($indicateurs['preteurs'] as $preteur): ?>
                     <tr class="sub-item">
                         <td><i class="bi bi-bank text-warning me-1"></i><?= e($preteur['nom']) ?> (<?= $preteur['taux'] ?>%)</td>
-                        <td class="text-end text-danger">-<?= formatMoney($preteur['interets_total']) ?></td>
+                        <td class="text-end text-success">+<?= formatMoney($preteur['interets_total']) ?></td>
                         <td class="text-end">-</td>
-                        <td class="text-end text-danger">-<?= formatMoney($preteur['interets_total']) ?></td>
+                        <td class="text-end text-success">+<?= formatMoney($preteur['interets_total']) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>
@@ -1857,9 +1857,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php foreach ($indicateurs['investisseurs'] as $inv): ?>
                     <tr class="sub-item">
                         <td><i class="bi bi-person text-info me-1"></i><?= e($inv['nom']) ?> (<?= number_format($inv['pourcentage'], 1) ?>%)</td>
-                        <td class="text-end text-danger">-<?= formatMoney($inv['profit_estime']) ?></td>
+                        <td class="text-end text-success">+<?= formatMoney($inv['profit_estime']) ?></td>
                         <td class="text-end">-</td>
-                        <td class="text-end text-danger">-<?= formatMoney($inv['profit_estime']) ?></td>
+                        <td class="text-end text-success">+<?= formatMoney($inv['profit_estime']) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>
