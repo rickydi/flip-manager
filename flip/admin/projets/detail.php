@@ -1503,7 +1503,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <label class="form-label">Mutation</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="taxe_mutation" id="taxe_mutation" value="<?= formatMoney($projet['taxe_mutation'], false) ?>">
-                                    <button type="button" class="btn btn-outline-secondary" onclick="calculerTaxeMutation(true)" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button>
+                                    <button type="button" class="btn btn-outline-secondary px-2" onclick="calculerTaxeMutation(true)" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button>
                                 </div>
                             </div>
                         </div>
