@@ -4028,18 +4028,35 @@ async function previewAdminPhotos(input) {
 
     if (!input.files || input.files.length === 0) return;
 
-    preview.innerHTML = '<div class="col-12 text-center"><i class="bi bi-hourglass-split"></i> Traitement...</div>';
+    // Afficher la barre de progression
+    const totalFiles = input.files.length;
+    preview.innerHTML = `
+        <div class="col-12 text-center py-3">
+            <div class="mb-2"><i class="bi bi-gear-fill me-2 spin-icon"></i><span id="adminProgressText">Préparation...</span></div>
+            <div class="progress" style="height: 20px;">
+                <div id="adminProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-muted mt-1 d-block" id="adminProgressDetail"></small>
+        </div>
+    `;
     preview.style.display = 'flex';
     submitBtn.style.display = 'none';
     adminConvertedFiles = [];
 
     const processedFiles = [];
+    let processed = 0;
+    let heicConverted = 0;
+    const progressBar = document.getElementById('adminProgressBar');
+    const progressText = document.getElementById('adminProgressText');
+    const progressDetail = document.getElementById('adminProgressDetail');
 
     for (let file of input.files) {
         const fileName = file.name.toLowerCase();
         const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
 
         if (isHeic && typeof heic2any !== 'undefined') {
+            progressText.textContent = 'Conversion HEIC...';
+            progressDetail.textContent = file.name;
             try {
                 // Convertir HEIC en JPEG
                 const convertedBlob = await heic2any({
@@ -4053,13 +4070,22 @@ async function previewAdminPhotos(input) {
                     { type: 'image/jpeg' }
                 );
                 processedFiles.push(convertedFile);
+                heicConverted++;
             } catch (err) {
                 console.error('Erreur conversion HEIC:', err);
                 processedFiles.push(file); // Garder l'original si échec
             }
         } else {
+            progressText.textContent = 'Traitement...';
+            progressDetail.textContent = file.name;
             processedFiles.push(file);
         }
+
+        // Mettre à jour la progression
+        processed++;
+        const percent = Math.round((processed / totalFiles) * 100);
+        progressBar.style.width = percent + '%';
+        progressBar.textContent = percent + '%';
     }
 
     // Créer un nouveau FileList avec les fichiers convertis
@@ -4092,7 +4118,11 @@ async function previewAdminPhotos(input) {
     }
 
     photoCount.style.display = 'block';
-    photoCountText.textContent = processedFiles.length + ' fichier(s) prêt(s)';
+    let countText = processedFiles.length + ' photo(s) prête(s)';
+    if (heicConverted > 0) {
+        countText += ' (' + heicConverted + ' HEIC converti' + (heicConverted > 1 ? 's' : '') + ')';
+    }
+    photoCountText.textContent = countText;
     submitBtn.style.display = 'inline-block';
 }
 

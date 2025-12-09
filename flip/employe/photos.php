@@ -551,19 +551,46 @@ async function previewPhotos(input) {
 
     if (!input.files || input.files.length === 0) return;
 
-    preview.innerHTML = '<div class="col-12 text-center py-3"><i class="bi bi-hourglass-split me-2"></i>Traitement des photos...</div>';
+    const totalFiles = input.files.length;
+    let heicCount = 0;
+
+    // Compter les fichiers HEIC
+    for (let file of input.files) {
+        const fn = file.name.toLowerCase();
+        if (fn.endsWith('.heic') || fn.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
+            heicCount++;
+        }
+    }
+
+    // Afficher la barre de progression
+    preview.innerHTML = `
+        <div class="col-12 text-center py-3">
+            <div class="mb-2"><i class="bi bi-gear-fill me-2 spin-icon"></i><span id="progressText">Préparation...</span></div>
+            <div class="progress" style="height: 20px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-muted mt-1 d-block" id="progressDetail"></small>
+        </div>
+    `;
     preview.style.display = 'flex';
     submitBtn.style.display = 'none';
 
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressDetail = document.getElementById('progressDetail');
+
     const processedFiles = [];
+    let processed = 0;
 
     for (let file of input.files) {
         const fileName = file.name.toLowerCase();
         const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
 
         if (isHeic && typeof heic2any !== 'undefined') {
+            progressText.textContent = 'Conversion HEIC...';
+            progressDetail.textContent = file.name;
+
             try {
-                // Convertir HEIC en JPEG côté client
                 const convertedBlob = await heic2any({
                     blob: file,
                     toType: 'image/jpeg',
@@ -582,9 +609,17 @@ async function previewPhotos(input) {
         } else {
             processedFiles.push(file);
         }
+
+        processed++;
+        const percent = Math.round((processed / totalFiles) * 100);
+        progressBar.style.width = percent + '%';
+        progressBar.textContent = percent + '%';
     }
 
-    // Remplacer les fichiers dans l'input par les fichiers convertis
+    progressText.textContent = 'Finalisation...';
+    progressDetail.textContent = '';
+
+    // Remplacer les fichiers dans l'input
     const dt = new DataTransfer();
     processedFiles.forEach(f => dt.items.add(f));
     input.files = dt.files;
@@ -613,7 +648,7 @@ async function previewPhotos(input) {
     }
 
     photoCount.style.display = 'block';
-    photoCountText.textContent = processedFiles.length + ' photo(s) prête(s)';
+    photoCountText.textContent = processedFiles.length + ' photo(s) prête(s)' + (heicCount > 0 ? ' (' + heicCount + ' HEIC converti' + (heicCount > 1 ? 's' : '') + ')' : '');
     submitBtn.style.display = 'block';
 }
 
