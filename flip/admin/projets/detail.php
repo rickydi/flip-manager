@@ -1765,7 +1765,17 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td colspan="4"><i class="bi bi-shop me-1"></i> Vente <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
                     <tr class="sub-item">
-                        <td>Intérêts (<?= $projet['taux_interet'] ?>% sur <?= $dureeReelle ?> mois)</td>
+                        <td>Intérêts (<?php
+                            if (!empty($indicateurs['preteurs'])) {
+                                $tauxList = [];
+                                foreach ($indicateurs['preteurs'] as $p) {
+                                    $tauxList[] = $p['taux'] . '%';
+                                }
+                                echo implode(', ', $tauxList);
+                            } else {
+                                echo $projet['taux_interet'] . '%';
+                            }
+                        ?> sur <?= $dureeReelle ?> mois)</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
