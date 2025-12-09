@@ -1313,7 +1313,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </div>
                             <div class="col-3">
                                 <label class="form-label">Achat</label>
-                                <input type="date" class="form-control" name="date_acquisition" value="<?= e($projet['date_acquisition']) ?>">
+                                <input type="date" class="form-control" name="date_acquisition" id="date_acquisition" value="<?= e($projet['date_acquisition']) ?>" onchange="calculerDuree()">
                             </div>
                             <div class="col-3">
                                 <label class="form-label">Début trav.</label>
@@ -1321,11 +1321,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </div>
                             <div class="col-3">
                                 <label class="form-label">Fin travaux</label>
-                                <input type="date" class="form-control" name="date_fin_prevue" value="<?= e($projet['date_fin_prevue']) ?>">
+                                <input type="date" class="form-control" name="date_fin_prevue" id="date_fin_prevue" value="<?= e($projet['date_fin_prevue']) ?>" onchange="calculerDuree()">
                             </div>
                             <div class="col-3">
                                 <label class="form-label">Vendu</label>
-                                <input type="date" class="form-control" name="date_vente" value="<?= e($projet['date_vente'] ?? '') ?>">
+                                <input type="date" class="form-control" name="date_vente" id="date_vente" value="<?= e($projet['date_vente'] ?? '') ?>" onchange="calculerDuree()">
                             </div>
                         </div>
                     </div>
@@ -1349,7 +1349,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Durée (mois)</label>
-                                <input type="number" class="form-control bg-light" name="temps_assume_mois" id="duree_mois" value="<?= (int)$projet['temps_assume_mois'] ?>" readonly>
+                                <input type="number" class="form-control bg-light" name="temps_assume_mois" id="duree_mois" value="<?= (int)$projet['temps_assume_mois'] ?>" readonly title="Calculé automatiquement: Date vente (ou fin travaux) - Date achat">
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Cession</label>
@@ -3985,6 +3985,42 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         autoSaveBase();
     });
 })();
+</script>
+
+<!-- Calcul automatique de la durée -->
+<script>
+function calculerDuree() {
+    const dateAchat = document.getElementById('date_acquisition').value;
+    const dateVente = document.getElementById('date_vente').value;
+    const dateFinTravaux = document.getElementById('date_fin_prevue').value;
+    const dureeMois = document.getElementById('duree_mois');
+
+    if (!dateAchat) {
+        dureeMois.value = 0;
+        return;
+    }
+
+    // Utiliser date de vente si disponible, sinon date fin travaux, sinon aujourd'hui
+    let dateFin = dateVente || dateFinTravaux || new Date().toISOString().split('T')[0];
+
+    const d1 = new Date(dateAchat);
+    const d2 = new Date(dateFin);
+
+    if (d2 < d1) {
+        dureeMois.value = 0;
+        return;
+    }
+
+    // Calcul des mois
+    let mois = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+
+    // Ajouter 1 mois si le jour de fin est >= jour d'achat
+    if (d2.getDate() >= d1.getDate()) {
+        mois++;
+    }
+
+    dureeMois.value = Math.max(1, mois);
+}
 </script>
 
 <!-- Filtres Photos et Factures -->
