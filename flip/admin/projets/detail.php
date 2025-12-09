@@ -922,17 +922,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 if (in_array($extension, ['heic', 'heif'])) {
                     // Convertir HEIC/HEIF en JPEG avec heif-convert
                     $tempHeic = $file['tmp_name'];
-                    $cmd = sprintf('heif-convert -q 90 %s %s 2>&1', escapeshellarg($tempHeic), escapeshellarg($destination));
-                    exec($cmd, $output, $returnCode);
-                    if ($returnCode === 0 && file_exists($destination)) {
-                        $uploadSuccess = true;
+
+                    // Vérifier que le fichier temp existe
+                    if (!file_exists($tempHeic)) {
+                        $errors[] = "HEIC: fichier temporaire introuvable";
                     } else {
-                        $errors[] = "Erreur conversion HEIC: " . implode(' ', $output);
+                        // Utiliser le chemin complet de heif-convert
+                        $cmd = sprintf('/usr/bin/heif-convert -q 90 %s %s 2>&1', escapeshellarg($tempHeic), escapeshellarg($destination));
+                        $output = [];
+                        $returnCode = -1;
+                        exec($cmd, $output, $returnCode);
+
+                        if ($returnCode === 0 && file_exists($destination)) {
+                            $uploadSuccess = true;
+                        } else {
+                            $errors[] = "HEIC conversion (code $returnCode): " . implode(' ', $output);
+                        }
                     }
                 } else {
                     // Upload normal
                     if (move_uploaded_file($file['tmp_name'], $destination) || copy($file['tmp_name'], $destination)) {
                         $uploadSuccess = true;
+                    } else {
+                        $errors[] = "Échec upload: " . ($file['name'] ?? 'fichier');
                     }
                 }
 

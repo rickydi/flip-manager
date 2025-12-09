@@ -147,12 +147,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         if (in_array($extension, ['heic', 'heif'])) {
                             // Convertir HEIC/HEIF en JPEG avec heif-convert
-                            $cmd = sprintf('heif-convert -q 90 %s %s 2>&1', escapeshellarg($tmpName), escapeshellarg($destination));
+                            // Utiliser le chemin complet de heif-convert
+                            $output = [];
+                            $returnCode = -1;
+                            $cmd = sprintf('/usr/bin/heif-convert -q 90 %s %s 2>&1', escapeshellarg($tmpName), escapeshellarg($destination));
                             exec($cmd, $output, $returnCode);
+
                             if ($returnCode === 0 && file_exists($destination)) {
                                 $uploadSuccess = true;
                             } else {
-                                $debugInfo[] = "Erreur conversion HEIC ($originalName): " . implode(' ', $output);
+                                $debugInfo[] = "HEIC conversion (code $returnCode) $originalName: " . implode(' ', $output);
                             }
                         } elseif (move_uploaded_file($tmpName, $destination)) {
                             $uploadSuccess = true;
