@@ -1871,6 +1871,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
+                    // Charger les infos de taxabilité par catégorie
+                    $taxabiliteParCat = calculerTaxabiliteParCategorie($pdo, $projet['id']);
                     foreach ($categories as $cat):
                         $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
@@ -1878,9 +1880,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         // Multiplier par la quantité du groupe
                         $qteGroupe = $projetGroupes[$cat['groupe']] ?? 1;
                         $budgetHT = $budgetUnit * $qteGroupe;
-                        // Ajouter taxes (14.975% = TPS 5% + TVQ 9.975%)
-                        $budgetTTC = $budgetHT * 1.14975;
-                        $ecart = $budgetTTC - $depense;
+
+                        // Afficher en HT car TPS/TVQ sont montrés séparément
+                        $budgetAffiche = $budgetHT;
+                        $ecart = $budgetAffiche - $depense;
                         $totalBudgetReno += $budgetHT;
                         $totalReelReno += $depense;
                     ?>
@@ -1891,7 +1894,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <small class="text-muted">(×<?= $qteGroupe ?>)</small>
                             <?php endif; ?>
                         </td>
-                        <td class="text-end"><?= formatMoney($budgetTTC) ?> <small class="text-muted opacity-75">Tx in</small></td>
+                        <td class="text-end"><?= formatMoney($budgetAffiche) ?></td>
                         <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
                         <td class="text-end"><?= formatMoney($depense) ?></td>
                     </tr>
