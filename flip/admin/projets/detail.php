@@ -2085,12 +2085,43 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         $totalPartage += $inv['profit_estime'];
                     }
                     $profitNet = $indicateurs['equite_potentielle'] - $totalPartage;
+
+                    // Calcul impôt sur le profit (gain en capital)
+                    // 12,2% sur les premiers 500 000$ (Fédéral 9% + Québec 3,2%)
+                    // 26,5% au-delà de 500 000$
+                    $seuilImpot = 500000;
+                    $tauxBase = 0.122; // 12,2%
+                    $tauxEleve = 0.265; // 26,5%
+
+                    if ($profitNet <= 0) {
+                        $impotAPayer = 0;
+                    } elseif ($profitNet <= $seuilImpot) {
+                        $impotAPayer = $profitNet * $tauxBase;
+                    } else {
+                        $impotAPayer = ($seuilImpot * $tauxBase) + (($profitNet - $seuilImpot) * $tauxEleve);
+                    }
+                    $profitApresImpot = $profitNet - $impotAPayer;
                     ?>
                     <tr class="total-row">
                         <td>PROFIT NET (après partage)</td>
                         <td class="text-end"><?= formatMoney($profitNet) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($profitNet) ?></td>
+                    </tr>
+                    <tr class="sub-item text-danger">
+                        <td>
+                            <i class="bi bi-bank2 me-1"></i>Impôt à payer
+                            <small class="text-muted">(<?= $profitNet <= $seuilImpot ? '12,2%' : '12,2% + 26,5%' ?>)</small>
+                        </td>
+                        <td class="text-end">-<?= formatMoney($impotAPayer) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end">-<?= formatMoney($impotAPayer) ?></td>
+                    </tr>
+                    <tr class="total-row table-success">
+                        <td><strong><i class="bi bi-cash-stack me-1"></i>PROFIT APRÈS IMPÔT</strong></td>
+                        <td class="text-end"><strong><?= formatMoney($profitApresImpot) ?></strong></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><strong><?= formatMoney($profitApresImpot) ?></strong></td>
                     </tr>
                     <?php endif; ?>
                 </tbody>
