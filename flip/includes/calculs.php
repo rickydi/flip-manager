@@ -578,7 +578,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Remplacer les intérêts de vente par les intérêts des prêteurs si disponibles
     if ($dataFinancement['total_interets'] > 0) {
         $coutsVente['interets'] = $dataFinancement['total_interets'];
-        $coutsVente['total'] = $coutsVente['commission'] + $coutsVente['interets'] + $coutsVente['quittance'];
+        $coutsVente['total'] = $coutsVente['commission'] + $coutsVente['interets'] + $coutsVente['quittance'] + ($coutsVente['solde_acheteur'] ?? 0);
     }
     
     // Coûts fixes totaux (maintenant avec les bons intérêts)
