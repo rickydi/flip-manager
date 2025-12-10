@@ -3808,7 +3808,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <form action="<?= url('/admin/factures/supprimer.php') ?>" method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette facture?')">
                                     <?php csrfField(); ?>
                                     <input type="hidden" name="facture_id" value="<?= $f['id'] ?>">
-                                    <input type="hidden" name="redirect" value="<?= url('/admin/projets/detail.php?id=' . $projetId . '&tab=factures') ?>">
+                                    <input type="hidden" name="redirect" value="/admin/projets/detail.php?id=<?= $projetId ?>&tab=factures">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Supprimer">
                                         <i class="bi bi-trash"></i>
                                     </button>

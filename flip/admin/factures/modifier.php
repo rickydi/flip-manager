@@ -311,7 +311,7 @@ include '../../includes/header.php';
                 <form action="<?= url('/admin/factures/supprimer.php') ?>" method="POST" class="d-inline">
                     <?php csrfField(); ?>
                     <input type="hidden" name="facture_id" value="<?= $factureId ?>">
-                    <input type="hidden" name="redirect" value="<?= url('/admin/projets/detail.php?id=' . $facture['projet_id'] . '&tab=factures') ?>">
+                    <input type="hidden" name="redirect" value="/admin/projets/detail.php?id=<?= $facture['projet_id'] ?>&tab=factures">
                     <button type="submit" class="btn btn-danger">
                         <i class="bi bi-trash me-1"></i>Supprimer
                     </button>
