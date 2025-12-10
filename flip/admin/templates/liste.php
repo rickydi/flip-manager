@@ -773,7 +773,6 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $niveau =
                 </ol>
             </nav>
             <h1><i class="bi bi-box-seam me-2"></i>Templates Budgets</h1>
-            <p class="text-muted mb-0">Gérer les sous-catégories imbriquées et matériaux</p>
         </div>
     </div>
 
