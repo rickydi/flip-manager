@@ -756,13 +756,6 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
             </div>
         </div>
 
-        <!-- RE-INCLURE LES MODALES (Ajout/Edit/Delete) POUR CHAQUE SOUS-CAT -->
-        <!-- (Je garde le code original des modales ci-dessous pour ne pas briser la logique existante) -->
-        <!-- ... code modales ... -->
-    <?php endforeach; ?>
-    </div>
-    <?php
-}
 
 
     <!-- Modal Ajouter Sous-catégorie enfant -->
@@ -893,6 +886,9 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
     </div>
 <?php
     endforeach;
+?>
+    </div>
+<?php
 }
 ?>
 
