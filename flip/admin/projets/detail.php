@@ -1975,12 +1975,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['quittance']) ?></td>
                     </tr>
+                    <?php if (($indicateurs['couts_vente']['taxe_mutation'] ?? 0) > 0): ?>
                     <tr class="sub-item">
                         <td>Taxe mutation</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['taxe_mutation']) ?></td>
                         <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['taxe_mutation']) ?></td>
                     </tr>
+                    <?php endif; ?>
                     <?php if (($indicateurs['couts_vente']['solde_acheteur'] ?? 0) > 0): ?>
                     <tr class="sub-item">
                         <td>Solde acheteur</td>

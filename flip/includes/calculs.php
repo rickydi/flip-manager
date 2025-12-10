@@ -13,13 +13,11 @@ function calculerCoutsAcquisition($projet) {
     return [
         'cession' => (float) ($projet['cession'] ?? 0),
         'notaire' => (float) $projet['notaire'],
-        'taxe_mutation' => (float) $projet['taxe_mutation'],
         'arpenteurs' => (float) $projet['arpenteurs'],
         'assurance_titre' => (float) $projet['assurance_titre'],
         'solde_vendeur' => (float) ($projet['solde_vendeur'] ?? 0),
         'total' => (float) ($projet['cession'] ?? 0) +
                    (float) $projet['notaire'] +
-                   (float) $projet['taxe_mutation'] +
                    (float) $projet['arpenteurs'] +
                    (float) $projet['assurance_titre'] +
                    (float) ($projet['solde_vendeur'] ?? 0)
@@ -166,6 +164,9 @@ function calculerCoutsVente($projet) {
     // Quittance (depuis le projet)
     $quittance = (float) ($projet['quittance'] ?? 0);
 
+    // Taxe de mutation
+    $taxeMutation = (float) ($projet['taxe_mutation'] ?? 0);
+
     // Solde à payer par l'acheteur (ajustement de taxes en faveur du vendeur = réduit les coûts)
     $soldeAcheteur = (float) ($projet['solde_acheteur'] ?? 0);
 
@@ -175,8 +176,9 @@ function calculerCoutsVente($projet) {
         'taxes_commission' => $taxesCommission,
         'interets' => $interets,
         'quittance' => $quittance,
+        'taxe_mutation' => $taxeMutation,
         'solde_acheteur' => $soldeAcheteur,
-        'total' => $commissionTTC + $interets + $quittance - $soldeAcheteur
+        'total' => $commissionTTC + $interets + $quittance + $taxeMutation - $soldeAcheteur
     ];
 }
 
@@ -578,7 +580,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Remplacer les intérêts de vente par les intérêts des prêteurs si disponibles
     if ($dataFinancement['total_interets'] > 0) {
         $coutsVente['interets'] = $dataFinancement['total_interets'];
-        $coutsVente['total'] = $coutsVente['commission_ttc'] + $coutsVente['interets'] + $coutsVente['quittance'] - ($coutsVente['solde_acheteur'] ?? 0);
+        $coutsVente['total'] = $coutsVente['commission_ttc'] + $coutsVente['interets'] + $coutsVente['quittance'] + ($coutsVente['taxe_mutation'] ?? 0) - ($coutsVente['solde_acheteur'] ?? 0);
     }
     
     // Coûts fixes totaux (maintenant avec les bons intérêts)
