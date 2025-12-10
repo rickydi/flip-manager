@@ -166,7 +166,7 @@ function calculerCoutsVente($projet) {
     // Quittance (depuis le projet)
     $quittance = (float) ($projet['quittance'] ?? 0);
 
-    // Solde à payer à l'acheteur (ajustement de taxes)
+    // Solde à payer par l'acheteur (ajustement de taxes en faveur du vendeur = réduit les coûts)
     $soldeAcheteur = (float) ($projet['solde_acheteur'] ?? 0);
 
     return [
@@ -176,7 +176,7 @@ function calculerCoutsVente($projet) {
         'interets' => $interets,
         'quittance' => $quittance,
         'solde_acheteur' => $soldeAcheteur,
-        'total' => $commissionTTC + $interets + $quittance + $soldeAcheteur
+        'total' => $commissionTTC + $interets + $quittance - $soldeAcheteur
     ];
 }
 
@@ -578,7 +578,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Remplacer les intérêts de vente par les intérêts des prêteurs si disponibles
     if ($dataFinancement['total_interets'] > 0) {
         $coutsVente['interets'] = $dataFinancement['total_interets'];
-        $coutsVente['total'] = $coutsVente['commission_ttc'] + $coutsVente['interets'] + $coutsVente['quittance'] + ($coutsVente['solde_acheteur'] ?? 0);
+        $coutsVente['total'] = $coutsVente['commission_ttc'] + $coutsVente['interets'] + $coutsVente['quittance'] - ($coutsVente['solde_acheteur'] ?? 0);
     }
     
     // Coûts fixes totaux (maintenant avec les bons intérêts)
