@@ -17,7 +17,15 @@
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+
+    <!-- Initialisation des tooltips Bootstrap -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function(el) { return new bootstrap.Tooltip(el); });
+        });
+    </script>
+
     <!-- Flatpickr Date Picker -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
@@ -28,5 +36,6 @@
     <?php if (isset($extraJs)): ?>
         <?= $extraJs ?>
     <?php endif; ?>
+
 </body>
 </html>

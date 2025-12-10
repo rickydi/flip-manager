@@ -110,14 +110,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
 
                         // Vérifier l'extension (photos et vidéos)
-                        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
+                        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'heic', 'heif', 'webp', 'mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v'];
                         if (!in_array($extension, $allowedExtensions)) {
                             $debugInfo[] = "Extension non supportée: $extension ($originalName)";
                             continue;
                         }
 
-                        // Générer un nom unique
-                        $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $extension;
+                        // Pour HEIC/HEIF, on va convertir en JPEG
+                        $finalExtension = in_array($extension, ['heic', 'heif']) ? 'jpg' : $extension;
+                        $newFilename = 'photo_' . date('Ymd_His') . '_' . uniqid() . '.' . $finalExtension;
                         $destination = __DIR__ . '/../uploads/photos/' . $newFilename;
 
                         // Vérifier que le fichier temp existe
@@ -142,27 +143,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
 
-                        // Essayer avec copy() si move_uploaded_file échoue
+                        // Upload du fichier (HEIC est converti côté client en JPEG)
+                        $uploadSuccess = false;
                         if (move_uploaded_file($tmpName, $destination)) {
-                            // Insérer dans la base de données
-                            $stmt = $pdo->prepare("
-                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
-                                VALUES (?, ?, ?, ?, NOW(), ?)
-                            ");
-                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
-                            $uploadedCount++;
+                            $uploadSuccess = true;
                         } elseif (copy($tmpName, $destination)) {
-                            // Fallback avec copy()
                             unlink($tmpName);
-                            $stmt = $pdo->prepare("
-                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
-                                VALUES (?, ?, ?, ?, NOW(), ?)
-                            ");
-                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
-                            $uploadedCount++;
+                            $uploadSuccess = true;
                         } else {
                             $lastError = error_get_last();
                             $debugInfo[] = "Échec upload $originalName: " . ($lastError['message'] ?? 'erreur inconnue');
+                        }
+
+                        if ($uploadSuccess) {
+                            $stmt = $pdo->prepare("
+                                INSERT INTO photos_projet (projet_id, user_id, groupe_id, fichier, date_prise, description)
+                                VALUES (?, ?, ?, ?, NOW(), ?)
+                            ");
+                            $stmt->execute([$projetId, $userId, $groupeId, $newFilename, $description]);
+                            $uploadedCount++;
                         }
                     } else {
                         // Décoder l'erreur d'upload
@@ -320,13 +319,13 @@ include '../includes/header.php';
 
                             <!-- Input caméra (avec capture) -->
                             <input type="file" id="cameraInput" name="camera_photo"
-                                   accept="image/*" capture="environment"
+                                   accept="image/*,image/heic,image/heif,.heic,.heif" capture="environment"
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 
                             <!-- Input galerie (sans capture) -->
                             <input type="file" id="galleryInput" name="gallery_photos[]"
-                                   accept="image/*,video/*" multiple
+                                   accept="image/*,image/heic,image/heif,.heic,.heif,video/*" multiple
                                    class="d-none"
                                    onchange="previewPhotos(this)">
 
@@ -390,6 +389,7 @@ include '../includes/header.php';
                                 $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
                                 $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                                 $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
+                                $thumbUrl = $mediaUrl . '&thumb=1';
                             ?>
                                 <div class="col-4 col-md-3">
                                     <div class="position-relative">
@@ -404,10 +404,11 @@ include '../includes/header.php';
                                                     </div>
                                                 </div>
                                             <?php else: ?>
-                                                <img src="<?= $mediaUrl ?>"
+                                                <img src="<?= $thumbUrl ?>"
                                                      alt="Photo"
                                                      class="img-fluid rounded"
-                                                     style="width:100%;height:100px;object-fit:cover;">
+                                                     style="width:100%;height:100px;object-fit:cover;"
+                                                     loading="lazy">
                                             <?php endif; ?>
                                         </a>
                                         <form method="POST" class="position-absolute top-0 end-0" style="margin:2px;">
@@ -473,17 +474,18 @@ include '../includes/header.php';
     </div>
 </div>
 
-<!-- Overlay de chargement -->
-<div id="uploadOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
-    <div class="spinner-border text-light" role="status" style="width:4rem;height:4rem;">
-        <span class="visually-hidden">Chargement...</span>
-    </div>
-    <div class="text-white mt-4 fs-4" id="uploadStatus">
-        <i class="bi bi-cloud-upload me-2"></i>Téléversement en cours...
-    </div>
-    <div class="text-white-50 mt-2">Veuillez patienter, ne fermez pas cette page</div>
-    <div class="progress mt-3" style="width:200px;height:8px;">
-        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width:100%"></div>
+<!-- Overlay de chargement avec progression -->
+<div id="uploadOverlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:9999;justify-content:center;align-items:center;flex-direction:column;">
+    <div class="text-center" style="width:90%;max-width:400px;">
+        <i class="bi bi-cloud-upload text-primary" style="font-size:4rem;"></i>
+        <div class="text-white mt-3 fs-4" id="uploadStatusText">
+            Téléversement en cours...
+        </div>
+        <div class="progress mt-4" style="height:30px;">
+            <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width:0%">0%</div>
+        </div>
+        <div class="text-white-50 mt-3" id="uploadProgressDetail">Préparation...</div>
+        <div class="text-white-50 mt-2 small">Ne fermez pas cette page</div>
     </div>
 </div>
 
@@ -543,47 +545,167 @@ const galleryItems = <?= json_encode($galleryData) ?>;
 let currentIndex = 0;
 let touchStartX = 0;
 let touchEndX = 0;
-// Prévisualisation des photos sélectionnées
-function previewPhotos(input) {
+// Prévisualisation des photos sélectionnées (avec conversion HEIC)
+async function previewPhotos(input) {
     const preview = document.getElementById('photoPreview');
     const photoCount = document.getElementById('photoCount');
     const photoCountText = document.getElementById('photoCountText');
     const submitBtn = document.getElementById('submitBtn');
 
-    if (input.files && input.files.length > 0) {
-        preview.innerHTML = '';
-        preview.style.display = 'flex';
+    if (!input.files || input.files.length === 0) return;
 
-        for (let file of input.files) {
+    const totalFiles = input.files.length;
+    let heicCount = 0;
+
+    // Compter les fichiers HEIC
+    for (let file of input.files) {
+        const fn = file.name.toLowerCase();
+        if (fn.endsWith('.heic') || fn.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif') {
+            heicCount++;
+        }
+    }
+
+    // Afficher la barre de progression
+    preview.innerHTML = `
+        <div class="col-12 text-center py-3">
+            <div class="mb-2"><i class="bi bi-gear-fill me-2 spin-icon"></i><span id="progressText">Préparation...</span></div>
+            <div class="progress" style="height: 20px;">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" role="progressbar" style="width: 0%">0%</div>
+            </div>
+            <small class="text-muted mt-1 d-block" id="progressDetail"></small>
+        </div>
+    `;
+    preview.style.display = 'flex';
+    submitBtn.style.display = 'none';
+
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressDetail = document.getElementById('progressDetail');
+
+    const processedFiles = [];
+    let processed = 0;
+
+    for (let file of input.files) {
+        const fileName = file.name.toLowerCase();
+        const isHeic = fileName.endsWith('.heic') || fileName.endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+
+        if (isHeic && typeof heic2any !== 'undefined') {
+            progressText.textContent = 'Conversion HEIC...';
+            progressDetail.textContent = file.name;
+
+            try {
+                const convertedBlob = await heic2any({
+                    blob: file,
+                    toType: 'image/jpeg',
+                    quality: 0.9
+                });
+                const convertedFile = new File(
+                    [convertedBlob],
+                    file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'),
+                    { type: 'image/jpeg' }
+                );
+                processedFiles.push(convertedFile);
+            } catch (err) {
+                console.error('Erreur conversion HEIC:', err);
+                processedFiles.push(file);
+            }
+        } else {
+            processedFiles.push(file);
+        }
+
+        processed++;
+        const percent = Math.round((processed / totalFiles) * 100);
+        progressBar.style.width = percent + '%';
+        progressBar.textContent = percent + '%';
+    }
+
+    progressText.textContent = 'Finalisation...';
+    progressDetail.textContent = '';
+
+    // Remplacer les fichiers dans l'input
+    const dt = new DataTransfer();
+    processedFiles.forEach(f => dt.items.add(f));
+    input.files = dt.files;
+
+    // Afficher les previews
+    preview.innerHTML = '';
+    for (let file of processedFiles) {
+        const col = document.createElement('div');
+        col.className = 'col-4';
+
+        const isVideo = file.type.startsWith('video/');
+        if (isVideo) {
+            col.innerHTML = `
+                <div class="rounded" style="width:100%;height:80px;background:#1a1d21;display:flex;align-items:center;justify-content:center;">
+                    <i class="bi bi-play-circle text-white" style="font-size:2rem;"></i>
+                </div>
+            `;
+        } else {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const col = document.createElement('div');
-                col.className = 'col-4';
-                col.innerHTML = `
-                    <img src="${e.target.result}" class="img-fluid rounded"
-                         style="width:100%;height:80px;object-fit:cover;">
-                `;
-                preview.appendChild(col);
+                col.innerHTML = `<img src="${e.target.result}" class="img-fluid rounded" style="width:100%;height:80px;object-fit:cover;">`;
             };
             reader.readAsDataURL(file);
         }
-
-        photoCount.style.display = 'block';
-        photoCountText.textContent = input.files.length + ' photo(s) sélectionnée(s)';
-        submitBtn.style.display = 'block';
+        preview.appendChild(col);
     }
+
+    photoCount.style.display = 'block';
+    photoCountText.textContent = processedFiles.length + ' photo(s) prête(s)' + (heicCount > 0 ? ' (' + heicCount + ' HEIC converti' + (heicCount > 1 ? 's' : '') + ')' : '');
+    submitBtn.style.display = 'block';
 }
 
-// Afficher l'overlay pendant le téléversement
-document.getElementById('photoForm').addEventListener('submit', function() {
+// Upload AJAX avec barre de progression
+document.getElementById('photoForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const form = this;
     const btn = document.getElementById('submitBtn');
     const overlay = document.getElementById('uploadOverlay');
+    const progressBar = document.getElementById('uploadProgressBar');
+    const progressDetail = document.getElementById('uploadProgressDetail');
+    const statusText = document.getElementById('uploadStatusText');
 
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Téléversement...';
-
-    // Afficher l'overlay
     overlay.style.display = 'flex';
+
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(ev) {
+        if (ev.lengthComputable) {
+            const percent = Math.round((ev.loaded / ev.total) * 100);
+            progressBar.style.width = percent + '%';
+            progressBar.textContent = percent + '%';
+
+            const loadedMB = (ev.loaded / 1024 / 1024).toFixed(1);
+            const totalMB = (ev.total / 1024 / 1024).toFixed(1);
+            progressDetail.textContent = loadedMB + ' Mo / ' + totalMB + ' Mo';
+
+            if (percent === 100) {
+                statusText.textContent = 'Traitement par le serveur...';
+                progressDetail.textContent = 'Veuillez patienter...';
+            }
+        }
+    });
+
+    xhr.addEventListener('load', function() {
+        if (xhr.status === 200) {
+            window.location.href = window.location.pathname + '?success=upload';
+        } else {
+            alert('Erreur lors du téléversement. Veuillez réessayer.');
+            window.location.reload();
+        }
+    });
+
+    xhr.addEventListener('error', function() {
+        alert('Erreur de connexion. Veuillez réessayer.');
+        window.location.reload();
+    });
+
+    xhr.open('POST', window.location.href);
+    xhr.send(formData);
 });
 
 // ===== GALERIE LIGHTBOX =====

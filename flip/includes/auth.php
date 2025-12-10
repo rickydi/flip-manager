@@ -15,7 +15,8 @@ if (session_status() === PHP_SESSION_NONE) {
  */
 function requireLogin() {
     if (!isLoggedIn()) {
-        header('Location: /index.php');
+        $basePath = defined('BASE_PATH') ? BASE_PATH : '/flip';
+        header('Location: ' . $basePath . '/index.php');
         exit;
     }
 }
@@ -35,7 +36,8 @@ function isLoggedIn() {
 function requireAdmin() {
     requireLogin();
     if (!isAdmin()) {
-        header('Location: /employe/index.php');
+        $basePath = defined('BASE_PATH') ? BASE_PATH : '/flip';
+        header('Location: ' . $basePath . '/employe/index.php');
         exit;
     }
 }

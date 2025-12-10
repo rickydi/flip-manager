@@ -392,6 +392,11 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/templates/liste.php') ?>">
+                <i class="bi bi-box-seam me-1"></i>Templates
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/fournisseurs/liste.php') ?>">
                 <i class="bi bi-shop me-1"></i>Fournisseurs
             </a>
@@ -404,6 +409,11 @@ include '../../includes/header.php';
         <li class="nav-item">
             <a class="nav-link active" href="<?= url('/admin/rapports/paie-hebdo.php') ?>">
                 <i class="bi bi-calendar-week me-1"></i>Paie hebdo
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/configuration/index.php') ?>">
+                <i class="bi bi-gear-wide-connected me-1"></i>Configuration
             </a>
         </li>
     </ul>

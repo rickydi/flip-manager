@@ -175,8 +175,18 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/checklists/liste.php') ?>">
+                <i class="bi bi-list-check me-1"></i>Checklists
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/rapports/index.php') ?>">
                 <i class="bi bi-file-earmark-bar-graph me-1"></i>Rapports
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/configuration/index.php') ?>">
+                <i class="bi bi-gear me-1"></i>Configuration
             </a>
         </li>
     </ul>

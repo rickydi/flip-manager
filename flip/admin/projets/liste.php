@@ -66,6 +66,7 @@ include '../../includes/header.php';
                     <label for="statut" class="form-label">Statut</label>
                     <select class="form-select" id="statut" name="statut">
                         <option value="">Tous les statuts</option>
+                        <option value="prospection" <?= $filtreStatut === 'prospection' ? 'selected' : '' ?>>Prospection</option>
                         <option value="acquisition" <?= $filtreStatut === 'acquisition' ? 'selected' : '' ?>>Acquisition</option>
                         <option value="renovation" <?= $filtreStatut === 'renovation' ? 'selected' : '' ?>>Rénovation</option>
                         <option value="vente" <?= $filtreStatut === 'vente' ? 'selected' : '' ?>>En vente</option>

@@ -88,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($result) {
                 $projetId = $pdo->lastInsertId();
                 setFlashMessage('success', 'Projet créé avec succès!');
-                redirect('/admin/projets/modifier.php?id=' . $projetId . '&tab=budgets');
+                redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=budgets');
             } else {
                 $errors[] = 'Erreur lors de la création du projet.';
             }
@@ -139,6 +139,7 @@ include '../../includes/header.php';
                         <div class="mb-3">
                             <label for="statut" class="form-label">Statut</label>
                             <select class="form-select" id="statut" name="statut">
+                                <option value="prospection">Prospection</option>
                                 <option value="acquisition">Acquisition</option>
                                 <option value="renovation">Rénovation</option>
                                 <option value="vente">En vente</option>

@@ -2064,3 +2064,18 @@ select.form-select option {
     backdrop-filter: blur(15px);
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* Animation de rotation pour les icônes de chargement */
+.spin-icon {
+    display: inline-block;
+    animation: spinIcon 1s linear infinite;
+}
+
+@keyframes spinIcon {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
