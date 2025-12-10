@@ -1871,8 +1871,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
-                    // Charger les infos de taxabilité par catégorie
-                    $taxabiliteParCat = calculerTaxabiliteParCategorie($pdo, $projet['id']);
                     foreach ($categories as $cat):
                         $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
