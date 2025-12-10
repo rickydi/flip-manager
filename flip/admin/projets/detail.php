@@ -172,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $montantPret = parseNumber($_POST['montant_pret'] ?? 0);
 
         $notes = trim($_POST['notes'] ?? '');
+        $dropboxLink = trim($_POST['dropbox_link'] ?? '');
 
         // Validation minimale
         if (empty($nom) || empty($adresse) || empty($ville)) {
@@ -190,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
                 temps_assume_mois = ?, valeur_potentielle = ?,
                 taux_commission = ?, taux_contingence = ?,
-                taux_interet = ?, montant_pret = ?, notes = ?
+                taux_interet = ?, montant_pret = ?, notes = ?, dropbox_link = ?
             WHERE id = ?
         ");
 
@@ -201,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
             $tempsAssumeMois, $valeurPotentielle,
             $tauxCommission, $tauxContingence,
-            $tauxInteret, $montantPret, $notes,
+            $tauxInteret, $montantPret, $notes, $dropboxLink,
             $projetId
         ]);
 
@@ -589,6 +590,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $montantPret = parseNumber($_POST['montant_pret'] ?? 0);
 
             $notes = trim($_POST['notes'] ?? '');
+            $dropboxLink = trim($_POST['dropbox_link'] ?? '');
 
             if (empty($nom)) $errors[] = 'Le nom du projet est requis.';
             if (empty($adresse)) $errors[] = 'L\'adresse est requise.';
@@ -607,7 +609,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         hypotheque_mensuel = ?, loyer_mensuel = ?,
                         temps_assume_mois = ?, valeur_potentielle = ?,
                         taux_commission = ?, taux_contingence = ?,
-                        taux_interet = ?, montant_pret = ?, notes = ?
+                        taux_interet = ?, montant_pret = ?, notes = ?, dropbox_link = ?
                     WHERE id = ?
                 ");
 
@@ -622,7 +624,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $hypothequeMensuel, $loyerMensuel,
                     $tempsAssumeMois, $valeurPotentielle,
                     $tauxCommission, $tauxContingence,
-                    $tauxInteret, $montantPret, $notes,
+                    $tauxInteret, $montantPret, $notes, $dropboxLink,
                     $projetId
                 ]);
 
@@ -1498,6 +1500,17 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             <div class="col-3">
                                 <label class="form-label">Vendu</label>
                                 <input type="date" class="form-control" name="date_vente" id="date_vente" value="<?= e($projet['date_vente'] ?? '') ?>" onchange="calculerDuree()">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label"><i class="bi bi-dropbox me-1"></i>Dropbox</label>
+                                <div class="input-group">
+                                    <input type="url" class="form-control" name="dropbox_link" id="dropbox_link" value="<?= e($projet['dropbox_link'] ?? '') ?>" placeholder="https://www.dropbox.com/...">
+                                    <?php if (!empty($projet['dropbox_link'])): ?>
+                                    <a href="<?= e($projet['dropbox_link']) ?>" target="_blank" class="btn btn-outline-primary" title="Ouvrir Dropbox">
+                                        <i class="bi bi-box-arrow-up-right"></i>
+                                    </a>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         </div>
                     </div>
