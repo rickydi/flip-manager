@@ -642,6 +642,27 @@ function calculerIndicateursProjet($pdo, $projet) {
     $roiLeverageReel = $dataFinancement['mise_totale'] > 0 ? ($equiteReelle / $dataFinancement['mise_totale']) * 100 : 0;
     $roiAllCashReel = $coutTotalReel > 0 ? ($equiteReelle / $coutTotalReel) * 100 : 0;
 
+    // Cash flow nécessaire (tout SAUF courtier, taxes municipales, taxes scolaires, mutation)
+    $cashFlowNecessaire = (float) $projet['prix_achat']
+        // Acquisition sans taxe_mutation
+        + ($coutsAcquisition['cession'] ?? 0)
+        + ($coutsAcquisition['notaire'] ?? 0)
+        + ($coutsAcquisition['arpenteurs'] ?? 0)
+        + ($coutsAcquisition['assurance_titre'] ?? 0)
+        + ($coutsAcquisition['solde_vendeur'] ?? 0)
+        // Récurrents sans taxes municipales et scolaires
+        + ($coutsRecurrents['total'] - ($coutsRecurrents['taxes_municipales'] ?? 0) - ($coutsRecurrents['taxes_scolaires'] ?? 0))
+        // Budget rénovation TTC
+        + $budgetComplet['total_ttc']
+        // Main d'oeuvre
+        + $mainDoeuvreExtrapole['cout']
+        // Intérêts prêteurs
+        + ($coutsVente['interets'] ?? 0)
+        // Quittance
+        + ($coutsVente['quittance'] ?? 0)
+        // Solde acheteur (soustrait car c'est de l'argent reçu)
+        - ($coutsVente['solde_acheteur'] ?? 0);
+
     return [
         'couts_acquisition' => $coutsAcquisition,
         'couts_recurrents' => $coutsRecurrents,
@@ -673,6 +694,7 @@ function calculerIndicateursProjet($pdo, $projet) {
         'equite_potentielle' => $equitePotentielle,
         'equite_reelle' => $equiteReelle,
         'cout_total_reel' => $coutTotalReel,
+        'cash_flow_necessaire' => $cashFlowNecessaire,
         'roi_leverage' => $roiLeverage,
         'roi_all_cash' => $roiAllCash,
         'roi_leverage_reel' => $roiLeverageReel,
