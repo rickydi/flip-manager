@@ -781,7 +781,8 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateVente = new DateTime($projet['date_vente']);
     $diff = $dateAchat->diff($dateVente);
     $dureeReelle = ($diff->y * 12) + $diff->m;
-    if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+    // Ajouter 1 mois si on a des jours supplémentaires (mois entamé = mois complet pour les intérêts)
+    if ($diff->d > 0) {
         $dureeReelle++;
     }
     $dureeReelle = max(1, $dureeReelle);
@@ -4088,7 +4089,8 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
     $dateVente = new DateTime($projet['date_vente']);
     $diff = $dateAchat->diff($dateVente);
     $moisProjet = ($diff->y * 12) + $diff->m;
-    if ((int)$dateVente->format('d') > (int)$dateAchat->format('d')) {
+    // Ajouter 1 mois si on a des jours supplémentaires (mois entamé = mois complet pour les intérêts)
+    if ($diff->d > 0) {
         $moisProjet++;
     }
     $moisProjet = max(1, $moisProjet);
