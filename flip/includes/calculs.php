@@ -139,6 +139,73 @@ function calculerCoutsRecurrentsReels($projet) {
 }
 
 /**
+ * Calcule les coûts récurrents depuis le système dynamique (projet_recurrents)
+ * @param PDO $pdo
+ * @param int $projetId
+ * @param int $mois - Durée en mois pour le calcul
+ * @return array
+ */
+function calculerCoutsRecurrentsDynamiques($pdo, $projetId, $mois) {
+    $total = 0;
+    $details = [];
+    $facteur = $mois / 12;
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT rt.code, rt.frequence, pr.montant
+            FROM projet_recurrents pr
+            JOIN recurrents_types rt ON pr.recurrent_type_id = rt.id
+            WHERE pr.projet_id = ? AND rt.actif = 1
+        ");
+        $stmt->execute([$projetId]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $montant = (float)$row['montant'];
+            $code = $row['code'];
+            $frequence = $row['frequence'];
+
+            // Calculer selon la fréquence
+            if ($frequence === 'mensuel') {
+                $extrapole = $montant * $mois;
+            } elseif ($frequence === 'saisonnier') {
+                $extrapole = $montant; // Montant fixe
+            } else { // annuel
+                $extrapole = $montant * $facteur;
+            }
+
+            $details[$code] = [
+                'montant' => $montant,
+                'frequence' => $frequence,
+                'extrapole' => $extrapole
+            ];
+
+            // Loyer est un revenu (soustraire)
+            if ($code === 'loyer') {
+                $total -= $extrapole;
+            } else {
+                $total += $extrapole;
+            }
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas encore, retourner 0
+    }
+
+    // Rétro-compatibilité: structurer comme l'ancien système pour taxes_municipales et taxes_scolaires
+    return [
+        'taxes_municipales' => [
+            'annuel' => $details['taxes_municipales']['montant'] ?? 0,
+            'extrapole' => $details['taxes_municipales']['extrapole'] ?? 0
+        ],
+        'taxes_scolaires' => [
+            'annuel' => $details['taxes_scolaires']['montant'] ?? 0,
+            'extrapole' => $details['taxes_scolaires']['extrapole'] ?? 0
+        ],
+        'details' => $details,
+        'total' => $total
+    ];
+}
+
+/**
  * Calcule les coûts de vente
  * @param array $projet
  * @return array
@@ -560,8 +627,12 @@ function calculerIndicateursProjet($pdo, $projet) {
     $projetModifie = $projet;
     $projetModifie['temps_assume_mois'] = $mois;
     
-    // Coûts récurrents (avec durée réelle)
-    $coutsRecurrents = calculerCoutsRecurrents($projetModifie);
+    // Coûts récurrents (avec durée réelle) - utiliser le système dynamique
+    $coutsRecurrents = calculerCoutsRecurrentsDynamiques($pdo, $projet['id'], $mois);
+    // Fallback vers l'ancien système si aucune donnée dans le nouveau
+    if ($coutsRecurrents['total'] == 0) {
+        $coutsRecurrents = calculerCoutsRecurrents($projetModifie);
+    }
     
     // Coûts de vente (sans intérêts pour l'instant)
     $coutsVente = calculerCoutsVente($projetModifie);
