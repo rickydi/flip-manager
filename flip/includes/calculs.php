@@ -16,11 +16,13 @@ function calculerCoutsAcquisition($projet) {
         'taxe_mutation' => (float) $projet['taxe_mutation'],
         'arpenteurs' => (float) $projet['arpenteurs'],
         'assurance_titre' => (float) $projet['assurance_titre'],
+        'solde_vendeur' => (float) ($projet['solde_vendeur'] ?? 0),
         'total' => (float) ($projet['cession'] ?? 0) +
-                   (float) $projet['notaire'] + 
-                   (float) $projet['taxe_mutation'] + 
-                   (float) $projet['arpenteurs'] + 
-                   (float) $projet['assurance_titre']
+                   (float) $projet['notaire'] +
+                   (float) $projet['taxe_mutation'] +
+                   (float) $projet['arpenteurs'] +
+                   (float) $projet['assurance_titre'] +
+                   (float) ($projet['solde_vendeur'] ?? 0)
     ];
 }
 
@@ -164,13 +166,17 @@ function calculerCoutsVente($projet) {
     // Quittance (depuis le projet)
     $quittance = (float) ($projet['quittance'] ?? 0);
 
+    // Solde à payer à l'acheteur (ajustement de taxes)
+    $soldeAcheteur = (float) ($projet['solde_acheteur'] ?? 0);
+
     return [
         'commission' => $commissionHT,
         'commission_ttc' => $commissionTTC,
         'taxes_commission' => $taxesCommission,
         'interets' => $interets,
         'quittance' => $quittance,
-        'total' => $commissionTTC + $interets + $quittance
+        'solde_acheteur' => $soldeAcheteur,
+        'total' => $commissionTTC + $interets + $quittance + $soldeAcheteur
     ];
 }
 

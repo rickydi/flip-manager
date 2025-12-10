@@ -160,6 +160,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $quittance = parseNumber($_POST['quittance'] ?? 0);
         $arpenteurs = parseNumber($_POST['arpenteurs'] ?? 0);
         $assuranceTitre = parseNumber($_POST['assurance_titre'] ?? 0);
+        $soldeVendeur = parseNumber($_POST['solde_vendeur'] ?? 0);
+        $soldeAcheteur = parseNumber($_POST['solde_acheteur'] ?? 0);
 
         $tempsAssumeMois = (int)($_POST['temps_assume_mois'] ?? 6);
         $valeurPotentielle = parseNumber($_POST['valeur_potentielle'] ?? 0);
@@ -185,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 nom = ?, adresse = ?, ville = ?, code_postal = ?,
                 date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                 statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
-                arpenteurs = ?, assurance_titre = ?,
+                arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
                 temps_assume_mois = ?, valeur_potentielle = ?,
                 taux_commission = ?, taux_contingence = ?,
                 taux_interet = ?, montant_pret = ?, notes = ?
@@ -196,7 +198,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             $nom, $adresse, $ville, $codePostal,
             $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
             $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
-            $arpenteurs, $assuranceTitre,
+            $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
             $tempsAssumeMois, $valeurPotentielle,
             $tauxCommission, $tauxContingence,
             $tauxInteret, $montantPret, $notes,
@@ -566,6 +568,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $quittance = parseNumber($_POST['quittance'] ?? 0);
             $arpenteurs = parseNumber($_POST['arpenteurs'] ?? 0);
             $assuranceTitre = parseNumber($_POST['assurance_titre'] ?? 0);
+            $soldeVendeur = parseNumber($_POST['solde_vendeur'] ?? 0);
+            $soldeAcheteur = parseNumber($_POST['solde_acheteur'] ?? 0);
 
             $taxesMunicipalesAnnuel = parseNumber($_POST['taxes_municipales_annuel'] ?? 0);
             $taxesScolairesAnnuel = parseNumber($_POST['taxes_scolaires_annuel'] ?? 0);
@@ -596,7 +600,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
                         date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                         statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
-                        arpenteurs = ?, assurance_titre = ?,
+                        arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
                         taxes_municipales_annuel = ?, taxes_scolaires_annuel = ?,
                         electricite_annuel = ?, assurances_annuel = ?,
                         deneigement_annuel = ?, frais_condo_annuel = ?,
@@ -611,7 +615,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $nom, $adresse, $ville, $codePostal,
                     $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
                     $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
-                    $arpenteurs, $assuranceTitre,
+                    $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
                     $taxesMunicipalesAnnuel, $taxesScolairesAnnuel,
                     $electriciteAnnuel, $assurancesAnnuel,
                     $deneigementAnnuel, $fraisCondoAnnuel,
@@ -1556,6 +1560,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     <span class="input-group-text">%</span>
                                 </div>
                             </div>
+                            <div class="col-4">
+                                <label class="form-label">Solde vendeur</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="solde_vendeur" value="<?= formatMoney($projet['solde_vendeur'] ?? 0, false) ?>">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1670,6 +1680,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     <button type="button" class="btn btn-sm btn-outline-secondary px-1" onclick="calculerTaxeMutation(true)" title="Calculer selon prix achat"><i class="bi bi-calculator"></i></button>
                                 </div>
                             </div>
+                            <div class="col-4">
+                                <label class="form-label">Solde acheteur</label>
+                                <div class="input-group"><span class="input-group-text">$</span>
+                                    <input type="text" class="form-control money-input" name="solde_acheteur" value="<?= formatMoney($projet['solde_acheteur'] ?? 0, false) ?>">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1746,6 +1762,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['assurance_titre']) ?></td>
                     </tr>
+                    <?php if (($indicateurs['couts_acquisition']['solde_vendeur'] ?? 0) > 0): ?>
+                    <tr class="sub-item">
+                        <td>Solde vendeur</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['solde_vendeur']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['solde_vendeur']) ?></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="total-row">
                         <td>Sous-total Acquisition</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
@@ -1937,6 +1961,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['taxe_mutation']) ?></td>
                     </tr>
+                    <?php if (($indicateurs['couts_vente']['solde_acheteur'] ?? 0) > 0): ?>
+                    <tr class="sub-item">
+                        <td>Solde acheteur</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['solde_acheteur']) ?></td>
+                        <td class="text-end">-</td>
+                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['solde_acheteur']) ?></td>
+                    </tr>
+                    <?php endif; ?>
                     <tr class="total-row">
                         <td>Sous-total Vente</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
