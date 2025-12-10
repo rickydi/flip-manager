@@ -1400,9 +1400,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
         <div class="col-6 col-lg">
-            <div class="card text-center p-2 bg-info bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Argent nécessaire pour le projet. Exclut: courtier, taxes municipales/scolaires, mutation">
+            <div class="card text-center p-2 bg-info bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Argent nécessaire pour le projet. Exclut: courtier, taxes municipales/scolaires, mutation. Moins prêts = argent de ta poche.">
                 <small class="text-muted">Cash Flow <i class="bi bi-info-circle small"></i></small>
                 <strong class="fs-5 text-info" id="indCashFlow"><?= formatMoney($indicateurs['cash_flow_necessaire']) ?></strong>
+                <small class="d-block text-muted" style="font-size: 0.75rem;">- prêts = <strong class="text-dark"><?= formatMoney($indicateurs['cash_flow_moins_prets']) ?></strong></small>
             </div>
         </div>
         <div class="col-6 col-lg">

@@ -663,6 +663,9 @@ function calculerIndicateursProjet($pdo, $projet) {
         // Solde acheteur (soustrait car c'est de l'argent reçu)
         - ($coutsVente['solde_acheteur'] ?? 0);
 
+    // Cash flow moins les prêts = argent de ta poche
+    $cashFlowMoinsPrets = $cashFlowNecessaire - $dataFinancement['total_prets'];
+
     return [
         'couts_acquisition' => $coutsAcquisition,
         'couts_recurrents' => $coutsRecurrents,
@@ -695,6 +698,7 @@ function calculerIndicateursProjet($pdo, $projet) {
         'equite_reelle' => $equiteReelle,
         'cout_total_reel' => $coutTotalReel,
         'cash_flow_necessaire' => $cashFlowNecessaire,
+        'cash_flow_moins_prets' => $cashFlowMoinsPrets,
         'roi_leverage' => $roiLeverage,
         'roi_all_cash' => $roiAllCash,
         'roi_leverage_reel' => $roiLeverageReel,
