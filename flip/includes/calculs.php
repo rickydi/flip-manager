@@ -173,9 +173,11 @@ function calculerCoutsRecurrentsDynamiques($pdo, $projetId, $mois) {
                 $extrapole = $montant * $facteur;
             }
 
+            // Déterminer la clé (annuel ou mensuel)
+            $sourceKey = ($frequence === 'mensuel') ? 'mensuel' : 'annuel';
+
             $details[$code] = [
-                'montant' => $montant,
-                'frequence' => $frequence,
+                $sourceKey => $montant,
                 'extrapole' => $extrapole
             ];
 
@@ -187,19 +189,19 @@ function calculerCoutsRecurrentsDynamiques($pdo, $projetId, $mois) {
             }
         }
     } catch (Exception $e) {
-        // Table n'existe pas encore, retourner 0
+        // Table n'existe pas encore, retourner structure vide
     }
 
-    // Rétro-compatibilité: structurer comme l'ancien système pour taxes_municipales et taxes_scolaires
+    // Retourner structure compatible avec l'ancien système
     return [
-        'taxes_municipales' => [
-            'annuel' => $details['taxes_municipales']['montant'] ?? 0,
-            'extrapole' => $details['taxes_municipales']['extrapole'] ?? 0
-        ],
-        'taxes_scolaires' => [
-            'annuel' => $details['taxes_scolaires']['montant'] ?? 0,
-            'extrapole' => $details['taxes_scolaires']['extrapole'] ?? 0
-        ],
+        'taxes_municipales' => $details['taxes_municipales'] ?? ['annuel' => 0, 'extrapole' => 0],
+        'taxes_scolaires' => $details['taxes_scolaires'] ?? ['annuel' => 0, 'extrapole' => 0],
+        'electricite' => $details['electricite'] ?? ['annuel' => 0, 'extrapole' => 0],
+        'assurances' => $details['assurances'] ?? ['annuel' => 0, 'extrapole' => 0],
+        'deneigement' => $details['deneigement'] ?? ['annuel' => 0, 'extrapole' => 0],
+        'frais_condo' => $details['frais_condo'] ?? ['annuel' => 0, 'extrapole' => 0],
+        'hypotheque' => $details['hypotheque'] ?? ['mensuel' => 0, 'extrapole' => 0],
+        'loyer' => $details['loyer'] ?? ['mensuel' => 0, 'extrapole' => 0],
         'details' => $details,
         'total' => $total
     ];
