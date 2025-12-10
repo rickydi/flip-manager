@@ -1666,7 +1666,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     <input type="number" class="form-control" name="taux_commission" id="taux_commission" step="0.01" value="<?= $projet['taux_commission'] ?>">
                                     <span class="input-group-text">%</span>
                                 </div>
-                                <small class="text-muted"><?= formatMoney($indicateurs['couts_vente']['commission']) ?> HT / <?= formatMoney($indicateurs['couts_vente']['commission_ttc']) ?> TTC</small>
+                                <small class="text-muted"><?= formatMoney($indicateurs['couts_vente']['commission']) ?> + TPS/TVQ = <?= formatMoney($indicateurs['couts_vente']['commission_ttc']) ?></small>
                             </div>
                             <div class="col-4">
                                 <label class="form-label">Quittance</label>
