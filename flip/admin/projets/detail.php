@@ -1406,6 +1406,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
         <div class="col-6 col-lg">
+            <div class="card text-center p-2 bg-secondary bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Heures travaillées vs planifiées. Planifié: <?= number_format($moExtrapole['heures'], 0) ?>h">
+                <small class="text-muted">Heures <i class="bi bi-info-circle small"></i></small>
+                <strong class="fs-5"><?= number_format($moReel['heures'], 0) ?>h / <?= number_format($moExtrapole['heures'], 0) ?>h</strong>
+            </div>
+        </div>
+        <div class="col-6 col-lg">
             <div class="card text-center p-2 bg-success bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit réel basé sur les dépenses actuelles. Calcul: Valeur potentielle - Prix d'achat - Dépenses réelles - Frais">
                 <small class="text-muted">Équité Réelle <i class="bi bi-info-circle small"></i></small>
                 <strong class="fs-5 text-success" id="indEquiteReelle"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
