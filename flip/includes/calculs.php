@@ -651,7 +651,7 @@ function calculerIndicateursProjet($pdo, $projet) {
         + ($coutsAcquisition['assurance_titre'] ?? 0)
         + ($coutsAcquisition['solde_vendeur'] ?? 0)
         // Récurrents sans taxes municipales et scolaires
-        + ($coutsRecurrents['total'] - ($coutsRecurrents['taxes_municipales'] ?? 0) - ($coutsRecurrents['taxes_scolaires'] ?? 0))
+        + ($coutsRecurrents['total'] - ($coutsRecurrents['taxes_municipales']['extrapole'] ?? 0) - ($coutsRecurrents['taxes_scolaires']['extrapole'] ?? 0))
         // Budget rénovation TTC
         + $budgetComplet['total_ttc']
         // Main d'oeuvre
