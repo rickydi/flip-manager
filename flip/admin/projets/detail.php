@@ -2080,11 +2080,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php endif; ?>
 
                     <?php
-                    $totalPartage = ($indicateurs['total_interets'] ?? 0);
+                    // Les intérêts des prêteurs sont DÉJÀ inclus dans les coûts de vente
+                    // Donc on ne soustrait que la part des investisseurs (partage de profits)
+                    $totalPartageInvestisseurs = 0;
                     foreach ($indicateurs['investisseurs'] ?? [] as $inv) {
-                        $totalPartage += $inv['profit_estime'];
+                        $totalPartageInvestisseurs += $inv['profit_estime'];
                     }
-                    $profitNet = $indicateurs['equite_potentielle'] - $totalPartage;
+                    $profitNet = $indicateurs['equite_potentielle'] - $totalPartageInvestisseurs;
 
                     // Calcul impôt sur le profit (gain en capital)
                     // 12,2% sur les premiers 500 000$ (Fédéral 9% + Québec 3,2%)
