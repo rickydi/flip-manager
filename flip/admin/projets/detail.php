@@ -668,6 +668,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$preteurId, $projetId]);
                     setFlashMessage('success', 'Prêteur supprimé.');
                 }
+            } elseif ($subAction === 'modifier') {
+                $preteurId = (int)($_POST['preteur_id'] ?? 0);
+                $montant = parseNumber($_POST['montant_pret'] ?? 0);
+                $tauxInteret = parseNumber($_POST['taux_interet_pret'] ?? 0);
+
+                if ($preteurId && $montant > 0) {
+                    $stmt = $pdo->prepare("
+                        UPDATE projet_investisseurs
+                        SET montant = ?, taux_interet = ?
+                        WHERE id = ? AND projet_id = ?
+                    ");
+                    $stmt->execute([$montant, $tauxInteret, $preteurId, $projetId]);
+                    setFlashMessage('success', 'Financement mis à jour!');
+                }
             }
             redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=financement');
 
@@ -2157,21 +2171,38 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $interets = $p['montant_calc'] * (pow(1 + $tauxMensuel, $dureeReelle) - 1);
                             ?>
                                 <tr>
-                                    <td><?= e($p['investisseur_nom']) ?></td>
-                                    <td class="text-end"><?= formatMoney($p['montant_calc']) ?></td>
-                                    <td class="text-center"><span class="badge bg-warning text-dark"><?= $p['taux_calc'] ?>%</span></td>
-                                    <td class="text-end text-danger"><?= formatMoney($interets) ?></td>
-                                    <td>
-                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
-                                            <?php csrfField(); ?>
-                                            <input type="hidden" name="action" value="preteurs">
-                                            <input type="hidden" name="sub_action" value="supprimer">
-                                            <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">
-                                                <i class="bi bi-x"></i>
+                                    <form method="POST" id="form-preteur-<?= $p['id'] ?>">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="preteurs">
+                                        <input type="hidden" name="sub_action" value="modifier">
+                                        <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
+                                        <td><?= e($p['investisseur_nom']) ?></td>
+                                        <td class="text-end">
+                                            <input type="text" class="form-control form-control-sm money-input text-end"
+                                                   name="montant_pret" value="<?= number_format($p['montant_calc'], 0, ',', ' ') ?>"
+                                                   style="width: 100px; display: inline-block;">
+                                        </td>
+                                        <td class="text-center">
+                                            <input type="text" class="form-control form-control-sm text-center"
+                                                   name="taux_interet_pret" value="<?= $p['taux_calc'] ?>"
+                                                   style="width: 60px; display: inline-block;">%
+                                        </td>
+                                        <td class="text-end text-danger"><?= formatMoney($interets) ?></td>
+                                        <td class="text-nowrap">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm py-0 px-1" title="Sauvegarder">
+                                                <i class="bi bi-check"></i>
                                             </button>
-                                        </form>
-                                    </td>
+                                    </form>
+                                            <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
+                                                <?php csrfField(); ?>
+                                                <input type="hidden" name="action" value="preteurs">
+                                                <input type="hidden" name="sub_action" value="supprimer">
+                                                <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Supprimer">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </form>
+                                        </td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
@@ -2265,20 +2296,34 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $totalPctInvest += $pct;
                             ?>
                                 <tr>
-                                    <td><?= e($inv['investisseur_nom']) ?></td>
-                                    <td class="text-end"><?= formatMoney($inv['montant_calc']) ?></td>
-                                    <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
-                                    <td>
-                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
-                                            <?php csrfField(); ?>
-                                            <input type="hidden" name="action" value="preteurs">
-                                            <input type="hidden" name="sub_action" value="supprimer">
-                                            <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1">
-                                                <i class="bi bi-x"></i>
+                                    <form method="POST" id="form-invest-<?= $inv['id'] ?>">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="preteurs">
+                                        <input type="hidden" name="sub_action" value="modifier">
+                                        <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
+                                        <input type="hidden" name="taux_interet_pret" value="0">
+                                        <td><?= e($inv['investisseur_nom']) ?></td>
+                                        <td class="text-end">
+                                            <input type="text" class="form-control form-control-sm money-input text-end"
+                                                   name="montant_pret" value="<?= number_format($inv['montant_calc'], 0, ',', ' ') ?>"
+                                                   style="width: 100px; display: inline-block;">
+                                        </td>
+                                        <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
+                                        <td class="text-nowrap">
+                                            <button type="submit" class="btn btn-outline-primary btn-sm py-0 px-1" title="Sauvegarder">
+                                                <i class="bi bi-check"></i>
                                             </button>
-                                        </form>
-                                    </td>
+                                    </form>
+                                            <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
+                                                <?php csrfField(); ?>
+                                                <input type="hidden" name="action" value="preteurs">
+                                                <input type="hidden" name="sub_action" value="supprimer">
+                                                <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
+                                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Supprimer">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </form>
+                                        </td>
                                 </tr>
                             <?php endforeach; ?>
                             </tbody>
