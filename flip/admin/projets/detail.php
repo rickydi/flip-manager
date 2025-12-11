@@ -3807,6 +3807,43 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             <div class="alert alert-info">
                 <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet. Cliquez sur "Ajouter" pour en téléverser.
             </div>
+        <style>
+            .photo-thumb {
+                width: 100%;
+                aspect-ratio: 4/3;
+                object-fit: cover;
+                border-radius: 0.375rem;
+            }
+            .video-thumb-container {
+                width: 100%;
+                aspect-ratio: 4/3;
+                background: #1a1d21;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                border-radius: 0.375rem;
+                overflow: hidden;
+            }
+            .video-thumb-container video {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            /* Plus de colonnes sur très grands écrans */
+            @media (min-width: 1400px) {
+                .photo-grid-col { flex: 0 0 auto; width: 12.5%; } /* 8 colonnes */
+            }
+            @media (min-width: 1800px) {
+                .photo-grid-col { flex: 0 0 auto; width: 10%; } /* 10 colonnes */
+            }
+            @media (min-width: 2200px) {
+                .photo-grid-col { flex: 0 0 auto; width: 8.333%; } /* 12 colonnes */
+            }
+        </style>
         <?php else: ?>
             <div class="row g-2" id="photosGrid">
                 <?php foreach ($photosProjet as $photo):
@@ -3814,18 +3851,18 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                     $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
                 ?>
-                <div class="col-6 col-md-3 col-lg-2 photo-item" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>">
+                <div class="col-6 col-md-3 col-lg-2 photo-grid-col photo-item" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>">
                     <div class="position-relative">
                         <a href="<?= $mediaUrl ?>" target="_blank" class="d-block">
                             <?php if ($isVideo): ?>
-                                <div class="video-thumbnail rounded" style="width:100%;height:120px;background:#1a1d21;display:flex;align-items:center;justify-content:center;position:relative;">
-                                    <video src="<?= $mediaUrl ?>" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" muted preload="metadata"></video>
+                                <div class="video-thumb-container">
+                                    <video src="<?= $mediaUrl ?>" muted preload="metadata"></video>
                                     <div style="position:absolute;z-index:2;background:rgba(0,0,0,0.6);border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;">
                                         <i class="bi bi-play-fill text-white" style="font-size:1.5rem;margin-left:3px;"></i>
                                     </div>
                                 </div>
                             <?php else: ?>
-                                <img src="<?= $mediaUrl ?>&thumb=1" alt="Photo" class="img-fluid rounded" style="width:100%;height:120px;object-fit:cover;" loading="lazy">
+                                <img src="<?= $mediaUrl ?>&thumb=1" alt="Photo" class="photo-thumb" loading="lazy">
                             <?php endif; ?>
                         </a>
                         <!-- Bouton suppression -->
