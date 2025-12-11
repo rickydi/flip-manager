@@ -557,86 +557,145 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 <style>
     /* Styles pour l'arbre style Explorateur / Fusion 360 */
     .tree-item {
-        border-left: 1px solid #dee2e6;
+        border-left: 2px solid var(--border-color, #dee2e6);
         transition: all 0.2s;
     }
-    
+
     .tree-content {
         display: flex;
         align-items: center;
-        padding: 5px 10px;
-        background: #fff;
-        border: 1px solid #e9ecef;
-        margin-bottom: 2px;
-        border-radius: 4px;
+        padding: 8px 12px;
+        background: var(--bg-card, #f8f9fa);
+        border: 1px solid var(--border-color, #e9ecef);
+        margin-bottom: 3px;
+        border-radius: 6px;
         position: relative;
     }
-    
+
     .tree-content:hover {
-        background: #f8f9fa;
-        border-color: #dee2e6;
+        background: var(--bg-hover, #e9ecef);
+        border-color: var(--primary-color, #0d6efd);
     }
-    
+
     /* Indicateur de dossier ouvert/fermé */
     .tree-toggle {
         cursor: pointer;
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        margin-right: 5px;
-        color: #6c757d;
+        margin-right: 6px;
+        color: var(--text-muted, #6c757d);
         transition: transform 0.2s;
+        border-radius: 4px;
     }
-    
-    .tree-toggle.collapsed {
-        transform: rotate(-90deg);
-    }
-    
+
     .tree-toggle:hover {
-        color: #0d6efd;
+        color: var(--primary-color, #0d6efd);
+        background: rgba(13, 110, 253, 0.1);
+    }
+
+    .tree-toggle i {
+        transition: transform 0.2s ease;
+    }
+
+    .tree-toggle.collapsed i,
+    [aria-expanded="false"] .tree-toggle i {
+        transform: rotate(-90deg);
     }
 
     /* Zone de drop pour l'imbrication */
     .tree-children {
-        padding-left: 25px; /* Décalage pour l'indentation */
-        min-height: 5px; /* Zone minimum pour drop */
+        padding-left: 25px;
+        min-height: 5px;
     }
 
     /* Style lors du drag */
     .sortable-ghost {
         opacity: 0.4;
-        background: #cff4fc;
-        border: 1px dashed #0dcaf0;
+        background: rgba(13, 110, 253, 0.15) !important;
+        border: 2px dashed var(--primary-color, #0d6efd) !important;
+        border-radius: 6px;
     }
-    
+
     .sortable-drag {
-        background: #fff;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        background: var(--bg-card, #f8f9fa) !important;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         cursor: grabbing;
+        border-radius: 6px;
     }
 
     /* Handle pour attraper */
     .drag-handle {
         cursor: grab;
-        color: #adb5bd;
+        color: var(--text-muted, #adb5bd);
         margin-right: 8px;
+        padding: 4px;
+        border-radius: 4px;
+        transition: all 0.2s;
     }
     .drag-handle:hover {
-        color: #495057;
+        color: var(--primary-color, #0d6efd);
+        background: rgba(13, 110, 253, 0.1);
     }
-    
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+
     /* Types d'items */
     .type-icon {
-        width: 20px;
+        width: 24px;
         text-align: center;
         margin-right: 8px;
     }
-    
+
     .is-kit .tree-content {
-        background-color: #f0f7ff; /* Légèrement bleu pour les Kits */
-        border-left: 3px solid #0d6efd;
+        background: linear-gradient(135deg, rgba(13, 110, 253, 0.05) 0%, rgba(13, 110, 253, 0.02) 100%);
+        border-left: 3px solid var(--primary-color, #0d6efd);
+    }
+
+    /* Matériaux - design amélioré */
+    .tree-content.mat-item {
+        background: var(--bg-card, #f8f9fa);
+        border: 1px dashed var(--border-color, #dee2e6);
+        padding: 6px 10px;
+    }
+    .tree-content.mat-item:hover {
+        background: var(--bg-hover, #e9ecef);
+        border-style: solid;
+    }
+
+    /* Card collapsible pour Groupes */
+    .card-collapsible .card-header {
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+    }
+    .card-collapsible .card-header:hover {
+        background: var(--bg-hover, #e9ecef);
+    }
+    .card-collapsible .collapse-icon {
+        transition: transform 0.3s ease;
+    }
+    .card-collapsible .card-header.collapsed .collapse-icon {
+        transform: rotate(-90deg);
+    }
+
+    /* Liste des catégories/groupes */
+    .list-group-item {
+        background: var(--bg-card, #f8f9fa);
+        border-color: var(--border-color, #e9ecef);
+    }
+    .list-group-item:hover {
+        background: var(--bg-hover, #e9ecef);
+    }
+    .list-group-item.active {
+        background: var(--primary-color, #0d6efd);
+        border-color: var(--primary-color, #0d6efd);
+    }
+    .list-group-item.bg-light {
+        background: var(--bg-hover, #e9ecef) !important;
     }
 </style>
 <?php
@@ -684,10 +743,10 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
 
                 <!-- Badges -->
                 <?php if ($hasChildren): ?>
-                    <span class="badge bg-light text-dark border ms-2"><?= count($sc['enfants']) ?> dossiers</span>
+                    <span class="badge bg-warning bg-opacity-25 text-warning ms-2"><i class="bi bi-folder-fill me-1"></i><?= count($sc['enfants']) ?></span>
                 <?php endif; ?>
                 <?php if ($hasMateriaux): ?>
-                    <span class="badge bg-light text-dark border ms-1"><?= count($sc['materiaux']) ?> items</span>
+                    <span class="badge bg-primary bg-opacity-10 text-primary ms-1"><i class="bi bi-box-seam me-1"></i><?= count($sc['materiaux']) ?></span>
                 <?php endif; ?>
 
                 <!-- Actions -->
@@ -720,16 +779,15 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                             $qte = $mat['quantite_defaut'] ?? 1;
                             $total = $mat['prix_defaut'] * $qte;
                         ?>
-                            <div class="tree-content bg-white border-start-0 border-end-0 border-top-0 border-bottom" 
-                                 style="border-bottom: 1px dashed #eee !important; margin-left: 20px;"
+                            <div class="tree-content mat-item" style="margin-left: 20px;"
                                  data-id="<?= $mat['id'] ?>" data-type="materiaux">
-                                <i class="bi bi-grip-vertical drag-handle text-muted" style="font-size: 0.8em;"></i>
-                                <div class="type-icon"><i class="bi bi-box-seam text-secondary small"></i></div>
+                                <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
-                                
-                                <span class="badge bg-light text-dark border me-2">Qté: <?= $qte ?></span>
-                                <span class="badge bg-light text-dark border me-2"><?= formatMoney($mat['prix_defaut']) ?></span>
-                                <span class="fw-bold small me-2"><?= formatMoney($total) ?></span>
+
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary me-2">x<?= $qte ?></span>
+                                <span class="badge bg-primary bg-opacity-10 text-primary me-2"><?= formatMoney($mat['prix_defaut']) ?></span>
+                                <span class="badge bg-success bg-opacity-25 text-success fw-bold me-2"><?= formatMoney($total) ?></span>
 
                                 <div class="btn-group btn-group-sm">
                                     <button type="button" class="btn btn-link text-primary p-0 me-2" data-bs-toggle="modal" data-bs-target="#editMatModal<?= $mat['id'] ?>">
@@ -1026,50 +1084,57 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
     <div class="row">
         <!-- Colonne gauche: Liste des catégories -->
         <div class="col-md-3">
-            <!-- Card Groupes -->
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center py-2">
-                    <span><i class="bi bi-collection me-1"></i>Groupes (volets)</span>
-                    <button type="button" class="btn btn-success btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#addGroupeModal" title="Nouveau groupe">
+            <!-- Card Groupes (Collapsible, fermé par défaut) -->
+            <div class="card mb-3 card-collapsible">
+                <div class="card-header d-flex justify-content-between align-items-center py-2 collapsed"
+                     data-bs-toggle="collapse" data-bs-target="#groupesContent" aria-expanded="false">
+                    <span>
+                        <i class="bi bi-chevron-down collapse-icon me-1"></i>
+                        <i class="bi bi-collection me-1"></i>Groupes (volets)
+                        <span class="badge bg-secondary ms-1"><?= count($groupes) ?></span>
+                    </span>
+                    <button type="button" class="btn btn-success btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#addGroupeModal" title="Nouveau groupe" onclick="event.stopPropagation();">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
-                <div class="list-group list-group-flush" style="max-height: 30vh; overflow-y: auto;">
-                    <?php foreach ($groupes as $idx => $grp): ?>
-                        <div class="list-group-item py-1 d-flex justify-content-between align-items-center small">
-                            <span><?= e($grp['nom']) ?></span>
-                            <div class="btn-group btn-group-sm">
-                                <?php if ($idx > 0): ?>
-                                <form method="POST" class="d-inline">
-                                    <?php csrfField(); ?>
-                                    <input type="hidden" name="action" value="monter_groupe">
-                                    <input type="hidden" name="id" value="<?= $grp['id'] ?>">
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Monter">
-                                        <i class="bi bi-arrow-up" style="font-size: 0.65rem;"></i>
+                <div class="collapse" id="groupesContent">
+                    <div class="list-group list-group-flush" style="max-height: 30vh; overflow-y: auto;">
+                        <?php foreach ($groupes as $idx => $grp): ?>
+                            <div class="list-group-item py-1 d-flex justify-content-between align-items-center small">
+                                <span><?= e($grp['nom']) ?></span>
+                                <div class="btn-group btn-group-sm">
+                                    <?php if ($idx > 0): ?>
+                                    <form method="POST" class="d-inline">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="monter_groupe">
+                                        <input type="hidden" name="id" value="<?= $grp['id'] ?>">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Monter">
+                                            <i class="bi bi-arrow-up" style="font-size: 0.65rem;"></i>
+                                        </button>
+                                    </form>
+                                    <?php endif; ?>
+                                    <?php if ($idx < count($groupes) - 1): ?>
+                                    <form method="POST" class="d-inline">
+                                        <?php csrfField(); ?>
+                                        <input type="hidden" name="action" value="descendre_groupe">
+                                        <input type="hidden" name="id" value="<?= $grp['id'] ?>">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Descendre">
+                                            <i class="bi bi-arrow-down" style="font-size: 0.65rem;"></i>
+                                        </button>
+                                    </form>
+                                    <?php endif; ?>
+                                    <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editGroupeModal<?= $grp['id'] ?>" title="Modifier">
+                                        <i class="bi bi-pencil" style="font-size: 0.65rem;"></i>
                                     </button>
-                                </form>
-                                <?php endif; ?>
-                                <?php if ($idx < count($groupes) - 1): ?>
-                                <form method="POST" class="d-inline">
-                                    <?php csrfField(); ?>
-                                    <input type="hidden" name="action" value="descendre_groupe">
-                                    <input type="hidden" name="id" value="<?= $grp['id'] ?>">
-                                    <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Descendre">
-                                        <i class="bi bi-arrow-down" style="font-size: 0.65rem;"></i>
+                                    <?php if ($grp['code'] !== 'autre'): ?>
+                                    <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteGroupeModal<?= $grp['id'] ?>" title="Supprimer">
+                                        <i class="bi bi-trash" style="font-size: 0.65rem;"></i>
                                     </button>
-                                </form>
-                                <?php endif; ?>
-                                <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editGroupeModal<?= $grp['id'] ?>" title="Modifier">
-                                    <i class="bi bi-pencil" style="font-size: 0.65rem;"></i>
-                                </button>
-                                <?php if ($grp['code'] !== 'autre'): ?>
-                                <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteGroupeModal<?= $grp['id'] ?>" title="Supprimer">
-                                    <i class="bi bi-trash" style="font-size: 0.65rem;"></i>
-                                </button>
-                                <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             </div>
 
@@ -1506,8 +1571,6 @@ function saveOrder(type, items, parentId, categorieId = null) {
 
 function confirmDuplicate(id, nom) {
     if(confirm('Voulez-vous vraiment dupliquer le kit "' + nom + '" et tout son contenu ?')) {
-        // Appeler le endpoint de duplication (à implémenter)
-        // Pour l'instant on reload avec un paramètre GET ou on fait un form submit
         const form = document.createElement('form');
         form.method = 'POST';
         form.innerHTML = `
@@ -1519,4 +1582,30 @@ function confirmDuplicate(id, nom) {
         form.submit();
     }
 }
+
+// Gestion de l'animation de la flèche du collapse Groupes
+document.querySelectorAll('.card-collapsible .card-header').forEach(header => {
+    const collapseTarget = document.querySelector(header.getAttribute('data-bs-target'));
+    if (collapseTarget) {
+        collapseTarget.addEventListener('show.bs.collapse', () => {
+            header.classList.remove('collapsed');
+        });
+        collapseTarget.addEventListener('hide.bs.collapse', () => {
+            header.classList.add('collapsed');
+        });
+    }
+});
+
+// Animation toggle des sous-catégories (tree)
+document.querySelectorAll('.tree-toggle[data-bs-toggle="collapse"]').forEach(toggle => {
+    const target = document.querySelector(toggle.getAttribute('data-bs-target'));
+    if (target) {
+        target.addEventListener('show.bs.collapse', () => {
+            toggle.classList.remove('collapsed');
+        });
+        target.addEventListener('hide.bs.collapse', () => {
+            toggle.classList.add('collapsed');
+        });
+    }
+});
 </script>
