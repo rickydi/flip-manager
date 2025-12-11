@@ -4296,6 +4296,27 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         } catch (Exception $e) {}
         ?>
 
+        <style>
+            /* Animation pulse pour checkbox complétée */
+            @keyframes checkPulse {
+                0%, 100% {
+                    box-shadow: 0 0 0 0 rgba(25, 135, 84, 0.7);
+                }
+                50% {
+                    box-shadow: 0 0 0 6px rgba(25, 135, 84, 0);
+                }
+            }
+            .checklist-item:checked {
+                background-color: #198754 !important;
+                border-color: #198754 !important;
+                animation: checkPulse 2s ease-in-out infinite;
+            }
+            .checklist-item:checked::after {
+                content: '';
+                position: absolute;
+            }
+        </style>
+
         <div class="row">
             <!-- Checklists -->
             <div class="col-12">
