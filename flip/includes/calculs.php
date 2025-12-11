@@ -704,8 +704,9 @@ function calculerIndicateursProjet($pdo, $projet) {
     $roiAllCash = calculerROIAllCash($equitePotentielle, $coutTotalProjet);
 
     // Progression du budget de rénovation (factures réelles + main d'œuvre réelle vs budget + MO planifiée)
+    // Note: totalFacturesReelles est TTC, donc utiliser budgetComplet['total_ttc'] pour comparer TTC vs TTC
     $totalReelAvecMO = $totalFacturesReelles + $mainDoeuvreReelle['cout'];
-    $totalBudgetAvecMO = $totalBudgetRenovation + $mainDoeuvreExtrapole['cout'];
+    $totalBudgetAvecMO = $budgetComplet['total_ttc'] + $mainDoeuvreExtrapole['cout'];
     $progressionBudget = $totalBudgetAvecMO > 0 ? ($totalReelAvecMO / $totalBudgetAvecMO) * 100 : 0;
 
     // ÉQUITÉ RÉELLE basée sur les dépenses réelles
