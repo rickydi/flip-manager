@@ -772,6 +772,24 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         outline: none;
         box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
     }
+
+    /* Désactiver les animations Bootstrap collapse */
+    .collapse,
+    .collapsing {
+        transition: none !important;
+    }
+    .collapsing {
+        height: auto !important;
+    }
+
+    /* Éviter flash blanc lors du chargement */
+    .list-group,
+    .list-group-item,
+    .tree-item,
+    .tree-content,
+    .card {
+        transition: none !important;
+    }
 </style>
 <?php
 
@@ -1522,7 +1540,7 @@ document.addEventListener('DOMContentLoaded', function() {
     materialLists.forEach(function(list) {
         new Sortable(list, {
             group: 'materials', // Permet de déplacer entre les listes
-            animation: 150,
+            animation: 0,
             handle: '.drag-handle',
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
@@ -1558,7 +1576,7 @@ document.addEventListener('DOMContentLoaded', function() {
     nestedSortables.forEach(function(list) {
         new Sortable(list, {
             group: 'subcategories', // Permet l'imbrication
-            animation: 150,
+            animation: 0,
             handle: '.drag-handle',
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
@@ -1596,7 +1614,7 @@ document.addEventListener('DOMContentLoaded', function() {
     categoryLists.forEach(function(list) {
         new Sortable(list, {
             group: 'categories', // Permet déplacement entre groupes
-            animation: 150,
+            animation: 0,
             handle: '.drag-handle-cat', // Drag seulement via le grip
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
