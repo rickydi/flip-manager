@@ -3885,11 +3885,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <i class="bi bi-trash"></i>
                             </button>
                         </form>
-                        <div class="mt-1">
-                            <small class="text-muted d-block"><?= formatDate($photo['date_prise']) ?></small>
-                            <small class="text-muted"><?= e($photo['employe_nom']) ?></small>
+                        <!-- Info overlay sur l'image -->
+                        <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white p-1 rounded-bottom" style="font-size:0.7rem;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small><?= formatDate($photo['date_prise']) ?></small>
+                                <small><?= e($photo['employe_nom']) ?></small>
+                            </div>
                             <?php if (!empty($photo['description'])): ?>
-                                <span class="badge bg-secondary ms-1" style="font-size:0.65rem;"><?= e($photo['description']) ?></span>
+                                <small class="d-block text-truncate"><?= e($photo['description']) ?></small>
                             <?php endif; ?>
                         </div>
                     </div>
