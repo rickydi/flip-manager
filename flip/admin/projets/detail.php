@@ -1446,7 +1446,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
         /* Graphiques modernes */
         .chart-card {
-            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255,255,255,0.95) 100%);
+            background: var(--bg-card);
             border: none;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -1462,12 +1462,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             align-items: center;
             gap: 10px;
             padding: 12px 16px;
-            background: linear-gradient(90deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.1) 100%);
+            background: rgba(99,102,241,0.08);
             border-bottom: 1px solid rgba(99,102,241,0.1);
         }
-        .chart-header.red { background: linear-gradient(90deg, rgba(239,68,68,0.1) 0%, rgba(249,115,22,0.1) 100%); }
-        .chart-header.blue { background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(99,102,241,0.1) 100%); }
-        .chart-header.green { background: linear-gradient(90deg, rgba(34,197,94,0.1) 0%, rgba(16,185,129,0.1) 100%); }
+        .chart-header.red { background: rgba(239,68,68,0.08); }
+        .chart-header.blue { background: rgba(59,130,246,0.08); }
+        .chart-header.green { background: rgba(34,197,94,0.08); }
         .chart-icon {
             width: 36px;
             height: 36px;
@@ -1477,9 +1477,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             justify-content: center;
             font-size: 1.2rem;
         }
-        .chart-icon.red { background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); color: white; }
-        .chart-icon.blue { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); color: white; }
-        .chart-icon.green { background: linear-gradient(135deg, #22c55e 0%, #10b981 100%); color: white; }
+        .chart-icon.red { background: #ef4444; color: white; }
+        .chart-icon.blue { background: #3b82f6; color: white; }
+        .chart-icon.green { background: #22c55e; color: white; }
         .chart-title {
             font-weight: 600;
             font-size: 0.9rem;
@@ -4446,12 +4446,7 @@ const optionsBar = {
 };
 
 // Chart 1: Coûts vs Valeur
-const ctxCouts = document.getElementById('chartCouts').getContext('2d');
-const gradientRed = ctxCouts.createLinearGradient(0, 0, 0, 150);
-gradientRed.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
-gradientRed.addColorStop(1, 'rgba(239, 68, 68, 0.01)');
-
-new Chart(ctxCouts, {
+new Chart(document.getElementById('chartCouts'), {
     type: 'line',
     data: {
         labels: <?= json_encode($labelsTimeline) ?>,
@@ -4460,7 +4455,7 @@ new Chart(ctxCouts, {
                 label: 'Coûts',
                 data: <?= json_encode($coutsTimeline) ?>,
                 borderColor: '#ef4444',
-                backgroundColor: gradientRed,
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 4,
@@ -4484,36 +4479,23 @@ new Chart(ctxCouts, {
 });
 
 // Chart 2: Heures travaillées
-const ctxHeures = document.getElementById('chartBudget').getContext('2d');
-const gradientBlue = ctxHeures.createLinearGradient(0, 0, 0, 150);
-gradientBlue.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
-gradientBlue.addColorStop(1, 'rgba(99, 102, 241, 0.6)');
-
-new Chart(ctxHeures, {
+new Chart(document.getElementById('chartBudget'), {
     type: 'bar',
     data: {
         labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
         datasets: [{
             data: <?= json_encode($jourDataHeures ?: [0]) ?>,
-            backgroundColor: gradientBlue,
+            backgroundColor: 'rgba(59, 130, 246, 0.7)',
             borderRadius: 6,
             borderSkipped: false,
-            hoverBackgroundColor: 'rgba(99, 102, 241, 0.9)'
+            hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)'
         }]
     },
     options: optionsBar
 });
 
 // Chart 3: Budget vs Dépensé
-const ctxBudget = document.getElementById('chartProfits').getContext('2d');
-const gradientCyan = ctxBudget.createLinearGradient(0, 0, 0, 150);
-gradientCyan.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
-gradientCyan.addColorStop(1, 'rgba(34, 197, 94, 0.01)');
-const gradientOrange = ctxBudget.createLinearGradient(0, 0, 0, 150);
-gradientOrange.addColorStop(0, 'rgba(249, 115, 22, 0.3)');
-gradientOrange.addColorStop(1, 'rgba(249, 115, 22, 0.01)');
-
-new Chart(ctxBudget, {
+new Chart(document.getElementById('chartProfits'), {
     type: 'line',
     data: {
         labels: <?= json_encode($jourLabels) ?>,
@@ -4522,7 +4504,7 @@ new Chart(ctxBudget, {
                 label: 'Budget prévu',
                 data: <?= json_encode($dataExtrapole) ?>,
                 borderColor: '#22c55e',
-                backgroundColor: gradientCyan,
+                backgroundColor: 'rgba(34, 197, 94, 0.15)',
                 fill: true,
                 tension: 0.4,
                 pointRadius: 3,
@@ -4534,7 +4516,7 @@ new Chart(ctxBudget, {
                 label: 'Dépensé réel',
                 data: <?= json_encode($dataReel) ?>,
                 borderColor: '#f97316',
-                backgroundColor: gradientOrange,
+                backgroundColor: 'rgba(249, 115, 22, 0.15)',
                 fill: true,
                 stepped: 'middle',
                 pointRadius: 4,
