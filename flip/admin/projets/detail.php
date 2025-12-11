@@ -1468,7 +1468,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     </div>
 
     <div class="row">
-    <div class="col-xxl-8">
+    <div class="col-xxl-6">
     <form method="POST" action="" class="compact-form" id="formBase">
         <?php csrfField(); ?>
         <input type="hidden" name="action" value="general">
@@ -1737,10 +1737,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
     </form>
-    </div><!-- Fin col-xxl-8 -->
+    </div><!-- Fin col-xxl-6 -->
 
     <!-- CARD 1: Détail des coûts (Achat -> Rénovation) -->
-    <div class="col-lg-6 col-xxl-2">
+    <div class="col-lg-6 col-xxl-3">
     <div class="card h-100">
         <div class="card-header py-2">
             <i class="bi bi-calculator me-1"></i> Détail des coûts (<?= $dureeReelle ?> mois)
@@ -1962,10 +1962,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </table>
         </div>
     </div><!-- Fin card Détail des coûts -->
-    </div><!-- Fin col-xxl-2 -->
+    </div><!-- Fin col-xxl-3 -->
 
     <!-- CARD 2: Vente séparée (Vente -> Profit) -->
-    <div class="col-lg-6 col-xxl-2">
+    <div class="col-lg-6 col-xxl-3">
     <div class="card h-100">
         <div class="card-header py-2">
             <i class="bi bi-shop me-1"></i> Vente
@@ -2146,7 +2146,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </table>
         </div>
     </div><!-- Fin card Vente -->
-    </div><!-- Fin col-xxl-2 -->
+    </div><!-- Fin col-xxl-3 -->
     </div><!-- Fin row xxl -->
     </div><!-- Fin TAB BASE -->
 
