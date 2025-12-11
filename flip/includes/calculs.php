@@ -577,7 +577,9 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
         }
 
         // Calculer le profit pour chaque investisseur basé sur leur mise de fonds
-        $profitApresInterets = $equitePotentielle - $totalInterets;
+        // Note: $equitePotentielle inclut déjà les intérêts déduits (via coutsVente dans coutTotalProjet)
+        // Ne pas soustraire $totalInterets une 2ème fois
+        $profitApresInterets = $equitePotentielle;
 
         foreach ($investisseurs as &$inv) {
             // Calculer le pourcentage selon la mise de fonds
