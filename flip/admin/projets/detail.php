@@ -277,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
-// AJAX: Upload document
+// AJAX: Upload document (single or multiple)
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'upload_document') {
     header('Content-Type: application/json');
@@ -287,28 +287,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         exit;
     }
 
-    if (!isset($_FILES['document']) || $_FILES['document']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['success' => false, 'error' => 'Erreur lors de l\'upload']);
+    if (!isset($_FILES['documents'])) {
+        echo json_encode(['success' => false, 'error' => 'Aucun fichier reçu']);
         exit;
     }
 
-    $file = $_FILES['document'];
     $maxSize = 10 * 1024 * 1024; // 10 Mo
-
-    if ($file['size'] > $maxSize) {
-        echo json_encode(['success' => false, 'error' => 'Fichier trop volumineux (max 10 Mo)']);
-        exit;
-    }
-
-    // Types autorisés
     $allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-
-    if (!in_array($file['type'], $allowedTypes)) {
-        echo json_encode(['success' => false, 'error' => 'Type de fichier non autorisé']);
-        exit;
-    }
 
     // Créer le dossier si nécessaire
     $uploadDir = __DIR__ . '/../../uploads/documents/';
@@ -316,23 +303,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         mkdir($uploadDir, 0755, true);
     }
 
-    // Générer un nom unique
-    $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $nomFichier = $projetId . '_' . time() . '_' . uniqid() . '.' . $extension;
-    $destination = $uploadDir . $nomFichier;
+    $uploaded = [];
+    $errors = [];
 
-    if (move_uploaded_file($file['tmp_name'], $destination)) {
-        try {
-            $stmt = $pdo->prepare("INSERT INTO projet_documents (projet_id, nom, fichier, type, taille) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$projetId, $file['name'], $nomFichier, $file['type'], $file['size']]);
-            echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
-        } catch (Exception $e) {
-            unlink($destination);
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    // Normaliser le tableau de fichiers (pour gérer single et multiple)
+    $files = $_FILES['documents'];
+    $fileCount = is_array($files['name']) ? count($files['name']) : 1;
+
+    for ($i = 0; $i < $fileCount; $i++) {
+        $fileName = is_array($files['name']) ? $files['name'][$i] : $files['name'];
+        $fileTmpName = is_array($files['tmp_name']) ? $files['tmp_name'][$i] : $files['tmp_name'];
+        $fileSize = is_array($files['size']) ? $files['size'][$i] : $files['size'];
+        $fileType = is_array($files['type']) ? $files['type'][$i] : $files['type'];
+        $fileError = is_array($files['error']) ? $files['error'][$i] : $files['error'];
+
+        if ($fileError !== UPLOAD_ERR_OK) {
+            $errors[] = "$fileName: Erreur d'upload";
+            continue;
         }
-    } else {
-        echo json_encode(['success' => false, 'error' => 'Erreur lors du déplacement du fichier']);
+
+        if ($fileSize > $maxSize) {
+            $errors[] = "$fileName: Trop volumineux (max 10 Mo)";
+            continue;
+        }
+
+        if (!in_array($fileType, $allowedTypes)) {
+            $errors[] = "$fileName: Type non autorisé";
+            continue;
+        }
+
+        // Générer un nom unique
+        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
+        $nomFichier = $projetId . '_' . time() . '_' . uniqid() . '.' . $extension;
+        $destination = $uploadDir . $nomFichier;
+
+        if (move_uploaded_file($fileTmpName, $destination)) {
+            try {
+                $stmt = $pdo->prepare("INSERT INTO projet_documents (projet_id, nom, fichier, type, taille) VALUES (?, ?, ?, ?, ?)");
+                $stmt->execute([$projetId, $fileName, $nomFichier, $fileType, $fileSize]);
+                $uploaded[] = ['id' => $pdo->lastInsertId(), 'name' => $fileName];
+            } catch (Exception $e) {
+                unlink($destination);
+                $errors[] = "$fileName: " . $e->getMessage();
+            }
+        } else {
+            $errors[] = "$fileName: Erreur lors du déplacement";
+        }
     }
+
+    echo json_encode([
+        'success' => count($uploaded) > 0,
+        'uploaded' => $uploaded,
+        'errors' => $errors,
+        'count' => count($uploaded)
+    ]);
     exit;
 }
 
@@ -369,6 +393,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         } else {
             echo json_encode(['success' => false, 'error' => 'Document non trouvé']);
         }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
+// AJAX: Rename document
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'rename_document') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $docId = (int)($_POST['doc_id'] ?? 0);
+    $newName = trim($_POST['new_name'] ?? '');
+
+    if (empty($newName)) {
+        echo json_encode(['success' => false, 'error' => 'Le nom ne peut pas être vide']);
+        exit;
+    }
+
+    try {
+        $stmt = $pdo->prepare("UPDATE projet_documents SET nom = ? WHERE id = ? AND projet_id = ?");
+        $stmt->execute([$newName, $docId, $projetId]);
+        echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
@@ -4373,30 +4426,31 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="bi bi-folder me-2"></i>Documents du projet</span>
+                <span class="badge bg-secondary"><?= count($projetDocuments) ?> document(s)</span>
             </div>
             <div class="card-body">
                 <!-- Upload form -->
                 <form id="documentUploadForm" enctype="multipart/form-data" class="mb-4">
                     <?php csrfField(); ?>
-                    <input type="hidden" name="action" value="upload_document">
                     <input type="hidden" name="projet_id" value="<?= $projetId ?>">
                     <div class="row align-items-end">
                         <div class="col-md-8">
-                            <label class="form-label">Ajouter un document</label>
-                            <input type="file" class="form-control" name="document" id="documentFile" required>
-                            <small class="text-muted">PDF, Word, Excel, Images (max 10 Mo)</small>
+                            <label class="form-label">Ajouter des documents</label>
+                            <input type="file" class="form-control" name="documents[]" id="documentFiles" multiple required>
+                            <small class="text-muted">PDF, Word, Excel, Images (max 10 Mo par fichier) - Sélection multiple possible</small>
                         </div>
                         <div class="col-md-4">
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary w-100" id="uploadBtn">
                                 <i class="bi bi-upload me-1"></i>Uploader
                             </button>
                         </div>
                     </div>
+                    <div id="selectedFiles" class="mt-2 small text-muted"></div>
                 </form>
 
                 <!-- Documents list -->
                 <?php if (empty($projetDocuments)): ?>
-                    <div class="text-center text-muted py-5">
+                    <div class="text-center text-muted py-5" id="emptyState">
                         <i class="bi bi-folder" style="font-size: 3rem;"></i>
                         <p class="mb-0 mt-2">Aucun document pour ce projet</p>
                     </div>
@@ -4413,18 +4467,28 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </thead>
                             <tbody id="documentsList">
                                 <?php foreach ($projetDocuments as $doc): ?>
-                                    <tr>
-                                        <td>
+                                    <tr data-doc-id="<?= $doc['id'] ?>">
+                                        <td class="doc-name-cell">
                                             <i class="bi bi-file-earmark me-2"></i>
-                                            <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" target="_blank" class="text-info"><?= e($doc['nom']) ?></a>
+                                            <span class="doc-name-display">
+                                                <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" target="_blank" class="text-info doc-link"><?= e($doc['nom']) ?></a>
+                                                <button type="button" class="btn btn-sm btn-link text-warning p-0 ms-2 rename-doc-btn" title="Renommer">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                            </span>
+                                            <span class="doc-name-edit d-none">
+                                                <input type="text" class="form-control form-control-sm d-inline-block bg-dark text-white" style="width: 250px;" value="<?= e($doc['nom']) ?>">
+                                                <button type="button" class="btn btn-sm btn-success ms-1 save-rename-btn"><i class="bi bi-check"></i></button>
+                                                <button type="button" class="btn btn-sm btn-secondary cancel-rename-btn"><i class="bi bi-x"></i></button>
+                                            </span>
                                         </td>
                                         <td><?= date('d/m/Y H:i', strtotime($doc['uploaded_at'])) ?></td>
                                         <td><?= round($doc['taille'] / 1024) ?> Ko</td>
                                         <td class="text-end">
-                                            <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" download class="btn btn-sm btn-outline-primary me-1">
+                                            <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" download class="btn btn-sm btn-outline-primary me-1" title="Télécharger">
                                                 <i class="bi bi-download"></i>
                                             </a>
-                                            <button type="button" class="btn btn-sm btn-outline-danger delete-document" data-doc-id="<?= $doc['id'] ?>">
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-document" data-doc-id="<?= $doc['id'] ?>" title="Supprimer">
                                                 <i class="bi bi-trash"></i>
                                             </button>
                                         </td>
@@ -4438,11 +4502,27 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         </div>
 
         <script>
-        // Document upload
+        // Show selected files count
+        document.getElementById('documentFiles')?.addEventListener('change', function() {
+            const count = this.files.length;
+            const filesDiv = document.getElementById('selectedFiles');
+            if (count > 0) {
+                const names = Array.from(this.files).map(f => f.name).join(', ');
+                filesDiv.innerHTML = `<i class="bi bi-check-circle text-success me-1"></i>${count} fichier(s) sélectionné(s): ${names}`;
+            } else {
+                filesDiv.innerHTML = '';
+            }
+        });
+
+        // Document upload (multiple)
         document.getElementById('documentUploadForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
             const formData = new FormData(this);
             formData.append('ajax_action', 'upload_document');
+
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Upload...';
 
             fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
                 method: 'POST',
@@ -4453,7 +4533,69 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 if (data.success) {
                     window.location.href = '<?= url('/admin/projets/detail.php?id=' . $projetId . '&tab=documents') ?>';
                 } else {
-                    alert(data.error || 'Erreur lors de l\'upload');
+                    alert(data.errors?.join('\n') || data.error || 'Erreur lors de l\'upload');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-upload me-1"></i>Uploader';
+                }
+            });
+        });
+
+        // Rename document
+        document.querySelectorAll('.rename-doc-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const cell = this.closest('.doc-name-cell');
+                cell.querySelector('.doc-name-display').classList.add('d-none');
+                cell.querySelector('.doc-name-edit').classList.remove('d-none');
+                cell.querySelector('.doc-name-edit input').focus();
+            });
+        });
+
+        document.querySelectorAll('.cancel-rename-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const cell = this.closest('.doc-name-cell');
+                cell.querySelector('.doc-name-display').classList.remove('d-none');
+                cell.querySelector('.doc-name-edit').classList.add('d-none');
+            });
+        });
+
+        document.querySelectorAll('.save-rename-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const docId = row.dataset.docId;
+                const cell = this.closest('.doc-name-cell');
+                const input = cell.querySelector('.doc-name-edit input');
+                const newName = input.value.trim();
+
+                if (!newName) {
+                    alert('Le nom ne peut pas être vide');
+                    return;
+                }
+
+                fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `ajax_action=rename_document&doc_id=${docId}&new_name=${encodeURIComponent(newName)}&csrf_token=<?= generateCSRFToken() ?>`
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        cell.querySelector('.doc-link').textContent = newName;
+                        cell.querySelector('.doc-name-display').classList.remove('d-none');
+                        cell.querySelector('.doc-name-edit').classList.add('d-none');
+                    } else {
+                        alert(data.error || 'Erreur');
+                    }
+                });
+            });
+        });
+
+        // Enter key to save rename
+        document.querySelectorAll('.doc-name-edit input').forEach(input => {
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    this.closest('.doc-name-edit').querySelector('.save-rename-btn').click();
+                } else if (e.key === 'Escape') {
+                    this.closest('.doc-name-edit').querySelector('.cancel-rename-btn').click();
                 }
             });
         });
