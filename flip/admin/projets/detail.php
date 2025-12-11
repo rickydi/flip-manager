@@ -1141,6 +1141,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ========================================
+// Suppression multiple de photos
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_photos_bulk') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        setFlashMessage('error', 'Token de sécurité invalide.');
+        redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+    }
+
+    $photoIds = $_POST['photo_ids'] ?? [];
+    if (!is_array($photoIds)) {
+        $photoIds = json_decode($photoIds, true) ?? [];
+    }
+
+    $deletedCount = 0;
+    foreach ($photoIds as $photoId) {
+        $photoId = (int)$photoId;
+
+        // Récupérer la photo
+        $stmt = $pdo->prepare("SELECT * FROM photos_projet WHERE id = ? AND projet_id = ?");
+        $stmt->execute([$photoId, $projetId]);
+        $photo = $stmt->fetch();
+
+        if ($photo) {
+            // Supprimer le fichier
+            $filePath = __DIR__ . '/../../uploads/photos/' . $photo['fichier'];
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+
+            // Supprimer de la base
+            $stmt = $pdo->prepare("DELETE FROM photos_projet WHERE id = ?");
+            $stmt->execute([$photoId]);
+            $deletedCount++;
+        }
+    }
+
+    if ($deletedCount > 0) {
+        setFlashMessage('success', $deletedCount . ' photo(s) supprimée(s).');
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+}
+
+// ========================================
 // AJAX: Mise à jour de l'ordre des photos
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'update_photos_order') {
@@ -3796,9 +3839,28 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <button type="button" class="btn btn-outline-primary btn-sm" id="btnReorganiser" onclick="toggleReorganisation()">
                     <i class="bi bi-arrows-move me-1"></i>Réorganiser
                 </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnSelectionner" onclick="toggleSelectionMode()">
+                    <i class="bi bi-check2-square me-1"></i>Sélectionner
+                </button>
                 <?php endif; ?>
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAjoutPhoto">
                     <i class="bi bi-plus me-1"></i>Ajouter
+                </button>
+            </div>
+            <!-- Barre de sélection (cachée par défaut) -->
+            <div id="selectionBar" class="d-none mt-2 p-2 bg-dark rounded d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="selectAllPhotos()">
+                    <i class="bi bi-check-all me-1"></i>Tout sélectionner
+                </button>
+                <button type="button" class="btn btn-outline-light btn-sm" onclick="deselectAllPhotos()">
+                    <i class="bi bi-x-lg me-1"></i>Tout désélectionner
+                </button>
+                <span class="text-white ms-2"><span id="selectedCount">0</span> sélectionnée(s)</span>
+                <button type="button" class="btn btn-danger btn-sm ms-auto" id="btnDeleteSelected" onclick="deleteSelectedPhotos()" disabled>
+                    <i class="bi bi-trash me-1"></i>Supprimer la sélection
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSelectionMode()">
+                    Annuler
                 </button>
             </div>
         </div>
@@ -3839,6 +3901,41 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 top: 0;
                 left: 0;
             }
+            /* Checkbox pour sélection */
+            .photo-checkbox {
+                display: none;
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                z-index: 10;
+                width: 22px;
+                height: 22px;
+                cursor: pointer;
+            }
+            .selection-mode .photo-checkbox {
+                display: block;
+            }
+            .selection-mode .photo-item {
+                cursor: pointer;
+            }
+            .selection-mode .photo-item.selected .position-relative {
+                outline: 3px solid #0d6efd;
+                outline-offset: -3px;
+            }
+            .selection-mode .photo-item.selected::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(13, 110, 253, 0.2);
+                pointer-events: none;
+                border-radius: 0.375rem;
+            }
+            .selection-mode .btn-delete-single {
+                display: none !important;
+            }
             /* Plus de colonnes sur très grands écrans */
             @media (min-width: 1400px) {
                 .photo-grid-col { flex: 0 0 auto; width: 12.5%; overflow: hidden; min-width: 0; } /* 8 colonnes */
@@ -3861,9 +3958,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                     $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
                 ?>
-                <div class="col-6 col-md-3 col-lg-2 photo-grid-col photo-item" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>">
+                <div class="col-6 col-md-3 col-lg-2 photo-grid-col photo-item" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>" onclick="togglePhotoSelection(this, event)">
                     <div class="position-relative">
-                        <a href="<?= $mediaUrl ?>" target="_blank" class="d-block">
+                        <!-- Checkbox pour sélection multiple -->
+                        <input type="checkbox" class="photo-checkbox" data-photo-id="<?= $photo['id'] ?>" onclick="event.stopPropagation(); togglePhotoSelection(this.closest('.photo-item'), event)">
+                        <a href="<?= $mediaUrl ?>" target="_blank" class="d-block photo-link">
                             <?php if ($isVideo): ?>
                                 <div class="video-thumb-container">
                                     <video src="<?= $mediaUrl ?>" muted preload="metadata"></video>
@@ -3876,7 +3975,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             <?php endif; ?>
                         </a>
                         <!-- Bouton suppression -->
-                        <form method="POST" class="position-absolute top-0 end-0" style="margin:3px;">
+                        <form method="POST" class="position-absolute top-0 end-0 btn-delete-single" style="margin:3px;">
                             <?php csrfField(); ?>
                             <input type="hidden" name="action" value="delete_photo">
                             <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
@@ -3915,6 +4014,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
             <?php endif; ?>
         <?php endif; ?>
+
+        <!-- Formulaire caché pour suppression multiple -->
+        <form id="bulkDeleteForm" method="POST" style="display:none;">
+            <?php csrfField(); ?>
+            <input type="hidden" name="action" value="delete_photos_bulk">
+            <input type="hidden" name="photo_ids" id="bulkDeletePhotoIds" value="">
+        </form>
     </div><!-- Fin TAB PHOTOS -->
 
     <!-- MODAL AJOUT PHOTO -->
@@ -5314,6 +5420,110 @@ function savePhotosOrder() {
     .catch(error => {
         showToast('Erreur de connexion', 'danger');
     });
+}
+
+// ===== SÉLECTION MULTIPLE DE PHOTOS =====
+let isSelectionMode = false;
+let selectedPhotos = new Set();
+
+function toggleSelectionMode() {
+    const grid = document.getElementById('photosGrid');
+    const btn = document.getElementById('btnSelectionner');
+    const selectionBar = document.getElementById('selectionBar');
+
+    if (!isSelectionMode) {
+        // Activer le mode sélection
+        isSelectionMode = true;
+        btn.innerHTML = '<i class="bi bi-x-lg me-1"></i>Annuler';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-secondary');
+        grid.classList.add('selection-mode');
+        selectionBar.classList.remove('d-none');
+
+        // Désactiver les liens des photos
+        document.querySelectorAll('.photo-link').forEach(link => {
+            link.dataset.href = link.href;
+            link.removeAttribute('href');
+        });
+    } else {
+        // Désactiver le mode sélection
+        isSelectionMode = false;
+        btn.innerHTML = '<i class="bi bi-check2-square me-1"></i>Sélectionner';
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-outline-secondary');
+        grid.classList.remove('selection-mode');
+        selectionBar.classList.add('d-none');
+
+        // Désélectionner tout
+        deselectAllPhotos();
+
+        // Réactiver les liens des photos
+        document.querySelectorAll('.photo-link').forEach(link => {
+            if (link.dataset.href) {
+                link.href = link.dataset.href;
+            }
+        });
+    }
+}
+
+function togglePhotoSelection(photoItem, event) {
+    if (!isSelectionMode) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const photoId = photoItem.dataset.id;
+    const checkbox = photoItem.querySelector('.photo-checkbox');
+
+    if (selectedPhotos.has(photoId)) {
+        selectedPhotos.delete(photoId);
+        photoItem.classList.remove('selected');
+        checkbox.checked = false;
+    } else {
+        selectedPhotos.add(photoId);
+        photoItem.classList.add('selected');
+        checkbox.checked = true;
+    }
+
+    updateSelectionCount();
+}
+
+function selectAllPhotos() {
+    document.querySelectorAll('.photo-item').forEach(item => {
+        const photoId = item.dataset.id;
+        selectedPhotos.add(photoId);
+        item.classList.add('selected');
+        item.querySelector('.photo-checkbox').checked = true;
+    });
+    updateSelectionCount();
+}
+
+function deselectAllPhotos() {
+    document.querySelectorAll('.photo-item').forEach(item => {
+        item.classList.remove('selected');
+        item.querySelector('.photo-checkbox').checked = false;
+    });
+    selectedPhotos.clear();
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const count = selectedPhotos.size;
+    document.getElementById('selectedCount').textContent = count;
+    document.getElementById('btnDeleteSelected').disabled = count === 0;
+}
+
+function deleteSelectedPhotos() {
+    const count = selectedPhotos.size;
+    if (count === 0) return;
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${count} photo(s) ?`)) {
+        return;
+    }
+
+    // Remplir le formulaire caché et soumettre
+    document.getElementById('bulkDeletePhotoIds').value = JSON.stringify(Array.from(selectedPhotos));
+    document.getElementById('bulkDeleteForm').submit();
 }
 
 function showToast(message, type = 'info') {
