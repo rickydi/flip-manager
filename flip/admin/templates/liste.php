@@ -572,7 +572,7 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     }
 
     .tree-content:hover {
-        background: var(--bg-hover, #e9ecef);
+        background: rgba(30, 58, 95, 0.8) !important;
         border-color: var(--primary-color, #0d6efd);
     }
 
@@ -659,7 +659,7 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         padding: 6px 10px;
     }
     .tree-content.mat-item:hover {
-        background: var(--bg-hover, #e9ecef);
+        background: rgba(30, 58, 95, 0.8) !important;
         border-style: solid;
     }
 
@@ -669,7 +669,7 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         user-select: none;
     }
     .card-collapsible .card-header:hover {
-        background: var(--bg-hover, #e9ecef);
+        background: rgba(30, 58, 95, 0.8) !important;
     }
     .card-collapsible .collapse-icon {
         /* Pas de transition */
@@ -684,7 +684,7 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         border-color: var(--border-color, #e9ecef);
     }
     .list-group-item:hover {
-        background: var(--bg-hover, #e9ecef);
+        background: rgba(30, 58, 95, 0.8) !important;
     }
     .list-group-item.active {
         background: var(--primary-color, #0d6efd);
