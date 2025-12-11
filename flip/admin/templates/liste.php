@@ -558,7 +558,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     /* Styles pour l'arbre style Explorateur / Fusion 360 */
     .tree-item {
         border-left: 2px solid var(--border-color, #dee2e6);
-        transition: all 0.2s;
     }
 
     .tree-content {
@@ -587,7 +586,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         justify-content: center;
         margin-right: 6px;
         color: var(--text-muted, #6c757d);
-        transition: transform 0.2s;
         border-radius: 4px;
     }
 
@@ -597,7 +595,7 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     }
 
     .tree-toggle i {
-        transition: transform 0.2s ease;
+        /* Pas de transition */
     }
 
     .tree-toggle.collapsed i,
@@ -633,7 +631,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         margin-right: 8px;
         padding: 4px;
         border-radius: 4px;
-        transition: all 0.2s;
     }
     .drag-handle:hover {
         color: var(--primary-color, #0d6efd);
@@ -670,13 +667,12 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     .card-collapsible .card-header {
         cursor: pointer;
         user-select: none;
-        transition: background 0.2s;
     }
     .card-collapsible .card-header:hover {
         background: var(--bg-hover, #e9ecef);
     }
     .card-collapsible .collapse-icon {
-        transition: transform 0.3s ease;
+        /* Pas de transition */
     }
     .card-collapsible .card-header.collapsed .collapse-icon {
         transform: rotate(-90deg);
@@ -726,7 +722,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         margin-right: 4px;
         margin-left: -4px;
         border-radius: 4px;
-        transition: all 0.2s;
     }
     .sortable-categories .drag-handle-cat:hover {
         color: var(--primary-color, #0d6efd);
