@@ -318,8 +318,10 @@ function calculerTotalFacturesReelles($pdo, $projetId) {
  */
 function calculerCoutMainDoeuvre($pdo, $projetId) {
     try {
+        // Utiliser le taux historique (h.taux_horaire) si sauvegardé, sinon le taux actuel (u.taux_horaire)
         $stmt = $pdo->prepare("
-            SELECT SUM(h.heures) as total_heures, SUM(h.heures * u.taux_horaire) as total_cout
+            SELECT SUM(h.heures) as total_heures,
+                   SUM(h.heures * IF(h.taux_horaire > 0, h.taux_horaire, u.taux_horaire)) as total_cout
             FROM heures_travaillees h
             JOIN users u ON h.user_id = u.id
             WHERE h.projet_id = ? AND h.statut != 'rejetee'
