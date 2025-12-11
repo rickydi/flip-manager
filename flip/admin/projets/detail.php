@@ -1443,26 +1443,106 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         .compact-form .card { margin-bottom: 1rem !important; }
         .compact-form .card-header { padding: 0.5rem 1rem; font-size: 0.9rem; }
         .compact-form .card-body { padding: 0.75rem; }
+
+        /* Graphiques modernes */
+        .chart-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(255,255,255,0.95) 100%);
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+        }
+        .chart-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: linear-gradient(90deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.1) 100%);
+            border-bottom: 1px solid rgba(99,102,241,0.1);
+        }
+        .chart-header.red { background: linear-gradient(90deg, rgba(239,68,68,0.1) 0%, rgba(249,115,22,0.1) 100%); }
+        .chart-header.blue { background: linear-gradient(90deg, rgba(59,130,246,0.1) 0%, rgba(99,102,241,0.1) 100%); }
+        .chart-header.green { background: linear-gradient(90deg, rgba(34,197,94,0.1) 0%, rgba(16,185,129,0.1) 100%); }
+        .chart-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .chart-icon.red { background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); color: white; }
+        .chart-icon.blue { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); color: white; }
+        .chart-icon.green { background: linear-gradient(135deg, #22c55e 0%, #10b981 100%); color: white; }
+        .chart-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+        .chart-subtitle {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+        }
+        .chart-body {
+            padding: 12px;
+            position: relative;
+        }
+        .chart-body canvas {
+            border-radius: 8px;
+        }
     </style>
 
-    <!-- GRAPHIQUES -->
-    <div class="row g-2 mb-3">
+    <!-- Lottie Player -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+    <!-- GRAPHIQUES MODERNES -->
+    <div class="row g-3 mb-3">
         <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header py-1 text-center small">Coûts vs Valeur</div>
-                <div class="card-body p-2"><canvas id="chartCouts" height="150"></canvas></div>
+            <div class="card chart-card h-100">
+                <div class="chart-header red">
+                    <div class="chart-icon red">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </div>
+                    <div>
+                        <div class="chart-title">Coûts vs Valeur</div>
+                        <div class="chart-subtitle">Évolution dans le temps</div>
+                    </div>
+                </div>
+                <div class="chart-body"><canvas id="chartCouts" height="150"></canvas></div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header py-1 text-center small">Heures travaillées</div>
-                <div class="card-body p-2"><canvas id="chartBudget" height="150"></canvas></div>
+            <div class="card chart-card h-100">
+                <div class="chart-header blue">
+                    <div class="chart-icon blue">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div>
+                        <div class="chart-title">Heures travaillées</div>
+                        <div class="chart-subtitle">Par jour de la semaine</div>
+                    </div>
+                </div>
+                <div class="chart-body"><canvas id="chartBudget" height="150"></canvas></div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card h-100">
-                <div class="card-header py-1 text-center small">Budget vs Dépensé</div>
-                <div class="card-body p-2"><canvas id="chartProfits" height="150"></canvas></div>
+            <div class="card chart-card h-100">
+                <div class="chart-header green">
+                    <div class="chart-icon green">
+                        <i class="bi bi-wallet2"></i>
+                    </div>
+                    <div>
+                        <div class="chart-title">Budget vs Dépensé</div>
+                        <div class="chart-subtitle">Suivi des dépenses</div>
+                    </div>
+                </div>
+                <div class="chart-body"><canvas id="chartProfits" height="150"></canvas></div>
             </div>
         </div>
     </div>
@@ -4273,50 +4353,210 @@ foreach ($points as $date) {
 $dataReel[count($dataReel) - 1] += $indicateurs['main_doeuvre']['cout'];
 ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Motion One pour animations graphiques -->
+<script src="https://cdn.jsdelivr.net/npm/motion@11.11.13/dist/motion.min.js"></script>
 <script>
-Chart.defaults.color = '#666';
+// Configuration moderne Chart.js
+Chart.defaults.color = '#64748b';
+Chart.defaults.font.family = "'Inter', 'Segoe UI', sans-serif";
+
+// Créer des dégradés
+function createGradient(ctx, color1, color2, opacity = 0.3) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, 150);
+    gradient.addColorStop(0, color1.replace(')', `, ${opacity})`).replace('rgb', 'rgba'));
+    gradient.addColorStop(1, color1.replace(')', ', 0.01)').replace('rgb', 'rgba'));
+    return gradient;
+}
+
+// Options communes améliorées
 const optionsLine = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { position: 'top', labels: { boxWidth: 10, font: { size: 10 } } } },
-    scales: { x: { ticks: { font: { size: 9 } } }, y: { ticks: { callback: v => (v/1000).toFixed(0)+'k', font: { size: 9 } } } }
-};
-const optionsBar = {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { x: { ticks: { font: { size: 9 } } }, y: { ticks: { callback: v => v+'h', font: { size: 9 } } } }
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+        duration: 1500,
+        easing: 'easeOutQuart',
+        delay: (context) => context.dataIndex * 100
+    },
+    interaction: {
+        intersect: false,
+        mode: 'index'
+    },
+    plugins: {
+        legend: {
+            position: 'top',
+            labels: {
+                boxWidth: 12,
+                boxHeight: 12,
+                borderRadius: 3,
+                useBorderRadius: true,
+                font: { size: 11, weight: '500' },
+                padding: 15
+            }
+        },
+        tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 11 },
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: true,
+            boxPadding: 5
+        }
+    },
+    scales: {
+        x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 }, color: '#94a3b8' }
+        },
+        y: {
+            grid: { color: 'rgba(148, 163, 184, 0.1)' },
+            ticks: { callback: v => (v/1000).toFixed(0)+'k', font: { size: 10 }, color: '#94a3b8' }
+        }
+    }
 };
 
-new Chart(document.getElementById('chartCouts'), {
+const optionsBar = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+        duration: 1200,
+        easing: 'easeOutQuart',
+        delay: (context) => context.dataIndex * 150
+    },
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleFont: { size: 12, weight: '600' },
+            bodyFont: { size: 11 },
+            padding: 12,
+            cornerRadius: 8
+        }
+    },
+    scales: {
+        x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 }, color: '#94a3b8' }
+        },
+        y: {
+            grid: { color: 'rgba(148, 163, 184, 0.1)' },
+            ticks: { callback: v => v+'h', font: { size: 10 }, color: '#94a3b8' }
+        }
+    }
+};
+
+// Chart 1: Coûts vs Valeur
+const ctxCouts = document.getElementById('chartCouts').getContext('2d');
+const gradientRed = ctxCouts.createLinearGradient(0, 0, 0, 150);
+gradientRed.addColorStop(0, 'rgba(239, 68, 68, 0.4)');
+gradientRed.addColorStop(1, 'rgba(239, 68, 68, 0.01)');
+
+new Chart(ctxCouts, {
     type: 'line',
     data: {
         labels: <?= json_encode($labelsTimeline) ?>,
         datasets: [
-            { label: 'Coûts', data: <?= json_encode($coutsTimeline) ?>, borderColor: '#e74a3b', backgroundColor: 'rgba(231,74,59,0.1)', fill: true, tension: 0.3, pointRadius: 2 },
-            { label: 'Valeur', data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>, borderColor: '#1cc88a', borderDash: [5,5], pointRadius: 0 }
+            {
+                label: 'Coûts',
+                data: <?= json_encode($coutsTimeline) ?>,
+                borderColor: '#ef4444',
+                backgroundColor: gradientRed,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#ef4444',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6
+            },
+            {
+                label: 'Valeur cible',
+                data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>,
+                borderColor: '#22c55e',
+                borderDash: [8, 4],
+                borderWidth: 2,
+                pointRadius: 0,
+                fill: false
+            }
         ]
     },
     options: optionsLine
 });
 
-new Chart(document.getElementById('chartBudget'), {
+// Chart 2: Heures travaillées
+const ctxHeures = document.getElementById('chartBudget').getContext('2d');
+const gradientBlue = ctxHeures.createLinearGradient(0, 0, 0, 150);
+gradientBlue.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+gradientBlue.addColorStop(1, 'rgba(99, 102, 241, 0.6)');
+
+new Chart(ctxHeures, {
     type: 'bar',
     data: {
         labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
-        datasets: [{ data: <?= json_encode($jourDataHeures ?: [0]) ?>, backgroundColor: 'rgba(78,115,223,0.6)' }]
+        datasets: [{
+            data: <?= json_encode($jourDataHeures ?: [0]) ?>,
+            backgroundColor: gradientBlue,
+            borderRadius: 6,
+            borderSkipped: false,
+            hoverBackgroundColor: 'rgba(99, 102, 241, 0.9)'
+        }]
     },
     options: optionsBar
 });
 
-new Chart(document.getElementById('chartProfits'), {
+// Chart 3: Budget vs Dépensé
+const ctxBudget = document.getElementById('chartProfits').getContext('2d');
+const gradientCyan = ctxBudget.createLinearGradient(0, 0, 0, 150);
+gradientCyan.addColorStop(0, 'rgba(34, 197, 94, 0.3)');
+gradientCyan.addColorStop(1, 'rgba(34, 197, 94, 0.01)');
+const gradientOrange = ctxBudget.createLinearGradient(0, 0, 0, 150);
+gradientOrange.addColorStop(0, 'rgba(249, 115, 22, 0.3)');
+gradientOrange.addColorStop(1, 'rgba(249, 115, 22, 0.01)');
+
+new Chart(ctxBudget, {
     type: 'line',
     data: {
         labels: <?= json_encode($jourLabels) ?>,
         datasets: [
-            { label: 'Budget', data: <?= json_encode($dataExtrapole) ?>, borderColor: '#36b9cc', fill: true, backgroundColor: 'rgba(54,185,204,0.1)', tension: 0.3, pointRadius: 1 },
-            { label: 'Réel', data: <?= json_encode($dataReel) ?>, borderColor: '#e74a3b', fill: true, backgroundColor: 'rgba(231,74,59,0.2)', stepped: true, pointRadius: 2 }
+            {
+                label: 'Budget prévu',
+                data: <?= json_encode($dataExtrapole) ?>,
+                borderColor: '#22c55e',
+                backgroundColor: gradientCyan,
+                fill: true,
+                tension: 0.4,
+                pointRadius: 3,
+                pointBackgroundColor: '#22c55e',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2
+            },
+            {
+                label: 'Dépensé réel',
+                data: <?= json_encode($dataReel) ?>,
+                borderColor: '#f97316',
+                backgroundColor: gradientOrange,
+                fill: true,
+                stepped: 'middle',
+                pointRadius: 4,
+                pointBackgroundColor: '#f97316',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6
+            }
         ]
     },
     options: optionsLine
+});
+
+// Animation des cartes graphiques avec Motion
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof Motion !== 'undefined') {
+        const { animate, stagger } = Motion;
+        animate('.chart-card',
+            { opacity: [0, 1], y: [30, 0], scale: [0.95, 1] },
+            { duration: 0.6, delay: stagger(0.15), easing: [0.22, 1, 0.36, 1] }
+        );
+    }
 });
 </script>
 <script>
