@@ -714,32 +714,16 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         display: block;
     }
     .sortable-categories .list-group-item {
-        cursor: default;
+        cursor: grab;
         position: relative;
         z-index: 0;
         margin-top: -1px; /* Pour éviter double bordure */
     }
-    .sortable-categories .drag-handle-cat {
-        cursor: grab;
-        color: var(--text-muted, #adb5bd);
-        margin-right: 6px;
-        padding: 2px;
-        border-radius: 3px;
-        transition: all 0.2s;
-    }
-    .sortable-categories .drag-handle-cat:hover {
-        color: var(--primary-color, #0d6efd);
-        background: rgba(13, 110, 253, 0.1);
-    }
-    .sortable-categories .drag-handle-cat:active {
+    .sortable-categories .list-group-item:active {
         cursor: grabbing;
     }
-    .list-group-item.active .drag-handle-cat {
-        color: rgba(255,255,255,0.7);
-    }
-    .list-group-item.active .drag-handle-cat:hover {
-        color: #fff;
-        background: rgba(255,255,255,0.15);
+    .sortable-categories .drag-handle-cat {
+        display: none; /* Caché car on peut drag partout */
     }
 </style>
 <?php
@@ -1574,9 +1558,11 @@ document.addEventListener('DOMContentLoaded', function() {
         new Sortable(list, {
             group: 'categories', // Permet déplacement entre groupes
             animation: 150,
-            handle: '.drag-handle-cat',
+            // Pas de handle = on peut cliquer n'importe où pour drag
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
+            filter: '.btn, a', // Exclure les boutons et liens du drag
+            preventOnFilter: false, // Permettre le clic sur les éléments filtrés
             onEnd: function (evt) {
                 const newList = evt.to;
                 const newGroupe = newList.getAttribute('data-groupe');
