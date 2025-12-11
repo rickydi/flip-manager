@@ -1,9 +1,13 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once '../config.php';
 
-// Vérifier si admin
-if (!isLoggedIn() || !isAdmin()) {
-    die('Accès refusé');
+// Vérifier si connecté
+if (!isset($_SESSION['user_id'])) {
+    header('Location: ' . url('/login.php'));
+    exit;
 }
 
 $message = '';
