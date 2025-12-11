@@ -4454,18 +4454,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <form id="documentUploadForm" enctype="multipart/form-data" class="mb-4">
                     <?php csrfField(); ?>
                     <input type="hidden" name="projet_id" value="<?= $projetId ?>">
-                    <div class="row align-items-end">
-                        <div class="col-md-8">
-                            <label class="form-label">Ajouter des documents</label>
-                            <input type="file" class="form-control" name="documents[]" id="documentFiles" multiple required>
-                            <small class="text-muted">PDF, Word, Excel, Images (max 10 Mo par fichier) - Sélection multiple possible</small>
-                        </div>
-                        <div class="col-md-4">
-                            <button type="submit" class="btn btn-primary w-100" id="uploadBtn">
-                                <i class="bi bi-upload me-1"></i>Uploader
-                            </button>
-                        </div>
+                    <label class="form-label">Ajouter des documents</label>
+                    <div class="input-group">
+                        <input type="file" class="form-control" name="documents[]" id="documentFiles" multiple required>
+                        <button type="submit" class="btn btn-primary" id="uploadBtn">
+                            <i class="bi bi-upload me-1"></i>Uploader
+                        </button>
                     </div>
+                    <small class="text-muted">PDF, Word, Excel, Images (max 10 Mo par fichier) - Sélection multiple possible</small>
                     <div id="selectedFiles" class="mt-2 small text-muted"></div>
                 </form>
 
