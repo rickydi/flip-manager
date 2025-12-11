@@ -52,6 +52,18 @@ $isAdmin = isAdmin();
                         </a>
                     </li>
 
+                    <?php if (!empty($_SESSION['last_project_id'])): ?>
+                    <li class="nav-item">
+                        <a class="nav-link px-2"
+                           href="<?= url('/admin/projets/detail.php?id=' . $_SESSION['last_project_id']) ?>"
+                           title="<?= e($_SESSION['last_project_name'] ?? 'Projet récent') ?>">
+                            <i class="bi bi-arrow-return-right text-warning"></i>
+                            <span class="nav-text-short d-none d-xl-inline text-warning"> <?= e(mb_substr($_SESSION['last_project_name'] ?? 'Récent', 0, 10)) ?></span>
+                            <span class="nav-text-full text-warning"> <?= e($_SESSION['last_project_name'] ?? 'Récent') ?></span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
+
                     <li class="nav-item">
                         <?php $countEnAttente = getFacturesEnAttenteCount($pdo); ?>
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/factures/') !== false ? 'active' : '' ?>"

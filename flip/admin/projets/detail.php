@@ -788,6 +788,10 @@ $tab = $_GET['tab'] ?? 'base';
 $pageTitle = $projet['nom'];
 $indicateurs = calculerIndicateursProjet($pdo, $projet);
 
+// Sauvegarder le dernier projet visité (pour raccourci "Projet récent")
+$_SESSION['last_project_id'] = $projetId;
+$_SESSION['last_project_name'] = $projet['nom'];
+
 // Durée réelle (cohérent avec calculs.php)
 $dureeReelle = (int)$projet['temps_assume_mois'];
 if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
