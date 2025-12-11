@@ -3845,13 +3845,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             }
             /* Plus de colonnes sur très grands écrans */
             @media (min-width: 1400px) {
-                .photo-grid-col { flex: 0 0 auto; width: 12.5%; } /* 8 colonnes */
+                .photo-grid-col { flex: 0 0 auto; width: 12.5%; overflow: hidden; min-width: 0; } /* 8 colonnes */
             }
             @media (min-width: 1800px) {
-                .photo-grid-col { flex: 0 0 auto; width: 10%; } /* 10 colonnes */
+                .photo-grid-col { flex: 0 0 auto; width: 10%; overflow: hidden; min-width: 0; } /* 10 colonnes */
             }
             @media (min-width: 2200px) {
-                .photo-grid-col { flex: 0 0 auto; width: 8.333%; } /* 12 colonnes */
+                .photo-grid-col { flex: 0 0 auto; width: 8.333%; overflow: hidden; min-width: 0; } /* 12 colonnes */
             }
         </style>
         <?php else: ?>

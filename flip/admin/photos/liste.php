@@ -141,14 +141,24 @@ include '../../includes/header.php';
 ?>
 
 <style>
+    .photo-grid-col {
+        overflow: hidden;
+        min-width: 0;
+    }
+    .photo-grid-col .position-relative {
+        overflow: hidden;
+    }
     .photo-thumb {
         width: 100%;
+        max-width: 100%;
         aspect-ratio: 4/3;
         object-fit: cover;
         border-radius: 0.375rem;
+        display: block;
     }
     .video-thumb-container {
         width: 100%;
+        max-width: 100%;
         aspect-ratio: 4/3;
         background: #1a1d21;
         display: flex;
@@ -179,13 +189,13 @@ include '../../includes/header.php';
     }
     /* Plus de colonnes sur très grands écrans */
     @media (min-width: 1400px) {
-        .photo-grid-col { flex: 0 0 auto; width: 12.5%; } /* 8 colonnes */
+        .photo-grid-col { flex: 0 0 auto; width: 12.5%; overflow: hidden; min-width: 0; } /* 8 colonnes */
     }
     @media (min-width: 1800px) {
-        .photo-grid-col { flex: 0 0 auto; width: 10%; } /* 10 colonnes */
+        .photo-grid-col { flex: 0 0 auto; width: 10%; overflow: hidden; min-width: 0; } /* 10 colonnes */
     }
     @media (min-width: 2200px) {
-        .photo-grid-col { flex: 0 0 auto; width: 8.333%; } /* 12 colonnes */
+        .photo-grid-col { flex: 0 0 auto; width: 8.333%; overflow: hidden; min-width: 0; } /* 12 colonnes */
     }
 </style>
 
