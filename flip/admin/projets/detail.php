@@ -1211,15 +1211,27 @@ try {
     $groupesPhotosProjet = $stmt->fetchAll();
 
     // Toutes les photos (triées par ordre personnalisé, puis par date)
+    // Limite initiale pour performance
+    $photosLimit = 24; // Photos affichées initialement
+    $photosPage = isset($_GET['photos_page']) ? max(1, (int)$_GET['photos_page']) : 1;
+    $photosOffset = ($photosPage - 1) * $photosLimit;
+
+    // Compter le total
+    $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM photos_projet WHERE projet_id = ?");
+    $stmtCount->execute([$projetId]);
+    $totalPhotos = (int)$stmtCount->fetchColumn();
+
     $stmt = $pdo->prepare("
         SELECT p.*, CONCAT(u.prenom, ' ', u.nom) as employe_nom
         FROM photos_projet p
         JOIN users u ON p.user_id = u.id
         WHERE p.projet_id = ?
         ORDER BY COALESCE(p.ordre, 999999) ASC, p.date_prise DESC, p.id DESC
+        LIMIT " . ($photosLimit * $photosPage) . "
     ");
     $stmt->execute([$projetId]);
     $photosProjet = $stmt->fetchAll();
+    $hasMorePhotos = $totalPhotos > count($photosProjet);
 } catch (Exception $e) {}
 
 // Catégories de photos pour le formulaire d'ajout
@@ -2288,9 +2300,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead class="table-light">
-                                <tr>
+                        <table class="table table-sm mb-0 table-dark">
+                            <thead>
+                                <tr class="table-warning text-dark">
                                     <th>Nom</th>
                                     <th class="text-end">Montant</th>
                                     <th class="text-center">Taux</th>
@@ -2309,18 +2321,18 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                         <input type="hidden" name="action" value="preteurs">
                                         <input type="hidden" name="sub_action" value="modifier">
                                         <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
-                                        <td><?= e($p['investisseur_nom']) ?></td>
+                                        <td class="align-middle"><i class="bi bi-person-circle text-warning me-1"></i><?= e($p['investisseur_nom']) ?></td>
                                         <td class="text-end">
-                                            <input type="text" class="form-control form-control-sm money-input text-end"
+                                            <input type="text" class="form-control form-control-sm money-input text-end bg-dark text-white border-secondary"
                                                    name="montant_pret" value="<?= number_format($p['montant_calc'], 0, ',', ' ') ?>"
                                                    style="width: 100px; display: inline-block;">
                                         </td>
                                         <td class="text-center">
-                                            <input type="text" class="form-control form-control-sm text-center"
+                                            <input type="text" class="form-control form-control-sm text-center bg-dark text-white border-secondary"
                                                    name="taux_interet_pret" value="<?= $p['taux_calc'] ?>"
                                                    style="width: 60px; display: inline-block;">%
                                         </td>
-                                        <td class="text-end text-danger"><?= formatMoney($interets) ?></td>
+                                        <td class="text-end text-danger fw-bold"><?= formatMoney($interets) ?></td>
                                         <td class="text-nowrap">
                                             <button type="submit" class="btn btn-outline-primary btn-sm py-0 px-1" title="Sauvegarder">
                                                 <i class="bi bi-check"></i>
@@ -2344,14 +2356,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <?php endif; ?>
 
                 <!-- Formulaire ajout prêteur -->
-                <div class="card-footer bg-light">
+                <div class="card-footer" style="background: rgba(30, 58, 95, 0.6);">
                     <form method="POST" class="row g-2 align-items-end">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
                         <div class="col-4">
-                            <label class="form-label small mb-0">Personne</label>
-                            <select class="form-select form-select-sm" name="investisseur_id" required>
+                            <label class="form-label small mb-0 text-light">Personne</label>
+                            <select class="form-select form-select-sm bg-dark text-white border-secondary" name="investisseur_id" required>
                                 <option value="">Choisir...</option>
                                 <?php foreach ($tousInvestisseurs as $inv): ?>
                                     <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
@@ -2359,15 +2371,15 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </select>
                         </div>
                         <div class="col-3">
-                            <label class="form-label small mb-0">Montant $</label>
-                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0">
+                            <label class="form-label small mb-0 text-light">Montant $</label>
+                            <input type="text" class="form-control form-control-sm money-input bg-dark text-white border-secondary" name="montant_pret" required placeholder="0">
                         </div>
                         <div class="col-3">
-                            <label class="form-label small mb-0">Taux %</label>
-                            <input type="text" class="form-control form-control-sm" name="taux_interet_pret" value="10" required>
+                            <label class="form-label small mb-0 text-light">Taux %</label>
+                            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" name="taux_interet_pret" value="10" required>
                         </div>
                         <div class="col-2">
-                            <button type="submit" class="btn btn-warning btn-sm w-100">+</button>
+                            <button type="submit" class="btn btn-warning btn-sm w-100"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </form>
                 </div>
@@ -2412,9 +2424,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-sm mb-0">
-                            <thead class="table-light">
-                                <tr>
+                        <table class="table table-sm mb-0 table-dark">
+                            <thead>
+                                <tr class="table-success text-dark">
                                     <th>Nom</th>
                                     <th class="text-end">Mise</th>
                                     <th class="text-center">% Profits</th>
@@ -2435,9 +2447,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                         <input type="hidden" name="sub_action" value="modifier">
                                         <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
                                         <input type="hidden" name="taux_interet_pret" value="0">
-                                        <td><?= e($inv['investisseur_nom']) ?></td>
+                                        <td class="align-middle"><i class="bi bi-person-circle text-success me-1"></i><?= e($inv['investisseur_nom']) ?></td>
                                         <td class="text-end">
-                                            <input type="text" class="form-control form-control-sm money-input text-end"
+                                            <input type="text" class="form-control form-control-sm money-input text-end bg-dark text-white border-secondary"
                                                    name="montant_pret" value="<?= number_format($inv['montant_calc'], 0, ',', ' ') ?>"
                                                    style="width: 100px; display: inline-block;">
                                         </td>
@@ -2465,15 +2477,15 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <?php endif; ?>
 
                 <!-- Formulaire ajout investisseur -->
-                <div class="card-footer bg-light">
+                <div class="card-footer" style="background: rgba(30, 58, 95, 0.6);">
                     <form method="POST" class="row g-2 align-items-end">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
                         <input type="hidden" name="taux_interet_pret" value="0">
                         <div class="col-6">
-                            <label class="form-label small mb-0">Personne</label>
-                            <select class="form-select form-select-sm" name="investisseur_id" required>
+                            <label class="form-label small mb-0 text-light">Personne</label>
+                            <select class="form-select form-select-sm bg-dark text-white border-secondary" name="investisseur_id" required>
                                 <option value="">Choisir...</option>
                                 <?php foreach ($tousInvestisseurs as $inv): ?>
                                     <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
@@ -2481,11 +2493,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </select>
                         </div>
                         <div class="col-4">
-                            <label class="form-label small mb-0">Mise $</label>
-                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0">
+                            <label class="form-label small mb-0 text-light">Mise $</label>
+                            <input type="text" class="form-control form-control-sm money-input bg-dark text-white border-secondary" name="montant_pret" required placeholder="0">
                         </div>
                         <div class="col-2">
-                            <button type="submit" class="btn btn-success btn-sm w-100">+</button>
+                            <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </form>
                     <small class="text-muted">% calculé automatiquement selon la mise</small>
@@ -3837,6 +3849,21 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 </div>
                 <?php endforeach; ?>
             </div>
+
+            <?php if ($hasMorePhotos): ?>
+            <div class="text-center mt-3">
+                <a href="?id=<?= $projetId ?>&tab=photos&photos_page=<?= $photosPage + 1 ?>"
+                   class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-down-circle me-1"></i>
+                    Voir plus de photos (<?= count($photosProjet) ?> / <?= $totalPhotos ?>)
+                </a>
+            </div>
+            <?php elseif ($totalPhotos > 0): ?>
+            <div class="text-center mt-3 text-muted small">
+                <i class="bi bi-check-circle me-1"></i>
+                <?= $totalPhotos ?> photo<?= $totalPhotos > 1 ? 's' : '' ?> affichée<?= $totalPhotos > 1 ? 's' : '' ?>
+            </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div><!-- Fin TAB PHOTOS -->
 
