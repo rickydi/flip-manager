@@ -140,6 +140,55 @@ $totalPhotos = array_sum(array_column($groupesPhotos, 'nb_photos'));
 include '../../includes/header.php';
 ?>
 
+<style>
+    .photo-thumb {
+        width: 100%;
+        aspect-ratio: 4/3;
+        object-fit: cover;
+        border-radius: 0.375rem;
+    }
+    .video-thumb-container {
+        width: 100%;
+        aspect-ratio: 4/3;
+        background: #1a1d21;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        border-radius: 0.375rem;
+        overflow: hidden;
+    }
+    .video-thumb-container video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    .video-play-btn {
+        position: absolute;
+        z-index: 2;
+        background: rgba(0,0,0,0.6);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Plus de colonnes sur très grands écrans */
+    @media (min-width: 1400px) {
+        .photo-grid-col { flex: 0 0 auto; width: 12.5%; } /* 8 colonnes */
+    }
+    @media (min-width: 1800px) {
+        .photo-grid-col { flex: 0 0 auto; width: 10%; } /* 10 colonnes */
+    }
+    @media (min-width: 2200px) {
+        .photo-grid-col { flex: 0 0 auto; width: 8.333%; } /* 12 colonnes */
+    }
+</style>
+
 <div class="container-fluid">
     <div class="page-header">
         <nav aria-label="breadcrumb">
@@ -308,23 +357,21 @@ include '../../includes/header.php';
                             $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
                             $currentPhotoIndex = $photoIndexCounter++;
                         ?>
-                            <div class="col-6 col-md-3 col-lg-2">
+                            <div class="col-6 col-md-3 col-lg-2 photo-grid-col">
                                 <div class="position-relative">
                                     <a href="javascript:void(0)" onclick="openGallery(<?= $currentPhotoIndex ?>)" class="d-block">
                                         <?php if ($isVideo): ?>
-                                            <div class="video-thumbnail rounded" style="width:100%;height:120px;background:#1a1d21;display:flex;align-items:center;justify-content:center;position:relative;">
-                                                <video src="<?= $mediaUrl ?>"
-                                                       style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;"
-                                                       muted preload="metadata"></video>
-                                                <div style="position:absolute;z-index:2;background:rgba(0,0,0,0.6);border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;">
+                                            <div class="video-thumb-container">
+                                                <video src="<?= $mediaUrl ?>" muted preload="metadata"></video>
+                                                <div class="video-play-btn">
                                                     <i class="bi bi-play-fill text-white" style="font-size:2rem;margin-left:4px;"></i>
                                                 </div>
                                             </div>
                                         <?php else: ?>
-                                            <img src="<?= $mediaUrl ?>"
+                                            <img src="<?= $mediaUrl ?>&thumb=1"
                                                  alt="Photo"
-                                                 class="img-fluid rounded"
-                                                 style="width:100%;height:120px;object-fit:cover;">
+                                                 class="photo-thumb"
+                                                 loading="lazy">
                                         <?php endif; ?>
                                     </a>
                                     <form method="POST" action="" class="position-absolute top-0 end-0" style="margin:2px;">
