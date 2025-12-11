@@ -1696,9 +1696,18 @@ document.querySelectorAll('.tree-toggle[data-bs-toggle="collapse"]').forEach(tog
 });
 
 // ===== INLINE EDITING =====
-// Permet de modifier les noms en cliquant directement dessus
+// Simple clic = naviguer (si href), Double-clic = éditer
 document.querySelectorAll('.editable-name').forEach(el => {
+    // Simple clic: naviguer si href disponible
     el.addEventListener('click', function(e) {
+        const href = this.getAttribute('data-href');
+        if (href && !this.classList.contains('editing')) {
+            window.location.href = href;
+        }
+    });
+
+    // Double-clic: éditer le nom
+    el.addEventListener('dblclick', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
@@ -1708,7 +1717,6 @@ document.querySelectorAll('.editable-name').forEach(el => {
         const originalText = this.textContent.trim();
         const type = this.getAttribute('data-type');
         const id = this.getAttribute('data-id');
-        const href = this.getAttribute('data-href');
 
         // Marquer comme en édition
         this.classList.add('editing');
@@ -1769,14 +1777,6 @@ document.querySelectorAll('.editable-name').forEach(el => {
             // Petit délai pour permettre le click sur autres éléments
             setTimeout(saveEdit, 100);
         });
-    });
-
-    // Double-click pour naviguer (si href disponible)
-    el.addEventListener('dblclick', function(e) {
-        const href = this.getAttribute('data-href');
-        if (href && !this.classList.contains('editing')) {
-            window.location.href = href;
-        }
     });
 });
 
