@@ -4275,12 +4275,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                     ?>
                                     <div class="accordion-item">
                                         <h2 class="accordion-header">
-                                            <button class="accordion-button <?= $idx > 0 ? 'collapsed' : '' ?>" type="button" data-bs-toggle="collapse" data-bs-target="#checklist<?= $tpl['id'] ?>">
+                                            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#checklist<?= $tpl['id'] ?>">
                                                 <span class="me-auto"><?= e($tpl['nom']) ?></span>
                                                 <span class="badge <?= $pctComplete == 100 ? 'bg-success' : 'bg-secondary' ?> me-2"><?= $completedItems ?>/<?= $totalItems ?></span>
                                             </button>
                                         </h2>
-                                        <div id="checklist<?= $tpl['id'] ?>" class="accordion-collapse collapse <?= $idx == 0 ? 'show' : '' ?>">
+                                        <div id="checklist<?= $tpl['id'] ?>" class="accordion-collapse collapse show">
                                             <div class="accordion-body p-0">
                                                 <?php if (empty($tpl['items'])): ?>
                                                     <p class="text-muted small p-3 mb-0">Aucun item dans cette checklist.</p>
@@ -4291,18 +4291,18 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                             $isComplete = !empty($projetChecklists[$item['id']]['complete']);
                                                             $completeDate = $projetChecklists[$item['id']]['complete_date'] ?? null;
                                                             ?>
-                                                            <li class="list-group-item d-flex align-items-center">
+                                                            <li class="list-group-item d-flex align-items-center <?= $isComplete ? 'bg-success bg-opacity-10' : '' ?>">
                                                                 <div class="form-check flex-grow-1">
                                                                     <input class="form-check-input checklist-item" type="checkbox"
                                                                            id="item<?= $item['id'] ?>"
                                                                            data-item-id="<?= $item['id'] ?>"
                                                                            <?= $isComplete ? 'checked' : '' ?>>
-                                                                    <label class="form-check-label <?= $isComplete ? 'text-decoration-line-through text-muted' : '' ?>" for="item<?= $item['id'] ?>">
-                                                                        <?= e($item['nom']) ?>
+                                                                    <label class="form-check-label <?= $isComplete ? 'text-success fw-semibold' : '' ?>" for="item<?= $item['id'] ?>">
+                                                                        <?= $isComplete ? '<i class="bi bi-check-lg me-1"></i>' : '' ?><?= e($item['nom']) ?>
                                                                     </label>
                                                                 </div>
                                                                 <?php if ($isComplete && $completeDate): ?>
-                                                                    <small class="text-muted"><?= date('d/m/Y', strtotime($completeDate)) ?></small>
+                                                                    <small class="text-success"><?= date('d/m/Y', strtotime($completeDate)) ?></small>
                                                                 <?php endif; ?>
                                                             </li>
                                                         <?php endforeach; ?>
@@ -4326,6 +4326,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 const itemId = this.dataset.itemId;
                 const isComplete = this.checked;
                 const label = this.nextElementSibling;
+                const listItem = this.closest('.list-group-item');
 
                 fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
                     method: 'POST',
@@ -4335,8 +4336,22 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        label.classList.toggle('text-decoration-line-through', isComplete);
-                        label.classList.toggle('text-muted', isComplete);
+                        // Toggle green styling
+                        label.classList.toggle('text-success', isComplete);
+                        label.classList.toggle('fw-semibold', isComplete);
+                        listItem.classList.toggle('bg-success', isComplete);
+                        listItem.classList.toggle('bg-opacity-10', isComplete);
+
+                        // Add/remove checkmark icon
+                        if (isComplete) {
+                            if (!label.querySelector('.bi-check-lg')) {
+                                label.insertAdjacentHTML('afterbegin', '<i class="bi bi-check-lg me-1"></i>');
+                            }
+                        } else {
+                            const icon = label.querySelector('.bi-check-lg');
+                            if (icon) icon.remove();
+                        }
+
                         // Update badge count
                         const accordion = checkbox.closest('.accordion-item');
                         if (accordion) {
