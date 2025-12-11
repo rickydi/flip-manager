@@ -737,6 +737,41 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         color: #fff;
         background: rgba(255,255,255,0.2);
     }
+
+    /* Inline editing */
+    .editable-name {
+        cursor: text;
+        padding: 2px 4px;
+        border-radius: 3px;
+        border: 1px solid transparent;
+    }
+    .editable-name:hover {
+        background: rgba(13, 110, 253, 0.1);
+        border-color: rgba(13, 110, 253, 0.2);
+    }
+    .list-group-item.active .editable-name:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+    }
+    .editable-name.editing {
+        background: var(--bg-card, #f8f9fa);
+        border: none;
+        padding: 0;
+    }
+    .editable-input {
+        background: rgba(30, 58, 95, 0.8);
+        border: 1px solid var(--primary-color, #0d6efd);
+        color: #fff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: inherit;
+        width: 100%;
+        min-width: 100px;
+    }
+    .editable-input:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+    }
 </style>
 <?php
 
@@ -778,8 +813,8 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                     <i class="bi <?= $hasChildren ? 'bi-folder-fill text-warning' : 'bi-folder text-warning' ?>"></i>
                 </div>
 
-                <!-- Nom -->
-                <strong class="flex-grow-1"><?= e($sc['nom']) ?></strong>
+                <!-- Nom (éditable) -->
+                <strong class="editable-name flex-grow-1" data-type="sous_categorie" data-id="<?= $uniqueId ?>"><?= e($sc['nom']) ?></strong>
 
                 <!-- Badges -->
                 <?php if ($hasChildren): ?>
@@ -791,7 +826,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
 
                 <!-- Actions -->
                 <div class="btn-group btn-group-sm ms-2">
-                     <button type="button" class="btn btn-outline-primary btn-sm border-0" title="Dupliquer le Kit" 
+                     <button type="button" class="btn btn-outline-primary btn-sm border-0" title="Dupliquer le Kit"
                             onclick="confirmDuplicate(<?= $uniqueId ?>, '<?= addslashes($sc['nom']) ?>')">
                         <i class="bi bi-files"></i>
                     </button>
@@ -800,9 +835,6 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                     </button>
                     <button type="button" class="btn btn-outline-primary btn-sm border-0" data-bs-toggle="modal" data-bs-target="#addMatModal<?= $uniqueId ?>" title="Ajouter item">
                         <i class="bi bi-plus-circle"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm border-0" data-bs-toggle="modal" data-bs-target="#editSousCatModal<?= $uniqueId ?>" title="Renommer">
-                        <i class="bi bi-pencil"></i>
                     </button>
                     <button type="button" class="btn btn-outline-danger btn-sm border-0" data-bs-toggle="modal" data-bs-target="#deleteSousCatModal<?= $uniqueId ?>" title="Supprimer">
                         <i class="bi bi-trash"></i>
@@ -823,15 +855,15 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                                  data-id="<?= $mat['id'] ?>" data-type="materiaux">
                                 <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
-                                <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+                                <span class="editable-name flex-grow-1 small" data-type="materiaux" data-id="<?= $mat['id'] ?>"><?= e($mat['nom']) ?></span>
 
                                 <span class="badge text-light me-2" style="background: rgba(30, 58, 95, 0.8);">x<?= $qte ?></span>
                                 <span class="badge text-info me-2" style="background: rgba(30, 58, 95, 0.9);"><?= formatMoney($mat['prix_defaut']) ?></span>
                                 <span class="badge text-success fw-bold me-2" style="background: rgba(30, 58, 95, 1);"><?= formatMoney($total) ?></span>
 
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-link text-primary p-0 me-2" data-bs-toggle="modal" data-bs-target="#editMatModal<?= $mat['id'] ?>">
-                                        <i class="bi bi-pencil"></i>
+                                    <button type="button" class="btn btn-link text-primary p-0 me-2" data-bs-toggle="modal" data-bs-target="#editMatModal<?= $mat['id'] ?>" title="Modifier prix/quantité">
+                                        <i class="bi bi-gear"></i>
                                     </button>
                                     <button type="button" class="btn btn-link text-danger p-0" data-bs-toggle="modal" data-bs-target="#deleteMatModal<?= $mat['id'] ?>">
                                         <i class="bi bi-x-lg"></i>
@@ -1141,8 +1173,8 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                     <div class="list-group list-group-flush" style="max-height: 30vh; overflow-y: auto;">
                         <?php foreach ($groupes as $idx => $grp): ?>
                             <div class="list-group-item py-1 d-flex justify-content-between align-items-center small">
-                                <span><?= e($grp['nom']) ?></span>
-                                <div class="btn-group btn-group-sm">
+                                <span class="editable-name flex-grow-1" data-type="groupe" data-id="<?= $grp['id'] ?>"><?= e($grp['nom']) ?></span>
+                                <div class="btn-group btn-group-sm ms-2">
                                     <?php if ($idx > 0): ?>
                                     <form method="POST" class="d-inline">
                                         <?php csrfField(); ?>
@@ -1163,9 +1195,6 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                                         </button>
                                     </form>
                                     <?php endif; ?>
-                                    <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editGroupeModal<?= $grp['id'] ?>" title="Modifier">
-                                        <i class="bi bi-pencil" style="font-size: 0.65rem;"></i>
-                                    </button>
                                     <?php if ($grp['code'] !== 'autre'): ?>
                                     <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteGroupeModal<?= $grp['id'] ?>" title="Supprimer">
                                         <i class="bi bi-trash" style="font-size: 0.65rem;"></i>
@@ -1200,13 +1229,11 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                         <?php foreach ($catsInGroupe as $cat): ?>
                             <div class="list-group-item py-1 d-flex justify-content-between align-items-center <?= $categorieId == $cat['id'] ? 'active' : '' ?>" data-id="<?= $cat['id'] ?>">
                                 <i class="bi bi-grip-vertical drag-handle-cat"></i>
-                                <a href="?categorie=<?= $cat['id'] ?>" class="text-decoration-none flex-grow-1 small <?= $categorieId == $cat['id'] ? 'text-white' : '' ?>">
-                                    <?= e($cat['nom']) ?>
-                                </a>
+                                <span class="editable-name flex-grow-1 small <?= $categorieId == $cat['id'] ? 'text-white' : '' ?>"
+                                      data-type="categorie" data-id="<?= $cat['id'] ?>"
+                                      data-href="?categorie=<?= $cat['id'] ?>"
+                                      title="Cliquer pour modifier, double-clic pour ouvrir"><?= e($cat['nom']) ?></span>
                                 <div class="btn-group btn-group-sm ms-1">
-                                    <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCatModal<?= $cat['id'] ?>" title="Modifier">
-                                        <i class="bi bi-pencil" style="font-size: 0.6rem;"></i>
-                                    </button>
                                     <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteCatModal<?= $cat['id'] ?>" title="Supprimer">
                                         <i class="bi bi-trash" style="font-size: 0.7rem;"></i>
                                     </button>
@@ -1649,4 +1676,118 @@ document.querySelectorAll('.tree-toggle[data-bs-toggle="collapse"]').forEach(tog
         });
     }
 });
+
+// ===== INLINE EDITING =====
+// Permet de modifier les noms en cliquant directement dessus
+document.querySelectorAll('.editable-name').forEach(el => {
+    el.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Ne pas éditer si déjà en mode édition
+        if (this.classList.contains('editing')) return;
+
+        const originalText = this.textContent.trim();
+        const type = this.getAttribute('data-type');
+        const id = this.getAttribute('data-id');
+        const href = this.getAttribute('data-href');
+
+        // Marquer comme en édition
+        this.classList.add('editing');
+
+        // Créer l'input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'editable-input';
+        input.value = originalText;
+
+        // Remplacer le contenu
+        this.innerHTML = '';
+        this.appendChild(input);
+        input.focus();
+        input.select();
+
+        // Sauvegarder en appuyant sur Enter ou en quittant le champ
+        const saveEdit = () => {
+            const newText = input.value.trim();
+
+            if (newText && newText !== originalText) {
+                // Sauvegarder via AJAX
+                saveInlineName(type, id, newText)
+                    .then(success => {
+                        if (success) {
+                            el.textContent = newText;
+                        } else {
+                            el.textContent = originalText;
+                        }
+                    })
+                    .catch(() => {
+                        el.textContent = originalText;
+                    });
+            } else {
+                el.textContent = originalText;
+            }
+
+            el.classList.remove('editing');
+        };
+
+        // Annuler avec Escape
+        const cancelEdit = () => {
+            el.textContent = originalText;
+            el.classList.remove('editing');
+        };
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEdit();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit();
+            }
+        });
+
+        input.addEventListener('blur', function() {
+            // Petit délai pour permettre le click sur autres éléments
+            setTimeout(saveEdit, 100);
+        });
+    });
+
+    // Double-click pour naviguer (si href disponible)
+    el.addEventListener('dblclick', function(e) {
+        const href = this.getAttribute('data-href');
+        if (href && !this.classList.contains('editing')) {
+            window.location.href = href;
+        }
+    });
+});
+
+// Fonction AJAX pour sauvegarder le nom
+function saveInlineName(type, id, newName) {
+    return fetch('ajax_update_name.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            type: type,
+            id: id,
+            nom: newName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Nom sauvegardé');
+            return true;
+        } else {
+            alert('Erreur: ' + (data.message || 'Échec de la sauvegarde'));
+            return false;
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        return false;
+    });
+}
 </script>
