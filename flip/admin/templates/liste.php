@@ -1568,19 +1568,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 3. Initialiser le tri des Catégories (par groupe - isolé, pas de déplacement entre groupes)
+    // 3. Initialiser le tri des Catégories (par groupe - peut déplacer entre groupes)
     const categoryLists = document.querySelectorAll('.sortable-categories');
     categoryLists.forEach(function(list) {
-        const groupeName = list.getAttribute('data-groupe');
         new Sortable(list, {
-            group: { name: 'cat-' + groupeName, pull: false, put: false }, // Isolé par groupe
+            group: 'categories', // Permet déplacement entre groupes
             animation: 150,
             handle: '.drag-handle-cat',
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
             onEnd: function (evt) {
-                const items = Array.from(list.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
-                saveOrder('categorie', items, groupeName);
+                const newList = evt.to;
+                const newGroupe = newList.getAttribute('data-groupe');
+                const items = Array.from(newList.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
+                saveOrder('categorie', items, newGroupe);
             }
         });
     });
