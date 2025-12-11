@@ -698,8 +698,10 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         background: #0b5ed7; /* Bleu plus foncé */
         border-color: #0a58ca;
     }
-    .list-group-item.bg-light {
-        background: var(--bg-hover, #e9ecef) !important;
+    .list-group-item.bg-light,
+    .groupe-header {
+        background: rgba(30, 58, 95, 0.6) !important;
+        color: #94a3b8 !important;
     }
 
     /* Drag & drop pour catégories */
@@ -1187,7 +1189,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                         $nbCats = count($catsInGroupe);
                         if ($nbCats > 0):
                         ?>
-                        <div class="list-group-item bg-light py-1 small fw-bold text-muted groupe-header" data-groupe="<?= $groupe ?>">
+                        <div class="list-group-item py-1 small fw-bold groupe-header" data-groupe="<?= $groupe ?>" style="background: rgba(30, 58, 95, 0.6); color: #94a3b8;">
                             <?= $label ?> <span class="badge text-light" style="background: rgba(30, 58, 95, 0.9);"><?= $nbCats ?></span>
                         </div>
                         <div class="sortable-categories" data-groupe="<?= $groupe ?>">
@@ -1558,20 +1560,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // 3. Initialiser le tri des Catégories (par groupe)
+    // 3. Initialiser le tri des Catégories (par groupe - isolé, pas de déplacement entre groupes)
     const categoryLists = document.querySelectorAll('.sortable-categories');
     categoryLists.forEach(function(list) {
+        const groupeName = list.getAttribute('data-groupe');
         new Sortable(list, {
-            group: 'categories',
+            group: { name: 'cat-' + groupeName, pull: false, put: false }, // Isolé par groupe
             animation: 150,
             handle: '.drag-handle-cat',
             ghostClass: 'sortable-ghost',
             dragClass: 'sortable-drag',
             onEnd: function (evt) {
-                const newParentList = evt.to;
-                const groupe = newParentList.getAttribute('data-groupe');
-                const items = Array.from(newParentList.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
-                saveOrder('categorie', items, groupe);
+                const items = Array.from(list.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
+                saveOrder('categorie', items, groupeName);
             }
         });
     });
