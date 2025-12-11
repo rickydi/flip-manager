@@ -622,10 +622,38 @@ include '../includes/header.php';
     </div>
 </div>
 
+<!-- Motion One (animations) -->
+<script src="https://cdn.jsdelivr.net/npm/motion@11.11.13/dist/motion.min.js"></script>
+
 <script>
-// Animation des compteurs
+// Animation des compteurs et cartes
 document.addEventListener('DOMContentLoaded', function() {
+    const { animate, stagger } = Motion;
     const duration = 1500; // Durée de l'animation en ms
+
+    // Animation des stat-cards en cascade
+    animate('.stat-card-modern',
+        { opacity: [0, 1], y: [20, 0], scale: [0.95, 1] },
+        { duration: 0.5, delay: stagger(0.1), easing: [0.22, 1, 0.36, 1] }
+    );
+
+    // Animation des cards principales
+    animate('.dashboard-grid .card, .row > .col-12 > .card',
+        { opacity: [0, 1], y: [30, 0] },
+        { duration: 0.6, delay: stagger(0.15, { start: 0.3 }), easing: 'ease-out' }
+    );
+
+    // Animation des activity items
+    animate('.activity-item',
+        { opacity: [0, 1], x: [-10, 0] },
+        { duration: 0.3, delay: stagger(0.05, { start: 0.5 }) }
+    );
+
+    // Animation des boutons d'action rapide
+    animate('.btn-outline-primary, .btn-outline-secondary',
+        { opacity: [0, 1], scale: [0.9, 1] },
+        { duration: 0.3, delay: stagger(0.08, { start: 0.8 }) }
+    );
 
     // Compteurs simples (nombres entiers)
     document.querySelectorAll('.counter').forEach(counter => {

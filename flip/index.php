@@ -69,6 +69,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 font-size: 1.25rem;
             }
         }
+
+        /* Animations initiales (cachées avant Motion) */
+        .login-logo { opacity: 0; }
+        .login-card form { opacity: 0; }
+        .login-card .alert { opacity: 0; }
+
+        /* Animation shake pour erreur */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .shake { animation: shake 0.6s ease-in-out; }
     </style>
 </head>
 <body>
@@ -140,13 +153,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    
+
+    <!-- Motion One (animations) -->
+    <script src="https://cdn.jsdelivr.net/npm/motion@11.11.13/dist/motion.min.js"></script>
+
     <script>
         // Toggle password visibility
         document.getElementById('togglePassword').addEventListener('click', function() {
             const password = document.getElementById('password');
             const icon = this.querySelector('i');
-            
+
             if (password.type === 'password') {
                 password.type = 'text';
                 icon.className = 'bi bi-eye-slash';
@@ -154,6 +170,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 password.type = 'password';
                 icon.className = 'bi bi-eye';
             }
+        });
+
+        // Animations avec Motion One
+        document.addEventListener('DOMContentLoaded', function() {
+            const { animate, stagger } = Motion;
+
+            // Animation du logo (bounce)
+            animate('.login-logo',
+                { opacity: [0, 1], y: [-30, 0], scale: [0.8, 1] },
+                { duration: 0.6, easing: [0.22, 1, 0.36, 1] }
+            );
+
+            // Animation du formulaire (slide up)
+            animate('.login-card form',
+                { opacity: [0, 1], y: [20, 0] },
+                { duration: 0.5, delay: 0.3, easing: 'ease-out' }
+            );
+
+            // Animation de l'alerte erreur (shake)
+            const alert = document.querySelector('.login-card .alert');
+            if (alert) {
+                animate(alert,
+                    { opacity: [0, 1], x: [-10, 10, -10, 10, 0] },
+                    { duration: 0.5, delay: 0.2 }
+                );
+            }
+
+            // Animation du bouton au hover
+            const submitBtn = document.querySelector('button[type="submit"]');
+            submitBtn.addEventListener('mouseenter', () => {
+                animate(submitBtn, { scale: 1.02 }, { duration: 0.2 });
+            });
+            submitBtn.addEventListener('mouseleave', () => {
+                animate(submitBtn, { scale: 1 }, { duration: 0.2 });
+            });
+
+            // Animation des inputs au focus
+            document.querySelectorAll('.form-control').forEach(input => {
+                input.addEventListener('focus', () => {
+                    animate(input.closest('.input-group'),
+                        { scale: [1, 1.02, 1] },
+                        { duration: 0.3 }
+                    );
+                });
+            });
         });
     </script>
 </body>
