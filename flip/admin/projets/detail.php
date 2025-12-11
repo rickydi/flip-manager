@@ -429,9 +429,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
-// AJAX: Sauvegarde Google Sheet URL
+// AJAX: Ajouter Google Sheet
 // ========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_google_sheet') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'add_google_sheet') {
     header('Content-Type: application/json');
 
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -439,11 +439,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         exit;
     }
 
-    $url = trim($_POST['google_sheet_url'] ?? '');
+    $nom = trim($_POST['nom'] ?? '');
+    $url = trim($_POST['url'] ?? '');
+
+    if (empty($nom) || empty($url)) {
+        echo json_encode(['success' => false, 'error' => 'Nom et URL requis']);
+        exit;
+    }
 
     try {
-        $stmt = $pdo->prepare("UPDATE projets SET google_sheet_url = ? WHERE id = ?");
-        $stmt->execute([$url ?: null, $projetId]);
+        $stmt = $pdo->prepare("INSERT INTO projet_google_sheets (projet_id, nom, url) VALUES (?, ?, ?)");
+        $stmt->execute([$projetId, $nom, $url]);
+        $newId = $pdo->lastInsertId();
+        echo json_encode(['success' => true, 'id' => $newId, 'nom' => $nom, 'url' => $url]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
+// AJAX: Modifier Google Sheet
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'edit_google_sheet') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $sheetId = (int)($_POST['sheet_id'] ?? 0);
+    $nom = trim($_POST['nom'] ?? '');
+    $url = trim($_POST['url'] ?? '');
+
+    try {
+        $stmt = $pdo->prepare("UPDATE projet_google_sheets SET nom = ?, url = ? WHERE id = ? AND projet_id = ?");
+        $stmt->execute([$nom, $url, $sheetId, $projetId]);
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
+// AJAX: Supprimer Google Sheet
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'delete_google_sheet') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $sheetId = (int)($_POST['sheet_id'] ?? 0);
+
+    try {
+        $stmt = $pdo->prepare("DELETE FROM projet_google_sheets WHERE id = ? AND projet_id = ?");
+        $stmt->execute([$sheetId, $projetId]);
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -4322,6 +4377,15 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             $stmt->execute([$projetId]);
             $projetDocuments = $stmt->fetchAll();
         } catch (Exception $e) {}
+
+        // Récupérer les Google Sheets du projet
+        $googleSheets = [];
+        try {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS projet_google_sheets (id INT AUTO_INCREMENT PRIMARY KEY, projet_id INT NOT NULL, nom VARCHAR(255) NOT NULL, url VARCHAR(500) NOT NULL, ordre INT DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            $stmt = $pdo->prepare("SELECT * FROM projet_google_sheets WHERE projet_id = ? ORDER BY ordre, created_at");
+            $stmt->execute([$projetId]);
+            $googleSheets = $stmt->fetchAll();
+        } catch (Exception $e) {}
         ?>
 
         <style>
@@ -4670,79 +4734,200 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <!-- TAB GOOGLE SHEET -->
     <div class="tab-pane fade <?= $tab === 'googlesheet' ? 'show active' : '' ?>" id="googlesheet" role="tabpanel">
         <div class="card">
-            <div class="card-header">
-                <i class="bi bi-table me-2"></i>Google Sheet
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-table me-2"></i>Google Sheets</span>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addSheetModal">
+                    <i class="bi bi-plus-lg me-1"></i>Ajouter
+                </button>
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Lien Google Sheet</label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-dark border-secondary"><i class="bi bi-link-45deg"></i></span>
-                        <input type="url" class="form-control bg-dark text-white border-secondary" id="googleSheetUrl"
-                               value="<?= e($projet['google_sheet_url'] ?? '') ?>"
-                               placeholder="https://docs.google.com/spreadsheets/d/...">
-                        <button type="button" class="btn btn-primary" id="saveGoogleSheetBtn">
-                            <i class="bi bi-check-lg me-1"></i>Sauvegarder
-                        </button>
-                    </div>
-                    <small class="text-muted">Collez le lien de partage de votre Google Sheet (assurez-vous qu'il est partagé en lecture)</small>
-                </div>
-
-                <?php
-                $sheetUrl = $projet['google_sheet_url'] ?? '';
-                $embedUrl = '';
-                if ($sheetUrl) {
-                    // Convertir le lien de partage en lien d'embed
-                    if (preg_match('/\/d\/([a-zA-Z0-9-_]+)/', $sheetUrl, $matches)) {
-                        $sheetId = $matches[1];
-                        $embedUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/preview";
-                    }
-                }
-                ?>
-
-                <?php if ($embedUrl): ?>
-                    <div class="ratio ratio-16x9" style="min-height: 600px;">
-                        <iframe src="<?= e($embedUrl) ?>" frameborder="0" allowfullscreen></iframe>
-                    </div>
-                <?php else: ?>
+                <?php if (empty($googleSheets)): ?>
                     <div class="text-center text-muted py-5" id="noSheetState">
                         <i class="bi bi-table" style="font-size: 3rem;"></i>
                         <p class="mb-0 mt-2">Aucun Google Sheet configuré</p>
-                        <p class="small">Ajoutez un lien ci-dessus pour afficher votre feuille de calcul</p>
+                        <p class="small">Cliquez sur "Ajouter" pour lier un Google Sheet</p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sheetsList">
+                                <?php foreach ($googleSheets as $sheet): ?>
+                                    <?php
+                                    // Créer l'URL d'édition
+                                    $editUrl = $sheet['url'];
+                                    if (preg_match('/\/d\/([a-zA-Z0-9-_]+)/', $sheet['url'], $matches)) {
+                                        $sheetId = $matches[1];
+                                        $editUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/edit";
+                                    }
+                                    ?>
+                                    <tr data-sheet-id="<?= $sheet['id'] ?>">
+                                        <td>
+                                            <i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>
+                                            <?= e($sheet['nom']) ?>
+                                        </td>
+                                        <td class="text-end">
+                                            <a href="<?= e($editUrl) ?>" target="_blank" class="btn btn-sm btn-success me-1" title="Ouvrir et éditer">
+                                                <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-warning me-1 edit-sheet-btn"
+                                                    data-id="<?= $sheet['id'] ?>"
+                                                    data-nom="<?= e($sheet['nom']) ?>"
+                                                    data-url="<?= e($sheet['url']) ?>"
+                                                    title="Modifier">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-sheet-btn"
+                                                    data-id="<?= $sheet['id'] ?>" title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
 
+        <!-- Modal Ajouter -->
+        <div class="modal fade" id="addSheetModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content bg-dark text-white">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Ajouter un Google Sheet</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nom</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="newSheetNom" placeholder="Ex: Budget cuisine">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Lien Google Sheet</label>
+                            <input type="url" class="form-control bg-dark text-white border-secondary" id="newSheetUrl" placeholder="https://docs.google.com/spreadsheets/d/...">
+                            <small class="text-muted">Assurez-vous que le sheet est partagé (en lecture ou édition)</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-primary" id="confirmAddSheet">
+                            <i class="bi bi-plus-lg me-1"></i>Ajouter
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal Modifier -->
+        <div class="modal fade" id="editSheetModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content bg-dark text-white">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier le Google Sheet</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="editSheetId">
+                        <div class="mb-3">
+                            <label class="form-label">Nom</label>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" id="editSheetNom">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Lien Google Sheet</label>
+                            <input type="url" class="form-control bg-dark text-white border-secondary" id="editSheetUrl">
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-primary" id="confirmEditSheet">
+                            <i class="bi bi-check-lg me-1"></i>Sauvegarder
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
-        document.getElementById('saveGoogleSheetBtn')?.addEventListener('click', function() {
-            const url = document.getElementById('googleSheetUrl').value.trim();
-            const btn = this;
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Sauvegarde...';
+        // Ajouter un sheet
+        document.getElementById('confirmAddSheet')?.addEventListener('click', function() {
+            const nom = document.getElementById('newSheetNom').value.trim();
+            const url = document.getElementById('newSheetUrl').value.trim();
+
+            if (!nom || !url) {
+                alert('Veuillez remplir tous les champs');
+                return;
+            }
 
             fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `ajax_action=save_google_sheet&google_sheet_url=${encodeURIComponent(url)}&csrf_token=<?= generateCSRFToken() ?>`
+                body: `ajax_action=add_google_sheet&nom=${encodeURIComponent(nom)}&url=${encodeURIComponent(url)}&csrf_token=<?= generateCSRFToken() ?>`
             })
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Sauvegardé!';
-                    btn.classList.remove('btn-primary');
-                    btn.classList.add('btn-success');
-                    // Recharger pour afficher l'iframe
-                    setTimeout(() => location.reload(), 500);
+                    location.reload();
                 } else {
                     alert('Erreur: ' + (data.error || 'Erreur inconnue'));
-                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Sauvegarder';
-                    btn.disabled = false;
                 }
+            });
+        });
+
+        // Ouvrir modal modifier
+        document.querySelectorAll('.edit-sheet-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.getElementById('editSheetId').value = this.dataset.id;
+                document.getElementById('editSheetNom').value = this.dataset.nom;
+                document.getElementById('editSheetUrl').value = this.dataset.url;
+                new bootstrap.Modal(document.getElementById('editSheetModal')).show();
+            });
+        });
+
+        // Sauvegarder modification
+        document.getElementById('confirmEditSheet')?.addEventListener('click', function() {
+            const id = document.getElementById('editSheetId').value;
+            const nom = document.getElementById('editSheetNom').value.trim();
+            const url = document.getElementById('editSheetUrl').value.trim();
+
+            fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `ajax_action=edit_google_sheet&sheet_id=${id}&nom=${encodeURIComponent(nom)}&url=${encodeURIComponent(url)}&csrf_token=<?= generateCSRFToken() ?>`
             })
-            .catch(() => {
-                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Sauvegarder';
-                btn.disabled = false;
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                }
+            });
+        });
+
+        // Supprimer
+        document.querySelectorAll('.delete-sheet-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (!confirm('Supprimer ce Google Sheet?')) return;
+                const id = this.dataset.id;
+
+                fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `ajax_action=delete_google_sheet&sheet_id=${id}&csrf_token=<?= generateCSRFToken() ?>`
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        this.closest('tr').remove();
+                    }
+                });
             });
         });
         </script>
