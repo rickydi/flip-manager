@@ -27,19 +27,35 @@ $categorieId = $data['categorieId'] ?? null; // ID de la catégorie racine (obli
 $pdo->beginTransaction();
 
 try {
-    if ($type === 'sous_categorie') {
+    if ($type === 'categorie') {
+        // Mise à jour de l'ordre et du groupe pour les catégories
+        foreach ($items as $index => $itemId) {
+            $stmt = $pdo->prepare("
+                UPDATE categories
+                SET ordre = ?,
+                    groupe = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $index + 1,        // Nouvel ordre (1-based)
+                $parentId,         // Ici parentId EST le code du groupe
+                $itemId
+            ]);
+        }
+    }
+    elseif ($type === 'sous_categorie') {
         // Mise à jour de l'ordre et du parent pour les sous-catégories
         foreach ($items as $index => $itemId) {
             $stmt = $pdo->prepare("
-                UPDATE sous_categories 
-                SET ordre = ?, 
-                    parent_id = ?, 
-                    categorie_id = ? 
+                UPDATE sous_categories
+                SET ordre = ?,
+                    parent_id = ?,
+                    categorie_id = ?
                 WHERE id = ?
             ");
             // Si parentId est 'root', on met NULL
             $realParentId = ($parentId === 'root' || $parentId === '') ? null : $parentId;
-            
+
             $stmt->execute([
                 $index + 1,        // Nouvel ordre (1-based)
                 $realParentId,     // Nouveau parent
@@ -47,14 +63,14 @@ try {
                 $itemId
             ]);
         }
-    } 
+    }
     elseif ($type === 'materiaux') {
         // Mise à jour de l'ordre et du parent (sous_categorie_id) pour les matériaux
         foreach ($items as $index => $itemId) {
             $stmt = $pdo->prepare("
-                UPDATE materiaux 
-                SET ordre = ?, 
-                    sous_categorie_id = ? 
+                UPDATE materiaux
+                SET ordre = ?,
+                    sous_categorie_id = ?
                 WHERE id = ?
             ");
             $stmt->execute([

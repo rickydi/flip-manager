@@ -694,8 +694,42 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         background: var(--primary-color, #0d6efd);
         border-color: var(--primary-color, #0d6efd);
     }
+    .list-group-item.active:hover {
+        background: #0b5ed7; /* Bleu plus foncé */
+        border-color: #0a58ca;
+    }
     .list-group-item.bg-light {
         background: var(--bg-hover, #e9ecef) !important;
+    }
+
+    /* Drag & drop pour catégories */
+    .sortable-categories {
+        min-height: 10px;
+    }
+    .sortable-categories .list-group-item {
+        cursor: default;
+    }
+    .sortable-categories .drag-handle-cat {
+        cursor: grab;
+        color: var(--text-muted, #adb5bd);
+        margin-right: 6px;
+        padding: 2px;
+        border-radius: 3px;
+        transition: all 0.2s;
+    }
+    .sortable-categories .drag-handle-cat:hover {
+        color: var(--primary-color, #0d6efd);
+        background: rgba(13, 110, 253, 0.1);
+    }
+    .sortable-categories .drag-handle-cat:active {
+        cursor: grabbing;
+    }
+    .list-group-item.active .drag-handle-cat {
+        color: rgba(255,255,255,0.7);
+    }
+    .list-group-item.active .drag-handle-cat:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.15);
     }
 </style>
 <?php
@@ -1153,44 +1187,27 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                         $nbCats = count($catsInGroupe);
                         if ($nbCats > 0):
                         ?>
-                        <div class="list-group-item bg-light py-1 small fw-bold text-muted">
+                        <div class="list-group-item bg-light py-1 small fw-bold text-muted groupe-header" data-groupe="<?= $groupe ?>">
                             <?= $label ?> <span class="badge bg-secondary"><?= $nbCats ?></span>
                         </div>
-                        <?php foreach ($catsInGroupe as $catIdx => $cat): ?>
-                            <div class="list-group-item py-1 d-flex justify-content-between align-items-center <?= $categorieId == $cat['id'] ? 'active' : '' ?>">
+                        <div class="sortable-categories" data-groupe="<?= $groupe ?>">
+                        <?php foreach ($catsInGroupe as $cat): ?>
+                            <div class="list-group-item py-1 d-flex justify-content-between align-items-center <?= $categorieId == $cat['id'] ? 'active' : '' ?>" data-id="<?= $cat['id'] ?>">
+                                <i class="bi bi-grip-vertical drag-handle-cat"></i>
                                 <a href="?categorie=<?= $cat['id'] ?>" class="text-decoration-none flex-grow-1 small <?= $categorieId == $cat['id'] ? 'text-white' : '' ?>">
                                     <?= e($cat['nom']) ?>
                                 </a>
                                 <div class="btn-group btn-group-sm ms-1">
-                                    <?php if ($catIdx > 0): ?>
-                                    <form method="POST" class="d-inline">
-                                        <?php csrfField(); ?>
-                                        <input type="hidden" name="action" value="monter_categorie">
-                                        <input type="hidden" name="id" value="<?= $cat['id'] ?>">
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Monter">
-                                            <i class="bi bi-arrow-up" style="font-size: 0.6rem;"></i>
-                                        </button>
-                                    </form>
-                                    <?php endif; ?>
-                                    <?php if ($catIdx < $nbCats - 1): ?>
-                                    <form method="POST" class="d-inline">
-                                        <?php csrfField(); ?>
-                                        <input type="hidden" name="action" value="descendre_categorie">
-                                        <input type="hidden" name="id" value="<?= $cat['id'] ?>">
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Descendre">
-                                            <i class="bi bi-arrow-down" style="font-size: 0.6rem;"></i>
-                                        </button>
-                                    </form>
-                                    <?php endif; ?>
                                     <button type="button" class="btn btn-outline-warning btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#editCatModal<?= $cat['id'] ?>" title="Modifier">
                                         <i class="bi bi-pencil" style="font-size: 0.6rem;"></i>
                                     </button>
                                     <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteCatModal<?= $cat['id'] ?>" title="Supprimer">
-                                            <i class="bi bi-trash" style="font-size: 0.7rem;"></i>
-                                        </button>
-                                    </div>
+                                        <i class="bi bi-trash" style="font-size: 0.7rem;"></i>
+                                    </button>
                                 </div>
-                            <?php endforeach; ?>
+                            </div>
+                        <?php endforeach; ?>
+                        </div>
                         <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
@@ -1537,6 +1554,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 const categorieId = new URLSearchParams(window.location.search).get('categorie');
                 
                 saveOrder('sous_categorie', items, newParentId, categorieId);
+            }
+        });
+    });
+
+    // 3. Initialiser le tri des Catégories (par groupe)
+    const categoryLists = document.querySelectorAll('.sortable-categories');
+    categoryLists.forEach(function(list) {
+        new Sortable(list, {
+            group: 'categories',
+            animation: 150,
+            handle: '.drag-handle-cat',
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd: function (evt) {
+                const newParentList = evt.to;
+                const groupe = newParentList.getAttribute('data-groupe');
+                const items = Array.from(newParentList.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
+                saveOrder('categorie', items, groupe);
             }
         });
     });
