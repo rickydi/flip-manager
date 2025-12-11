@@ -1745,6 +1745,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <div class="card-header py-2">
             <i class="bi bi-calculator me-1"></i> Détail des coûts (<?= $dureeReelle ?> mois)
         </div>
+        <div class="row g-0">
+        <!-- COLONNE 1: Achat -> Rénovation -->
+        <div class="col-xl-6 border-end">
         <div class="table-responsive">
             <table class="cost-table">
                 <thead>
@@ -1958,7 +1961,24 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end <?= $diffReno >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffReno) ?></td>
                         <td class="text-end"><?= formatMoney($renoReel) ?></td>
                     </tr>
-                    
+                </tbody>
+            </table>
+        </div>
+        </div><!-- Fin col-xl-6 Achat->Rénovation -->
+
+        <!-- COLONNE 2: Vente -> Profit -->
+        <div class="col-xl-6">
+        <div class="table-responsive">
+            <table class="cost-table">
+                <thead>
+                    <tr>
+                        <th class="col-label">Poste</th>
+                        <th class="col-num text-info">Extrapolé</th>
+                        <th class="col-num">Diff</th>
+                        <th class="col-num text-success">Réel</th>
+                    </tr>
+                </thead>
+                <tbody>
                     <!-- COÛTS DE VENTE -->
                     <tr class="section-header" data-section="vente">
                         <td colspan="4"><i class="bi bi-shop me-1"></i> Vente <i class="bi bi-chevron-down toggle-icon"></i></td>
@@ -2123,7 +2143,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 </tbody>
             </table>
         </div>
-    </div>
+        </div><!-- Fin col-xl-6 Vente->Profit -->
+        </div><!-- Fin row g-0 -->
+    </div><!-- Fin card -->
     </div><!-- Fin col-xxl-4 -->
     </div><!-- Fin row xxl -->
     </div><!-- Fin TAB BASE -->
