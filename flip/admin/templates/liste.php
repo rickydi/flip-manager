@@ -1494,7 +1494,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const newParentId = newParentList.getAttribute('data-parent-id');
                 
                 // Récupérer tous les items de la nouvelle liste pour avoir l'ordre
-                const items = Array.from(newParentList.querySelectorAll('[data-type="materials"]')).map(el => el.getAttribute('data-id'));
+                const items = Array.from(newParentList.querySelectorAll('[data-type="materiaux"]')).map(el => el.getAttribute('data-id'));
                 
                 saveOrder('materiaux', items, newParentId);
             }
