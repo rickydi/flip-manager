@@ -3808,14 +3808,24 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet. Cliquez sur "Ajouter" pour en téléverser.
             </div>
         <style>
+            .photo-grid-col {
+                overflow: hidden;
+                min-width: 0;
+            }
+            .photo-grid-col .position-relative {
+                overflow: hidden;
+            }
             .photo-thumb {
                 width: 100%;
+                max-width: 100%;
                 aspect-ratio: 4/3;
                 object-fit: cover;
                 border-radius: 0.375rem;
+                display: block;
             }
             .video-thumb-container {
                 width: 100%;
+                max-width: 100%;
                 aspect-ratio: 4/3;
                 background: #1a1d21;
                 display: flex;
