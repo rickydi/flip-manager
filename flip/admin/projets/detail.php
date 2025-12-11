@@ -3921,8 +3921,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             .selection-mode .photo-item.selected .position-relative {
                 outline: 3px solid #0d6efd;
                 outline-offset: -3px;
+                border-radius: 0.375rem;
             }
-            .selection-mode .photo-item.selected::after {
+            .selection-mode .photo-item.selected .position-relative::after {
                 content: '';
                 position: absolute;
                 top: 0;
@@ -3932,6 +3933,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 background: rgba(13, 110, 253, 0.2);
                 pointer-events: none;
                 border-radius: 0.375rem;
+                z-index: 5;
             }
             .selection-mode .btn-delete-single {
                 display: none !important;
