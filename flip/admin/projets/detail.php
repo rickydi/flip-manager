@@ -3803,10 +3803,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
 
-        <?php if (empty($photosProjet)): ?>
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet. Cliquez sur "Ajouter" pour en téléverser.
-            </div>
         <style>
             .photo-grid-col {
                 overflow: hidden;
@@ -3854,6 +3850,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 .photo-grid-col { flex: 0 0 auto; width: 8.333%; overflow: hidden; min-width: 0; } /* 12 colonnes */
             }
         </style>
+        <?php if (empty($photosProjet)): ?>
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>Aucune photo pour ce projet. Cliquez sur "Ajouter" pour en téléverser.
+            </div>
         <?php else: ?>
             <div class="row g-2" id="photosGrid">
                 <?php foreach ($photosProjet as $photo):
