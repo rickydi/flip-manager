@@ -1739,11 +1739,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     </form>
     </div><!-- Fin col-xxl-8 -->
 
-    <!-- TABLEAUX DÉTAIL DES COÛTS -->
-    <div class="col-xxl-4">
-    <div class="row">
-    <!-- CARD 1: Achat -> Rénovation -->
-    <div class="col-12 col-xl-6 mb-3">
+    <!-- CARD 1: Détail des coûts (Achat -> Rénovation) -->
+    <div class="col-xxl-2">
     <div class="card h-100">
         <div class="card-header py-2">
             <i class="bi bi-calculator me-1"></i> Détail des coûts (<?= $dureeReelle ?> mois)
@@ -1965,13 +1962,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </table>
         </div>
     </div><!-- Fin card Détail des coûts -->
-    </div><!-- Fin col-xl-6 -->
+    </div><!-- Fin col-xxl-2 -->
 
-    <!-- CARD 2: Vente -> Profit -->
-    <div class="col-12 col-xl-6 mb-3">
+    <!-- CARD 2: Vente séparée (Vente -> Profit) -->
+    <div class="col-xxl-2">
     <div class="card h-100">
         <div class="card-header py-2">
-            <i class="bi bi-shop me-1"></i> Vente séparée
+            <i class="bi bi-shop me-1"></i> Vente
         </div>
         <div class="table-responsive">
             <table class="cost-table">
@@ -2148,10 +2145,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 </tbody>
             </table>
         </div>
-    </div><!-- Fin card Vente séparée -->
-    </div><!-- Fin col-xl-6 -->
-    </div><!-- Fin row -->
-    </div><!-- Fin col-xxl-4 -->
+    </div><!-- Fin card Vente -->
+    </div><!-- Fin col-xxl-2 -->
     </div><!-- Fin row xxl -->
     </div><!-- Fin TAB BASE -->
 
