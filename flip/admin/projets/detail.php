@@ -1740,7 +1740,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     </div><!-- Fin col-xxl-8 -->
 
     <!-- CARD 1: Détail des coûts (Achat -> Rénovation) -->
-    <div class="col-xxl-2">
+    <div class="col-12 col-xl-8 col-xxl-2">
     <div class="card h-100">
         <div class="card-header py-2">
             <i class="bi bi-calculator me-1"></i> Détail des coûts (<?= $dureeReelle ?> mois)
@@ -1965,7 +1965,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     </div><!-- Fin col-xxl-2 -->
 
     <!-- CARD 2: Vente séparée (Vente -> Profit) -->
-    <div class="col-xxl-2">
+    <div class="col-12 col-xl-8 col-xxl-2">
     <div class="card h-100">
         <div class="card-header py-2">
             <i class="bi bi-shop me-1"></i> Vente
