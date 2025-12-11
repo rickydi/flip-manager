@@ -741,8 +741,69 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                                 </div>
                             </div>
                             
-                            <!-- Modals Matériaux (Include existing modals here or keep them in the loop) -->
-                            <!-- Note: Pour alléger le code visualisé, je laisse les modales existantes définies plus bas mais il faut s'assurer qu'elles sont rendues -->
+                            <!-- Modal Modifier Matériau -->
+                            <div class="modal fade" id="editMatModal<?= $mat['id'] ?>" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <form method="POST">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="modifier_materiau">
+                                            <input type="hidden" name="id" value="<?= $mat['id'] ?>">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Modifier le matériau</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Nom *</label>
+                                                    <input type="text" class="form-control" name="nom" value="<?= e($mat['nom']) ?>" required>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-6 mb-3">
+                                                        <label class="form-label">Prix unitaire</label>
+                                                        <div class="input-group">
+                                                            <span class="input-group-text">$</span>
+                                                            <input type="text" class="form-control" name="prix_defaut" value="<?= $mat['prix_defaut'] ?>">
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6 mb-3">
+                                                        <label class="form-label">Quantité</label>
+                                                        <input type="number" class="form-control" name="quantite_defaut" value="<?= $mat['quantite_defaut'] ?? 1 ?>" min="1">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Modal Supprimer Matériau -->
+                            <div class="modal fade" id="deleteMatModal<?= $mat['id'] ?>" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header bg-danger text-white">
+                                            <h5 class="modal-title">Supprimer le matériau</h5>
+                                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Êtes-vous sûr de vouloir supprimer <strong><?= e($mat['nom']) ?></strong>?</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                            <form method="POST" class="d-inline">
+                                                <?php csrfField(); ?>
+                                                <input type="hidden" name="action" value="supprimer_materiau">
+                                                <input type="hidden" name="id" value="<?= $mat['id'] ?>">
+                                                <button type="submit" class="btn btn-danger">Supprimer</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
