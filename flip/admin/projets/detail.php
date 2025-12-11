@@ -1440,6 +1440,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <i class="bi bi-list-check me-1"></i>Checklist
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'documents' ? 'active' : '' ?>" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">
+                    <i class="bi bi-folder me-1"></i>Documents
+                </button>
+            </li>
         </ul>
     </div>
 
@@ -4240,7 +4245,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
         <div class="row">
             <!-- Checklists -->
-            <div class="col-lg-7">
+            <div class="col-12">
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-list-check me-2"></i>Checklists</span>
@@ -4312,53 +4317,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 </div>
             </div>
-
-            <!-- Documents -->
-            <div class="col-lg-5">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <i class="bi bi-folder me-2"></i>Documents
-                    </div>
-                    <div class="card-body">
-                        <!-- Upload form -->
-                        <form id="documentUploadForm" enctype="multipart/form-data" class="mb-3">
-                            <?php csrfField(); ?>
-                            <input type="hidden" name="action" value="upload_document">
-                            <input type="hidden" name="projet_id" value="<?= $projetId ?>">
-                            <div class="input-group">
-                                <input type="file" class="form-control form-control-sm" name="document" id="documentFile" required>
-                                <button type="submit" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-upload me-1"></i>Uploader
-                                </button>
-                            </div>
-                            <small class="text-muted">PDF, Word, Excel, Images (max 10 Mo)</small>
-                        </form>
-
-                        <!-- Documents list -->
-                        <?php if (empty($projetDocuments)): ?>
-                            <div class="text-center text-muted py-3">
-                                <i class="bi bi-folder" style="font-size: 2rem;"></i>
-                                <p class="mb-0 small">Aucun document</p>
-                            </div>
-                        <?php else: ?>
-                            <ul class="list-group list-group-flush" id="documentsList">
-                                <?php foreach ($projetDocuments as $doc): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                        <div>
-                                            <i class="bi bi-file-earmark me-2"></i>
-                                            <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" target="_blank"><?= e($doc['nom']) ?></a>
-                                            <br><small class="text-muted"><?= date('d/m/Y', strtotime($doc['uploaded_at'])) ?> - <?= round($doc['taille'] / 1024) ?> Ko</small>
-                                        </div>
-                                        <button type="button" class="btn btn-sm btn-outline-danger delete-document" data-doc-id="<?= $doc['id'] ?>">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <script>
@@ -4392,7 +4350,79 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 });
             });
         });
+        </script>
+    </div><!-- Fin TAB CHECKLIST -->
 
+    <!-- TAB DOCUMENTS -->
+    <div class="tab-pane fade <?= $tab === 'documents' ? 'show active' : '' ?>" id="documents" role="tabpanel">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-folder me-2"></i>Documents du projet</span>
+            </div>
+            <div class="card-body">
+                <!-- Upload form -->
+                <form id="documentUploadForm" enctype="multipart/form-data" class="mb-4">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="upload_document">
+                    <input type="hidden" name="projet_id" value="<?= $projetId ?>">
+                    <div class="row align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label">Ajouter un document</label>
+                            <input type="file" class="form-control" name="document" id="documentFile" required>
+                            <small class="text-muted">PDF, Word, Excel, Images (max 10 Mo)</small>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-upload me-1"></i>Uploader
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Documents list -->
+                <?php if (empty($projetDocuments)): ?>
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-folder" style="font-size: 3rem;"></i>
+                        <p class="mb-0 mt-2">Aucun document pour ce projet</p>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Date</th>
+                                    <th>Taille</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="documentsList">
+                                <?php foreach ($projetDocuments as $doc): ?>
+                                    <tr>
+                                        <td>
+                                            <i class="bi bi-file-earmark me-2"></i>
+                                            <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" target="_blank" class="text-info"><?= e($doc['nom']) ?></a>
+                                        </td>
+                                        <td><?= date('d/m/Y H:i', strtotime($doc['uploaded_at'])) ?></td>
+                                        <td><?= round($doc['taille'] / 1024) ?> Ko</td>
+                                        <td class="text-end">
+                                            <a href="<?= url('/uploads/documents/' . $doc['fichier']) ?>" download class="btn btn-sm btn-outline-primary me-1">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-danger delete-document" data-doc-id="<?= $doc['id'] ?>">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <script>
         // Document upload
         document.getElementById('documentUploadForm')?.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -4406,7 +4436,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    window.location.href = '<?= url('/admin/projets/detail.php?id=' . $projetId . '&tab=checklist') ?>';
+                    window.location.href = '<?= url('/admin/projets/detail.php?id=' . $projetId . '&tab=documents') ?>';
                 } else {
                     alert(data.error || 'Erreur lors de l\'upload');
                 }
@@ -4427,13 +4457,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        this.closest('li').remove();
+                        this.closest('tr').remove();
                     }
                 });
             });
         });
         </script>
-    </div><!-- Fin TAB CHECKLIST -->
+    </div><!-- Fin TAB DOCUMENTS -->
 
     </div><!-- Fin tab-content -->
 
