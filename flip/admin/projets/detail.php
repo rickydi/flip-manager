@@ -429,6 +429,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
+// AJAX: Sauvegarde Google Sheet URL
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_google_sheet') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $url = trim($_POST['google_sheet_url'] ?? '');
+
+    try {
+        $stmt = $pdo->prepare("UPDATE projets SET google_sheet_url = ? WHERE id = ?");
+        $stmt->execute([$url ?: null, $projetId]);
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
 // AJAX: Sauvegarde automatique des budgets
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_budget') {
@@ -1496,6 +1519,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             <li class="nav-item" role="presentation">
                 <button class="nav-link <?= $tab === 'documents' ? 'active' : '' ?>" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">
                     <i class="bi bi-folder me-1"></i>Documents
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'googlesheet' ? 'active' : '' ?>" id="googlesheet-tab" data-bs-toggle="tab" data-bs-target="#googlesheet" type="button" role="tab">
+                    <i class="bi bi-table me-1"></i>Google Sheet
                 </button>
             </li>
         </ul>
@@ -4638,6 +4666,87 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         });
         </script>
     </div><!-- Fin TAB DOCUMENTS -->
+
+    <!-- TAB GOOGLE SHEET -->
+    <div class="tab-pane fade <?= $tab === 'googlesheet' ? 'show active' : '' ?>" id="googlesheet" role="tabpanel">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-table me-2"></i>Google Sheet
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Lien Google Sheet</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-dark border-secondary"><i class="bi bi-link-45deg"></i></span>
+                        <input type="url" class="form-control bg-dark text-white border-secondary" id="googleSheetUrl"
+                               value="<?= e($projet['google_sheet_url'] ?? '') ?>"
+                               placeholder="https://docs.google.com/spreadsheets/d/...">
+                        <button type="button" class="btn btn-primary" id="saveGoogleSheetBtn">
+                            <i class="bi bi-check-lg me-1"></i>Sauvegarder
+                        </button>
+                    </div>
+                    <small class="text-muted">Collez le lien de partage de votre Google Sheet (assurez-vous qu'il est partagé en lecture)</small>
+                </div>
+
+                <?php
+                $sheetUrl = $projet['google_sheet_url'] ?? '';
+                $embedUrl = '';
+                if ($sheetUrl) {
+                    // Convertir le lien de partage en lien d'embed
+                    if (preg_match('/\/d\/([a-zA-Z0-9-_]+)/', $sheetUrl, $matches)) {
+                        $sheetId = $matches[1];
+                        $embedUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/preview";
+                    }
+                }
+                ?>
+
+                <?php if ($embedUrl): ?>
+                    <div class="ratio ratio-16x9" style="min-height: 600px;">
+                        <iframe src="<?= e($embedUrl) ?>" frameborder="0" allowfullscreen></iframe>
+                    </div>
+                <?php else: ?>
+                    <div class="text-center text-muted py-5" id="noSheetState">
+                        <i class="bi bi-table" style="font-size: 3rem;"></i>
+                        <p class="mb-0 mt-2">Aucun Google Sheet configuré</p>
+                        <p class="small">Ajoutez un lien ci-dessus pour afficher votre feuille de calcul</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <script>
+        document.getElementById('saveGoogleSheetBtn')?.addEventListener('click', function() {
+            const url = document.getElementById('googleSheetUrl').value.trim();
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Sauvegarde...';
+
+            fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `ajax_action=save_google_sheet&google_sheet_url=${encodeURIComponent(url)}&csrf_token=<?= generateCSRFToken() ?>`
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Sauvegardé!';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-success');
+                    // Recharger pour afficher l'iframe
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Sauvegarder';
+                    btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Sauvegarder';
+                btn.disabled = false;
+            });
+        });
+        </script>
+    </div><!-- Fin TAB GOOGLE SHEET -->
 
     </div><!-- Fin tab-content -->
 
