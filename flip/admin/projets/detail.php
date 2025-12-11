@@ -5422,47 +5422,110 @@ function savePhotosOrder() {
     });
 }
 
-// ===== SÉLECTION MULTIPLE DE PHOTOS =====
+// ===== SÉLECTION MULTIPLE DE PHOTOS (Long-press comme Google Photos) =====
 let isSelectionMode = false;
 let selectedPhotos = new Set();
+let longPressTimer = null;
+const LONG_PRESS_DURATION = 500; // 500ms pour activer la sélection
 
-function toggleSelectionMode() {
+// Initialiser les événements long-press sur les photos
+document.addEventListener('DOMContentLoaded', function() {
+    initPhotoLongPress();
+});
+
+function initPhotoLongPress() {
+    document.querySelectorAll('.photo-item').forEach(item => {
+        // Mouse events
+        item.addEventListener('mousedown', function(e) {
+            if (e.button !== 0) return; // Only left click
+            startLongPress(this, e);
+        });
+        item.addEventListener('mouseup', cancelLongPress);
+        item.addEventListener('mouseleave', cancelLongPress);
+
+        // Touch events (mobile)
+        item.addEventListener('touchstart', function(e) {
+            startLongPress(this, e);
+        }, { passive: true });
+        item.addEventListener('touchend', cancelLongPress);
+        item.addEventListener('touchmove', cancelLongPress);
+    });
+}
+
+function startLongPress(photoItem, event) {
+    cancelLongPress();
+    longPressTimer = setTimeout(() => {
+        // Activer le mode sélection si pas déjà actif
+        if (!isSelectionMode) {
+            enterSelectionMode();
+        }
+        // Sélectionner cette photo
+        selectPhoto(photoItem);
+        // Vibration feedback sur mobile
+        if (navigator.vibrate) {
+            navigator.vibrate(50);
+        }
+    }, LONG_PRESS_DURATION);
+}
+
+function cancelLongPress() {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+    }
+}
+
+function enterSelectionMode() {
     const grid = document.getElementById('photosGrid');
     const btn = document.getElementById('btnSelectionner');
     const selectionBar = document.getElementById('selectionBar');
 
-    if (!isSelectionMode) {
-        // Activer le mode sélection
-        isSelectionMode = true;
+    isSelectionMode = true;
+    if (btn) {
         btn.innerHTML = '<i class="bi bi-x-lg me-1"></i>Annuler';
         btn.classList.remove('btn-outline-secondary');
         btn.classList.add('btn-secondary');
-        grid.classList.add('selection-mode');
-        selectionBar.classList.remove('d-none');
+    }
+    grid.classList.add('selection-mode');
+    selectionBar.classList.remove('d-none');
 
-        // Désactiver les liens des photos
-        document.querySelectorAll('.photo-link').forEach(link => {
-            link.dataset.href = link.href;
-            link.removeAttribute('href');
-        });
-    } else {
-        // Désactiver le mode sélection
-        isSelectionMode = false;
+    // Désactiver les liens des photos
+    document.querySelectorAll('.photo-link').forEach(link => {
+        link.dataset.href = link.href;
+        link.removeAttribute('href');
+    });
+}
+
+function exitSelectionMode() {
+    const grid = document.getElementById('photosGrid');
+    const btn = document.getElementById('btnSelectionner');
+    const selectionBar = document.getElementById('selectionBar');
+
+    isSelectionMode = false;
+    if (btn) {
         btn.innerHTML = '<i class="bi bi-check2-square me-1"></i>Sélectionner';
         btn.classList.remove('btn-secondary');
         btn.classList.add('btn-outline-secondary');
-        grid.classList.remove('selection-mode');
-        selectionBar.classList.add('d-none');
+    }
+    grid.classList.remove('selection-mode');
+    selectionBar.classList.add('d-none');
 
-        // Désélectionner tout
-        deselectAllPhotos();
+    // Désélectionner tout
+    deselectAllPhotos();
 
-        // Réactiver les liens des photos
-        document.querySelectorAll('.photo-link').forEach(link => {
-            if (link.dataset.href) {
-                link.href = link.dataset.href;
-            }
-        });
+    // Réactiver les liens des photos
+    document.querySelectorAll('.photo-link').forEach(link => {
+        if (link.dataset.href) {
+            link.href = link.dataset.href;
+        }
+    });
+}
+
+function toggleSelectionMode() {
+    if (isSelectionMode) {
+        exitSelectionMode();
+    } else {
+        enterSelectionMode();
     }
 }
 
@@ -5486,6 +5549,18 @@ function togglePhotoSelection(photoItem, event) {
     }
 
     updateSelectionCount();
+}
+
+function selectPhoto(photoItem) {
+    const photoId = photoItem.dataset.id;
+    const checkbox = photoItem.querySelector('.photo-checkbox');
+
+    if (!selectedPhotos.has(photoId)) {
+        selectedPhotos.add(photoId);
+        photoItem.classList.add('selected');
+        checkbox.checked = true;
+        updateSelectionCount();
+    }
 }
 
 function selectAllPhotos() {
