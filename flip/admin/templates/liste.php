@@ -758,19 +758,27 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         border: none;
         padding: 0;
     }
-    .editable-input {
-        background: rgba(15, 30, 50, 0.95) !important;
-        border: 1px solid var(--primary-color, #0d6efd);
-        color: #fff;
+    .editable-input,
+    .editable-input:focus,
+    .editable-input:active,
+    input.editable-input {
+        background: #0f1e32 !important;
+        background-color: #0f1e32 !important;
+        border: 1px solid var(--primary-color, #0d6efd) !important;
+        color: #fff !important;
         padding: 2px 6px;
         border-radius: 3px;
         font-size: inherit;
         width: 100%;
         min-width: 100px;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
     }
-    .editable-input:focus {
-        outline: none;
-        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+    /* Forcer fond sombre sur toute la ligne en édition */
+    .tree-content:has(.editing),
+    .mat-item:has(.editing),
+    .list-group-item:has(.editing) {
+        background: rgba(15, 30, 50, 0.95) !important;
     }
 
     /* Désactiver les animations Bootstrap collapse */
