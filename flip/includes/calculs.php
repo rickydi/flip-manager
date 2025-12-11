@@ -96,10 +96,9 @@ function calculerMoisEcoules($projet) {
     $diff = $dateAchat->diff($dateFin);
     $mois = ($diff->y * 12) + $diff->m;
 
-    // Ajouter une fraction pour les jours
-    $joursRestants = $diff->d;
-    if ($joursRestants > 0) {
-        $mois += $joursRestants / 30;
+    // Mois entamé = mois complet (cohérent avec le calcul des intérêts)
+    if ($diff->d > 0) {
+        $mois++;
     }
 
     return max(0, $mois);
