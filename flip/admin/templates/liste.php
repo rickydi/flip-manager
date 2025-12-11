@@ -777,10 +777,10 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
 
                 <!-- Badges -->
                 <?php if ($hasChildren): ?>
-                    <span class="badge bg-warning bg-opacity-25 text-warning ms-2"><i class="bi bi-folder-fill me-1"></i><?= count($sc['enfants']) ?></span>
+                    <span class="badge text-warning ms-2" style="background: rgba(30, 58, 95, 0.9);"><i class="bi bi-folder-fill me-1"></i><?= count($sc['enfants']) ?></span>
                 <?php endif; ?>
                 <?php if ($hasMateriaux): ?>
-                    <span class="badge bg-primary bg-opacity-10 text-primary ms-1"><i class="bi bi-box-seam me-1"></i><?= count($sc['materiaux']) ?></span>
+                    <span class="badge text-info ms-1" style="background: rgba(30, 58, 95, 0.9);"><i class="bi bi-box-seam me-1"></i><?= count($sc['materiaux']) ?></span>
                 <?php endif; ?>
 
                 <!-- Actions -->
@@ -819,9 +819,9 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
-                                <span class="badge bg-secondary bg-opacity-10 text-secondary me-2">x<?= $qte ?></span>
-                                <span class="badge bg-primary bg-opacity-10 text-primary me-2"><?= formatMoney($mat['prix_defaut']) ?></span>
-                                <span class="badge bg-success bg-opacity-25 text-success fw-bold me-2"><?= formatMoney($total) ?></span>
+                                <span class="badge text-light me-2" style="background: rgba(30, 58, 95, 0.8);">x<?= $qte ?></span>
+                                <span class="badge text-info me-2" style="background: rgba(30, 58, 95, 0.9);"><?= formatMoney($mat['prix_defaut']) ?></span>
+                                <span class="badge text-success fw-bold me-2" style="background: rgba(30, 58, 95, 1);"><?= formatMoney($total) ?></span>
 
                                 <div class="btn-group btn-group-sm">
                                     <button type="button" class="btn btn-link text-primary p-0 me-2" data-bs-toggle="modal" data-bs-target="#editMatModal<?= $mat['id'] ?>">
@@ -1125,7 +1125,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                     <span>
                         <i class="bi bi-chevron-down collapse-icon me-1"></i>
                         <i class="bi bi-collection me-1"></i>Groupes (volets)
-                        <span class="badge bg-secondary ms-1"><?= count($groupes) ?></span>
+                        <span class="badge text-light ms-1" style="background: rgba(30, 58, 95, 0.9);"><?= count($groupes) ?></span>
                     </span>
                     <button type="button" class="btn btn-success btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#addGroupeModal" title="Nouveau groupe" onclick="event.stopPropagation();">
                         <i class="bi bi-plus-lg"></i>
@@ -1188,7 +1188,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                         if ($nbCats > 0):
                         ?>
                         <div class="list-group-item bg-light py-1 small fw-bold text-muted groupe-header" data-groupe="<?= $groupe ?>">
-                            <?= $label ?> <span class="badge bg-secondary"><?= $nbCats ?></span>
+                            <?= $label ?> <span class="badge text-light" style="background: rgba(30, 58, 95, 0.9);"><?= $nbCats ?></span>
                         </div>
                         <div class="sortable-categories" data-groupe="<?= $groupe ?>">
                         <?php foreach ($catsInGroupe as $cat): ?>
@@ -1295,7 +1295,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                         <div>
                             <i class="bi bi-folder-fill me-1 text-warning"></i>
                             <strong><?= e($categorieSelectionnee['nom']) ?></strong>
-                            <span class="badge bg-secondary ms-2"><?= compterSousCategories($sousCategories) ?> sous-catégories</span>
+                            <span class="badge text-light ms-2" style="background: rgba(30, 58, 95, 0.9);"><?= compterSousCategories($sousCategories) ?> sous-catégories</span>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addSousCatModal">
                             <i class="bi bi-plus-circle me-1"></i>Sous-catégorie
