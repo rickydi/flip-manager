@@ -702,14 +702,22 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     .groupe-header {
         background: rgba(30, 58, 95, 0.6) !important;
         color: #94a3b8 !important;
+        position: relative;
+        z-index: 2;
+        margin-bottom: 0;
     }
 
     /* Drag & drop pour catégories */
     .sortable-categories {
-        min-height: 10px;
+        position: relative;
+        z-index: 1;
+        display: block;
     }
     .sortable-categories .list-group-item {
         cursor: default;
+        position: relative;
+        z-index: 0;
+        margin-top: -1px; /* Pour éviter double bordure */
     }
     .sortable-categories .drag-handle-cat {
         cursor: grab;
@@ -1189,7 +1197,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                         $nbCats = count($catsInGroupe);
                         if ($nbCats > 0):
                         ?>
-                        <div class="list-group-item py-1 small fw-bold groupe-header" data-groupe="<?= $groupe ?>" style="background: rgba(30, 58, 95, 0.6); color: #94a3b8;">
+                        <div class="list-group-item py-1 small fw-bold groupe-header" data-groupe="<?= $groupe ?>">
                             <?= $label ?> <span class="badge text-light" style="background: rgba(30, 58, 95, 0.9);"><?= $nbCats ?></span>
                         </div>
                         <div class="sortable-categories" data-groupe="<?= $groupe ?>">
