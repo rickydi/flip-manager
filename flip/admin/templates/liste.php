@@ -754,12 +754,12 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         border-color: rgba(255, 255, 255, 0.3);
     }
     .editable-name.editing {
-        background: var(--bg-card, #f8f9fa);
+        background: transparent !important;
         border: none;
         padding: 0;
     }
     .editable-input {
-        background: rgba(30, 58, 95, 0.8);
+        background: rgba(15, 30, 50, 0.95) !important;
         border: 1px solid var(--primary-color, #0d6efd);
         color: #fff;
         padding: 2px 6px;
