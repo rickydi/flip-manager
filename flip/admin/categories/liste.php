@@ -221,6 +221,12 @@ include '../../includes/header.php';
             display: flex;
             gap: 0.5rem;
         }
+        .add-to-group-btn {
+            padding: 0.1rem 0.4rem;
+            font-size: 0.75rem;
+            line-height: 1;
+            margin-left: 0.25rem;
+        }
     </style>
 
     <!-- Liste des catégories par groupe - 2 colonnes -->
@@ -231,6 +237,11 @@ include '../../includes/header.php';
                     <i class="bi bi-folder"></i>
                     <?= $label ?>
                     <span class="badge bg-secondary"><?= count($categoriesGroupees[$groupe] ?? []) ?></span>
+                    <button type="button" class="btn btn-sm btn-outline-primary add-to-group-btn"
+                            onclick="event.stopPropagation(); openAddModal('<?= $groupe ?>')"
+                            title="Ajouter une catégorie dans <?= $label ?>">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
                 </div>
 
                 <?php if (empty($categoriesGroupees[$groupe])): ?>
@@ -359,5 +370,19 @@ include '../../includes/header.php';
     </div>
 </div>
 <?php endforeach; ?>
+
+<script>
+function openAddModal(groupe) {
+    // Pré-sélectionner le groupe dans le modal
+    document.getElementById('groupe').value = groupe;
+    // Ouvrir le modal
+    var modal = new bootstrap.Modal(document.getElementById('addModal'));
+    modal.show();
+    // Focus sur le champ nom
+    setTimeout(function() {
+        document.getElementById('nom').focus();
+    }, 500);
+}
+</script>
 
 <?php include '../../includes/footer.php'; ?>
