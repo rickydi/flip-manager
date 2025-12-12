@@ -6220,40 +6220,6 @@ document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(ta
     });
 });
 
-// Edit note modal - populate data when modal opens
-const editNoteModal = document.getElementById('editNoteModal');
-if (editNoteModal) {
-    editNoteModal.addEventListener('show.bs.modal', function(e) {
-        const btn = e.relatedTarget;
-        if (btn) {
-            document.getElementById('editNoteItemId').value = btn.dataset.itemId || '';
-            document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom || '';
-            document.getElementById('editNoteText').value = btn.dataset.notes || '';
-        }
-    });
-}
-
-// Save note button
-document.getElementById('saveNoteBtn')?.addEventListener('click', function() {
-    const itemId = document.getElementById('editNoteItemId').value;
-    const notes = document.getElementById('editNoteText').value.trim();
-    const projetId = <?= $projetId ?>;
-
-    fetch(`<?= url('/admin/projets/detail.php') ?>?id=${projetId}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: `ajax_action=save_checklist_note&item_id=${itemId}&notes=${encodeURIComponent(notes)}&csrf_token=<?= generateCSRFToken() ?>`
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            bootstrap.Modal.getInstance(editNoteModal).hide();
-            location.reload();
-        } else {
-            alert('Erreur: ' + (data.error || 'Erreur inconnue'));
-        }
-    });
-});
 </script>
 
 <!-- Modal Edit Note Checklist (doit être hors des tab-pane) -->
@@ -6281,5 +6247,44 @@ document.getElementById('saveNoteBtn')?.addEventListener('click', function() {
         </div>
     </div>
 </div>
+
+<script>
+// Edit note modal - populate data when modal opens
+const editNoteModal = document.getElementById('editNoteModal');
+if (editNoteModal) {
+    editNoteModal.addEventListener('show.bs.modal', function(e) {
+        const btn = e.relatedTarget;
+        if (btn) {
+            document.getElementById('editNoteItemId').value = btn.dataset.itemId || '';
+            document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom || '';
+            document.getElementById('editNoteText').value = btn.dataset.notes || '';
+        }
+    });
+}
+
+// Save note button
+document.getElementById('saveNoteBtn').addEventListener('click', function() {
+    const itemId = document.getElementById('editNoteItemId').value;
+    const notes = document.getElementById('editNoteText').value.trim();
+
+    fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `ajax_action=save_checklist_note&item_id=${itemId}&notes=${encodeURIComponent(notes)}&csrf_token=<?= generateCSRFToken() ?>`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(editNoteModal).hide();
+            location.reload();
+        } else {
+            alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+        }
+    })
+    .catch(err => {
+        alert('Erreur réseau: ' + err.message);
+    });
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>
