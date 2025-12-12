@@ -306,7 +306,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
-// AJAX: Supprimer checklist item (reset données)
+// AJAX: Supprimer checklist item complètement
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'delete_checklist_item') {
     header('Content-Type: application/json');
@@ -319,9 +319,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     $itemId = (int)($_POST['item_id'] ?? 0);
 
     try {
-        // Supprimer l'entrée de la table projet_checklists (reset complete et notes)
-        $stmt = $pdo->prepare("DELETE FROM projet_checklists WHERE projet_id = ? AND template_item_id = ?");
-        $stmt->execute([$projetId, $itemId]);
+        // Supprimer les données de tous les projets pour cet item
+        $stmt = $pdo->prepare("DELETE FROM projet_checklists WHERE template_item_id = ?");
+        $stmt->execute([$itemId]);
+
+        // Supprimer l'item du template
+        $stmt = $pdo->prepare("DELETE FROM checklist_template_items WHERE id = ?");
+        $stmt->execute([$itemId]);
+
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -6323,13 +6328,13 @@ document.getElementById('saveNoteBtn').addEventListener('click', function() {
     });
 });
 
-// Delete checklist item (reset)
+// Delete checklist item
 document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const itemId = this.dataset.itemId;
         const itemNom = this.dataset.itemNom;
 
-        if (!confirm(`Réinitialiser "${itemNom}" ?\n\nCela va supprimer la note et décocher l'item.`)) {
+        if (!confirm(`Supprimer "${itemNom}" ?\n\nCet item sera supprimé définitivement de la checklist.`)) {
             return;
         }
 
