@@ -282,13 +282,16 @@ include '../../includes/header.php';
                         <div>
                             <strong>Total : </strong><span id="totalFacture">0,00 $</span>
                         </div>
-                        <div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="recalculerTaxes()">
+                                <i class="bi bi-calculator me-1"></i>Recalculer taxes
+                            </button>
                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="sansTaxes()">
                                 <i class="bi bi-x-circle me-1"></i>Sans taxes
                             </button>
                         </div>
                     </div>
-                    <small class="text-muted">Les taxes sont calculées automatiquement. Utilisez "Sans taxes" pour les cas particuliers.</small>
+                    <small class="text-muted">Les taxes sont calculées automatiquement. Utilisez "Recalculer taxes" si vous modifiez le montant.</small>
                 </div>
                 
                 <div class="mb-3">
@@ -410,6 +413,13 @@ function sansTaxes() {
     document.getElementById('tps').classList.add('bg-light');
     document.getElementById('tvq').classList.add('bg-light');
     calculerTotal();
+}
+
+function recalculerTaxes() {
+    taxesActives = true;
+    document.getElementById('tps').classList.remove('bg-light');
+    document.getElementById('tvq').classList.remove('bg-light');
+    calculerTaxesAuto();
 }
 
 function activerTaxes() {
