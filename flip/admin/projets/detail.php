@@ -6333,20 +6333,13 @@ document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
             return;
         }
 
-        alert('DEBUG: Envoi requête pour item ' + itemId);
-
         fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
         })
-        .then(r => {
-            alert('DEBUG: Status ' + r.status);
-            return r.text();
-        })
-        .then(text => {
-            alert('DEBUG: Réponse = ' + text.substring(0, 300));
-            const data = JSON.parse(text);
+        .then(r => r.json())
+        .then(data => {
             if (data.success) {
                 location.reload();
             } else {
@@ -6354,7 +6347,7 @@ document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
             }
         })
         .catch(err => {
-            alert('DEBUG: Erreur = ' + err.message);
+            alert('Erreur: ' + err.message);
         });
     });
 });
