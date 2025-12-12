@@ -277,6 +277,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
+// AJAX: Sauvegarder note checklist
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_checklist_note') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $itemId = (int)($_POST['item_id'] ?? 0);
+    $notes = trim($_POST['notes'] ?? '');
+
+    try {
+        // Utiliser INSERT ... ON DUPLICATE KEY UPDATE pour créer ou mettre à jour
+        $stmt = $pdo->prepare("
+            INSERT INTO projet_checklists (projet_id, template_item_id, notes)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE notes = VALUES(notes)
+        ");
+        $stmt->execute([$projetId, $itemId, $notes ?: null]);
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
 // AJAX: Upload document (single or multiple)
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'upload_document') {
@@ -4456,6 +4485,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                             <?php
                                                             $isComplete = !empty($projetChecklists[$item['id']]['complete']);
                                                             $completeDate = $projetChecklists[$item['id']]['complete_date'] ?? null;
+                                                            $itemNotes = $projetChecklists[$item['id']]['notes'] ?? '';
                                                             ?>
                                                             <li class="list-group-item d-flex align-items-center <?= $isComplete ? 'bg-success bg-opacity-10' : '' ?>">
                                                                 <div class="form-check flex-grow-1">
@@ -4466,7 +4496,20 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                                     <label class="form-check-label <?= $isComplete ? 'text-success fw-semibold' : '' ?>" for="item<?= $item['id'] ?>">
                                                                         <?= $isComplete ? '<i class="bi bi-check-lg me-1"></i>' : '' ?><?= e($item['nom']) ?>
                                                                     </label>
+                                                                    <?php if ($itemNotes): ?>
+                                                                        <i class="bi bi-info-circle text-info ms-2"
+                                                                           data-bs-toggle="tooltip"
+                                                                           data-bs-placement="top"
+                                                                           title="<?= e($itemNotes) ?>"></i>
+                                                                    <?php endif; ?>
                                                                 </div>
+                                                                <button type="button" class="btn btn-sm btn-link text-secondary p-0 me-2 edit-note-btn"
+                                                                        data-item-id="<?= $item['id'] ?>"
+                                                                        data-item-nom="<?= e($item['nom']) ?>"
+                                                                        data-notes="<?= e($itemNotes) ?>"
+                                                                        title="Ajouter/modifier une note">
+                                                                    <i class="bi bi-pencil-square"></i>
+                                                                </button>
                                                                 <?php if ($isComplete && $completeDate): ?>
                                                                     <small class="text-success"><?= date('d/m/Y', strtotime($completeDate)) ?></small>
                                                                 <?php endif; ?>
@@ -4531,7 +4574,68 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 });
             });
         });
+
+        // Initialize tooltips
+        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+            new bootstrap.Tooltip(el);
+        });
+
+        // Edit note button
+        document.querySelectorAll('.edit-note-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.getElementById('editNoteItemId').value = this.dataset.itemId;
+                document.getElementById('editNoteItemNom').textContent = this.dataset.itemNom;
+                document.getElementById('editNoteText').value = this.dataset.notes || '';
+                new bootstrap.Modal(document.getElementById('editNoteModal')).show();
+            });
+        });
+
+        // Save note
+        document.getElementById('saveNoteBtn')?.addEventListener('click', function() {
+            const itemId = document.getElementById('editNoteItemId').value;
+            const notes = document.getElementById('editNoteText').value.trim();
+
+            fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `ajax_action=save_checklist_note&item_id=${itemId}&notes=${encodeURIComponent(notes)}&csrf_token=<?= generateCSRFToken() ?>`
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                }
+            });
+        });
         </script>
+
+        <!-- Modal Edit Note -->
+        <div class="modal fade" id="editNoteModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content bg-dark text-white">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Note pour l'item</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="editNoteItemId">
+                        <p class="text-muted small mb-2">Item: <span id="editNoteItemNom" class="text-white"></span></p>
+                        <div class="mb-3">
+                            <label class="form-label">Note / Info-bulle</label>
+                            <textarea class="form-control bg-dark text-white border-secondary" id="editNoteText" rows="3" placeholder="Entrez une note qui s'affichera en info-bulle..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-primary" id="saveNoteBtn">
+                            <i class="bi bi-check-lg me-1"></i>Sauvegarder
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div><!-- Fin TAB CHECKLIST -->
 
     <!-- TAB DOCUMENTS -->
