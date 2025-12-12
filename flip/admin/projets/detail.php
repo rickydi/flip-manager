@@ -4622,69 +4622,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
             new bootstrap.Tooltip(el);
         });
-
-        // Delete checklist item (reset)
-        document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const itemId = this.dataset.itemId;
-                const itemNom = this.dataset.itemNom;
-
-                if (!confirm(`Réinitialiser "${itemNom}" ?\n\nCela va supprimer la note et décocher l'item.`)) {
-                    return;
-                }
-
-                const listItem = this.closest('.list-group-item');
-                const checkbox = listItem.querySelector('.checklist-item');
-                const label = listItem.querySelector('.form-check-label');
-                const infoIcon = listItem.querySelector('.bi-info-circle');
-                const editBtn = listItem.querySelector('.edit-note-btn');
-
-                fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                    body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        // Uncheck the checkbox
-                        checkbox.checked = false;
-
-                        // Remove green styling
-                        label.classList.remove('text-success', 'fw-semibold');
-                        listItem.classList.remove('bg-success', 'bg-opacity-10');
-
-                        // Remove check icon
-                        const checkIcon = label.querySelector('.bi-check-lg');
-                        if (checkIcon) checkIcon.remove();
-
-                        // Remove info tooltip icon
-                        if (infoIcon) {
-                            const tooltip = bootstrap.Tooltip.getInstance(infoIcon);
-                            if (tooltip) tooltip.dispose();
-                            infoIcon.remove();
-                        }
-
-                        // Reset edit button data
-                        editBtn.dataset.notes = '';
-
-                        // Remove completion date
-                        const dateEl = listItem.querySelector('small.text-success');
-                        if (dateEl) dateEl.remove();
-
-                        // Update badge count
-                        const accordion = listItem.closest('.accordion-item');
-                        if (accordion) {
-                            const badge = accordion.querySelector('.badge');
-                            const checkboxes = accordion.querySelectorAll('.checklist-item');
-                            const checked = accordion.querySelectorAll('.checklist-item:checked').length;
-                            badge.textContent = `${checked}/${checkboxes.length}`;
-                            badge.className = `badge ${checked === checkboxes.length ? 'bg-success' : 'bg-secondary'} me-2`;
-                        }
-                    }
-                });
-            });
-        });
         </script>
     </div><!-- Fin TAB CHECKLIST -->
 
@@ -6387,6 +6324,74 @@ document.getElementById('saveNoteBtn').addEventListener('click', function() {
     })
     .catch(err => {
         alert('Erreur réseau: ' + err.message);
+    });
+});
+
+// Delete checklist item (reset)
+document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const itemId = this.dataset.itemId;
+        const itemNom = this.dataset.itemNom;
+
+        if (!confirm(`Réinitialiser "${itemNom}" ?\n\nCela va supprimer la note et décocher l'item.`)) {
+            return;
+        }
+
+        const listItem = this.closest('.list-group-item');
+        const checkbox = listItem.querySelector('.checklist-item');
+        const label = listItem.querySelector('.form-check-label');
+        const infoIcon = listItem.querySelector('.bi-info-circle');
+        const editBtn = listItem.querySelector('.edit-note-btn');
+
+        fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Uncheck the checkbox
+                checkbox.checked = false;
+
+                // Remove green styling
+                label.classList.remove('text-success', 'fw-semibold');
+                listItem.classList.remove('bg-success', 'bg-opacity-10');
+
+                // Remove check icon
+                const checkIcon = label.querySelector('.bi-check-lg');
+                if (checkIcon) checkIcon.remove();
+
+                // Remove info tooltip icon
+                if (infoIcon) {
+                    const tooltip = bootstrap.Tooltip.getInstance(infoIcon);
+                    if (tooltip) tooltip.dispose();
+                    infoIcon.remove();
+                }
+
+                // Reset edit button data
+                if (editBtn) editBtn.dataset.notes = '';
+
+                // Remove completion date
+                const dateEl = listItem.querySelector('small.text-success');
+                if (dateEl) dateEl.remove();
+
+                // Update badge count
+                const accordion = listItem.closest('.accordion-item');
+                if (accordion) {
+                    const badge = accordion.querySelector('.badge');
+                    const checkboxes = accordion.querySelectorAll('.checklist-item');
+                    const checked = accordion.querySelectorAll('.checklist-item:checked').length;
+                    badge.textContent = `${checked}/${checkboxes.length}`;
+                    badge.className = `badge ${checked === checkboxes.length ? 'bg-success' : 'bg-secondary'} me-2`;
+                }
+            } else {
+                alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+            }
+        })
+        .catch(err => {
+            alert('Erreur réseau: ' + err.message);
+        });
     });
 });
 </script>
