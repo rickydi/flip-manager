@@ -4580,14 +4580,17 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             new bootstrap.Tooltip(el);
         });
 
-        // Edit note button
-        document.querySelectorAll('.edit-note-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.getElementById('editNoteItemId').value = this.dataset.itemId;
-                document.getElementById('editNoteItemNom').textContent = this.dataset.itemNom;
-                document.getElementById('editNoteText').value = this.dataset.notes || '';
+        // Edit note button - use event delegation for reliability
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.edit-note-btn');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                document.getElementById('editNoteItemId').value = btn.dataset.itemId;
+                document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom;
+                document.getElementById('editNoteText').value = btn.dataset.notes || '';
                 new bootstrap.Modal(document.getElementById('editNoteModal')).show();
-            });
+            }
         });
 
         // Save note
