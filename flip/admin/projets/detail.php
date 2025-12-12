@@ -4374,7 +4374,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <i class="bi bi-info-circle me-2"></i>Aucune facture pour ce projet. Cliquez sur "Nouvelle" pour en ajouter.
             </div>
         <?php else: ?>
-            <div class="table-responsive">
+            <div class="table-responsive" style="overflow: visible;">
                 <table class="table table-sm table-hover" id="facturesTable">
                     <thead class="table-dark">
                         <tr>
