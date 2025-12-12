@@ -4504,6 +4504,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                                     <?php endif; ?>
                                                                 </div>
                                                                 <button type="button" class="btn btn-sm btn-link text-secondary p-0 me-2 edit-note-btn"
+                                                                        data-bs-toggle="modal"
+                                                                        data-bs-target="#editNoteModal"
                                                                         data-item-id="<?= $item['id'] ?>"
                                                                         data-item-nom="<?= e($item['nom']) ?>"
                                                                         data-notes="<?= e($itemNotes) ?>"
@@ -4580,18 +4582,18 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             new bootstrap.Tooltip(el);
         });
 
-        // Edit note button - use event delegation for reliability
-        document.addEventListener('click', function(e) {
-            const btn = e.target.closest('.edit-note-btn');
-            if (btn) {
-                e.preventDefault();
-                e.stopPropagation();
-                document.getElementById('editNoteItemId').value = btn.dataset.itemId;
-                document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom;
-                document.getElementById('editNoteText').value = btn.dataset.notes || '';
-                new bootstrap.Modal(document.getElementById('editNoteModal')).show();
-            }
-        });
+        // Edit note modal - populate data when modal opens
+        const editNoteModal = document.getElementById('editNoteModal');
+        if (editNoteModal) {
+            editNoteModal.addEventListener('show.bs.modal', function(e) {
+                const btn = e.relatedTarget;
+                if (btn) {
+                    document.getElementById('editNoteItemId').value = btn.dataset.itemId;
+                    document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom;
+                    document.getElementById('editNoteText').value = btn.dataset.notes || '';
+                }
+            });
+        }
 
         // Save note
         document.getElementById('saveNoteBtn')?.addEventListener('click', function() {
