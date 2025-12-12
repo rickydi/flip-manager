@@ -4758,48 +4758,34 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $editUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/edit";
                             }
                             ?>
-                            <div class="col-6 col-md-4 col-lg-3" data-sheet-id="<?= $sheet['id'] ?>">
-                                <div class="sheet-card position-relative" style="border: 1px solid #3a3a3a; border-radius: 8px; overflow: hidden; transition: all 0.2s; cursor: pointer;"
+                            <div class="col-4 col-md-3 col-lg-2" data-sheet-id="<?= $sheet['id'] ?>">
+                                <div class="sheet-card position-relative" style="border: 1px solid #3a3a3a; border-radius: 8px; overflow: hidden; transition: all 0.2s;"
                                      onmouseover="this.style.borderColor='#0d6efd'; this.style.transform='translateY(-2px)';"
                                      onmouseout="this.style.borderColor='#3a3a3a'; this.style.transform='translateY(0)';">
-                                    <!-- Preview area -->
+                                    <!-- Action buttons -->
+                                    <div class="position-absolute top-0 end-0 p-1" style="z-index: 2;">
+                                        <button type="button" class="btn btn-sm btn-dark btn-opacity-75 p-1 edit-sheet-btn"
+                                                data-id="<?= $sheet['id'] ?>"
+                                                data-nom="<?= e($sheet['nom']) ?>"
+                                                data-url="<?= e($sheet['url']) ?>"
+                                                title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-dark btn-opacity-75 p-1 delete-sheet-btn"
+                                                data-id="<?= $sheet['id'] ?>" title="Supprimer">
+                                            <i class="bi bi-trash text-danger"></i>
+                                        </button>
+                                    </div>
+                                    <!-- Square clickable area -->
                                     <a href="<?= e($editUrl) ?>" target="_blank" class="d-block text-decoration-none">
-                                        <div class="bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="height: 100px;">
-                                            <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 3rem;"></i>
+                                        <div class="bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="aspect-ratio: 1; min-height: 100px;">
+                                            <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 2.5rem;"></i>
+                                        </div>
+                                        <!-- Name -->
+                                        <div class="p-2 bg-dark text-center">
+                                            <small class="text-white text-truncate d-block" title="<?= e($sheet['nom']) ?>"><?= e($sheet['nom']) ?></small>
                                         </div>
                                     </a>
-                                    <!-- Info area -->
-                                    <div class="p-2 bg-dark d-flex align-items-center justify-content-between">
-                                        <a href="<?= e($editUrl) ?>" target="_blank" class="text-white text-decoration-none text-truncate flex-grow-1" title="<?= e($sheet['nom']) ?>">
-                                            <small><?= e($sheet['nom']) ?></small>
-                                        </a>
-                                        <div class="dropdown">
-                                            <button class="btn btn-sm btn-link text-secondary p-0 ms-2" type="button" data-bs-toggle="dropdown">
-                                                <i class="bi bi-three-dots-vertical"></i>
-                                            </button>
-                                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-                                                <li>
-                                                    <a href="<?= e($editUrl) ?>" target="_blank" class="dropdown-item">
-                                                        <i class="bi bi-box-arrow-up-right me-2"></i>Ouvrir
-                                                    </a>
-                                                </li>
-                                                <li>
-                                                    <button type="button" class="dropdown-item edit-sheet-btn"
-                                                            data-id="<?= $sheet['id'] ?>"
-                                                            data-nom="<?= e($sheet['nom']) ?>"
-                                                            data-url="<?= e($sheet['url']) ?>">
-                                                        <i class="bi bi-pencil me-2"></i>Modifier
-                                                    </button>
-                                                </li>
-                                                <li><hr class="dropdown-divider"></li>
-                                                <li>
-                                                    <button type="button" class="dropdown-item text-danger delete-sheet-btn" data-id="<?= $sheet['id'] ?>">
-                                                        <i class="bi bi-trash me-2"></i>Supprimer
-                                                    </button>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         <?php endforeach; ?>
