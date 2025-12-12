@@ -4618,10 +4618,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             });
         });
 
-        // Initialize tooltips
-        document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
-            new bootstrap.Tooltip(el);
-        });
         </script>
     </div><!-- Fin TAB CHECKLIST -->
 
