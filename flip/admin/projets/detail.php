@@ -4418,6 +4418,17 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         ?>
 
         <style>
+            /* Tooltips plus grands */
+            .tooltip {
+                font-size: 1rem !important;
+            }
+            .tooltip-inner {
+                max-width: 350px !important;
+                padding: 10px 15px !important;
+                font-size: 1rem !important;
+                line-height: 1.5 !important;
+            }
+
             /* Animation pulse pour checkbox complétée */
             @keyframes checkPulse {
                 0%, 100% {
