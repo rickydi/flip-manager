@@ -644,14 +644,30 @@ function fillFormWithData(data) {
             }
         }
 
-        // Si non trouvé, ajouter comme nouvelle option
+        // Si non trouvé, ajouter à la base de données ET au dropdown
         if (!found && fournisseurValue !== '__autre__') {
+            // Ajouter au dropdown
             const newOption = document.createElement('option');
             newOption.value = fournisseurValue;
-            newOption.textContent = fournisseurValue;
+            newOption.textContent = fournisseurValue + ' (nouveau)';
             const autreOption = fournisseurSelect.querySelector('option[value="__autre__"]');
             fournisseurSelect.insertBefore(newOption, autreOption);
             fournisseurSelect.value = fournisseurValue;
+
+            // Sauvegarder dans la base de données
+            fetch('<?= url('/api/fournisseur-ajouter.php') ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: 'nom=' + encodeURIComponent(fournisseurValue) + '&csrf_token=<?= generateCSRFToken() ?>'
+            })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success) {
+                    newOption.textContent = fournisseurValue; // Enlever "(nouveau)"
+                    console.log('Fournisseur ajouté:', fournisseurValue);
+                }
+            })
+            .catch(err => console.log('Erreur ajout fournisseur:', err));
         }
     }
 
