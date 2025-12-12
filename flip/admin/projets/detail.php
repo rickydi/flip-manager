@@ -6333,27 +6333,28 @@ document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
             return;
         }
 
+        alert('DEBUG: Envoi requête pour item ' + itemId);
+
         fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
         })
-        .then(r => r.text())
+        .then(r => {
+            alert('DEBUG: Status ' + r.status);
+            return r.text();
+        })
         .then(text => {
-            console.log('Response:', text);
-            try {
-                const data = JSON.parse(text);
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Erreur: ' + (data.error || 'Erreur inconnue'));
-                }
-            } catch(e) {
-                alert('Réponse invalide: ' + text.substring(0, 200));
+            alert('DEBUG: Réponse = ' + text.substring(0, 300));
+            const data = JSON.parse(text);
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (data.error || 'Erreur inconnue'));
             }
         })
         .catch(err => {
-            alert('Erreur réseau: ' + err.message);
+            alert('DEBUG: Erreur = ' + err.message);
         });
     });
 });
