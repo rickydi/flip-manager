@@ -1,11 +1,7 @@
 <?php
 /**
- * Budget Builder - Interface Drag & Drop
+ * Budget Builder - Interface Drag & Drop (Style identique à Templates)
  * Inclus dans detail.php, onglet Budgets
- *
- * Variables disponibles depuis detail.php:
- * - $templatesBudgets, $projetPostes, $projetItems, $projetGroupes
- * - $groupeLabels, $projet, $projetId
  */
 
 // Récupérer les templates en structure arbre pour le catalogue
@@ -65,6 +61,10 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 
 <style>
+/* ========================================
+   STYLES IDENTIQUES À TEMPLATES
+   ======================================== */
+
 /* Container principal avec splitter */
 .budget-builder {
     display: flex;
@@ -77,42 +77,60 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     border: 1px solid var(--border-color, #dee2e6);
 }
 
-/* Colonne gauche - Catalogue */
-.catalogue-panel {
-    width: 35%;
-    min-width: 250px;
-    max-width: 50%;
-    background: var(--bg-card, #fff);
+/* Panneaux */
+.builder-panel {
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--border-color, #dee2e6);
     overflow: hidden;
 }
 
-.catalogue-header {
+.catalogue-panel {
+    width: 40%;
+    min-width: 300px;
+    max-width: 60%;
+    background: var(--bg-card, #fff);
+    border-right: 1px solid var(--border-color, #dee2e6);
+}
+
+.projet-panel {
+    flex: 1;
+    min-width: 300px;
+    background: var(--bg-card, #fff);
+}
+
+.panel-header {
     padding: 12px 16px;
-    background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
-    color: white;
     font-weight: 600;
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.catalogue-content {
+.catalogue-panel .panel-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+    color: white;
+}
+
+.projet-panel .panel-header {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    color: white;
+    justify-content: space-between;
+}
+
+.panel-content {
     flex: 1;
     overflow-y: auto;
-    padding: 8px;
+    padding: 12px;
 }
 
-/* Splitter/Resizer */
+/* Splitter */
 .splitter {
-    width: 6px;
+    width: 8px;
     background: var(--border-color, #dee2e6);
     cursor: col-resize;
     flex-shrink: 0;
-    transition: background 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -123,315 +141,192 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 .splitter::after {
     content: '⋮';
     color: var(--text-muted, #6c757d);
-    font-size: 14px;
+    font-size: 16px;
 }
 .splitter:hover::after, .splitter.dragging::after {
     color: white;
 }
 
-/* Colonne droite - Budget Projet */
-.projet-panel {
-    flex: 1;
-    min-width: 300px;
-    background: var(--bg-card, #fff);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+/* ========================================
+   STYLES ARBRE (copié de templates)
+   ======================================== */
+.tree-item {
+    border-left: 2px solid var(--border-color, #dee2e6);
 }
 
-.projet-header {
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-    color: white;
-    font-weight: 600;
+.tree-content {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    flex-shrink: 0;
+    padding: 8px 12px;
+    background: var(--bg-card, #f8f9fa);
+    border: 1px solid var(--border-color, #e9ecef);
+    margin-bottom: 3px;
+    border-radius: 6px;
+    position: relative;
 }
 
-.projet-totaux {
-    background: rgba(0,0,0,0.1);
-    padding: 8px 16px;
-    display: flex;
-    gap: 20px;
-    font-size: 0.85rem;
-    flex-shrink: 0;
+.tree-content:hover {
+    background: rgba(30, 58, 95, 0.8) !important;
+    border-color: var(--primary-color, #0d6efd);
 }
 
-.projet-totaux .total-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.projet-totaux .total-label {
-    opacity: 0.8;
-    font-size: 0.7rem;
-}
-
-.projet-totaux .total-value {
-    font-weight: 700;
-}
-
-.projet-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-}
-
-.projet-empty {
-    display: flex;
-    flex-direction: column;
+.tree-toggle {
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    margin-right: 6px;
     color: var(--text-muted, #6c757d);
-    text-align: center;
-    padding: 40px;
+    border-radius: 4px;
 }
 
-.projet-empty i {
-    font-size: 4rem;
-    margin-bottom: 16px;
-    opacity: 0.3;
+.tree-toggle:hover {
+    color: var(--primary-color, #0d6efd);
+    background: rgba(13, 110, 253, 0.1);
 }
 
-/* Items du catalogue (draggable) */
-.catalogue-groupe {
-    margin-bottom: 8px;
-}
-
-.catalogue-groupe-header {
-    padding: 8px 12px;
-    background: rgba(30, 58, 95, 0.1);
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: var(--text-primary);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.catalogue-groupe-header:hover {
-    background: rgba(30, 58, 95, 0.15);
-}
-
-.catalogue-groupe-header i.toggle {
-    transition: transform 0.2s;
-}
-
-.catalogue-groupe.collapsed .catalogue-groupe-header i.toggle {
+.tree-toggle.collapsed i,
+[aria-expanded="false"] .tree-toggle i {
     transform: rotate(-90deg);
 }
 
-.catalogue-groupe.collapsed .catalogue-groupe-content {
-    display: none;
+.tree-children {
+    padding-left: 25px;
+    min-height: 5px;
 }
 
-.catalogue-groupe-content {
-    padding-left: 12px;
-    margin-top: 4px;
-}
-
-.catalogue-item {
-    padding: 6px 10px;
-    margin: 2px 0;
-    background: var(--bg-card, #f8f9fa);
-    border: 1px solid var(--border-color, #e9ecef);
-    border-radius: 4px;
-    font-size: 0.8rem;
-    cursor: grab;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-}
-
-.catalogue-item:hover {
-    background: rgba(13, 110, 253, 0.1);
-    border-color: var(--primary-color, #0d6efd);
-    transform: translateX(4px);
-}
-
-.catalogue-item:active {
-    cursor: grabbing;
-}
-
-.catalogue-item .item-icon {
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
-.catalogue-item .item-name {
-    flex: 1;
-}
-
-.catalogue-item .item-prix {
-    color: var(--success-color, #198754);
-    font-weight: 500;
-    font-size: 0.75rem;
-}
-
-.catalogue-item.is-kit {
-    background: linear-gradient(135deg, rgba(13, 110, 253, 0.05) 0%, rgba(13, 110, 253, 0.02) 100%);
-    border-left: 3px solid var(--primary-color, #0d6efd);
-}
-
-.catalogue-item.is-kit .item-icon {
-    color: var(--warning-color, #ffc107);
-}
-
-/* Sous-items (matériaux) */
-.catalogue-subitems {
-    padding-left: 20px;
-    margin-top: 2px;
-}
-
-.catalogue-subitem {
-    padding: 4px 8px;
-    margin: 1px 0;
-    background: transparent;
-    border: 1px dashed var(--border-color, #dee2e6);
-    border-radius: 3px;
-    font-size: 0.75rem;
-    cursor: grab;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.catalogue-subitem:hover {
-    background: rgba(13, 110, 253, 0.05);
-    border-style: solid;
-}
-
-/* Items dans le projet */
-.projet-groupe {
-    margin-bottom: 12px;
-    background: var(--bg-card);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    overflow: hidden;
-}
-
-.projet-groupe-header {
-    padding: 10px 12px;
-    background: rgba(30, 58, 95, 0.9);
-    color: white;
-    font-weight: 600;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.projet-groupe-header .groupe-qte {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.projet-groupe-header .groupe-qte input {
-    width: 50px;
-    text-align: center;
-    background: rgba(255,255,255,0.1);
-    border: 1px solid rgba(255,255,255,0.3);
-    color: white;
-    border-radius: 4px;
-    padding: 2px 4px;
-    font-size: 0.8rem;
-}
-
-.projet-groupe-content {
-    padding: 8px;
-    min-height: 40px;
-}
-
-.projet-item {
-    padding: 8px 10px;
-    margin: 4px 0;
-    background: var(--bg-card, #f8f9fa);
-    border: 1px solid var(--border-color, #e9ecef);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.8rem;
-}
-
-.projet-item:hover {
-    background: rgba(30, 58, 95, 0.05);
-}
-
-.projet-item .item-drag {
-    cursor: grab;
-    color: var(--text-muted);
-    padding: 4px;
-}
-
-.projet-item .item-drag:active {
-    cursor: grabbing;
-}
-
-.projet-item .item-name {
-    flex: 1;
-    font-weight: 500;
-}
-
-.projet-item .item-controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.projet-item .item-qte {
-    width: 60px;
-}
-
-.projet-item .item-prix {
-    width: 80px;
-}
-
-.projet-item .item-total {
-    min-width: 80px;
-    text-align: right;
-    font-weight: 600;
-    color: var(--success-color, #198754);
-}
-
-.projet-item .item-remove {
-    color: var(--danger-color, #dc3545);
-    cursor: pointer;
-    padding: 4px;
-    opacity: 0.6;
-}
-
-.projet-item .item-remove:hover {
-    opacity: 1;
-}
-
-/* Drag & Drop feedback */
+/* Drag styles */
 .sortable-ghost {
     opacity: 0.4;
     background: rgba(13, 110, 253, 0.15) !important;
     border: 2px dashed var(--primary-color, #0d6efd) !important;
+    border-radius: 6px;
 }
 
 .sortable-drag {
-    background: var(--bg-card, #fff) !important;
+    background: var(--bg-card, #f8f9fa) !important;
     box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    cursor: grabbing;
+    border-radius: 6px;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: var(--text-muted, #adb5bd);
+    margin-right: 8px;
+    padding: 4px;
+    border-radius: 4px;
+}
+.drag-handle:hover {
+    color: var(--primary-color, #0d6efd);
+    background: rgba(13, 110, 253, 0.1);
+}
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.type-icon {
+    width: 24px;
+    text-align: center;
+    margin-right: 8px;
+}
+
+.is-kit .tree-content {
+    background: linear-gradient(135deg, rgba(13, 110, 253, 0.05) 0%, rgba(13, 110, 253, 0.02) 100%);
+    border-left: 3px solid var(--primary-color, #0d6efd);
+}
+
+/* Matériaux */
+.tree-content.mat-item {
+    background: var(--bg-card, #f8f9fa);
+    border: 1px dashed var(--border-color, #dee2e6);
+    padding: 6px 10px;
+}
+.tree-content.mat-item:hover {
+    background: rgba(30, 58, 95, 0.8) !important;
+    border-style: solid;
+}
+
+/* Groupes header */
+.groupe-header {
+    background: rgba(30, 58, 95, 0.6) !important;
+    color: #94a3b8 !important;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+.groupe-header:hover {
+    background: rgba(30, 58, 95, 0.8) !important;
+}
+.groupe-header.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+/* Badges */
+.item-badge {
+    background: rgba(30, 58, 95, 0.9);
+    font-size: 0.75rem;
+}
+
+/* Zone de drop vide */
+.drop-zone-empty {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    color: var(--text-muted);
+}
+.drop-zone-empty i {
+    font-size: 3rem;
+    opacity: 0.3;
+    margin-bottom: 16px;
 }
 
 .drop-zone-active {
     background: rgba(5, 150, 105, 0.1) !important;
-    border: 2px dashed #059669 !important;
+    border-color: #059669 !important;
+}
+
+/* Contrôles quantité dans le projet */
+.qte-controls {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.qte-controls input {
+    width: 40px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 0.85rem;
+}
+.qte-controls button {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+}
+
+/* Animation */
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Désactiver animations */
+.collapse, .collapsing {
+    transition: none !important;
+}
+.collapsing {
+    height: auto !important;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
     .budget-builder {
         flex-direction: column;
         height: auto;
@@ -440,10 +335,11 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 100% !important;
+        min-height: 400px;
     }
     .splitter {
         width: 100%;
-        height: 6px;
+        height: 8px;
         cursor: row-resize;
     }
 }
@@ -452,25 +348,25 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 <!-- Barre de totaux sticky -->
 <div class="bg-primary text-white mb-3 rounded" style="font-size: 0.85rem;">
     <div class="px-3 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span><i class="bi bi-calculator me-2"></i>Budget Rénovation</span>
-        <div class="d-flex gap-3 align-items-center">
-            <span class="px-2">
+        <span><i class="bi bi-calculator me-2"></i><strong>Budget Rénovation</strong></span>
+        <div class="d-flex gap-3 align-items-center flex-wrap">
+            <span>
                 <span class="opacity-75">HT:</span>
                 <strong id="totalHT"><?= formatMoney($totalProjetHT) ?></strong>
             </span>
-            <span class="px-2">
+            <span>
                 <span class="opacity-75">Contingence <?= $projet['taux_contingence'] ?>%:</span>
                 <strong id="totalContingence"><?= formatMoney($contingence) ?></strong>
             </span>
-            <span class="px-2">
+            <span>
                 <span class="opacity-75">TPS:</span>
                 <strong id="totalTPS"><?= formatMoney($tps) ?></strong>
             </span>
-            <span class="px-2">
+            <span>
                 <span class="opacity-75">TVQ:</span>
                 <strong id="totalTVQ"><?= formatMoney($tvq) ?></strong>
             </span>
-            <span class="px-2 border-start ps-3">
+            <span class="border-start ps-3">
                 <span class="opacity-75">Total TTC:</span>
                 <strong class="fs-5" id="grandTotal"><?= formatMoney($grandTotal) ?></strong>
             </span>
@@ -480,67 +376,108 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 
 <!-- Container principal -->
 <div class="budget-builder">
-    <!-- Colonne Gauche: Catalogue Templates -->
-    <div class="catalogue-panel" id="cataloguePanel">
-        <div class="catalogue-header">
+
+    <!-- ========================================
+         COLONNE GAUCHE: CATALOGUE TEMPLATES
+         ======================================== -->
+    <div class="catalogue-panel builder-panel" id="cataloguePanel">
+        <div class="panel-header">
             <i class="bi bi-box-seam"></i>
             Catalogue des Templates
+            <span class="badge bg-light text-dark ms-auto"><?= count($templatesBudgets) ?> catégories</span>
         </div>
-        <div class="catalogue-content" id="catalogueContent">
+        <div class="panel-content" id="catalogueContent">
             <?php foreach ($catalogueData as $groupe => $groupeData): ?>
-            <div class="catalogue-groupe" data-groupe="<?= $groupe ?>">
-                <div class="catalogue-groupe-header" onclick="toggleGroupe(this)">
-                    <i class="bi bi-chevron-down toggle"></i>
+            <div class="mb-3">
+                <!-- Header du groupe -->
+                <div class="groupe-header" onclick="toggleCatalogueGroupe(this)" data-groupe="<?= $groupe ?>">
+                    <i class="bi bi-chevron-down collapse-icon"></i>
                     <i class="bi bi-folder-fill text-warning"></i>
-                    <?= e($groupeData['label']) ?>
-                    <span class="badge bg-secondary ms-auto"><?= count($groupeData['categories']) ?></span>
+                    <span class="flex-grow-1"><?= e($groupeData['label']) ?></span>
+                    <span class="badge bg-secondary"><?= count($groupeData['categories']) ?></span>
                 </div>
-                <div class="catalogue-groupe-content">
-                    <?php foreach ($groupeData['categories'] as $catId => $cat): ?>
-                    <?php
+
+                <!-- Contenu du groupe -->
+                <div class="groupe-content" data-groupe="<?= $groupe ?>">
+                    <?php foreach ($groupeData['categories'] as $catId => $cat):
                         $hasContent = !empty($cat['sous_categories']);
                         $totalCat = 0;
+                        $nbItems = 0;
                         foreach ($cat['sous_categories'] ?? [] as $sc) {
                             foreach ($sc['materiaux'] ?? [] as $mat) {
                                 $totalCat += $mat['prix_defaut'] * ($mat['quantite_defaut'] ?? 1);
+                                $nbItems++;
                             }
                         }
                     ?>
-                    <div class="catalogue-item <?= $hasContent ? 'is-kit' : '' ?>"
-                         data-type="categorie"
-                         data-id="<?= $catId ?>"
-                         data-groupe="<?= $groupe ?>"
-                         data-nom="<?= e($cat['nom']) ?>"
-                         data-prix="<?= $totalCat ?>"
-                         draggable="true">
-                        <i class="bi <?= $hasContent ? 'bi-folder-fill' : 'bi-folder' ?> item-icon"></i>
-                        <span class="item-name"><?= e($cat['nom']) ?></span>
-                        <?php if ($totalCat > 0): ?>
-                        <span class="item-prix"><?= formatMoney($totalCat) ?></span>
+                    <div class="tree-item mb-1 <?= $hasContent ? 'is-kit' : '' ?>">
+                        <div class="tree-content catalogue-draggable"
+                             draggable="true"
+                             data-type="categorie"
+                             data-id="<?= $catId ?>"
+                             data-groupe="<?= $groupe ?>"
+                             data-nom="<?= e($cat['nom']) ?>"
+                             data-prix="<?= $totalCat ?>">
+
+                            <i class="bi bi-grip-vertical drag-handle"></i>
+
+                            <?php if ($hasContent): ?>
+                            <span class="tree-toggle" onclick="event.stopPropagation(); toggleTreeItem(this, <?= $catId ?>)">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </span>
+                            <?php else: ?>
+                            <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
+                            <?php endif; ?>
+
+                            <div class="type-icon">
+                                <i class="bi <?= $hasContent ? 'bi-folder-fill text-warning' : 'bi-folder text-warning' ?>"></i>
+                            </div>
+
+                            <strong class="flex-grow-1"><?= e($cat['nom']) ?></strong>
+
+                            <?php if ($nbItems > 0): ?>
+                            <span class="badge item-badge text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><?= $nbItems ?>
+                            </span>
+                            <?php endif; ?>
+
+                            <?php if ($totalCat > 0): ?>
+                            <span class="badge item-badge text-success">
+                                <?= formatMoney($totalCat) ?>
+                            </span>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if ($hasContent): ?>
+                        <div class="collapse show tree-children" id="catContent<?= $catId ?>">
+                            <?php foreach ($cat['sous_categories'] as $scId => $sc): ?>
+                                <?php foreach ($sc['materiaux'] ?? [] as $mat):
+                                    $qte = $mat['quantite_defaut'] ?? 1;
+                                    $total = $mat['prix_defaut'] * $qte;
+                                ?>
+                                <div class="tree-content mat-item catalogue-draggable"
+                                     draggable="true"
+                                     data-type="materiau"
+                                     data-id="<?= $mat['id'] ?>"
+                                     data-cat-id="<?= $catId ?>"
+                                     data-groupe="<?= $groupe ?>"
+                                     data-nom="<?= e($mat['nom']) ?>"
+                                     data-prix="<?= $mat['prix_defaut'] ?>"
+                                     data-qte="<?= $qte ?>">
+
+                                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+
+                                    <span class="badge item-badge text-light me-1">x<?= $qte ?></span>
+                                    <span class="badge item-badge text-info me-1"><?= formatMoney($mat['prix_defaut']) ?></span>
+                                    <span class="badge item-badge text-success fw-bold"><?= formatMoney($total) ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </div>
                         <?php endif; ?>
                     </div>
-
-                    <?php if ($hasContent): ?>
-                    <div class="catalogue-subitems">
-                        <?php foreach ($cat['sous_categories'] as $scId => $sc): ?>
-                            <?php foreach ($sc['materiaux'] ?? [] as $mat): ?>
-                            <div class="catalogue-subitem"
-                                 data-type="materiau"
-                                 data-id="<?= $mat['id'] ?>"
-                                 data-cat-id="<?= $catId ?>"
-                                 data-groupe="<?= $groupe ?>"
-                                 data-nom="<?= e($mat['nom']) ?>"
-                                 data-prix="<?= $mat['prix_defaut'] ?>"
-                                 data-qte="<?= $mat['quantite_defaut'] ?? 1 ?>"
-                                 draggable="true">
-                                <i class="bi bi-box-seam text-primary"></i>
-                                <span class="item-name"><?= e($mat['nom']) ?></span>
-                                <span class="item-prix"><?= formatMoney($mat['prix_defaut']) ?></span>
-                            </div>
-                            <?php endforeach; ?>
-                        <?php endforeach; ?>
-                    </div>
-                    <?php endif; ?>
                     <?php endforeach; ?>
                 </div>
             </div>
@@ -551,9 +488,11 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     <!-- Splitter -->
     <div class="splitter" id="splitter"></div>
 
-    <!-- Colonne Droite: Budget Projet -->
-    <div class="projet-panel" id="projetPanel">
-        <div class="projet-header">
+    <!-- ========================================
+         COLONNE DROITE: BUDGET DU PROJET
+         ======================================== -->
+    <div class="projet-panel builder-panel" id="projetPanel">
+        <div class="panel-header">
             <div>
                 <i class="bi bi-cart3 me-2"></i>
                 Budget du Projet
@@ -564,23 +503,29 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                 <span id="saveSaved" class="d-none"><i class="bi bi-check-circle me-1"></i>Sauvegardé!</span>
             </div>
         </div>
-        <div class="projet-content" id="projetContent">
+        <div class="panel-content" id="projetContent">
             <?php
-            $hasItems = false;
+            $hasAnyItems = false;
             foreach ($groupeLabels as $groupe => $label):
+                // Trouver les items de ce groupe dans le projet
                 $groupeItems = [];
                 foreach ($projetPostes as $catId => $poste) {
                     if (isset($templatesBudgets[$catId]) && $templatesBudgets[$catId]['groupe'] === $groupe) {
-                        $groupeItems[$catId] = $poste;
+                        $groupeItems[$catId] = [
+                            'poste' => $poste,
+                            'cat' => $templatesBudgets[$catId]
+                        ];
                     }
                 }
-                if (!empty($groupeItems)) $hasItems = true;
+                if (!empty($groupeItems)) $hasAnyItems = true;
             ?>
-            <div class="projet-groupe" data-groupe="<?= $groupe ?>" style="<?= empty($groupeItems) ? 'display:none;' : '' ?>">
-                <div class="projet-groupe-header">
-                    <span><i class="bi bi-folder-fill text-warning me-2"></i><?= e($label) ?></span>
-                    <div class="groupe-qte">
-                        <span class="small opacity-75">Qté:</span>
+            <div class="projet-groupe mb-3" data-groupe="<?= $groupe ?>" style="<?= empty($groupeItems) ? 'display:none;' : '' ?>">
+                <!-- Header du groupe -->
+                <div class="groupe-header">
+                    <i class="bi bi-folder-fill text-warning"></i>
+                    <span class="flex-grow-1"><?= e($label) ?></span>
+                    <div class="qte-controls me-2" onclick="event.stopPropagation();">
+                        <span class="small opacity-75 me-1">Qté:</span>
                         <button type="button" class="btn btn-sm btn-outline-light py-0 px-1" onclick="changeGroupeQte('<?= $groupe ?>', -1)">-</button>
                         <input type="number" class="groupe-qte-input" data-groupe="<?= $groupe ?>"
                                value="<?= $projetGroupes[$groupe] ?? 1 ?>" min="1" max="20"
@@ -588,50 +533,104 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                         <button type="button" class="btn btn-sm btn-outline-light py-0 px-1" onclick="changeGroupeQte('<?= $groupe ?>', 1)">+</button>
                     </div>
                 </div>
-                <div class="projet-groupe-content sortable-projet" data-groupe="<?= $groupe ?>">
-                    <?php foreach ($groupeItems as $catId => $poste):
-                        $cat = $templatesBudgets[$catId] ?? null;
-                        if (!$cat) continue;
 
-                        // Calculer le total de cette catégorie
-                        $catTotal = 0;
+                <!-- Zone de drop (items du projet) -->
+                <div class="projet-drop-zone p-2" data-groupe="<?= $groupe ?>">
+                    <?php foreach ($groupeItems as $catId => $data):
+                        $cat = $data['cat'];
+                        $poste = $data['poste'];
                         $qteCat = (int)$poste['quantite'];
                         $qteGroupe = $projetGroupes[$groupe] ?? 1;
 
+                        // Calculer le total
+                        $catTotal = 0;
+                        $nbItemsCat = 0;
                         foreach ($cat['sous_categories'] ?? [] as $sc) {
                             foreach ($sc['materiaux'] ?? [] as $mat) {
                                 if (isset($projetItems[$catId][$mat['id']])) {
                                     $item = $projetItems[$catId][$mat['id']];
                                     $catTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'] * $qteCat * $qteGroupe;
+                                    $nbItemsCat++;
                                 }
                             }
                         }
                     ?>
-                    <div class="projet-item" data-type="categorie" data-id="<?= $catId ?>" data-groupe="<?= $groupe ?>">
-                        <i class="bi bi-grip-vertical item-drag"></i>
-                        <i class="bi bi-folder-fill text-warning"></i>
-                        <span class="item-name"><?= e($cat['nom']) ?></span>
-                        <div class="item-controls">
-                            <div class="input-group input-group-sm item-qte">
-                                <button class="btn btn-outline-secondary py-0" type="button" onclick="changeItemQte(this, -1)">-</button>
-                                <input type="number" class="form-control text-center px-0" value="<?= $qteCat ?>" min="1"
-                                       onchange="updateItemQte(this)" data-cat-id="<?= $catId ?>">
-                                <button class="btn btn-outline-secondary py-0" type="button" onclick="changeItemQte(this, 1)">+</button>
+                    <div class="tree-item mb-1 is-kit projet-item"
+                         data-type="categorie"
+                         data-id="<?= $catId ?>"
+                         data-groupe="<?= $groupe ?>"
+                         data-prix="<?= $catTotal ?>">
+                        <div class="tree-content">
+                            <i class="bi bi-grip-vertical drag-handle"></i>
+
+                            <span class="tree-toggle" onclick="toggleTreeItem(this, 'projet<?= $catId ?>')">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </span>
+
+                            <div class="type-icon">
+                                <i class="bi bi-folder-fill text-warning"></i>
                             </div>
+
+                            <strong class="flex-grow-1"><?= e($cat['nom']) ?></strong>
+
+                            <!-- Quantité catégorie -->
+                            <div class="qte-controls me-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(<?= $catId ?>, -1)">-</button>
+                                <input type="number" class="cat-qte-input" data-cat-id="<?= $catId ?>"
+                                       value="<?= $qteCat ?>" min="1" max="20"
+                                       onchange="updateCatQte(<?= $catId ?>)">
+                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(<?= $catId ?>, 1)">+</button>
+                            </div>
+
+                            <span class="badge item-badge text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><?= $nbItemsCat ?>
+                            </span>
+
+                            <span class="badge item-badge text-success fw-bold cat-total" data-cat-id="<?= $catId ?>">
+                                <?= formatMoney($catTotal * 1.14975) ?>
+                            </span>
+
+                            <button type="button" class="btn btn-sm btn-link text-danger ms-2 p-0" onclick="removeProjetItem(this)" title="Retirer">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
                         </div>
-                        <span class="item-total"><?= formatMoney($catTotal * 1.14975) ?></span>
-                        <i class="bi bi-x-lg item-remove" onclick="removeItem(this)"></i>
+
+                        <!-- Détail des items -->
+                        <div class="collapse show tree-children" id="projetContent<?= $catId ?>">
+                            <?php foreach ($cat['sous_categories'] ?? [] as $sc): ?>
+                                <?php foreach ($sc['materiaux'] ?? [] as $mat):
+                                    if (!isset($projetItems[$catId][$mat['id']])) continue;
+                                    $item = $projetItems[$catId][$mat['id']];
+                                    $qteItem = (int)$item['quantite'];
+                                    $prixItem = (float)$item['prix_unitaire'];
+                                    $totalItem = $prixItem * $qteItem * $qteCat * $qteGroupe;
+                                ?>
+                                <div class="tree-content mat-item projet-mat-item"
+                                     data-mat-id="<?= $mat['id'] ?>"
+                                     data-cat-id="<?= $catId ?>">
+
+                                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+
+                                    <span class="badge item-badge text-light me-1">x<?= $qteItem ?></span>
+                                    <span class="badge item-badge text-info me-1"><?= formatMoney($prixItem) ?></span>
+                                    <span class="badge item-badge text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
+                                </div>
+                                <?php endforeach; ?>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     <?php endforeach; ?>
                 </div>
             </div>
             <?php endforeach; ?>
 
-            <?php if (!$hasItems): ?>
-            <div class="projet-empty" id="projetEmpty">
-                <i class="bi bi-cart-plus"></i>
+            <?php if (!$hasAnyItems): ?>
+            <div class="drop-zone-empty" id="projetEmpty">
+                <i class="bi bi-cart-plus d-block"></i>
                 <h5>Budget vide</h5>
-                <p>Glissez des éléments depuis le catalogue à gauche pour construire votre budget de rénovation.</p>
+                <p class="mb-0">Glissez des éléments depuis le catalogue à gauche<br>pour construire votre budget de rénovation.</p>
             </div>
             <?php endif; ?>
         </div>
@@ -643,11 +642,6 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
         <i class="bi bi-gear me-1"></i>Gérer les templates
     </a>
 </div>
-
-<style>
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -661,7 +655,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     const splitter = document.getElementById('splitter');
     const cataloguePanel = document.getElementById('cataloguePanel');
-    const projetPanel = document.getElementById('projetPanel');
     let isResizing = false;
 
     splitter.addEventListener('mousedown', function(e) {
@@ -673,12 +666,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.addEventListener('mousemove', function(e) {
         if (!isResizing) return;
-
         const container = document.querySelector('.budget-builder');
         const containerRect = container.getBoundingClientRect();
         const newWidth = e.clientX - containerRect.left;
-        const minWidth = 250;
-        const maxWidth = containerRect.width * 0.5;
+        const minWidth = 300;
+        const maxWidth = containerRect.width * 0.6;
 
         if (newWidth >= minWidth && newWidth <= maxWidth) {
             cataloguePanel.style.width = newWidth + 'px';
@@ -695,17 +687,29 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ========================================
-    // TOGGLE GROUPES CATALOGUE
+    // TOGGLE FUNCTIONS
     // ========================================
-    window.toggleGroupe = function(header) {
-        header.closest('.catalogue-groupe').classList.toggle('collapsed');
+    window.toggleCatalogueGroupe = function(header) {
+        header.classList.toggle('collapsed');
+        const groupe = header.dataset.groupe;
+        const content = header.nextElementSibling;
+        if (content) {
+            content.style.display = header.classList.contains('collapsed') ? 'none' : 'block';
+        }
+    };
+
+    window.toggleTreeItem = function(toggle, id) {
+        toggle.classList.toggle('collapsed');
+        const content = document.getElementById('catContent' + id) || document.getElementById('projetContent' + id);
+        if (content) {
+            content.classList.toggle('show');
+        }
     };
 
     // ========================================
     // DRAG & DROP
     // ========================================
-    // Rendre les items du catalogue draggables
-    document.querySelectorAll('.catalogue-item, .catalogue-subitem').forEach(item => {
+    document.querySelectorAll('.catalogue-draggable').forEach(item => {
         item.addEventListener('dragstart', function(e) {
             e.dataTransfer.setData('text/plain', JSON.stringify({
                 type: this.dataset.type,
@@ -716,16 +720,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 prix: parseFloat(this.dataset.prix) || 0,
                 qte: parseInt(this.dataset.qte) || 1
             }));
-            this.classList.add('dragging');
+            this.style.opacity = '0.5';
         });
 
         item.addEventListener('dragend', function() {
-            this.classList.remove('dragging');
+            this.style.opacity = '1';
         });
     });
 
-    // Zones de drop (groupes du projet)
-    document.querySelectorAll('.sortable-projet').forEach(zone => {
+    // Zones de drop
+    document.querySelectorAll('.projet-drop-zone').forEach(zone => {
         zone.addEventListener('dragover', function(e) {
             e.preventDefault();
             this.classList.add('drop-zone-active');
@@ -738,7 +742,6 @@ document.addEventListener('DOMContentLoaded', function() {
         zone.addEventListener('drop', function(e) {
             e.preventDefault();
             this.classList.remove('drop-zone-active');
-
             try {
                 const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                 addItemToProjet(data, this.dataset.groupe);
@@ -748,40 +751,33 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Drop sur le panel projet entier (si vide)
+    // Drop sur contenu projet entier
     document.getElementById('projetContent').addEventListener('dragover', function(e) {
         e.preventDefault();
     });
 
     document.getElementById('projetContent').addEventListener('drop', function(e) {
         e.preventDefault();
-
         try {
             const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-            // Trouver le bon groupe
-            const groupe = data.groupe;
-            const groupeZone = document.querySelector(`.sortable-projet[data-groupe="${groupe}"]`);
-            if (groupeZone) {
-                addItemToProjet(data, groupe);
-            }
+            addItemToProjet(data, data.groupe);
         } catch (err) {
             console.error('Drop error:', err);
         }
     });
 
     // ========================================
-    // AJOUTER ITEM AU PROJET
+    // AJOUTER AU PROJET
     // ========================================
     function addItemToProjet(data, groupe) {
-        // Vérifier si déjà présent
-        const existingItem = document.querySelector(`.projet-item[data-id="${data.catId || data.id}"][data-type="${data.type}"]`);
+        // Vérifier si catégorie déjà présente
+        const existingItem = document.querySelector(`.projet-item[data-id="${data.catId || data.id}"]`);
         if (existingItem) {
-            // Incrémenter la quantité
-            const qteInput = existingItem.querySelector('input[type="number"]');
-            if (qteInput) {
-                qteInput.value = parseInt(qteInput.value) + 1;
-                updateItemQte(qteInput);
-            }
+            // Flash pour indiquer déjà présent
+            existingItem.querySelector('.tree-content').style.background = 'rgba(13, 110, 253, 0.3)';
+            setTimeout(() => {
+                existingItem.querySelector('.tree-content').style.background = '';
+            }, 500);
             return;
         }
 
@@ -791,30 +787,42 @@ document.addEventListener('DOMContentLoaded', function() {
             groupeDiv.style.display = '';
         }
 
-        // Masquer le message "vide"
+        // Masquer le message vide
         const emptyMsg = document.getElementById('projetEmpty');
         if (emptyMsg) emptyMsg.style.display = 'none';
 
-        // Créer l'élément
+        // Créer l'élément (version simplifiée)
         const itemHtml = `
-            <div class="projet-item" data-type="${data.type}" data-id="${data.catId || data.id}" data-groupe="${groupe}">
-                <i class="bi bi-grip-vertical item-drag"></i>
-                <i class="bi ${data.type === 'categorie' ? 'bi-folder-fill text-warning' : 'bi-box-seam text-primary'}"></i>
-                <span class="item-name">${escapeHtml(data.nom)}</span>
-                <div class="item-controls">
-                    <div class="input-group input-group-sm item-qte">
-                        <button class="btn btn-outline-secondary py-0" type="button" onclick="changeItemQte(this, -1)">-</button>
-                        <input type="number" class="form-control text-center px-0" value="${data.qte || 1}" min="1"
-                               onchange="updateItemQte(this)" data-cat-id="${data.catId || data.id}">
-                        <button class="btn btn-outline-secondary py-0" type="button" onclick="changeItemQte(this, 1)">+</button>
+            <div class="tree-item mb-1 is-kit projet-item"
+                 data-type="${data.type}"
+                 data-id="${data.catId || data.id}"
+                 data-groupe="${groupe}"
+                 data-prix="${data.prix}">
+                <div class="tree-content">
+                    <i class="bi bi-grip-vertical drag-handle"></i>
+                    <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
+                    <div class="type-icon">
+                        <i class="bi ${data.type === 'categorie' ? 'bi-folder-fill text-warning' : 'bi-box-seam text-primary'}"></i>
                     </div>
+                    <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
+                    <div class="qte-controls me-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(${data.catId || data.id}, -1)">-</button>
+                        <input type="number" class="cat-qte-input" data-cat-id="${data.catId || data.id}"
+                               value="${data.qte || 1}" min="1" max="20"
+                               onchange="updateCatQte(${data.catId || data.id})">
+                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(${data.catId || data.id}, 1)">+</button>
+                    </div>
+                    <span class="badge item-badge text-success fw-bold cat-total" data-cat-id="${data.catId || data.id}">
+                        ${formatMoney(data.prix * (data.qte || 1) * 1.14975)}
+                    </span>
+                    <button type="button" class="btn btn-sm btn-link text-danger ms-2 p-0" onclick="removeProjetItem(this)" title="Retirer">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
-                <span class="item-total">${formatMoney(data.prix * (data.qte || 1) * 1.14975)}</span>
-                <i class="bi bi-x-lg item-remove" onclick="removeItem(this)"></i>
             </div>
         `;
 
-        const zone = document.querySelector(`.sortable-projet[data-groupe="${groupe}"]`);
+        const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
         if (zone) {
             zone.insertAdjacentHTML('beforeend', itemHtml);
         }
@@ -823,9 +831,6 @@ document.addEventListener('DOMContentLoaded', function() {
         autoSave();
     }
 
-    // ========================================
-    // FONCTIONS UTILITAIRES
-    // ========================================
     function escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;
@@ -836,25 +841,30 @@ document.addEventListener('DOMContentLoaded', function() {
         return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
     }
 
-    window.changeItemQte = function(btn, delta) {
-        const input = btn.parentElement.querySelector('input');
-        const newVal = Math.max(1, parseInt(input.value) + delta);
-        input.value = newVal;
-        updateItemQte(input);
+    // ========================================
+    // QUANTITÉS
+    // ========================================
+    window.changeCatQte = function(catId, delta) {
+        const input = document.querySelector(`.cat-qte-input[data-cat-id="${catId}"]`);
+        if (input) {
+            const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
+            input.value = newVal;
+            updateCatQte(catId);
+        }
     };
 
-    window.updateItemQte = function(input) {
-        const item = input.closest('.projet-item');
-        // Recalculer le total de cet item
+    window.updateCatQte = function(catId) {
         updateTotals();
         autoSave();
     };
 
     window.changeGroupeQte = function(groupe, delta) {
         const input = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
-        const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
-        input.value = newVal;
-        updateGroupeQte(groupe);
+        if (input) {
+            const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
+            input.value = newVal;
+            updateGroupeQte(groupe);
+        }
     };
 
     window.updateGroupeQte = function(groupe) {
@@ -862,20 +872,19 @@ document.addEventListener('DOMContentLoaded', function() {
         autoSave();
     };
 
-    window.removeItem = function(btn) {
+    window.removeProjetItem = function(btn) {
         const item = btn.closest('.projet-item');
         const groupe = item.dataset.groupe;
         item.remove();
 
-        // Vérifier si le groupe est vide
-        const zone = document.querySelector(`.sortable-projet[data-groupe="${groupe}"]`);
-        if (zone && zone.children.length === 0) {
+        // Vérifier si groupe vide
+        const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
+        if (zone && zone.querySelectorAll('.projet-item').length === 0) {
             zone.closest('.projet-groupe').style.display = 'none';
         }
 
-        // Vérifier si tout est vide
-        const allItems = document.querySelectorAll('.projet-item');
-        if (allItems.length === 0) {
+        // Vérifier si tout vide
+        if (document.querySelectorAll('.projet-item').length === 0) {
             const emptyMsg = document.getElementById('projetEmpty');
             if (emptyMsg) emptyMsg.style.display = '';
         }
@@ -889,33 +898,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     function updateTotals() {
         let totalHT = 0;
-        let totalTaxable = 0;
 
         document.querySelectorAll('.projet-item').forEach(item => {
             const catId = item.dataset.id;
             const groupe = item.dataset.groupe;
-            const qteInput = item.querySelector('input[type="number"]');
-            const qteCat = qteInput ? parseInt(qteInput.value) || 1 : 1;
+            const prix = parseFloat(item.dataset.prix) || 0;
+
+            const catQteInput = item.querySelector('.cat-qte-input');
+            const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
+
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-            // TODO: Récupérer le prix réel depuis les données
-            // Pour l'instant on utilise un prix estimé
-            const prixBase = parseFloat(item.dataset.prix) || 0;
-            const itemTotal = prixBase * qteCat * qteGroupe;
-
+            const itemTotal = prix * qteCat * qteGroupe;
             totalHT += itemTotal;
-            totalTaxable += itemTotal; // Simplification: tout taxable
 
-            // Mettre à jour l'affichage
-            const totalSpan = item.querySelector('.item-total');
+            // Mettre à jour affichage
+            const totalSpan = item.querySelector('.cat-total');
             if (totalSpan) {
                 totalSpan.textContent = formatMoney(itemTotal * 1.14975);
             }
         });
 
         const contingence = totalHT * (tauxContingence / 100);
-        const baseTaxable = totalTaxable + contingence;
+        const baseTaxable = totalHT + contingence;
         const tps = baseTaxable * 0.05;
         const tvq = baseTaxable * 0.09975;
         const grandTotal = totalHT + contingence + tps + tvq;
@@ -943,17 +949,16 @@ document.addEventListener('DOMContentLoaded', function() {
         saveTimeout = setTimeout(function() {
             showSaveStatus('saving');
 
-            // Collecter les données
             const items = [];
             const groupes = {};
 
             document.querySelectorAll('.projet-item').forEach(item => {
-                const qteInput = item.querySelector('input[type="number"]');
+                const catQteInput = item.querySelector('.cat-qte-input');
                 items.push({
                     type: item.dataset.type,
                     id: item.dataset.id,
                     groupe: item.dataset.groupe,
-                    quantite: qteInput ? parseInt(qteInput.value) : 1
+                    quantite: catQteInput ? parseInt(catQteInput.value) : 1
                 });
             });
 
@@ -961,12 +966,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 groupes[input.dataset.groupe] = parseInt(input.value) || 1;
             });
 
-            // Envoyer au serveur
             fetch(window.location.href, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ajax_action: 'save_budget_builder',
                     csrf_token: csrfToken,
@@ -991,12 +993,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     }
 
-    // Initialiser SortableJS pour réorganiser les items dans le projet
-    document.querySelectorAll('.sortable-projet').forEach(zone => {
+    // ========================================
+    // SORTABLE (réorganisation dans projet)
+    // ========================================
+    document.querySelectorAll('.projet-drop-zone').forEach(zone => {
         new Sortable(zone, {
             group: 'projet-items',
             animation: 150,
-            handle: '.item-drag',
+            handle: '.drag-handle',
             ghostClass: 'sortable-ghost',
             onEnd: function() {
                 autoSave();
