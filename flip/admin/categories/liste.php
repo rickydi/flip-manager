@@ -240,7 +240,7 @@ include '../../includes/header.php';
                     <button type="button" class="btn btn-sm btn-outline-primary add-to-group-btn"
                             onclick="event.stopPropagation(); openAddModal('<?= $groupe ?>')"
                             title="Ajouter une catégorie dans <?= $label ?>">
-                        <i class="bi bi-plus-circle"></i>
+                        <i class="bi bi-plus-lg"></i>
                     </button>
                 </div>
 
