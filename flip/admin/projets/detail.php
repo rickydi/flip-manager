@@ -335,6 +335,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
+// AJAX: Changer statut facture
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'change_facture_status') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $factureId = (int)($_POST['facture_id'] ?? 0);
+    $newStatus = $_POST['new_status'] ?? '';
+    $validStatuses = ['en_attente', 'approuvee', 'rejetee'];
+
+    if (!in_array($newStatus, $validStatuses)) {
+        echo json_encode(['success' => false, 'error' => 'Statut invalide']);
+        exit;
+    }
+
+    try {
+        $stmt = $pdo->prepare("UPDATE factures SET statut = ? WHERE id = ?");
+        $stmt->execute([$newStatus, $factureId]);
+        echo json_encode(['success' => true, 'status' => $newStatus]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
 // AJAX: Upload document (single or multiple)
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'upload_document') {
@@ -4368,10 +4398,19 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $statusClass = match($f['statut']) {
                                     'approuvee' => 'bg-success',
                                     'rejetee' => 'bg-danger',
-                                    default => 'bg-warning'
+                                    default => 'bg-warning text-dark'
                                 };
                                 ?>
-                                <span class="badge <?= $statusClass ?>"><?= getStatutFactureLabel($f['statut']) ?></span>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm <?= $statusClass ?> dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <?= getStatutFactureLabel($f['statut']) ?>
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item change-facture-status <?= $f['statut'] === 'en_attente' ? 'active' : '' ?>" href="#" data-facture-id="<?= $f['id'] ?>" data-status="en_attente"><i class="bi bi-clock text-warning me-2"></i>En attente</a></li>
+                                        <li><a class="dropdown-item change-facture-status <?= $f['statut'] === 'approuvee' ? 'active' : '' ?>" href="#" data-facture-id="<?= $f['id'] ?>" data-status="approuvee"><i class="bi bi-check-circle text-success me-2"></i>Approuver</a></li>
+                                        <li><a class="dropdown-item change-facture-status <?= $f['statut'] === 'rejetee' ? 'active' : '' ?>" href="#" data-facture-id="<?= $f['id'] ?>" data-status="rejetee"><i class="bi bi-x-circle text-danger me-2"></i>Rejeter</a></li>
+                                    </ul>
+                                </div>
                             </td>
                             <td>
                                 <a href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" class="btn btn-sm btn-outline-primary" title="Modifier">
@@ -6342,6 +6381,32 @@ document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+            }
+        })
+        .catch(err => {
+            alert('Erreur: ' + err.message);
+        });
+    });
+});
+
+// Change facture status
+document.querySelectorAll('.change-facture-status').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const factureId = this.dataset.factureId;
+        const newStatus = this.dataset.status;
+
+        fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `ajax_action=change_facture_status&facture_id=${factureId}&new_status=${newStatus}&csrf_token=<?= generateCSRFToken() ?>`
         })
         .then(r => r.json())
         .then(data => {
