@@ -6351,40 +6351,7 @@ document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                // Uncheck the checkbox
-                checkbox.checked = false;
-
-                // Remove green styling
-                label.classList.remove('text-success', 'fw-semibold');
-                listItem.classList.remove('bg-success', 'bg-opacity-10');
-
-                // Remove check icon
-                const checkIcon = label.querySelector('.bi-check-lg');
-                if (checkIcon) checkIcon.remove();
-
-                // Remove info tooltip icon
-                if (infoIcon) {
-                    const tooltip = bootstrap.Tooltip.getInstance(infoIcon);
-                    if (tooltip) tooltip.dispose();
-                    infoIcon.remove();
-                }
-
-                // Reset edit button data
-                if (editBtn) editBtn.dataset.notes = '';
-
-                // Remove completion date
-                const dateEl = listItem.querySelector('small.text-success');
-                if (dateEl) dateEl.remove();
-
-                // Update badge count
-                const accordion = listItem.closest('.accordion-item');
-                if (accordion) {
-                    const badge = accordion.querySelector('.badge');
-                    const checkboxes = accordion.querySelectorAll('.checklist-item');
-                    const checked = accordion.querySelectorAll('.checklist-item:checked').length;
-                    badge.textContent = `${checked}/${checkboxes.length}`;
-                    badge.className = `badge ${checked === checkboxes.length ? 'bg-success' : 'bg-secondary'} me-2`;
-                }
+                location.reload();
             } else {
                 alert('Erreur: ' + (data.error || 'Erreur inconnue'));
             }
