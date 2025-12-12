@@ -438,7 +438,13 @@ function calculerTotal() {
 }
 
 // Calcul automatique des taxes quand on modifie le montant
-document.getElementById('montantAvantTaxes').addEventListener('input', calculerTaxesAuto);
+document.getElementById('montantAvantTaxes').addEventListener('input', function() {
+    // Réactiver le calcul auto des taxes quand l'utilisateur modifie le montant
+    taxesActives = true;
+    document.getElementById('tps').classList.remove('bg-light');
+    document.getElementById('tvq').classList.remove('bg-light');
+    calculerTaxesAuto();
+});
 
 // Réactiver les taxes si on modifie manuellement
 document.getElementById('tps').addEventListener('focus', function() {
