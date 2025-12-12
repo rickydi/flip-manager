@@ -306,6 +306,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
+// AJAX: Supprimer checklist item (reset données)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'delete_checklist_item') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $itemId = (int)($_POST['item_id'] ?? 0);
+
+    try {
+        // Supprimer l'entrée de la table projet_checklists (reset complete et notes)
+        $stmt = $pdo->prepare("DELETE FROM projet_checklists WHERE projet_id = ? AND template_item_id = ?");
+        $stmt->execute([$projetId, $itemId]);
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
 // AJAX: Upload document (single or multiple)
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'upload_document') {
@@ -4523,6 +4547,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                                         title="Ajouter/modifier une note">
                                                                     <i class="bi bi-pencil-square"></i>
                                                                 </button>
+                                                                <button type="button" class="btn btn-sm btn-link text-danger p-0 me-2 delete-checklist-btn"
+                                                                        data-item-id="<?= $item['id'] ?>"
+                                                                        data-item-nom="<?= e($item['nom']) ?>"
+                                                                        title="Réinitialiser cet item">
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
                                                                 <?php if ($isComplete && $completeDate): ?>
                                                                     <small class="text-success"><?= date('d/m/Y', strtotime($completeDate)) ?></small>
                                                                 <?php endif; ?>
@@ -4591,6 +4621,69 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         // Initialize tooltips
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
             new bootstrap.Tooltip(el);
+        });
+
+        // Delete checklist item (reset)
+        document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const itemId = this.dataset.itemId;
+                const itemNom = this.dataset.itemNom;
+
+                if (!confirm(`Réinitialiser "${itemNom}" ?\n\nCela va supprimer la note et décocher l'item.`)) {
+                    return;
+                }
+
+                const listItem = this.closest('.list-group-item');
+                const checkbox = listItem.querySelector('.checklist-item');
+                const label = listItem.querySelector('.form-check-label');
+                const infoIcon = listItem.querySelector('.bi-info-circle');
+                const editBtn = listItem.querySelector('.edit-note-btn');
+
+                fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        // Uncheck the checkbox
+                        checkbox.checked = false;
+
+                        // Remove green styling
+                        label.classList.remove('text-success', 'fw-semibold');
+                        listItem.classList.remove('bg-success', 'bg-opacity-10');
+
+                        // Remove check icon
+                        const checkIcon = label.querySelector('.bi-check-lg');
+                        if (checkIcon) checkIcon.remove();
+
+                        // Remove info tooltip icon
+                        if (infoIcon) {
+                            const tooltip = bootstrap.Tooltip.getInstance(infoIcon);
+                            if (tooltip) tooltip.dispose();
+                            infoIcon.remove();
+                        }
+
+                        // Reset edit button data
+                        editBtn.dataset.notes = '';
+
+                        // Remove completion date
+                        const dateEl = listItem.querySelector('small.text-success');
+                        if (dateEl) dateEl.remove();
+
+                        // Update badge count
+                        const accordion = listItem.closest('.accordion-item');
+                        if (accordion) {
+                            const badge = accordion.querySelector('.badge');
+                            const checkboxes = accordion.querySelectorAll('.checklist-item');
+                            const checked = accordion.querySelectorAll('.checklist-item:checked').length;
+                            badge.textContent = `${checked}/${checkboxes.length}`;
+                            badge.className = `badge ${checked === checkboxes.length ? 'bg-success' : 'bg-secondary'} me-2`;
+                        }
+                    }
+                });
+            });
         });
         </script>
     </div><!-- Fin TAB CHECKLIST -->
