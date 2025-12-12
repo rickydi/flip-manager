@@ -4748,49 +4748,61 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <p class="small">Cliquez sur "Ajouter" pour lier un Google Sheet</p>
                     </div>
                 <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th class="text-end">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="sheetsList">
-                                <?php foreach ($googleSheets as $sheet): ?>
-                                    <?php
-                                    // Créer l'URL d'édition
-                                    $editUrl = $sheet['url'];
-                                    if (preg_match('/\/d\/([a-zA-Z0-9-_]+)/', $sheet['url'], $matches)) {
-                                        $sheetId = $matches[1];
-                                        $editUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/edit";
-                                    }
-                                    ?>
-                                    <tr data-sheet-id="<?= $sheet['id'] ?>">
-                                        <td>
-                                            <i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>
-                                            <?= e($sheet['nom']) ?>
-                                        </td>
-                                        <td class="text-end">
-                                            <a href="<?= e($editUrl) ?>" target="_blank" class="btn btn-sm btn-success me-1" title="Ouvrir et éditer">
-                                                <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir
-                                            </a>
-                                            <button type="button" class="btn btn-sm btn-outline-warning me-1 edit-sheet-btn"
-                                                    data-id="<?= $sheet['id'] ?>"
-                                                    data-nom="<?= e($sheet['nom']) ?>"
-                                                    data-url="<?= e($sheet['url']) ?>"
-                                                    title="Modifier">
-                                                <i class="bi bi-pencil"></i>
+                    <div class="row g-3" id="sheetsList">
+                        <?php foreach ($googleSheets as $sheet): ?>
+                            <?php
+                            // Créer l'URL d'édition
+                            $editUrl = $sheet['url'];
+                            if (preg_match('/\/d\/([a-zA-Z0-9-_]+)/', $sheet['url'], $matches)) {
+                                $sheetId = $matches[1];
+                                $editUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/edit";
+                            }
+                            ?>
+                            <div class="col-6 col-md-4 col-lg-3" data-sheet-id="<?= $sheet['id'] ?>">
+                                <div class="sheet-card position-relative" style="border: 1px solid #3a3a3a; border-radius: 8px; overflow: hidden; transition: all 0.2s; cursor: pointer;"
+                                     onmouseover="this.style.borderColor='#0d6efd'; this.style.transform='translateY(-2px)';"
+                                     onmouseout="this.style.borderColor='#3a3a3a'; this.style.transform='translateY(0)';">
+                                    <!-- Preview area -->
+                                    <a href="<?= e($editUrl) ?>" target="_blank" class="d-block text-decoration-none">
+                                        <div class="bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="height: 100px;">
+                                            <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 3rem;"></i>
+                                        </div>
+                                    </a>
+                                    <!-- Info area -->
+                                    <div class="p-2 bg-dark d-flex align-items-center justify-content-between">
+                                        <a href="<?= e($editUrl) ?>" target="_blank" class="text-white text-decoration-none text-truncate flex-grow-1" title="<?= e($sheet['nom']) ?>">
+                                            <small><?= e($sheet['nom']) ?></small>
+                                        </a>
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-link text-secondary p-0 ms-2" type="button" data-bs-toggle="dropdown">
+                                                <i class="bi bi-three-dots-vertical"></i>
                                             </button>
-                                            <button type="button" class="btn btn-sm btn-outline-danger delete-sheet-btn"
-                                                    data-id="<?= $sheet['id'] ?>" title="Supprimer">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
+                                                <li>
+                                                    <a href="<?= e($editUrl) ?>" target="_blank" class="dropdown-item">
+                                                        <i class="bi bi-box-arrow-up-right me-2"></i>Ouvrir
+                                                    </a>
+                                                </li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item edit-sheet-btn"
+                                                            data-id="<?= $sheet['id'] ?>"
+                                                            data-nom="<?= e($sheet['nom']) ?>"
+                                                            data-url="<?= e($sheet['url']) ?>">
+                                                        <i class="bi bi-pencil me-2"></i>Modifier
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item text-danger delete-sheet-btn" data-id="<?= $sheet['id'] ?>">
+                                                        <i class="bi bi-trash me-2"></i>Supprimer
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
@@ -4925,7 +4937,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 .then(r => r.json())
                 .then(data => {
                     if (data.success) {
-                        this.closest('tr').remove();
+                        this.closest('[data-sheet-id]').remove();
                     }
                 });
             });
