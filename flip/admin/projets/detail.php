@@ -4758,32 +4758,32 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $editUrl = "https://docs.google.com/spreadsheets/d/{$sheetId}/edit";
                             }
                             ?>
-                            <div class="col-4 col-md-3 col-lg-2" data-sheet-id="<?= $sheet['id'] ?>">
-                                <div class="sheet-card position-relative" style="border: 1px solid #3a3a3a; border-radius: 8px; overflow: hidden; transition: all 0.2s;"
+                            <div class="col-3 col-md-2 col-lg-1" data-sheet-id="<?= $sheet['id'] ?>">
+                                <div class="sheet-card position-relative" style="border: 1px solid #3a3a3a; border-radius: 6px; overflow: hidden; transition: all 0.2s;"
                                      onmouseover="this.style.borderColor='#0d6efd'; this.style.transform='translateY(-2px)';"
                                      onmouseout="this.style.borderColor='#3a3a3a'; this.style.transform='translateY(0)';">
                                     <!-- Action buttons -->
-                                    <div class="position-absolute top-0 end-0 p-1" style="z-index: 2;">
-                                        <button type="button" class="btn btn-sm btn-dark btn-opacity-75 p-1 edit-sheet-btn"
+                                    <div class="position-absolute top-0 end-0" style="z-index: 2;">
+                                        <button type="button" class="btn btn-sm btn-dark p-0 px-1 edit-sheet-btn" style="font-size: 0.65rem;"
                                                 data-id="<?= $sheet['id'] ?>"
                                                 data-nom="<?= e($sheet['nom']) ?>"
                                                 data-url="<?= e($sheet['url']) ?>"
                                                 title="Modifier">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-dark btn-opacity-75 p-1 delete-sheet-btn"
+                                        <button type="button" class="btn btn-sm btn-dark p-0 px-1 delete-sheet-btn" style="font-size: 0.65rem;"
                                                 data-id="<?= $sheet['id'] ?>" title="Supprimer">
                                             <i class="bi bi-trash text-danger"></i>
                                         </button>
                                     </div>
                                     <!-- Square clickable area -->
                                     <a href="<?= e($editUrl) ?>" target="_blank" class="d-block text-decoration-none">
-                                        <div class="bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="aspect-ratio: 1; min-height: 100px;">
-                                            <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 2.5rem;"></i>
+                                        <div class="bg-success bg-opacity-10 d-flex align-items-center justify-content-center" style="aspect-ratio: 1; min-height: 60px;">
+                                            <i class="bi bi-file-earmark-spreadsheet text-success" style="font-size: 1.5rem;"></i>
                                         </div>
                                         <!-- Name -->
-                                        <div class="p-2 bg-dark text-center">
-                                            <small class="text-white text-truncate d-block" title="<?= e($sheet['nom']) ?>"><?= e($sheet['nom']) ?></small>
+                                        <div class="p-1 bg-dark text-center">
+                                            <small class="text-white text-truncate d-block" style="font-size: 0.7rem;" title="<?= e($sheet['nom']) ?>"><?= e($sheet['nom']) ?></small>
                                         </div>
                                     </a>
                                 </div>
@@ -6158,4 +6158,16 @@ function createToastContainer() {
     pointer-events: none;
 }
 </style>
+
+<script>
+// Persistance de l'onglet actif dans l'URL
+document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(tab => {
+    tab.addEventListener('shown.bs.tab', function(e) {
+        const tabId = e.target.getAttribute('data-bs-target').replace('#', '');
+        const url = new URL(window.location);
+        url.searchParams.set('tab', tabId);
+        window.history.replaceState({}, '', url);
+    });
+});
+</script>
 <?php include '../../includes/footer.php'; ?>
