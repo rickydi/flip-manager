@@ -6333,23 +6333,23 @@ document.querySelectorAll('.delete-checklist-btn').forEach(btn => {
             return;
         }
 
-        const listItem = this.closest('.list-group-item');
-        const checkbox = listItem.querySelector('.checklist-item');
-        const label = listItem.querySelector('.form-check-label');
-        const infoIcon = listItem.querySelector('.bi-info-circle');
-        const editBtn = listItem.querySelector('.edit-note-btn');
-
         fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: `ajax_action=delete_checklist_item&item_id=${itemId}&csrf_token=<?= generateCSRFToken() ?>`
         })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            } else {
-                alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+        .then(r => r.text())
+        .then(text => {
+            console.log('Response:', text);
+            try {
+                const data = JSON.parse(text);
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+                }
+            } catch(e) {
+                alert('Réponse invalide: ' + text.substring(0, 200));
             }
         })
         .catch(err => {
