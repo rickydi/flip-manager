@@ -222,10 +222,16 @@ include '../../includes/header.php';
             gap: 0.5rem;
         }
         .add-to-group-btn {
-            padding: 0.1rem 0.4rem;
+            width: 22px;
+            height: 22px;
+            padding: 0;
             font-size: 0.75rem;
             line-height: 1;
             margin-left: 0.25rem;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
     </style>
 
