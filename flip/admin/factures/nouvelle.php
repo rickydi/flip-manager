@@ -149,15 +149,21 @@ include '../../includes/header.php';
         </div>
     <?php endif; ?>
     
-    <div class="card">
-        <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
-                <?php csrfField(); ?>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Projet *</label>
-                        <select class="form-select" name="projet_id" required>
+    <div class="row">
+        <!-- Colonne gauche: Formulaire -->
+        <div class="col-lg-7">
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-pencil-square me-2"></i>Informations de la facture
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data" id="factureForm">
+                        <?php csrfField(); ?>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Projet *</label>
+                                <select class="form-select" name="projet_id" id="projet_id" required>
                             <option value="">Sélectionner...</option>
                             <?php foreach ($projets as $projet): ?>
                                 <option value="<?= $projet['id'] ?>" <?= $selectedProjet == $projet['id'] ? 'selected' : '' ?>>
@@ -279,13 +285,75 @@ include '../../includes/header.php';
                     </div>
                 </div>
                 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-circle me-1"></i>Ajouter la facture
-                    </button>
-                    <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Ajouter la facture
+                            </button>
+                            <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
+        </div>
+
+        <!-- Colonne droite: Zone de collage IA -->
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-magic me-2"></i>Remplissage automatique par IA
+                </div>
+                <div class="card-body">
+                    <div id="pasteZone" class="border border-2 border-dashed rounded p-4 text-center"
+                         style="min-height: 300px; cursor: pointer; border-color: #6c757d !important; transition: all 0.3s;">
+                        <div id="pasteInstructions">
+                            <i class="bi bi-clipboard-plus display-1 text-muted"></i>
+                            <h5 class="mt-3 text-muted">Collez une image de facture ici</h5>
+                            <p class="text-muted mb-0">
+                                <kbd>Ctrl</kbd> + <kbd>V</kbd> pour coller<br>
+                                <small>ou cliquez pour sélectionner un fichier</small>
+                            </p>
+                            <input type="file" id="fileInput" accept="image/*" class="d-none">
+                        </div>
+                        <div id="pastePreview" class="d-none">
+                            <img id="previewImage" src="" alt="Aperçu" class="img-fluid rounded mb-3" style="max-height: 250px;">
+                            <div id="analysisStatus"></div>
+                        </div>
+                    </div>
+
+                    <div id="aiResult" class="mt-3 d-none">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Données extraites!</strong>
+                            <span id="confidenceLevel" class="badge bg-success ms-2"></span>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPasteZone()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Nouvelle image
+                        </button>
+                    </div>
+
+                    <div id="aiError" class="mt-3 d-none">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPasteZone()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Réessayer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle me-2"></i>Comment ça marche?</h6>
+                    <ol class="small mb-0">
+                        <li>Faites une capture d'écran de votre facture (<kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>)</li>
+                        <li>Collez l'image dans la zone ci-dessus (<kbd>Ctrl</kbd>+<kbd>V</kbd>)</li>
+                        <li>L'IA Claude analyse la facture et remplit automatiquement le formulaire</li>
+                        <li>Vérifiez les données et ajustez si nécessaire</li>
+                    </ol>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -399,6 +467,221 @@ function ajouterFournisseur() {
     .catch(error => {
         alert('Erreur de connexion');
     });
+}
+
+// =============================================
+// GESTION DU COLLAGE D'IMAGE ET ANALYSE IA
+// =============================================
+
+const pasteZone = document.getElementById('pasteZone');
+const pasteInstructions = document.getElementById('pasteInstructions');
+const pastePreview = document.getElementById('pastePreview');
+const previewImage = document.getElementById('previewImage');
+const analysisStatus = document.getElementById('analysisStatus');
+const aiResult = document.getElementById('aiResult');
+const aiError = document.getElementById('aiError');
+const fileInput = document.getElementById('fileInput');
+
+// Clic sur la zone = ouvrir sélecteur de fichier
+pasteZone.addEventListener('click', () => fileInput.click());
+
+// Sélection de fichier
+fileInput.addEventListener('change', function(e) {
+    if (e.target.files && e.target.files[0]) {
+        handleImageFile(e.target.files[0]);
+    }
+});
+
+// Gestion du collage (Ctrl+V)
+document.addEventListener('paste', function(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    for (let item of items) {
+        if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            handleImageFile(file);
+            break;
+        }
+    }
+});
+
+// Drag & Drop
+pasteZone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    this.style.borderColor = '#0d6efd';
+    this.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+});
+
+pasteZone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    this.style.borderColor = '#6c757d';
+    this.style.backgroundColor = '';
+});
+
+pasteZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.style.borderColor = '#6c757d';
+    this.style.backgroundColor = '';
+
+    const files = e.dataTransfer?.files;
+    if (files && files[0] && files[0].type.startsWith('image/')) {
+        handleImageFile(files[0]);
+    }
+});
+
+function handleImageFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        // Afficher l'aperçu
+        previewImage.src = e.target.result;
+        pasteInstructions.classList.add('d-none');
+        pastePreview.classList.remove('d-none');
+        aiResult.classList.add('d-none');
+        aiError.classList.add('d-none');
+
+        // Lancer l'analyse
+        analyzeImage(e.target.result, file.type);
+    };
+    reader.readAsDataURL(file);
+}
+
+function analyzeImage(base64Data, mimeType) {
+    analysisStatus.innerHTML = `
+        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+        <span class="text-primary">Analyse en cours par Claude AI...</span>
+    `;
+
+    fetch('<?= url('/api/analyse-facture.php') ?>', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            image: base64Data,
+            mime_type: mimeType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        analysisStatus.innerHTML = '';
+
+        if (data.success && data.data) {
+            fillFormWithData(data.data);
+            aiResult.classList.remove('d-none');
+
+            // Afficher le niveau de confiance
+            const confidence = data.data.confiance || 0;
+            const confidencePercent = Math.round(confidence * 100);
+            const confidenceEl = document.getElementById('confidenceLevel');
+            confidenceEl.textContent = confidencePercent + '% confiance';
+            confidenceEl.className = 'badge ms-2 ' + (confidencePercent >= 80 ? 'bg-success' : confidencePercent >= 50 ? 'bg-warning' : 'bg-danger');
+        } else {
+            showError(data.error || 'Erreur lors de l\'analyse');
+        }
+    })
+    .catch(error => {
+        analysisStatus.innerHTML = '';
+        showError('Erreur de connexion: ' + error.message);
+    });
+}
+
+function fillFormWithData(data) {
+    // Fournisseur
+    if (data.fournisseur) {
+        const fournisseurSelect = document.getElementById('fournisseur');
+        const fournisseurValue = data.fournisseur;
+
+        // Chercher si le fournisseur existe dans la liste
+        let found = false;
+        for (let option of fournisseurSelect.options) {
+            if (option.value.toLowerCase() === fournisseurValue.toLowerCase() ||
+                option.text.toLowerCase() === fournisseurValue.toLowerCase()) {
+                fournisseurSelect.value = option.value;
+                found = true;
+                break;
+            }
+        }
+
+        // Si non trouvé, ajouter comme nouvelle option
+        if (!found && fournisseurValue !== '__autre__') {
+            const newOption = document.createElement('option');
+            newOption.value = fournisseurValue;
+            newOption.textContent = fournisseurValue;
+            const autreOption = fournisseurSelect.querySelector('option[value="__autre__"]');
+            fournisseurSelect.insertBefore(newOption, autreOption);
+            fournisseurSelect.value = fournisseurValue;
+        }
+    }
+
+    // Date
+    if (data.date_facture) {
+        document.querySelector('input[name="date_facture"]').value = data.date_facture;
+    }
+
+    // Description
+    if (data.description) {
+        document.querySelector('input[name="description"]').value = data.description;
+    }
+
+    // Montants
+    if (data.montant_avant_taxes) {
+        document.getElementById('montantAvantTaxes').value = parseFloat(data.montant_avant_taxes).toFixed(2);
+    }
+    if (data.tps !== undefined) {
+        document.getElementById('tps').value = parseFloat(data.tps).toFixed(2);
+        taxesActives = false; // Désactiver le calcul auto
+    }
+    if (data.tvq !== undefined) {
+        document.getElementById('tvq').value = parseFloat(data.tvq).toFixed(2);
+    }
+
+    // Catégorie
+    if (data.categorie_id) {
+        const categorieSelect = document.querySelector('select[name="categorie_id"]');
+        if (categorieSelect) {
+            categorieSelect.value = data.categorie_id;
+        }
+    }
+
+    // Notes
+    if (data.notes) {
+        document.querySelector('textarea[name="notes"]').value = data.notes;
+    }
+
+    // Recalculer le total affiché
+    calculerTotal();
+
+    // Highlight les champs remplis
+    highlightFilledFields();
+}
+
+function highlightFilledFields() {
+    const fields = ['#fournisseur', 'input[name="date_facture"]', 'input[name="description"]',
+                   '#montantAvantTaxes', '#tps', '#tvq', 'select[name="categorie_id"]', 'textarea[name="notes"]'];
+
+    fields.forEach(selector => {
+        const el = document.querySelector(selector);
+        if (el && el.value) {
+            el.classList.add('border-success');
+            setTimeout(() => el.classList.remove('border-success'), 3000);
+        }
+    });
+}
+
+function showError(message) {
+    aiError.classList.remove('d-none');
+    document.getElementById('errorMessage').textContent = message;
+}
+
+function resetPasteZone() {
+    pasteInstructions.classList.remove('d-none');
+    pastePreview.classList.add('d-none');
+    aiResult.classList.add('d-none');
+    aiError.classList.add('d-none');
+    previewImage.src = '';
+    fileInput.value = '';
 }
 </script>
 
