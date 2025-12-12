@@ -91,6 +91,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = $upload['error'];
             }
         }
+        // Si pas de fichier uploadé mais image collée (base64)
+        elseif (!empty($_POST['image_base64'])) {
+            $base64Data = $_POST['image_base64'];
+            // Extraire le type et les données
+            if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $base64Data, $matches)) {
+                $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
+                $imageData = base64_decode($matches[2]);
+
+                if ($imageData !== false) {
+                    // Générer un nom de fichier unique
+                    $fichier = 'facture_' . time() . '_' . uniqid() . '.' . $extension;
+                    $uploadDir = __DIR__ . '/../../uploads/factures/';
+
+                    // Créer le dossier s'il n'existe pas
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0755, true);
+                    }
+
+                    // Sauvegarder l'image
+                    if (!file_put_contents($uploadDir . $fichier, $imageData)) {
+                        $fichier = null;
+                        $errors[] = 'Erreur lors de la sauvegarde de l\'image collée.';
+                    }
+                }
+            }
+        }
         
         // Si pas d'erreur, insérer la facture
         if (empty($errors)) {
@@ -267,7 +293,12 @@ include '../../includes/header.php';
                 
                 <div class="mb-3">
                     <label class="form-label">Photo/PDF de la facture</label>
-                    <input type="file" class="form-control" name="fichier" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <input type="file" class="form-control" name="fichier" id="fichierInput" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                    <input type="hidden" name="image_base64" id="imageBase64">
+                    <div id="pastedImageInfo" class="d-none mt-2">
+                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Image collée attachée</span>
+                        <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearPastedImage()">Retirer</button>
+                    </div>
                     <small class="text-muted">Formats acceptés: JPG, PNG, GIF, PDF (max 5MB)</small>
                 </div>
                 
@@ -541,10 +572,19 @@ function handleImageFile(file) {
         aiResult.classList.add('d-none');
         aiError.classList.add('d-none');
 
+        // Stocker l'image base64 pour l'attacher à la facture
+        document.getElementById('imageBase64').value = e.target.result;
+        document.getElementById('pastedImageInfo').classList.remove('d-none');
+
         // Lancer l'analyse
         analyzeImage(e.target.result, file.type);
     };
     reader.readAsDataURL(file);
+}
+
+function clearPastedImage() {
+    document.getElementById('imageBase64').value = '';
+    document.getElementById('pastedImageInfo').classList.add('d-none');
 }
 
 function analyzeImage(base64Data, mimeType) {
@@ -682,6 +722,7 @@ function resetPasteZone() {
     aiError.classList.add('d-none');
     previewImage.src = '';
     fileInput.value = '';
+    clearPastedImage();
 }
 </script>
 
