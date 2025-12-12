@@ -4581,66 +4581,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
             new bootstrap.Tooltip(el);
         });
-
-        // Edit note modal - populate data when modal opens
-        const editNoteModal = document.getElementById('editNoteModal');
-        if (editNoteModal) {
-            editNoteModal.addEventListener('show.bs.modal', function(e) {
-                const btn = e.relatedTarget;
-                if (btn) {
-                    document.getElementById('editNoteItemId').value = btn.dataset.itemId;
-                    document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom;
-                    document.getElementById('editNoteText').value = btn.dataset.notes || '';
-                }
-            });
-        }
-
-        // Save note
-        document.getElementById('saveNoteBtn')?.addEventListener('click', function() {
-            const itemId = document.getElementById('editNoteItemId').value;
-            const notes = document.getElementById('editNoteText').value.trim();
-
-            fetch('<?= url('/admin/projets/detail.php?id=' . $projetId) ?>', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `ajax_action=save_checklist_note&item_id=${itemId}&notes=${encodeURIComponent(notes)}&csrf_token=<?= generateCSRFToken() ?>`
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert('Erreur: ' + (data.error || 'Erreur inconnue'));
-                }
-            });
-        });
         </script>
-
-        <!-- Modal Edit Note -->
-        <div class="modal fade" id="editNoteModal" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content bg-dark text-white">
-                    <div class="modal-header border-secondary">
-                        <h5 class="modal-title"><i class="bi bi-pencil-square me-2"></i>Note pour l'item</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <input type="hidden" id="editNoteItemId">
-                        <p class="text-muted small mb-2">Item: <span id="editNoteItemNom" class="text-white"></span></p>
-                        <div class="mb-3">
-                            <label class="form-label">Note / Info-bulle</label>
-                            <textarea class="form-control bg-dark text-white border-secondary" id="editNoteText" rows="3" placeholder="Entrez une note qui s'affichera en info-bulle..."></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer border-secondary">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                        <button type="button" class="btn btn-primary" id="saveNoteBtn">
-                            <i class="bi bi-check-lg me-1"></i>Sauvegarder
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div><!-- Fin TAB CHECKLIST -->
 
     <!-- TAB DOCUMENTS -->
@@ -6278,5 +6219,67 @@ document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(ta
         window.history.replaceState({}, '', url);
     });
 });
+
+// Edit note modal - populate data when modal opens
+const editNoteModal = document.getElementById('editNoteModal');
+if (editNoteModal) {
+    editNoteModal.addEventListener('show.bs.modal', function(e) {
+        const btn = e.relatedTarget;
+        if (btn) {
+            document.getElementById('editNoteItemId').value = btn.dataset.itemId || '';
+            document.getElementById('editNoteItemNom').textContent = btn.dataset.itemNom || '';
+            document.getElementById('editNoteText').value = btn.dataset.notes || '';
+        }
+    });
+}
+
+// Save note button
+document.getElementById('saveNoteBtn')?.addEventListener('click', function() {
+    const itemId = document.getElementById('editNoteItemId').value;
+    const notes = document.getElementById('editNoteText').value.trim();
+    const projetId = <?= $projetId ?>;
+
+    fetch(`<?= url('/admin/projets/detail.php') ?>?id=${projetId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `ajax_action=save_checklist_note&item_id=${itemId}&notes=${encodeURIComponent(notes)}&csrf_token=<?= generateCSRFToken() ?>`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(editNoteModal).hide();
+            location.reload();
+        } else {
+            alert('Erreur: ' + (data.error || 'Erreur inconnue'));
+        }
+    });
+});
 </script>
+
+<!-- Modal Edit Note Checklist (doit être hors des tab-pane) -->
+<div class="modal fade" id="editNoteModal" tabindex="-1" aria-labelledby="editNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-white">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="editNoteModalLabel"><i class="bi bi-pencil-square me-2"></i>Note pour l'item</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editNoteItemId">
+                <p class="text-muted small mb-2">Item: <span id="editNoteItemNom" class="text-white"></span></p>
+                <div class="mb-3">
+                    <label class="form-label">Note / Info-bulle</label>
+                    <textarea class="form-control bg-dark text-white border-secondary" id="editNoteText" rows="3" placeholder="Entrez une note qui s'affichera en info-bulle..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveNoteBtn">
+                    <i class="bi bi-check-lg me-1"></i>Sauvegarder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php include '../../includes/footer.php'; ?>
