@@ -4551,7 +4551,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                                         data-item-id="<?= $item['id'] ?>"
                                                                         data-item-nom="<?= e($item['nom']) ?>"
                                                                         title="Réinitialiser cet item">
-                                                                    <i class="bi bi-trash"></i>
+                                                                    <i class="bi bi-x-circle"></i>
                                                                 </button>
                                                                 <?php if ($isComplete && $completeDate): ?>
                                                                     <small class="text-success"><?= date('d/m/Y', strtotime($completeDate)) ?></small>
