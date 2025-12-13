@@ -5028,11 +5028,12 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
     }
 
     function scheduleRefresh() {
-        refreshTimer = setTimeout(doRefresh, refreshInterval);
+        // DÉSACTIVÉ TEMPORAIREMENT - cause des conflits avec Budget Builder
+        // refreshTimer = setTimeout(doRefresh, refreshInterval);
     }
 
-    // Démarrer le refresh
-    scheduleRefresh();
+    // Démarrer le refresh - DÉSACTIVÉ
+    // scheduleRefresh();
 
     // Pause quand l'onglet est caché
     document.addEventListener('visibilitychange', function() {
