@@ -1073,11 +1073,13 @@ document.addEventListener('DOMContentLoaded', function() {
     function addItemToProjet(data, groupe) {
         console.log('addItemToProjet called:', { data, groupe });
 
-        // Vérifier si catégorie déjà présente
-        const existingItem = document.querySelector(`.projet-item[data-id="${data.catId || data.id}"]`);
+        // Créer un ID unique basé sur le type et l'id
+        const uniqueId = `${data.type}-${data.id}`;
+
+        // Vérifier si l'item existe déjà
+        const existingItem = document.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
         if (existingItem) {
             console.log('Item already exists, flashing');
-            // Flash pour indiquer déjà présent
             existingItem.querySelector('.tree-content').style.background = 'rgba(13, 110, 253, 0.3)';
             setTimeout(() => {
                 existingItem.querySelector('.tree-content').style.background = '';
@@ -1098,31 +1100,37 @@ document.addEventListener('DOMContentLoaded', function() {
         const emptyMsg = document.getElementById('projetEmpty');
         if (emptyMsg) emptyMsg.style.display = 'none';
 
-        // Créer l'élément (version simplifiée)
+        // Créer l'élément avec le même layout que les items existants
         const itemHtml = `
             <div class="tree-item mb-1 is-kit projet-item"
                  data-type="${data.type}"
-                 data-id="${data.catId || data.id}"
+                 data-id="${data.id}"
+                 data-cat-id="${data.catId || data.id}"
+                 data-unique-id="${uniqueId}"
                  data-groupe="${groupe}"
                  data-prix="${data.prix}">
                 <div class="tree-content">
                     <i class="bi bi-grip-vertical drag-handle"></i>
                     <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
                     <div class="type-icon">
-                        <i class="bi ${data.type === 'categorie' ? 'bi-folder-fill text-warning' : 'bi-box-seam text-primary'}"></i>
+                        <i class="bi ${data.type === 'materiau' ? 'bi-box-seam text-primary' : 'bi-folder-fill text-warning'}"></i>
                     </div>
                     <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
-                    <div class="qte-controls me-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(${data.catId || data.id}, -1)">-</button>
-                        <input type="number" class="cat-qte-input" data-cat-id="${data.catId || data.id}"
-                               value="${data.qte || 1}" min="1" max="20"
-                               onchange="updateCatQte(${data.catId || data.id})">
-                        <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(${data.catId || data.id}, 1)">+</button>
+
+                    <span class="badge item-badge badge-prix text-info me-1">${formatMoney(data.prix)}</span>
+                    <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(data.prix * (data.qte || 1) * 1.14975)}</span>
+
+                    <div class="btn-group btn-group-sm me-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="minus">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 added-item-qte-display">${data.qte || 1}</span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="plus">
+                            <i class="bi bi-plus"></i>
+                        </button>
                     </div>
-                    <span class="badge item-badge badge-total text-success fw-bold cat-total" data-cat-id="${data.catId || data.id}">
-                        ${formatMoney(data.prix * (data.qte || 1) * 1.14975)}
-                    </span>
-                    <button type="button" class="btn btn-sm btn-link text-danger ms-2 p-0" onclick="removeProjetItem(this)" title="Retirer">
+
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
                         <i class="bi bi-x-lg"></i>
                     </button>
                 </div>
@@ -1326,6 +1334,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 autoSave();
             }
         });
+    });
+
+    // ========================================
+    // BOUTONS +/- POUR ITEMS AJOUTÉS PAR DRAG
+    // ========================================
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.added-item-qte-btn');
+        if (!btn) return;
+
+        saveState();
+        const action = btn.dataset.action;
+        const projetItem = btn.closest('.projet-item');
+        const qteDisplay = projetItem.querySelector('.added-item-qte-display');
+
+        let currentQte = parseInt(qteDisplay.textContent) || 1;
+
+        if (action === 'plus') {
+            currentQte++;
+        } else if (action === 'minus' && currentQte > 1) {
+            currentQte--;
+        }
+
+        qteDisplay.textContent = currentQte;
+
+        // Mettre à jour le total
+        const prix = parseFloat(projetItem.dataset.prix) || 0;
+        const totalBadge = projetItem.querySelector('.badge-total');
+        if (totalBadge) {
+            totalBadge.textContent = formatMoney(prix * currentQte * 1.14975);
+        }
+
+        updateTotals();
+        autoSave();
     });
 
     // ========================================
