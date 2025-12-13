@@ -1767,7 +1767,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Appeler updateTotals au chargement pour synchroniser "Détail des coûts"
-    updateTotals();
+    // NOTE: On n'appelle PAS updateTotals() au chargement car:
+    // 1. PHP rend déjà "Détail des coûts" depuis la table budgets
+    // 2. La table budgets est synchronisée via syncBudgetsFromProjetItems()
+    // 3. Appeler updateTotals() ici écraserait les valeurs PHP avec 0 si le budget est vide
+    // updateTotals() est appelé seulement après les interactions utilisateur
 });
 </script>

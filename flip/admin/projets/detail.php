@@ -4959,6 +4959,13 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
             return;
         }
 
+        // Ne pas rafraîchir si on est sur l'onglet Budgets (Budget Builder actif)
+        var budgetsTab = document.getElementById('budgets');
+        if (budgetsTab && budgetsTab.classList.contains('show')) {
+            scheduleRefresh();
+            return;
+        }
+
         var collapsedBefore = getCollapsedSections();
 
         fetch(window.location.href, {
