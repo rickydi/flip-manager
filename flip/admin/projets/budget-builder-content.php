@@ -255,6 +255,16 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     padding: 12px;
 }
 
+.projet-panel .panel-content {
+    min-height: 200px;
+}
+
+.projet-panel .panel-content.drag-over {
+    background: rgba(5, 150, 105, 0.1);
+    outline: 2px dashed #059669;
+    outline-offset: -2px;
+}
+
 /* Splitter */
 .splitter {
     width: 8px;
@@ -656,10 +666,10 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
             </div>
             <div class="d-flex align-items-center gap-3">
                 <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-light py-0 px-2" id="undoBtn" onclick="undoAction()" disabled title="Annuler (Ctrl+Z)">
+                    <button type="button" class="btn btn-light py-0 px-2" id="undoBtn" onclick="undoAction()" disabled title="Annuler (Ctrl+Z)">
                         <i class="bi bi-arrow-counterclockwise"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-light py-0 px-2" id="redoBtn" onclick="redoAction()" disabled title="Rétablir (Ctrl+Y)">
+                    <button type="button" class="btn btn-light py-0 px-2" id="redoBtn" onclick="redoAction()" disabled title="Rétablir (Ctrl+Y)">
                         <i class="bi bi-arrow-clockwise"></i>
                     </button>
                 </div>
@@ -1029,12 +1039,23 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Drop sur contenu projet entier
-    document.getElementById('projetContent').addEventListener('dragover', function(e) {
+    const projetContent = document.getElementById('projetContent');
+
+    projetContent.addEventListener('dragover', function(e) {
         e.preventDefault();
+        this.classList.add('drag-over');
     });
 
-    document.getElementById('projetContent').addEventListener('drop', function(e) {
+    projetContent.addEventListener('dragleave', function(e) {
+        // Only remove if leaving the element entirely
+        if (!this.contains(e.relatedTarget)) {
+            this.classList.remove('drag-over');
+        }
+    });
+
+    projetContent.addEventListener('drop', function(e) {
         e.preventDefault();
+        this.classList.remove('drag-over');
         try {
             const data = JSON.parse(e.dataTransfer.getData('text/plain'));
             addItemToProjet(data, data.groupe);
