@@ -2548,9 +2548,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
                         if ($budgetUnit == 0 && $depense == 0) continue;
-                        // Multiplier par la quantité du groupe
                         $qteGroupe = $projetGroupes[$cat['groupe']] ?? 1;
-                        $budgetHT = $budgetUnit * $qteGroupe;
+
+                        // NOTE: $budgetUnit vient de budgets.montant_extrapole qui
+                        // contient DÉJÀ le multiplicateur de groupe (via syncBudgetsFromProjetItems)
+                        // Donc on NE multiplie PAS à nouveau par $qteGroupe
+                        $budgetHT = $budgetUnit;
 
                         // Afficher en HT car TPS/TVQ sont montrés séparément
                         $budgetAffiche = $budgetHT;
