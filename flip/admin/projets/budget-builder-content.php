@@ -1057,7 +1057,10 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         this.classList.remove('drag-over');
         try {
-            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const rawData = e.dataTransfer.getData('text/plain');
+            console.log('Drop raw data:', rawData);
+            const data = JSON.parse(rawData);
+            console.log('Drop parsed data:', data);
             addItemToProjet(data, data.groupe);
         } catch (err) {
             console.error('Drop error:', err);
@@ -1068,9 +1071,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // AJOUTER AU PROJET
     // ========================================
     function addItemToProjet(data, groupe) {
+        console.log('addItemToProjet called:', { data, groupe });
+
         // Vérifier si catégorie déjà présente
         const existingItem = document.querySelector(`.projet-item[data-id="${data.catId || data.id}"]`);
         if (existingItem) {
+            console.log('Item already exists, flashing');
             // Flash pour indiquer déjà présent
             existingItem.querySelector('.tree-content').style.background = 'rgba(13, 110, 253, 0.3)';
             setTimeout(() => {
@@ -1083,6 +1089,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Afficher le groupe s'il est masqué
         const groupeDiv = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
+        console.log('Found groupeDiv:', groupeDiv);
         if (groupeDiv) {
             groupeDiv.style.display = '';
         }
@@ -1123,8 +1130,12 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
 
         const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
+        console.log('Found drop zone:', zone, 'for groupe:', groupe);
         if (zone) {
             zone.insertAdjacentHTML('beforeend', itemHtml);
+            console.log('Item added successfully');
+        } else {
+            console.error('Drop zone not found for groupe:', groupe);
         }
 
         updateTotals();
