@@ -789,8 +789,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
         if (!$poste) {
             // Créer le projet_poste
-            $stmt = $pdo->prepare("INSERT INTO projet_postes (projet_id, categorie_id, groupe, quantite) VALUES (?, ?, ?, 1)");
-            $stmt->execute([$projetId, $catId, $groupe]);
+            $stmt = $pdo->prepare("INSERT INTO projet_postes (projet_id, categorie_id, quantite) VALUES (?, ?, 1)");
+            $stmt->execute([$projetId, $catId]);
             $posteId = $pdo->lastInsertId();
         } else {
             $posteId = $poste['id'];
@@ -833,29 +833,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonData['ajax_action']) && 
     }
 
     try {
-        // Sauvegarder les quantités des groupes
+        // Sauvegarder les quantités des groupes dans projet_groupes
         if (isset($jsonData['groupes'])) {
             foreach ($jsonData['groupes'] as $groupe => $qte) {
                 $stmt = $pdo->prepare("
-                    UPDATE projet_postes
-                    SET groupe_qte = ?
-                    WHERE projet_id = ? AND groupe = ?
+                    INSERT INTO projet_groupes (projet_id, groupe_nom, quantite)
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE quantite = VALUES(quantite)
                 ");
-                $stmt->execute([$qte, $projetId, $groupe]);
+                $stmt->execute([$projetId, $groupe, $qte]);
             }
         }
 
-        // Sauvegarder les quantités des items
+        // Sauvegarder les quantités des items (catégories)
         if (isset($jsonData['items'])) {
             foreach ($jsonData['items'] as $item) {
-                if ($item['type'] === 'categorie') {
-                    $stmt = $pdo->prepare("
-                        UPDATE projet_postes
-                        SET quantite = ?
-                        WHERE projet_id = ? AND categorie_id = ?
-                    ");
-                    $stmt->execute([$item['quantite'], $projetId, $item['id']]);
-                }
+                $stmt = $pdo->prepare("
+                    UPDATE projet_postes
+                    SET quantite = ?
+                    WHERE projet_id = ? AND categorie_id = ?
+                ");
+                $stmt->execute([$item['quantite'] ?? 1, $projetId, $item['id']]);
             }
         }
 
