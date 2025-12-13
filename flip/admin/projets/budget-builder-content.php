@@ -1328,6 +1328,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('totalHT').textContent = formatMoney(totalHT);
         document.getElementById('totalContingence').textContent = formatMoney(contingence);
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
+
+        // Mettre à jour aussi "Détail des coûts" si présent
+        const detailContingence = document.getElementById('detailContingence');
+        if (detailContingence) detailContingence.textContent = formatMoney(contingence);
+
+        const detailTPS = document.getElementById('detailTPS');
+        if (detailTPS) detailTPS.textContent = formatMoney(tps);
+
+        const detailTVQ = document.getElementById('detailTVQ');
+        if (detailTVQ) detailTVQ.textContent = formatMoney(tvq);
+
+        const detailRenoTotal = document.getElementById('detailRenoTotal');
+        if (detailRenoTotal) detailRenoTotal.textContent = formatMoney(grandTotal);
     }
 
     // ========================================

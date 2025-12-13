@@ -2508,21 +2508,21 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     
                     <tr class="sub-item">
                         <td>Contingence <?= $projet['taux_contingence'] ?>%</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['contingence']) ?></td>
+                        <td class="text-end" id="detailContingence"><?= formatMoney($indicateurs['contingence']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end">-</td>
                     </tr>
 
                     <tr class="sub-item">
                         <td>TPS 5%</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['tps']) ?></td>
+                        <td class="text-end" id="detailTPS"><?= formatMoney($indicateurs['renovation']['tps']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end">-</td>
                     </tr>
 
                     <tr class="sub-item">
                         <td>TVQ 9.975%</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['tvq']) ?></td>
+                        <td class="text-end" id="detailTVQ"><?= formatMoney($indicateurs['renovation']['tvq']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end">-</td>
                     </tr>
@@ -2534,7 +2534,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     ?>
                     <tr class="total-row">
                         <td>Sous-total Rénovation (avec taxes)</td>
-                        <td class="text-end"><?= formatMoney($renoBudgetTTC) ?></td>
+                        <td class="text-end" id="detailRenoTotal"><?= formatMoney($renoBudgetTTC) ?></td>
                         <td class="text-end <?= $diffReno >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffReno) ?></td>
                         <td class="text-end"><?= formatMoney($renoReel) ?></td>
                     </tr>
