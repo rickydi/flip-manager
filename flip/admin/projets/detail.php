@@ -732,7 +732,8 @@ $tousInvestisseurs = $stmt->fetchAll();
 // Récupérer les prêteurs liés à ce projet
 try {
     $stmt = $pdo->prepare("
-        SELECT pi.*, i.nom as investisseur_nom
+        SELECT pi.*, i.nom as investisseur_nom,
+               COALESCE(pi.type_financement, IF(pi.taux_interet > 0, 'preteur', 'investisseur')) as type_calc
         FROM projet_investisseurs pi
         JOIN investisseurs i ON pi.investisseur_id = i.id
         WHERE pi.projet_id = ?
@@ -870,14 +871,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $investisseurId = (int)($_POST['investisseur_id'] ?? 0);
                 $montant = parseNumber($_POST['montant_pret'] ?? 0);
                 $tauxInteret = parseNumber($_POST['taux_interet_pret'] ?? 10);
+                $typeFinancement = $_POST['type_financement'] ?? 'preteur';
 
                 if ($investisseurId && $montant > 0) {
                     $stmt = $pdo->prepare("
-                        INSERT INTO projet_investisseurs (projet_id, investisseur_id, montant, taux_interet)
-                        VALUES (?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE montant = VALUES(montant), taux_interet = VALUES(taux_interet)
+                        INSERT INTO projet_investisseurs (projet_id, investisseur_id, type_financement, montant, taux_interet)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE montant = VALUES(montant), taux_interet = VALUES(taux_interet), type_financement = VALUES(type_financement)
                     ");
-                    $stmt->execute([$projetId, $investisseurId, $montant, $tauxInteret]);
+                    $stmt->execute([$projetId, $investisseurId, $typeFinancement, $montant, $tauxInteret]);
                     setFlashMessage('success', 'Prêteur ajouté!');
                 }
             } elseif ($subAction === 'supprimer') {
@@ -2536,7 +2538,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     $soldeVendeurNotaire = (float)($projet['solde_vendeur'] ?? 0);
     $montantRequis = $prixAchatNotaire + $cessionNotaire + $soldeVendeurNotaire;
 
-    // Séparer les prêteurs des investisseurs
+    // Séparer les prêteurs des investisseurs (basé sur type_financement, pas le taux)
     $listePreteurs = [];
     $listeInvestisseurs = [];
     $totalPretsCalc = 0;
@@ -2544,9 +2546,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     foreach ($preteursProjet as $p) {
         $montant = (float)($p['montant'] ?? $p['mise_de_fonds'] ?? 0);
-        $taux = (float)($p['taux_interet'] ?? $p['pourcentage_profit'] ?? 0);
+        $taux = (float)($p['taux_interet'] ?? 0);
+        $type = $p['type_calc'] ?? ($taux > 0 ? 'preteur' : 'investisseur');
 
-        if ($taux > 0) {
+        if ($type === 'preteur') {
             $listePreteurs[] = array_merge($p, ['montant_calc' => $montant, 'taux_calc' => $taux]);
             $totalPretsCalc += $montant;
         } else {
@@ -2613,20 +2616,22 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <small class="text-muted"><?= count($listePreteurs) ?> prêteur(s)</small>
                 </div>
 
-                <!-- Différence -->
+                <!-- Différence / Cashflow -->
                 <div class="col-md-3 text-center">
                     <?php if (!$isBalanced): ?>
-                        <div class="text-muted small mb-1"><?= $difference > 0 ? 'Surplus' : 'Manque' ?></div>
-                        <div class="fs-3 fw-bold <?= $difference > 0 ? 'text-success' : 'text-danger' ?>">
-                            <?= $difference > 0 ? '+' : '' ?><?= formatMoney($difference) ?>
-                        </div>
-                        <?php if ($difference < 0): ?>
-                            <small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Financement insuffisant!</small>
+                        <?php if ($difference > 0): ?>
+                            <div class="text-muted small mb-1">Surplus de prêts</div>
+                            <div class="fs-3 fw-bold text-success">+<?= formatMoney($difference) ?></div>
+                        <?php else: ?>
+                            <div class="text-muted small mb-1">Cashflow à sortir</div>
+                            <div class="fs-3 fw-bold text-danger"><?= formatMoney(abs($difference)) ?></div>
+                            <small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Cash requis au notaire!</small>
                         <?php endif; ?>
                     <?php else: ?>
                         <div class="text-success">
                             <i class="bi bi-check-circle-fill fs-1"></i>
                             <div class="small mt-1">Financement complet</div>
+                            <div class="small">0$ de cash requis</div>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -2725,6 +2730,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
+                        <input type="hidden" name="type_financement" value="preteur">
                         <div class="col-4">
                             <label class="form-label small mb-0 text-light">Personne</label>
                             <select class="form-select form-select-sm bg-dark text-white border-secondary" name="investisseur_id" required>
@@ -2740,12 +2746,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </div>
                         <div class="col-3">
                             <label class="form-label small mb-0 text-light">Taux %</label>
-                            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" name="taux_interet_pret" value="10" required>
+                            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" name="taux_interet_pret" value="0">
                         </div>
                         <div class="col-2">
                             <button type="submit" class="btn btn-warning btn-sm w-100"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </form>
+                    <small class="text-muted">Taux 0% = prêt sans intérêt</small>
                 </div>
             </div>
 
@@ -2846,6 +2853,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
+                        <input type="hidden" name="type_financement" value="investisseur">
                         <input type="hidden" name="taux_interet_pret" value="0">
                         <div class="col-6">
                             <label class="form-label small mb-0 text-light">Personne</label>
