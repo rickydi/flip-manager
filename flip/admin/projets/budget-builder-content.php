@@ -124,7 +124,8 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $group
                      data-groupe="<?= $groupe ?>"
                      data-nom="<?= e($mat['nom']) ?>"
                      data-prix="<?= $mat['prix_defaut'] ?? 0 ?>"
-                     data-qte="<?= $qte ?>">
+                     data-qte="<?= $qte ?>"
+                     data-sans-taxe="<?= !empty($mat['sans_taxe']) ? 1 : 0 ?>">
 
                     <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
@@ -177,6 +178,8 @@ foreach ($projetPostes as $catId => $poste) {
         }
     }
 }
+// Note: Le PHP calcule correctement le HT taxable vs non-taxable ici.
+// C'est le JS qui doit être aligné.
 
 $totalProjetHT = $totalProjetTaxable + $totalProjetNonTaxable;
 $contingence = $totalProjetHT * ((float)$projet['taux_contingence'] / 100);
@@ -788,11 +791,12 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                     $prixItem = (float)$item['prix_unitaire'];
                                     $totalItem = $prixItem * $qteItem * $qteCat * $qteGroupe;
                                 ?>
-                                <div class="tree-content mat-item projet-mat-item"
+                <div class="tree-content mat-item projet-mat-item"
                                      data-mat-id="<?= $mat['id'] ?>"
                                      data-cat-id="<?= $catId ?>"
                                      data-prix="<?= $prixItem ?>"
-                                     data-qte="<?= $qteItem ?>">
+                                     data-qte="<?= $qteItem ?>"
+                                     data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
 
                                     <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
@@ -1286,11 +1290,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     function updateTotals() {
         let totalHT = 0;
+        let totalTaxable = 0;
+        let totalNonTaxable = 0;
 
         // Parcourir toutes les catégories/items
         document.querySelectorAll('.projet-item').forEach(catItem => {
             const groupe = catItem.dataset.groupe;
-            let catTotal = 0;
+            let catTotalHT = 0;
+            let catTotalTaxable = 0;
+            let catTotalNonTaxable = 0;
 
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
@@ -1305,36 +1313,64 @@ document.addEventListener('DOMContentLoaded', function() {
                 matItems.forEach(matItem => {
                     const prix = parseFloat(matItem.dataset.prix) || 0;
                     const qte = parseInt(matItem.dataset.qte) || 1;
-                    catTotal += prix * qte;
+                    const sansTaxe = matItem.dataset.sansTaxe === '1';
+                    
+                    const ligneTotal = prix * qte;
+                    catTotalHT += ligneTotal;
+                    
+                    if (sansTaxe) {
+                        catTotalNonTaxable += ligneTotal;
+                    } else {
+                        catTotalTaxable += ligneTotal;
+                    }
                 });
+                
+                // Appliquer multiplicateurs
+                catTotalHT *= qteCat * qteGroupe;
+                catTotalTaxable *= qteCat * qteGroupe;
+                catTotalNonTaxable *= qteCat * qteGroupe;
 
-                const itemTotal = catTotal * qteCat * qteGroupe;
-                totalHT += itemTotal;
-
-                // Mettre à jour affichage du total catégorie
+                // Mettre à jour affichage du total catégorie (TTC approximatif pour UI, ou HT + taxes selon préférence, ici on garde TTC pour cohérence visuelle)
+                // Note: Pour être précis, on recalcule le TTC de la catégorie
+                const catTTC = catTotalNonTaxable + (catTotalTaxable * 1.14975);
                 const totalSpan = catItem.querySelector('.cat-total');
                 if (totalSpan) {
-                    totalSpan.textContent = formatMoney(itemTotal * 1.14975);
+                    totalSpan.textContent = formatMoney(catTTC);
                 }
+
             } else {
-                // Item simple (ajouté par drag-drop)
+                // Item simple (ajouté par drag-drop, par défaut taxable sauf si spécifié autrement)
                 const prix = parseFloat(catItem.dataset.prix) || 0;
                 const qteDisplay = catItem.querySelector('.added-item-qte-display');
                 const qte = qteDisplay ? parseInt(qteDisplay.textContent) || 1 : 1;
+                const sansTaxe = catItem.dataset.sansTaxe === '1'; // Si jamais on ajoute cette option au drop
 
                 const itemTotal = prix * qte * qteGroupe;
-                totalHT += itemTotal;
+                catTotalHT += itemTotal;
+                
+                if (sansTaxe) {
+                    catTotalNonTaxable += itemTotal;
+                } else {
+                    catTotalTaxable += itemTotal;
+                }
 
-                // Mettre à jour affichage du total
+                const itemTTC = sansTaxe ? itemTotal : (itemTotal * 1.14975);
                 const totalSpan = catItem.querySelector('.badge-total');
                 if (totalSpan) {
-                    totalSpan.textContent = formatMoney(itemTotal * 1.14975);
+                    totalSpan.textContent = formatMoney(itemTTC);
                 }
             }
+            
+            totalHT += catTotalHT;
+            totalTaxable += catTotalTaxable;
+            totalNonTaxable += catTotalNonTaxable;
         });
 
         const contingence = totalHT * (tauxContingence / 100);
-        const baseTaxable = totalHT + contingence;
+        // Contingence proportionnelle taxable
+        const contingenceTaxable = totalHT > 0 ? contingence * (totalTaxable / totalHT) : 0;
+        
+        const baseTaxable = totalTaxable + contingenceTaxable;
         const tps = baseTaxable * 0.05;
         const tvq = baseTaxable * 0.09975;
         const grandTotal = totalHT + contingence + tps + tvq;
