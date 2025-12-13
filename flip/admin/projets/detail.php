@@ -2563,103 +2563,97 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     $isBalanced = abs($difference) < 0.01;
     ?>
 
-    <!-- RÉSUMÉ FINANCEMENT NOTAIRE -->
-    <div class="card mb-4 <?= $isBalanced ? 'border-success' : 'border-danger' ?>">
-        <div class="card-header <?= $isBalanced ? 'bg-success' : 'bg-danger' ?> text-white py-2">
-            <i class="bi bi-bank2 me-2"></i><strong>Financement requis pour le notaire</strong>
-            <?php if (!$isBalanced): ?>
-                <span class="badge bg-warning text-dark float-end"><i class="bi bi-exclamation-triangle me-1"></i>Non balancé</span>
-            <?php else: ?>
-                <span class="badge bg-light text-success float-end"><i class="bi bi-check-circle me-1"></i>OK</span>
-            <?php endif; ?>
-        </div>
-        <div class="card-body py-3">
-            <div class="row align-items-center">
-                <!-- Montant requis -->
-                <div class="col-md-4">
-                    <div class="text-muted small mb-1">Montant requis</div>
-                    <table class="table table-sm table-borderless mb-0" style="font-size: 0.9rem;">
-                        <tr>
-                            <td class="py-0">Prix d'achat</td>
-                            <td class="py-0 text-end"><?= formatMoney($prixAchatNotaire) ?></td>
-                        </tr>
-                        <?php if ($cessionNotaire > 0): ?>
-                        <tr>
-                            <td class="py-0">Cession</td>
-                            <td class="py-0 text-end"><?= formatMoney($cessionNotaire) ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <?php if ($soldeVendeurNotaire > 0): ?>
-                        <tr>
-                            <td class="py-0">Solde vendeur</td>
-                            <td class="py-0 text-end"><?= formatMoney($soldeVendeurNotaire) ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <tr class="border-top">
-                            <td class="py-1 fw-bold">Total requis</td>
-                            <td class="py-1 text-end fw-bold text-primary"><?= formatMoney($montantRequis) ?></td>
-                        </tr>
+    <!-- RÉSUMÉ FINANCEMENT - DEUX TABLEAUX CÔTE À CÔTE -->
+    <div class="row mb-4">
+        <!-- Tableau 1: Financement Notaire -->
+        <div class="col-md-6">
+            <div class="card h-100" style="border-color: #3d4f5f;">
+                <div class="card-header py-2" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
+                    <i class="bi bi-bank2 me-2 text-info"></i><strong>Financement Notaire</strong>
+                </div>
+                <div class="card-body py-3">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-secondary">Prix d'achat</td>
+                                <td class="text-end"><?= formatMoney($prixAchatNotaire) ?></td>
+                            </tr>
+                            <?php if ($cessionNotaire > 0): ?>
+                            <tr>
+                                <td class="text-secondary">Cession</td>
+                                <td class="text-end"><?= formatMoney($cessionNotaire) ?></td>
+                            </tr>
+                            <?php endif; ?>
+                            <?php if ($soldeVendeurNotaire > 0): ?>
+                            <tr>
+                                <td class="text-secondary">Solde vendeur</td>
+                                <td class="text-end"><?= formatMoney($soldeVendeurNotaire) ?></td>
+                            </tr>
+                            <?php endif; ?>
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 1px solid #3d4f5f;">
+                                <td class="fw-bold pt-2">Montant requis</td>
+                                <td class="text-end fw-bold pt-2 fs-5"><?= formatMoney($montantRequis) ?></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
+            </div>
+        </div>
 
-                <!-- Signe = ou ≠ -->
-                <div class="col-md-1 text-center">
-                    <span class="fs-2 <?= $isBalanced ? 'text-success' : 'text-danger' ?>">
-                        <?= $isBalanced ? '=' : '≠' ?>
-                    </span>
-                </div>
-
-                <!-- Montant des prêts -->
-                <div class="col-md-4">
-                    <div class="text-muted small mb-1">Total des prêts</div>
-                    <div class="fs-3 fw-bold text-warning"><?= formatMoney($totalPretsCalc) ?></div>
-                    <small class="text-muted"><?= count($listePreteurs) ?> prêteur(s)</small>
-                </div>
-
-                <!-- Différence / Cashflow -->
-                <div class="col-md-3 text-center">
+        <!-- Tableau 2: Cashflow -->
+        <div class="col-md-6">
+            <div class="card h-100" style="border-color: #3d4f5f;">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
+                    <span><i class="bi bi-cash-stack me-2 text-info"></i><strong>Cashflow</strong></span>
                     <?php if (!$isBalanced): ?>
-                        <?php if ($difference > 0): ?>
-                            <div class="text-muted small mb-1">Surplus de prêts</div>
-                            <div class="fs-3 fw-bold text-success">+<?= formatMoney($difference) ?></div>
-                        <?php else: ?>
-                            <div class="text-muted small mb-1">Cashflow à sortir</div>
-                            <div class="fs-3 fw-bold text-danger"><?= formatMoney(abs($difference)) ?></div>
-                            <small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Cash requis au notaire!</small>
-                        <?php endif; ?>
+                        <span class="badge" style="background: #5a3d3d; color: #e74c3c;"><i class="bi bi-exclamation-circle me-1"></i>Non balancé</span>
                     <?php else: ?>
-                        <div class="text-success">
-                            <i class="bi bi-check-circle-fill fs-1"></i>
-                            <div class="small mt-1">Financement complet</div>
-                            <div class="small">0$ de cash requis</div>
-                        </div>
+                        <span class="badge" style="background: #3d5a4a; color: #27ae60;"><i class="bi bi-check-circle me-1"></i>OK</span>
                     <?php endif; ?>
+                </div>
+                <div class="card-body py-3">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tbody>
+                            <tr>
+                                <td class="text-secondary">Montant requis</td>
+                                <td class="text-end"><?= formatMoney($montantRequis) ?></td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary">Total des prêts <small class="text-muted">(<?= count($listePreteurs) ?>)</small></td>
+                                <td class="text-end"><?= formatMoney($totalPretsCalc) ?></td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 1px solid #3d4f5f;">
+                                <td class="fw-bold pt-2">
+                                    <?= $difference >= 0 ? 'Surplus' : 'Cash à sortir' ?>
+                                </td>
+                                <td class="text-end fw-bold pt-2 fs-5 <?= $difference < 0 ? 'text-danger' : ($difference > 0 ? 'text-info' : '') ?>">
+                                    <?= $difference >= 0 ? formatMoney($difference) : formatMoney(abs($difference)) ?>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Explications -->
-    <div class="alert alert-info mb-4">
-        <div class="row">
-            <div class="col-md-6">
-                <h6><i class="bi bi-bank me-1"></i> PRÊTEUR</h6>
-                <small>Prête de l'argent → Reçoit des <strong>INTÉRÊTS</strong> (= coût pour le projet)</small>
-            </div>
-            <div class="col-md-6">
-                <h6><i class="bi bi-people me-1"></i> INVESTISSEUR</h6>
-                <small>Met de l'argent "à risque" → Reçoit un <strong>% DES PROFITS</strong> (= partage des gains)</small>
-            </div>
-        </div>
+    <!-- Légende compacte -->
+    <div class="d-flex gap-4 mb-4 small text-muted">
+        <div><i class="bi bi-bank me-1"></i><strong>Prêteur:</strong> Reçoit des intérêts (coût)</div>
+        <div><i class="bi bi-people me-1"></i><strong>Investisseur:</strong> Reçoit un % des profits (partage)</div>
     </div>
 
     <div class="row">
         <!-- COLONNE PRÊTEURS -->
         <div class="col-lg-6">
-            <div class="card mb-4 border-warning">
-                <div class="card-header bg-warning text-dark">
-                    <i class="bi bi-bank me-2"></i><strong>PRÊTEURS</strong>
-                    <small class="float-end">Coût = Intérêts</small>
+            <div class="card mb-4" style="border-color: #3d4f5f;">
+                <div class="card-header d-flex justify-content-between align-items-center py-2" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
+                    <span><i class="bi bi-bank me-2 text-info"></i><strong>Prêteurs</strong></span>
+                    <small class="text-secondary">Coût = Intérêts</small>
                 </div>
 
                 <?php if (empty($listePreteurs)): ?>
@@ -2669,13 +2663,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-sm mb-0 table-dark">
+                        <table class="table table-sm mb-0">
                             <thead>
-                                <tr class="table-warning text-dark">
-                                    <th>Nom</th>
-                                    <th class="text-end">Montant</th>
-                                    <th class="text-center">Taux</th>
-                                    <th class="text-end">Intérêts</th>
+                                <tr style="background: #34495e;">
+                                    <th class="text-light">Nom</th>
+                                    <th class="text-end text-light">Montant</th>
+                                    <th class="text-center text-light">Taux</th>
+                                    <th class="text-end text-light">Intérêts</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -2684,26 +2678,26 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $tauxMensuel = $p['taux_calc'] / 100 / 12;
                                 $interets = $p['montant_calc'] * (pow(1 + $tauxMensuel, $dureeReelle) - 1);
                             ?>
-                                <tr>
+                                <tr style="background: #1e2a38;">
                                     <form method="POST" id="form-preteur-<?= $p['id'] ?>">
                                         <?php csrfField(); ?>
                                         <input type="hidden" name="action" value="preteurs">
                                         <input type="hidden" name="sub_action" value="modifier">
                                         <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
-                                        <td class="align-middle"><i class="bi bi-person-circle text-warning me-1"></i><?= e($p['investisseur_nom']) ?></td>
+                                        <td class="align-middle"><i class="bi bi-person-circle text-secondary me-1"></i><?= e($p['investisseur_nom']) ?></td>
                                         <td class="text-end">
-                                            <input type="text" class="form-control form-control-sm money-input text-end bg-dark text-white border-secondary"
+                                            <input type="text" class="form-control form-control-sm money-input text-end"
                                                    name="montant_pret" value="<?= number_format($p['montant_calc'], 0, ',', ' ') ?>"
-                                                   style="width: 100px; display: inline-block;">
+                                                   style="width: 100px; display: inline-block; background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                                         </td>
                                         <td class="text-center">
-                                            <input type="text" class="form-control form-control-sm text-center bg-dark text-white border-secondary"
+                                            <input type="text" class="form-control form-control-sm text-center"
                                                    name="taux_interet_pret" value="<?= $p['taux_calc'] ?>"
-                                                   style="width: 60px; display: inline-block;">%
+                                                   style="width: 60px; display: inline-block; background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">%
                                         </td>
-                                        <td class="text-end text-danger fw-bold"><?= formatMoney($interets) ?></td>
+                                        <td class="text-end" style="color: #e74c3c;"><?= formatMoney($interets) ?></td>
                                         <td class="text-nowrap">
-                                            <button type="submit" class="btn btn-outline-primary btn-sm py-0 px-1" title="Sauvegarder">
+                                            <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #3498db;" title="Sauvegarder">
                                                 <i class="bi bi-check"></i>
                                             </button>
                                     </form>
@@ -2712,7 +2706,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                 <input type="hidden" name="action" value="preteurs">
                                                 <input type="hidden" name="sub_action" value="supprimer">
                                                 <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Supprimer">
+                                                <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #7f8c8d;" title="Supprimer">
                                                     <i class="bi bi-x"></i>
                                                 </button>
                                             </form>
@@ -2725,15 +2719,15 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <?php endif; ?>
 
                 <!-- Formulaire ajout prêteur -->
-                <div class="card-footer" style="background: rgba(30, 58, 95, 0.6);">
+                <div class="card-footer" style="background: #243342; border-top: 1px solid #3d4f5f;">
                     <form method="POST" class="row g-2 align-items-end">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
                         <input type="hidden" name="type_financement" value="preteur">
                         <div class="col-4">
-                            <label class="form-label small mb-0 text-light">Personne</label>
-                            <select class="form-select form-select-sm bg-dark text-white border-secondary" name="investisseur_id" required>
+                            <label class="form-label small mb-0 text-secondary">Personne</label>
+                            <select class="form-select form-select-sm" name="investisseur_id" required style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                                 <option value="">Choisir...</option>
                                 <?php foreach ($tousInvestisseurs as $inv): ?>
                                     <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
@@ -2741,15 +2735,15 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </select>
                         </div>
                         <div class="col-3">
-                            <label class="form-label small mb-0 text-light">Montant $</label>
-                            <input type="text" class="form-control form-control-sm money-input bg-dark text-white border-secondary" name="montant_pret" required placeholder="0">
+                            <label class="form-label small mb-0 text-secondary">Montant $</label>
+                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0" style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                         </div>
                         <div class="col-3">
-                            <label class="form-label small mb-0 text-light">Taux %</label>
-                            <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" name="taux_interet_pret" value="0">
+                            <label class="form-label small mb-0 text-secondary">Taux %</label>
+                            <input type="text" class="form-control form-control-sm" name="taux_interet_pret" value="0" style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                         </div>
                         <div class="col-2">
-                            <button type="submit" class="btn btn-warning btn-sm w-100"><i class="bi bi-plus-lg"></i></button>
+                            <button type="submit" class="btn btn-sm w-100" style="background: #3498db; border-color: #3498db; color: white;"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </form>
                     <small class="text-muted">Taux 0% = prêt sans intérêt</small>
@@ -2757,14 +2751,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
 
             <!-- Total prêteurs -->
-            <div class="card bg-warning text-dark mb-4">
+            <div class="card mb-4" style="border-color: #3d4f5f; background: #2c3e50;">
                 <div class="card-body py-2">
                     <div class="d-flex justify-content-between">
-                        <span>Total prêts :</span>
+                        <span class="text-secondary">Total prêts</span>
                         <strong><?= formatMoney($totalPretsCalc) ?></strong>
                     </div>
-                    <div class="d-flex justify-content-between text-danger">
-                        <span>Intérêts (<?= $dureeReelle ?> mois) :</span>
+                    <div class="d-flex justify-content-between" style="color: #e74c3c;">
+                        <span>Intérêts (<?= $dureeReelle ?> mois)</span>
                         <strong>
                             <?php
                             $totalInteretsCalc = 0;
@@ -2782,10 +2776,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
         <!-- COLONNE INVESTISSEURS -->
         <div class="col-lg-6">
-            <div class="card mb-4 border-success">
-                <div class="card-header bg-success text-white">
-                    <i class="bi bi-people me-2"></i><strong>INVESTISSEURS</strong>
-                    <small class="float-end">Partage des profits</small>
+            <div class="card mb-4" style="border-color: #3d4f5f;">
+                <div class="card-header d-flex justify-content-between align-items-center py-2" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
+                    <span><i class="bi bi-people me-2 text-info"></i><strong>Investisseurs</strong></span>
+                    <small class="text-secondary">Partage des profits</small>
                 </div>
 
                 <?php if (empty($listeInvestisseurs)): ?>
@@ -2795,12 +2789,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
-                        <table class="table table-sm mb-0 table-dark">
+                        <table class="table table-sm mb-0">
                             <thead>
-                                <tr class="table-success text-dark">
-                                    <th>Nom</th>
-                                    <th class="text-end">Mise</th>
-                                    <th class="text-center">% Profits</th>
+                                <tr style="background: #34495e;">
+                                    <th class="text-light">Nom</th>
+                                    <th class="text-end text-light">Mise</th>
+                                    <th class="text-center text-light">% Profits</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -2811,22 +2805,22 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 $pct = $totalInvest > 0 ? ($inv['montant_calc'] / $totalInvest) * 100 : 0;
                                 $totalPctInvest += $pct;
                             ?>
-                                <tr>
+                                <tr style="background: #1e2a38;">
                                     <form method="POST" id="form-invest-<?= $inv['id'] ?>">
                                         <?php csrfField(); ?>
                                         <input type="hidden" name="action" value="preteurs">
                                         <input type="hidden" name="sub_action" value="modifier">
                                         <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
                                         <input type="hidden" name="taux_interet_pret" value="0">
-                                        <td class="align-middle"><i class="bi bi-person-circle text-success me-1"></i><?= e($inv['investisseur_nom']) ?></td>
+                                        <td class="align-middle"><i class="bi bi-person-circle text-secondary me-1"></i><?= e($inv['investisseur_nom']) ?></td>
                                         <td class="text-end">
-                                            <input type="text" class="form-control form-control-sm money-input text-end bg-dark text-white border-secondary"
+                                            <input type="text" class="form-control form-control-sm money-input text-end"
                                                    name="montant_pret" value="<?= number_format($inv['montant_calc'], 0, ',', ' ') ?>"
-                                                   style="width: 100px; display: inline-block;">
+                                                   style="width: 100px; display: inline-block; background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                                         </td>
-                                        <td class="text-center"><span class="badge bg-success"><?= number_format($pct, 1) ?>%</span></td>
+                                        <td class="text-center"><span class="badge" style="background: #34495e; color: #ecf0f1;"><?= number_format($pct, 1) ?>%</span></td>
                                         <td class="text-nowrap">
-                                            <button type="submit" class="btn btn-outline-primary btn-sm py-0 px-1" title="Sauvegarder">
+                                            <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #3498db;" title="Sauvegarder">
                                                 <i class="bi bi-check"></i>
                                             </button>
                                     </form>
@@ -2835,7 +2829,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                 <input type="hidden" name="action" value="preteurs">
                                                 <input type="hidden" name="sub_action" value="supprimer">
                                                 <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm py-0 px-1" title="Supprimer">
+                                                <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #7f8c8d;" title="Supprimer">
                                                     <i class="bi bi-x"></i>
                                                 </button>
                                             </form>
@@ -2848,7 +2842,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <?php endif; ?>
 
                 <!-- Formulaire ajout investisseur -->
-                <div class="card-footer" style="background: rgba(30, 58, 95, 0.6);">
+                <div class="card-footer" style="background: #243342; border-top: 1px solid #3d4f5f;">
                     <form method="POST" class="row g-2 align-items-end">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
@@ -2856,8 +2850,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <input type="hidden" name="type_financement" value="investisseur">
                         <input type="hidden" name="taux_interet_pret" value="0">
                         <div class="col-6">
-                            <label class="form-label small mb-0 text-light">Personne</label>
-                            <select class="form-select form-select-sm bg-dark text-white border-secondary" name="investisseur_id" required>
+                            <label class="form-label small mb-0 text-secondary">Personne</label>
+                            <select class="form-select form-select-sm" name="investisseur_id" required style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                                 <option value="">Choisir...</option>
                                 <?php foreach ($tousInvestisseurs as $inv): ?>
                                     <option value="<?= $inv['id'] ?>"><?= e($inv['nom']) ?></option>
@@ -2865,11 +2859,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             </select>
                         </div>
                         <div class="col-4">
-                            <label class="form-label small mb-0 text-light">Mise $</label>
-                            <input type="text" class="form-control form-control-sm money-input bg-dark text-white border-secondary" name="montant_pret" required placeholder="0">
+                            <label class="form-label small mb-0 text-secondary">Mise $</label>
+                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0" style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                         </div>
                         <div class="col-2">
-                            <button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-plus-lg"></i></button>
+                            <button type="submit" class="btn btn-sm w-100" style="background: #3498db; border-color: #3498db; color: white;"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </form>
                     <small class="text-muted">% calculé automatiquement selon la mise</small>
@@ -2877,10 +2871,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
 
             <!-- Total investisseurs -->
-            <div class="card bg-success text-white mb-4">
+            <div class="card mb-4" style="border-color: #3d4f5f; background: #2c3e50;">
                 <div class="card-body py-2">
                     <div class="d-flex justify-content-between">
-                        <span>Total mises :</span>
+                        <span class="text-secondary">Total mises</span>
                         <strong><?= formatMoney($totalInvest) ?></strong>
                     </div>
                 </div>
@@ -2890,7 +2884,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     <!-- Lien pour ajouter des personnes -->
     <div class="text-center">
-        <a href="<?= url('/admin/investisseurs/liste.php') ?>" class="btn btn-outline-secondary btn-sm">
+        <a href="<?= url('/admin/investisseurs/liste.php') ?>" class="btn btn-sm" style="border-color: #3d4f5f; color: #7f8c8d;">
             <i class="bi bi-person-plus me-1"></i>Gérer la liste des personnes
         </a>
     </div>
