@@ -864,6 +864,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonData['ajax_action']) && 
     exit;
 }
 
+// ========================================
+// AJAX: Vider tout le budget
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'clear_all_budget') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    try {
+        // Supprimer tous les items du projet
+        $stmt = $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+
+        // Supprimer tous les postes du projet
+        $stmt = $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+
+        // Supprimer les quantités de groupes
+        $stmt = $pdo->prepare("DELETE FROM projet_groupes WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 $projet = getProjetById($pdo, $projetId);
 
 if (!$projet) {

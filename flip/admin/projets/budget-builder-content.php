@@ -665,6 +665,9 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                 Budget du Projet
             </div>
             <div class="d-flex align-items-center gap-3">
+                <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearAllBudget()" title="Tout supprimer">
+                    <i class="bi bi-trash me-1"></i>Vider
+                </button>
                 <div class="btn-group btn-group-sm">
                     <button type="button" class="btn btn-light py-0 px-2" id="undoBtn" onclick="undoAction()" disabled title="Annuler (Ctrl+Z)">
                         <i class="bi bi-arrow-counterclockwise"></i>
@@ -1203,6 +1206,43 @@ document.addEventListener('DOMContentLoaded', function() {
     window.updateGroupeQte = function(groupe) {
         updateTotals();
         autoSave();
+    };
+
+    window.clearAllBudget = function() {
+        if (!confirm('Voulez-vous vraiment supprimer tous les items du budget?')) {
+            return;
+        }
+
+        saveState();
+
+        // Supprimer tous les items du DOM
+        document.querySelectorAll('.projet-item').forEach(item => item.remove());
+        document.querySelectorAll('.projet-mat-item').forEach(item => item.remove());
+
+        // Masquer tous les groupes
+        document.querySelectorAll('.projet-groupe').forEach(groupe => {
+            groupe.style.display = 'none';
+        });
+
+        // Afficher le message vide
+        const emptyMsg = document.getElementById('projetEmpty');
+        if (emptyMsg) emptyMsg.style.display = '';
+
+        // Supprimer en base de données
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=clear_all_budget&csrf_token=${csrfToken}`
+        })
+        .then(r => r.json())
+        .then(result => {
+            if (!result.success) {
+                console.error('Erreur suppression:', result.error);
+            }
+        })
+        .catch(err => console.error('Network error:', err));
+
+        updateTotals();
     };
 
     window.removeProjetItem = function(btn) {
