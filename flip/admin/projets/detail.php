@@ -130,6 +130,77 @@ try {
 }
 
 // ========================================
+// HELPER: Synchroniser la table budgets depuis projet_items
+// ========================================
+function syncBudgetsFromProjetItems($pdo, $projetId) {
+    // Calculer les totaux par catégorie depuis projet_items
+    $stmt = $pdo->prepare("
+        SELECT pp.categorie_id,
+               SUM(pi.prix_unitaire * pi.quantite) as total_ht
+        FROM projet_postes pp
+        LEFT JOIN projet_items pi ON pi.projet_poste_id = pp.id
+        WHERE pp.projet_id = ?
+        GROUP BY pp.categorie_id
+    ");
+    $stmt->execute([$projetId]);
+    $totals = $stmt->fetchAll();
+
+    // Récupérer les quantités des groupes
+    $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
+    $stmt->execute([$projetId]);
+    $groupeQtes = [];
+    foreach ($stmt->fetchAll() as $g) {
+        $groupeQtes[$g['groupe_nom']] = $g['quantite'];
+    }
+
+    // Récupérer les quantités des postes et leur groupe
+    $stmt = $pdo->prepare("
+        SELECT pp.categorie_id, pp.quantite as poste_qte, c.groupe
+        FROM projet_postes pp
+        JOIN categories c ON c.id = pp.categorie_id
+        WHERE pp.projet_id = ?
+    ");
+    $stmt->execute([$projetId]);
+    $postes = [];
+    foreach ($stmt->fetchAll() as $p) {
+        $postes[$p['categorie_id']] = [
+            'qte' => $p['poste_qte'],
+            'groupe' => $p['groupe']
+        ];
+    }
+
+    // Mettre à jour la table budgets
+    foreach ($totals as $t) {
+        $catId = $t['categorie_id'];
+        $totalHT = (float)$t['total_ht'];
+
+        // Appliquer les multiplicateurs
+        $posteQte = $postes[$catId]['qte'] ?? 1;
+        $groupe = $postes[$catId]['groupe'] ?? '';
+        $groupeQte = $groupeQtes[$groupe] ?? 1;
+
+        $montantExtrapole = $totalHT * $posteQte * $groupeQte;
+
+        $stmt = $pdo->prepare("
+            INSERT INTO budgets (projet_id, categorie_id, montant_extrapole)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE montant_extrapole = VALUES(montant_extrapole)
+        ");
+        $stmt->execute([$projetId, $catId, $montantExtrapole]);
+    }
+
+    // Supprimer les budgets pour les catégories qui n'ont plus d'items
+    $catIds = array_column($totals, 'categorie_id');
+    if (empty($catIds)) {
+        $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?")->execute([$projetId]);
+    } else {
+        $placeholders = implode(',', array_fill(0, count($catIds), '?'));
+        $stmt = $pdo->prepare("DELETE FROM budgets WHERE projet_id = ? AND categorie_id NOT IN ($placeholders)");
+        $stmt->execute(array_merge([$projetId], $catIds));
+    }
+}
+
+// ========================================
 // AJAX: Sauvegarde automatique de l'onglet Base
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_base') {
@@ -756,6 +827,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $stmt = $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
         $stmt->execute([$projetId, $matId]);
 
+        // Sync la table budgets
+        syncBudgetsFromProjetItems($pdo, $projetId);
+
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -812,6 +886,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             }
         }
 
+        // Sync la table budgets
+        syncBudgetsFromProjetItems($pdo, $projetId);
+
         echo json_encode(['success' => true, 'poste_id' => $posteId]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -857,6 +934,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonData['ajax_action']) && 
             }
         }
 
+        // Sync la table budgets
+        syncBudgetsFromProjetItems($pdo, $projetId);
+
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -886,6 +966,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
         // Supprimer les quantités de groupes
         $stmt = $pdo->prepare("DELETE FROM projet_groupes WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+
+        // IMPORTANT: Supprimer aussi de la table budgets pour sync avec Détail des coûts
+        $stmt = $pdo->prepare("DELETE FROM budgets WHERE projet_id = ?");
         $stmt->execute([$projetId]);
 
         echo json_encode(['success' => true]);
