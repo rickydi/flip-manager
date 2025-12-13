@@ -730,11 +730,17 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 
                             <strong class="flex-grow-1"><?= e($cat['nom']) ?></strong>
 
-                            <!-- Quantité catégorie (cliquable) -->
-                            <span class="badge item-badge badge-qte text-light me-1 editable-cat-qte"
-                                  role="button" title="Cliquer pour modifier"
-                                  data-cat-id="<?= $catId ?>">x<?= $qteCat ?></span>
-                            <input type="hidden" class="cat-qte-input" data-cat-id="<?= $catId ?>" value="<?= $qteCat ?>">
+                            <!-- Quantité catégorie (+/-) -->
+                            <div class="btn-group btn-group-sm me-1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $catId ?>" data-action="minus">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $catId ?>">x<?= $qteCat ?></span>
+                                <input type="hidden" class="cat-qte-input" data-cat-id="<?= $catId ?>" value="<?= $qteCat ?>">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $catId ?>" data-action="plus">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
 
                             <span class="badge item-badge badge-count text-info me-1">
                                 <i class="bi bi-box-seam me-1"></i><?= $nbItemsCat ?>
@@ -1302,65 +1308,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ========================================
-    // ÉDITION INLINE DES QUANTITÉS DE CATÉGORIE
+    // BOUTONS +/- POUR QUANTITÉS DE CATÉGORIE
     // ========================================
     document.addEventListener('click', function(e) {
-        const catQteBadge = e.target.closest('.editable-cat-qte');
-        if (!catQteBadge) return;
+        const btn = e.target.closest('.cat-qte-btn');
+        if (!btn) return;
 
-        // Éviter les clics multiples
-        if (catQteBadge.querySelector('input')) return;
-
-        const catItem = catQteBadge.closest('.projet-item');
+        const catId = btn.dataset.catId;
+        const action = btn.dataset.action;
+        const catItem = btn.closest('.projet-item');
         const catQteInput = catItem.querySelector('.cat-qte-input');
-        const currentQte = parseInt(catQteInput.value) || 1;
-        const originalText = catQteBadge.textContent;
-        let cancelled = false;
+        const catQteDisplay = catItem.querySelector('.cat-qte-display');
 
-        // Créer l'input
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.className = 'qte-input';
-        input.value = currentQte;
-        input.min = 1;
+        let currentQte = parseInt(catQteInput.value) || 1;
 
-        catQteBadge.textContent = '';
-        catQteBadge.appendChild(input);
-        input.focus();
-        input.select();
-
-        function saveCatQte() {
-            if (cancelled) return;
-
-            const newQte = Math.max(1, parseInt(input.value) || 1);
-            catQteInput.value = newQte;
-            catQteBadge.textContent = 'x' + newQte;
-
-            // Mettre à jour les totaux de tous les matériaux de cette catégorie
-            catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
-                const prix = parseFloat(matItem.dataset.prix) || 0;
-                const qte = parseInt(matItem.dataset.qte) || 1;
-                const groupeContainer = matItem.closest('.projet-groupe');
-                const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
-                const total = prix * qte * newQte * groupeQte * 1.14975;
-                matItem.querySelector('.badge-total').textContent = formatMoney(total);
-            });
-
-            // Recalculer les totaux et sauvegarder
-            updateTotals();
-            autoSave();
+        if (action === 'plus') {
+            currentQte++;
+        } else if (action === 'minus' && currentQte > 1) {
+            currentQte--;
         }
 
-        input.addEventListener('blur', saveCatQte);
-        input.addEventListener('keydown', function(ev) {
-            if (ev.key === 'Enter') {
-                ev.preventDefault();
-                input.blur();
-            } else if (ev.key === 'Escape') {
-                cancelled = true;
-                catQteBadge.textContent = originalText;
-            }
+        catQteInput.value = currentQte;
+        catQteDisplay.textContent = 'x' + currentQte;
+
+        // Mettre à jour les totaux de tous les matériaux de cette catégorie
+        catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
+            const prix = parseFloat(matItem.dataset.prix) || 0;
+            const qte = parseInt(matItem.dataset.qte) || 1;
+            const groupeContainer = matItem.closest('.projet-groupe');
+            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+            const total = prix * qte * currentQte * groupeQte * 1.14975;
+            matItem.querySelector('.badge-total').textContent = formatMoney(total);
         });
+
+        // Recalculer les totaux et sauvegarder
+        updateTotals();
+        autoSave();
     });
 
     function saveItemData(catId, matId, prix, qte) {
