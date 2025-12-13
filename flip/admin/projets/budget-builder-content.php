@@ -1339,6 +1339,43 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mettre à jour aussi "Détail des coûts" si présent
         console.log('Updating Détail des coûts:', {totalHT, contingence, tps, tvq, grandTotal});
 
+        // Collecter les totaux par catégorie pour mettre à jour "Détail des coûts"
+        const categoryTotals = {};
+        document.querySelectorAll('.projet-item[data-cat-id]').forEach(catItem => {
+            const catId = catItem.dataset.catId;
+            const groupe = catItem.dataset.groupe;
+            const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+            const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
+
+            let catTotal = 0;
+            const matItems = catItem.querySelectorAll('.projet-mat-item');
+            if (matItems.length > 0) {
+                const catQteInput = catItem.querySelector('.cat-qte-input');
+                const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
+                matItems.forEach(matItem => {
+                    const prix = parseFloat(matItem.dataset.prix) || 0;
+                    const qte = parseInt(matItem.dataset.qte) || 1;
+                    catTotal += prix * qte;
+                });
+                catTotal = catTotal * qteCat * qteGroupe;
+            } else {
+                const prix = parseFloat(catItem.dataset.prix) || 0;
+                const qteDisplay = catItem.querySelector('.added-item-qte-display');
+                const qte = qteDisplay ? parseInt(qteDisplay.textContent) || 1 : 1;
+                catTotal = prix * qte * qteGroupe;
+            }
+
+            categoryTotals[catId] = (categoryTotals[catId] || 0) + catTotal;
+        });
+
+        // Mettre à jour les cellules de budget par catégorie dans Détail des coûts
+        Object.keys(categoryTotals).forEach(catId => {
+            const cell = document.getElementById('detailCatBudget_' + catId);
+            if (cell) {
+                cell.textContent = formatMoney(categoryTotals[catId]);
+            }
+        });
+
         const detailContingence = document.getElementById('detailContingence');
         console.log('detailContingence element:', detailContingence);
         if (detailContingence) detailContingence.textContent = formatMoney(contingence);
