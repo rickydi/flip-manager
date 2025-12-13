@@ -1089,55 +1089,63 @@ if (empty($projetRecurrents) && !empty($recurrentsTypes)) {
 }
 
 // ========================================
-// DONNÉES TEMPLATES BUDGETS DÉTAILLÉS
+// DONNÉES TEMPLATES BUDGETS DÉTAILLÉS (structure récursive comme templates)
 // ========================================
 $templatesBudgets = [];
 $projetPostes = [];
 $projetItems = [];
 $projetGroupes = [];
 
-try {
-    // Charger les templates (sous-catégories et matériaux par catégorie)
-    // Inclut TOUTES les sous-catégories (même imbriquées) pour avoir tous les matériaux
-    $stmt = $pdo->query("
-        SELECT c.id as categorie_id, c.nom as categorie_nom, c.groupe,
-               sc.id as sc_id, sc.nom as sc_nom, sc.parent_id as sc_parent_id,
-               m.id as mat_id, m.nom as mat_nom, m.prix_defaut,
-               COALESCE(m.quantite_defaut, 1) as quantite_defaut
-        FROM categories c
-        LEFT JOIN sous_categories sc ON sc.categorie_id = c.id AND sc.actif = 1
-        LEFT JOIN materiaux m ON m.sous_categorie_id = sc.id AND m.actif = 1
-        ORDER BY c.groupe, c.ordre, sc.ordre, m.ordre
-    ");
+/**
+ * Récupérer les sous-catégories de façon récursive (même logique que templates/liste.php)
+ */
+function getSousCategoriesRecursifBudget($pdo, $categorieId, $parentId = null) {
+    if ($parentId === null) {
+        $stmt = $pdo->prepare("
+            SELECT sc.*
+            FROM sous_categories sc
+            WHERE sc.categorie_id = ? AND sc.parent_id IS NULL AND sc.actif = 1
+            ORDER BY sc.ordre, sc.nom
+        ");
+        $stmt->execute([$categorieId]);
+    } else {
+        $stmt = $pdo->prepare("
+            SELECT sc.*
+            FROM sous_categories sc
+            WHERE sc.categorie_id = ? AND sc.parent_id = ? AND sc.actif = 1
+            ORDER BY sc.ordre, sc.nom
+        ");
+        $stmt->execute([$categorieId, $parentId]);
+    }
 
-    foreach ($stmt->fetchAll() as $row) {
-        $catId = $row['categorie_id'];
-        if (!isset($templatesBudgets[$catId])) {
-            $templatesBudgets[$catId] = [
-                'id' => $catId,
-                'nom' => $row['categorie_nom'],
-                'groupe' => $row['groupe'],
-                'sous_categories' => []
-            ];
-        }
-        if ($row['sc_id']) {
-            $scId = $row['sc_id'];
-            if (!isset($templatesBudgets[$catId]['sous_categories'][$scId])) {
-                $templatesBudgets[$catId]['sous_categories'][$scId] = [
-                    'id' => $scId,
-                    'nom' => $row['sc_nom'],
-                    'materiaux' => []
-                ];
-            }
-            if ($row['mat_id']) {
-                $templatesBudgets[$catId]['sous_categories'][$scId]['materiaux'][] = [
-                    'id' => $row['mat_id'],
-                    'nom' => $row['mat_nom'],
-                    'prix_defaut' => (float)$row['prix_defaut'],
-                    'quantite_defaut' => (int)$row['quantite_defaut']
-                ];
-            }
-        }
+    $sousCategories = $stmt->fetchAll();
+
+    foreach ($sousCategories as &$sc) {
+        // Récupérer les matériaux
+        $stmt = $pdo->prepare("SELECT * FROM materiaux WHERE sous_categorie_id = ? AND actif = 1 ORDER BY ordre, nom");
+        $stmt->execute([$sc['id']]);
+        $sc['materiaux'] = $stmt->fetchAll();
+
+        // Récupérer les enfants récursivement
+        $sc['enfants'] = getSousCategoriesRecursifBudget($pdo, $categorieId, $sc['id']);
+    }
+
+    return $sousCategories;
+}
+
+try {
+    // Charger les catégories avec leur structure récursive
+    $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre, nom");
+    $categories = $stmt->fetchAll();
+
+    foreach ($categories as $cat) {
+        $catId = $cat['id'];
+        $templatesBudgets[$catId] = [
+            'id' => $catId,
+            'nom' => $cat['nom'],
+            'groupe' => $cat['groupe'],
+            'sous_categories' => getSousCategoriesRecursifBudget($pdo, $catId)
+        ];
     }
 
     // Charger les postes existants du projet

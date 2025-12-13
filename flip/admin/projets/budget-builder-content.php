@@ -2,6 +2,7 @@
 /**
  * Budget Builder - Interface Drag & Drop (Style identique à Templates)
  * Inclus dans detail.php, onglet Budgets
+ * Affichage récursif des sous-catégories et matériaux
  */
 
 // Récupérer les templates en structure arbre pour le catalogue
@@ -15,6 +16,135 @@ foreach ($templatesBudgets as $catId => $cat) {
         ];
     }
     $catalogueData[$groupe]['categories'][$catId] = $cat;
+}
+
+/**
+ * Compter les matériaux récursivement dans une sous-catégorie
+ */
+function compterMateriauxRecursif($sousCategories) {
+    $count = 0;
+    $total = 0;
+    foreach ($sousCategories as $sc) {
+        foreach ($sc['materiaux'] ?? [] as $mat) {
+            $count++;
+            $qte = $mat['quantite_defaut'] ?? 1;
+            $total += ($mat['prix_defaut'] ?? 0) * $qte;
+        }
+        if (!empty($sc['enfants'])) {
+            $sub = compterMateriauxRecursif($sc['enfants']);
+            $count += $sub['count'];
+            $total += $sub['total'];
+        }
+    }
+    return ['count' => $count, 'total' => $total];
+}
+
+/**
+ * Afficher les sous-catégories de façon récursive pour le catalogue (drag & drop)
+ */
+function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $groupe, $niveau = 0) {
+    if (empty($sousCategories)) return;
+
+    foreach ($sousCategories as $sc):
+        $hasEnfants = !empty($sc['enfants']);
+        $hasMateriaux = !empty($sc['materiaux']);
+        $isKit = $hasEnfants || $hasMateriaux;
+        $uniqueId = 'cat' . $catId . '_sc' . $sc['id'];
+
+        // Calculer totaux pour ce noeud
+        $nbItems = count($sc['materiaux'] ?? []);
+        $totalSc = 0;
+        foreach ($sc['materiaux'] ?? [] as $mat) {
+            $totalSc += ($mat['prix_defaut'] ?? 0) * ($mat['quantite_defaut'] ?? 1);
+        }
+        if ($hasEnfants) {
+            $sub = compterMateriauxRecursif($sc['enfants']);
+            $nbItems += $sub['count'];
+            $totalSc += $sub['total'];
+        }
+        ?>
+        <div class="tree-item mb-1 <?= $isKit ? 'is-kit' : '' ?>" data-sc-id="<?= $sc['id'] ?>">
+            <div class="tree-content catalogue-draggable"
+                 draggable="true"
+                 data-type="sous_categorie"
+                 data-id="<?= $sc['id'] ?>"
+                 data-cat-id="<?= $catId ?>"
+                 data-groupe="<?= $groupe ?>"
+                 data-nom="<?= e($sc['nom']) ?>"
+                 data-prix="<?= $totalSc ?>">
+
+                <i class="bi bi-grip-vertical drag-handle"></i>
+
+                <?php if ($isKit): ?>
+                <span class="tree-toggle" onclick="event.stopPropagation(); toggleTreeItem(this, '<?= $uniqueId ?>')">
+                    <i class="bi bi-caret-down-fill"></i>
+                </span>
+                <?php else: ?>
+                <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
+                <?php endif; ?>
+
+                <div class="type-icon">
+                    <i class="bi <?= $hasEnfants ? 'bi-folder-fill text-warning' : 'bi-folder text-warning' ?>"></i>
+                </div>
+
+                <strong class="flex-grow-1"><?= e($sc['nom']) ?></strong>
+
+                <?php if ($hasEnfants): ?>
+                <span class="badge item-badge text-warning me-1">
+                    <i class="bi bi-folder-fill me-1"></i><?= count($sc['enfants']) ?>
+                </span>
+                <?php endif; ?>
+
+                <?php if ($nbItems > 0): ?>
+                <span class="badge item-badge text-info me-1">
+                    <i class="bi bi-box-seam me-1"></i><?= $nbItems ?>
+                </span>
+                <?php endif; ?>
+
+                <?php if ($totalSc > 0): ?>
+                <span class="badge item-badge text-success">
+                    <?= formatMoney($totalSc) ?>
+                </span>
+                <?php endif; ?>
+            </div>
+
+            <?php if ($isKit): ?>
+            <div class="collapse show tree-children" id="<?= $uniqueId ?>">
+                <?php // Afficher les matériaux de cette sous-catégorie ?>
+                <?php foreach ($sc['materiaux'] ?? [] as $mat):
+                    $qte = $mat['quantite_defaut'] ?? 1;
+                    $total = ($mat['prix_defaut'] ?? 0) * $qte;
+                ?>
+                <div class="tree-content mat-item catalogue-draggable"
+                     draggable="true"
+                     data-type="materiau"
+                     data-id="<?= $mat['id'] ?>"
+                     data-sc-id="<?= $sc['id'] ?>"
+                     data-cat-id="<?= $catId ?>"
+                     data-groupe="<?= $groupe ?>"
+                     data-nom="<?= e($mat['nom']) ?>"
+                     data-prix="<?= $mat['prix_defaut'] ?? 0 ?>"
+                     data-qte="<?= $qte ?>">
+
+                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+
+                    <span class="badge item-badge text-light me-1">x<?= $qte ?></span>
+                    <span class="badge item-badge text-info me-1"><?= formatMoney($mat['prix_defaut'] ?? 0) ?></span>
+                    <span class="badge item-badge text-success fw-bold"><?= formatMoney($total) ?></span>
+                </div>
+                <?php endforeach; ?>
+
+                <?php // Récursion pour les sous-sous-catégories ?>
+                <?php if ($hasEnfants): ?>
+                    <?php afficherSousCategoriesRecursifCatalogue($sc['enfants'], $catId, $groupe, $niveau + 1); ?>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+        <?php
+    endforeach;
 }
 
 // Calculer totaux actuels du projet
@@ -401,14 +531,11 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                 <div class="groupe-content" data-groupe="<?= $groupe ?>">
                     <?php foreach ($groupeData['categories'] as $catId => $cat):
                         $hasContent = !empty($cat['sous_categories']);
-                        $totalCat = 0;
-                        $nbItems = 0;
-                        foreach ($cat['sous_categories'] ?? [] as $sc) {
-                            foreach ($sc['materiaux'] ?? [] as $mat) {
-                                $totalCat += $mat['prix_defaut'] * ($mat['quantite_defaut'] ?? 1);
-                                $nbItems++;
-                            }
-                        }
+                        // Calculer totaux récursivement
+                        $stats = compterMateriauxRecursif($cat['sous_categories'] ?? []);
+                        $totalCat = $stats['total'];
+                        $nbItems = $stats['count'];
+                        $nbSousCategories = count($cat['sous_categories'] ?? []);
                     ?>
                     <div class="tree-item mb-1 <?= $hasContent ? 'is-kit' : '' ?>">
                         <div class="tree-content catalogue-draggable"
@@ -422,7 +549,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                             <i class="bi bi-grip-vertical drag-handle"></i>
 
                             <?php if ($hasContent): ?>
-                            <span class="tree-toggle" onclick="event.stopPropagation(); toggleTreeItem(this, <?= $catId ?>)">
+                            <span class="tree-toggle" onclick="event.stopPropagation(); toggleTreeItem(this, 'catContent<?= $catId ?>')">
                                 <i class="bi bi-caret-down-fill"></i>
                             </span>
                             <?php else: ?>
@@ -434,6 +561,12 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                             </div>
 
                             <strong class="flex-grow-1"><?= e($cat['nom']) ?></strong>
+
+                            <?php if ($nbSousCategories > 0): ?>
+                            <span class="badge item-badge text-warning me-1">
+                                <i class="bi bi-folder-fill me-1"></i><?= $nbSousCategories ?>
+                            </span>
+                            <?php endif; ?>
 
                             <?php if ($nbItems > 0): ?>
                             <span class="badge item-badge text-info me-1">
@@ -450,31 +583,8 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 
                         <?php if ($hasContent): ?>
                         <div class="collapse show tree-children" id="catContent<?= $catId ?>">
-                            <?php foreach ($cat['sous_categories'] as $scId => $sc): ?>
-                                <?php foreach ($sc['materiaux'] ?? [] as $mat):
-                                    $qte = $mat['quantite_defaut'] ?? 1;
-                                    $total = $mat['prix_defaut'] * $qte;
-                                ?>
-                                <div class="tree-content mat-item catalogue-draggable"
-                                     draggable="true"
-                                     data-type="materiau"
-                                     data-id="<?= $mat['id'] ?>"
-                                     data-cat-id="<?= $catId ?>"
-                                     data-groupe="<?= $groupe ?>"
-                                     data-nom="<?= e($mat['nom']) ?>"
-                                     data-prix="<?= $mat['prix_defaut'] ?>"
-                                     data-qte="<?= $qte ?>">
-
-                                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
-                                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
-                                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
-
-                                    <span class="badge item-badge text-light me-1">x<?= $qte ?></span>
-                                    <span class="badge item-badge text-info me-1"><?= formatMoney($mat['prix_defaut']) ?></span>
-                                    <span class="badge item-badge text-success fw-bold"><?= formatMoney($total) ?></span>
-                                </div>
-                                <?php endforeach; ?>
-                            <?php endforeach; ?>
+                            <?php // Affichage récursif des sous-catégories ?>
+                            <?php afficherSousCategoriesRecursifCatalogue($cat['sous_categories'], $catId, $groupe); ?>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -700,7 +810,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.toggleTreeItem = function(toggle, id) {
         toggle.classList.toggle('collapsed');
-        const content = document.getElementById('catContent' + id) || document.getElementById('projetContent' + id);
+        // Supporter les deux formats: ID numérique ou ID string complet
+        const content = document.getElementById(id) ||
+                        document.getElementById('catContent' + id) ||
+                        document.getElementById('projetContent' + id);
         if (content) {
             content.classList.toggle('show');
         }
