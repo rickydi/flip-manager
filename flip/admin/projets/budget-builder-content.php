@@ -743,7 +743,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                 <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $catId ?>" data-action="minus">
                                     <i class="bi bi-dash"></i>
                                 </button>
-                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $catId ?>">x<?= $qteCat ?></span>
+                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $catId ?>"><?= $qteCat ?></span>
                                 <input type="hidden" class="cat-qte-input" data-cat-id="<?= $catId ?>" value="<?= $qteCat ?>">
                                 <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $catId ?>" data-action="plus">
                                     <i class="bi bi-plus"></i>
@@ -782,7 +782,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
                                             <i class="bi bi-dash"></i>
                                         </button>
-                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">x<?= $qteItem ?></span>
+                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display"><?= $qteItem ?></span>
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
                                             <i class="bi bi-plus"></i>
                                         </button>
@@ -1211,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         matItem.dataset.qte = currentQte;
-        matQteDisplay.textContent = 'x' + currentQte;
+        matQteDisplay.textContent = currentQte;
 
         // Mettre à jour le total de la ligne
         const prix = parseFloat(matItem.dataset.prix) || 0;
@@ -1348,7 +1348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         catQteInput.value = currentQte;
-        catQteDisplay.textContent = 'x' + currentQte;
+        catQteDisplay.textContent = currentQte;
 
         // Mettre à jour les totaux de tous les matériaux de cette catégorie
         catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
