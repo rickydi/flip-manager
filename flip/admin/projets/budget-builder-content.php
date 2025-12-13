@@ -654,10 +654,20 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                 <i class="bi bi-cart3 me-2"></i>
                 Budget du Projet
             </div>
-            <div id="saveStatus" class="small">
-                <span id="saveIdle"><i class="bi bi-cloud-check me-1"></i>Auto-save</span>
-                <span id="saveSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Sauvegarde...</span>
-                <span id="saveSaved" class="d-none"><i class="bi bi-check-circle me-1"></i>Sauvegardé!</span>
+            <div class="d-flex align-items-center gap-3">
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-light py-0 px-2" id="undoBtn" onclick="undoAction()" disabled title="Annuler (Ctrl+Z)">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-light py-0 px-2" id="redoBtn" onclick="redoAction()" disabled title="Rétablir (Ctrl+Y)">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div id="saveStatus" class="small">
+                    <span id="saveIdle"><i class="bi bi-cloud-check me-1"></i>Auto-save</span>
+                    <span id="saveSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Sauvegarde...</span>
+                    <span id="saveSaved" class="d-none"><i class="bi bi-check-circle me-1"></i>Sauvegardé!</span>
+                </div>
             </div>
         </div>
         <div class="panel-content" id="projetContent">
@@ -826,6 +836,95 @@ document.addEventListener('DOMContentLoaded', function() {
     let saveTimeout = null;
 
     // ========================================
+    // UNDO/REDO SYSTEM
+    // ========================================
+    const historyStack = [];
+    const redoStack = [];
+    const maxHistory = 50;
+
+    function getState() {
+        const state = {
+            html: document.getElementById('projetContent').innerHTML,
+            groupeVisibility: {}
+        };
+        document.querySelectorAll('.projet-groupe').forEach(g => {
+            state.groupeVisibility[g.dataset.groupe] = g.style.display;
+        });
+        return state;
+    }
+
+    function saveState() {
+        const state = getState();
+        historyStack.push(state);
+        if (historyStack.length > maxHistory) {
+            historyStack.shift();
+        }
+        redoStack.length = 0; // Clear redo stack on new action
+        updateUndoRedoButtons();
+    }
+
+    function restoreState(state) {
+        document.getElementById('projetContent').innerHTML = state.html;
+        // Restore groupe visibility
+        Object.keys(state.groupeVisibility).forEach(groupe => {
+            const g = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
+            if (g) g.style.display = state.groupeVisibility[groupe];
+        });
+        // Reinitialize sortable on drop zones
+        document.querySelectorAll('.projet-drop-zone').forEach(zone => {
+            new Sortable(zone, {
+                group: 'projet-items',
+                animation: 150,
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost',
+                onStart: function() {
+                    saveState();
+                },
+                onEnd: function() {
+                    autoSave();
+                }
+            });
+        });
+        updateTotals();
+    }
+
+    function updateUndoRedoButtons() {
+        document.getElementById('undoBtn').disabled = historyStack.length === 0;
+        document.getElementById('redoBtn').disabled = redoStack.length === 0;
+    }
+
+    window.undoAction = function() {
+        if (historyStack.length === 0) return;
+        const currentState = getState();
+        redoStack.push(currentState);
+        const previousState = historyStack.pop();
+        restoreState(previousState);
+        updateUndoRedoButtons();
+        autoSave();
+    };
+
+    window.redoAction = function() {
+        if (redoStack.length === 0) return;
+        const currentState = getState();
+        historyStack.push(currentState);
+        const nextState = redoStack.pop();
+        restoreState(nextState);
+        updateUndoRedoButtons();
+        autoSave();
+    };
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undoAction();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redoAction();
+        }
+    });
+
+    // ========================================
     // SPLITTER RESIZABLE
     // ========================================
     const splitter = document.getElementById('splitter');
@@ -959,6 +1058,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        saveState();
+
         // Afficher le groupe s'il est masqué
         const groupeDiv = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
         if (groupeDiv) {
@@ -1051,6 +1152,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.removeProjetItem = function(btn) {
+        saveState();
         const item = btn.closest('.projet-item');
         const groupe = item.dataset.groupe;
         item.remove();
@@ -1185,6 +1287,9 @@ document.addEventListener('DOMContentLoaded', function() {
             animation: 150,
             handle: '.drag-handle',
             ghostClass: 'sortable-ghost',
+            onStart: function() {
+                saveState();
+            },
             onEnd: function() {
                 autoSave();
             }
@@ -1198,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const btn = e.target.closest('.mat-qte-btn');
         if (!btn) return;
 
+        saveState();
         const action = btn.dataset.action;
         const matItem = btn.closest('.projet-mat-item');
         const matQteDisplay = matItem.querySelector('.mat-qte-display');
@@ -1237,6 +1343,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const btn = e.target.closest('.remove-mat-btn');
         if (!btn) return;
 
+        saveState();
         const matItem = btn.closest('.projet-mat-item');
         const catId = matItem.dataset.catId;
         const matId = matItem.dataset.matId;
@@ -1272,6 +1379,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Éviter les clics multiples
         if (prixBadge.querySelector('input')) return;
 
+        saveState();
         const matItem = prixBadge.closest('.projet-mat-item');
         const currentPrix = parseFloat(matItem.dataset.prix) || 0;
         const originalText = prixBadge.textContent;
@@ -1333,6 +1441,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const btn = e.target.closest('.cat-qte-btn');
         if (!btn) return;
 
+        saveState();
         const catId = btn.dataset.catId;
         const action = btn.dataset.action;
         const catItem = btn.closest('.projet-item');
