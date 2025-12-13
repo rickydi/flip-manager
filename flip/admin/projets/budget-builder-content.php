@@ -1061,22 +1061,29 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateTotals() {
         let totalHT = 0;
 
-        document.querySelectorAll('.projet-item').forEach(item => {
-            const catId = item.dataset.id;
-            const groupe = item.dataset.groupe;
-            const prix = parseFloat(item.dataset.prix) || 0;
+        // Parcourir toutes les catégories
+        document.querySelectorAll('.projet-item').forEach(catItem => {
+            const groupe = catItem.dataset.groupe;
+            let catTotal = 0;
 
-            const catQteInput = item.querySelector('.cat-qte-input');
+            const catQteInput = catItem.querySelector('.cat-qte-input');
             const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
 
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-            const itemTotal = prix * qteCat * qteGroupe;
+            // Parcourir tous les matériaux de cette catégorie
+            catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
+                const prix = parseFloat(matItem.dataset.prix) || 0;
+                const qte = parseInt(matItem.dataset.qte) || 1;
+                catTotal += prix * qte;
+            });
+
+            const itemTotal = catTotal * qteCat * qteGroupe;
             totalHT += itemTotal;
 
-            // Mettre à jour affichage
-            const totalSpan = item.querySelector('.cat-total');
+            // Mettre à jour affichage du total catégorie
+            const totalSpan = catItem.querySelector('.cat-total');
             if (totalSpan) {
                 totalSpan.textContent = formatMoney(itemTotal * 1.14975);
             }
