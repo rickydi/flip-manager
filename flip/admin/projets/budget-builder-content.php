@@ -730,8 +730,16 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 
                             <strong class="flex-grow-1"><?= e($cat['nom']) ?></strong>
 
+                            <span class="badge item-badge badge-count text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><?= $nbItemsCat ?>
+                            </span>
+
+                            <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="<?= $catId ?>">
+                                <?= formatMoney($catTotal * 1.14975) ?>
+                            </span>
+
                             <!-- Quantité catégorie (+/-) -->
-                            <div class="btn-group btn-group-sm me-1">
+                            <div class="btn-group btn-group-sm me-2">
                                 <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $catId ?>" data-action="minus">
                                     <i class="bi bi-dash"></i>
                                 </button>
@@ -742,15 +750,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                 </button>
                             </div>
 
-                            <span class="badge item-badge badge-count text-info me-1">
-                                <i class="bi bi-box-seam me-1"></i><?= $nbItemsCat ?>
-                            </span>
-
-                            <span class="badge item-badge badge-total text-success fw-bold cat-total" data-cat-id="<?= $catId ?>">
-                                <?= formatMoney($catTotal * 1.14975) ?>
-                            </span>
-
-                            <button type="button" class="btn btn-sm btn-link text-danger ms-2 p-0" onclick="removeProjetItem(this)" title="Retirer">
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
                                 <i class="bi bi-x-lg"></i>
                             </button>
                         </div>
@@ -778,11 +778,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                     <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
                                     <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem * 1.14975) ?></span>
 
-                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 me-2 remove-mat-btn" title="Retirer">
-                                        <i class="bi bi-x-lg"></i>
-                                    </button>
-
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="btn-group btn-group-sm me-2">
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
                                             <i class="bi bi-dash"></i>
                                         </button>
@@ -791,6 +787,10 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                             <i class="bi bi-plus"></i>
                                         </button>
                                     </div>
+
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
                                 </div>
                                 <?php endforeach; ?>
                             <?php endforeach; ?>
