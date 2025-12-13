@@ -1341,8 +1341,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Collecter les totaux par catégorie pour mettre à jour "Détail des coûts"
         const categoryTotals = {};
-        document.querySelectorAll('.projet-item[data-cat-id]').forEach(catItem => {
-            const catId = catItem.dataset.catId;
+        document.querySelectorAll('.projet-item[data-type="categorie"]').forEach(catItem => {
+            const catId = catItem.dataset.id;
             const groupe = catItem.dataset.groupe;
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
@@ -1369,8 +1369,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // Mettre à jour les cellules de budget par catégorie dans Détail des coûts
+        console.log('Category totals:', categoryTotals);
         Object.keys(categoryTotals).forEach(catId => {
             const cell = document.getElementById('detailCatBudget_' + catId);
+            console.log('  detailCatBudget_' + catId + ':', cell, '->', formatMoney(categoryTotals[catId]));
             if (cell) {
                 cell.textContent = formatMoney(categoryTotals[catId]);
             }
