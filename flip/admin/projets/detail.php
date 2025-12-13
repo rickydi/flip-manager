@@ -2586,21 +2586,21 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php endif; ?>
                 </div>
                 <div class="card-body py-3">
-                    <table class="table table-sm table-borderless mb-0">
+                    <table class="table table-sm table-borderless mb-0" style="color: #ecf0f1;">
                         <tbody>
                             <tr>
-                                <td class="text-secondary">Prix d'achat</td>
+                                <td style="color: #95a5a6;">Prix d'achat</td>
                                 <td class="text-end"><?= formatMoney($prixAchatNotaire) ?></td>
                             </tr>
                             <?php if ($cessionNotaire > 0): ?>
                             <tr>
-                                <td class="text-secondary">Cession</td>
+                                <td style="color: #95a5a6;">Cession</td>
                                 <td class="text-end"><?= formatMoney($cessionNotaire) ?></td>
                             </tr>
                             <?php endif; ?>
                             <?php if ($soldeVendeurNotaire > 0): ?>
                             <tr>
-                                <td class="text-secondary">Solde vendeur</td>
+                                <td style="color: #95a5a6;">Solde vendeur</td>
                                 <td class="text-end"><?= formatMoney($soldeVendeurNotaire) ?></td>
                             </tr>
                             <?php endif; ?>
@@ -2611,8 +2611,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <td class="text-end fw-bold pt-2 fs-5"><?= formatMoney($montantRequisNotaire) ?></td>
                             </tr>
                             <tr>
-                                <td class="text-secondary">Total des prêts</td>
-                                <td class="text-end"><?= formatMoney($totalPretsCalc) ?></td>
+                                <td style="color: #95a5a6;">Total des prêts</td>
+                                <td class="text-end" style="color: #95a5a6;"><?= formatMoney($totalPretsCalc) ?></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -2636,15 +2636,15 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php endif; ?>
                 </div>
                 <div class="card-body py-3">
-                    <table class="table table-sm table-borderless mb-0">
+                    <table class="table table-sm table-borderless mb-0" style="color: #ecf0f1;">
                         <tbody>
                             <tr>
-                                <td class="text-secondary">Cashflow nécessaire</td>
+                                <td style="color: #95a5a6;">Cashflow nécessaire</td>
                                 <td class="text-end"><?= formatMoney($cashFlowNecessaire) ?></td>
                             </tr>
                             <tr>
-                                <td class="text-secondary">Total des prêts <small class="text-muted">(<?= count($listePreteurs) ?>)</small></td>
-                                <td class="text-end"><?= formatMoney($totalPretsCalc) ?></td>
+                                <td style="color: #95a5a6;">Total des prêts</td>
+                                <td class="text-end" style="color: #95a5a6;"><?= formatMoney($totalPretsCalc) ?></td>
                             </tr>
                         </tbody>
                         <tfoot>
@@ -2652,7 +2652,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <td class="fw-bold pt-2">
                                     <?= $diffCashflow >= 0 ? 'Surplus' : 'Cash à sortir' ?>
                                 </td>
-                                <td class="text-end fw-bold pt-2 fs-5 <?= $diffCashflow < 0 ? 'text-danger' : ($diffCashflow > 0 ? 'text-info' : '') ?>">
+                                <td class="text-end fw-bold pt-2 fs-5" style="<?= $diffCashflow < 0 ? 'color: #e74c3c;' : '' ?>">
                                     <?= formatMoney(abs($diffCashflow)) ?>
                                 </td>
                             </tr>
