@@ -1330,6 +1330,12 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi "Détail des coûts" si présent
+        // D'abord, réinitialiser TOUTES les cellules de catégories à 0
+        document.querySelectorAll('.detail-cat-budget').forEach(cell => {
+            cell.textContent = formatMoney(0);
+        });
+
+        // Ensuite, calculer les totaux seulement pour les catégories dans le Budget Builder
         const categoryTotals = {};
         document.querySelectorAll('.projet-item[data-type="categorie"]').forEach(catItem => {
             const catId = catItem.dataset.id;
