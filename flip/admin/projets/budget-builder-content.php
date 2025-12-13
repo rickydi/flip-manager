@@ -1709,5 +1709,9 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Erreur réseau: ' + err.message);
         });
     }
+
+    // Appeler updateTotals au chargement pour synchroniser "Détail des coûts"
+    console.log('Calling initial updateTotals()');
+    updateTotals();
 });
 </script>
