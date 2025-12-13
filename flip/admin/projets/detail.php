@@ -739,6 +739,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     exit;
 }
 
+// ========================================
+// AJAX: Supprimer un matériau du projet
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'remove_material') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $matId = (int)($_POST['mat_id'] ?? 0);
+
+    try {
+        $stmt = $pdo->prepare("DELETE FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
+        $stmt->execute([$projetId, $matId]);
+
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 $projet = getProjetById($pdo, $projetId);
 
 if (!$projet) {

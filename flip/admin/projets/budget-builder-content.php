@@ -775,7 +775,14 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
-                                    <div class="btn-group btn-group-sm me-1">
+                                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
+                                    <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem * 1.14975) ?></span>
+
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 me-2 remove-mat-btn" title="Retirer">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+
+                                    <div class="btn-group btn-group-sm">
                                         <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
                                             <i class="bi bi-dash"></i>
                                         </button>
@@ -784,8 +791,6 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                             <i class="bi bi-plus"></i>
                                         </button>
                                     </div>
-                                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
-                                    <span class="badge item-badge badge-total text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
                                 </div>
                                 <?php endforeach; ?>
                             <?php endforeach; ?>
@@ -1223,6 +1228,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Recalculer les totaux
         updateTotals();
+    });
+
+    // ========================================
+    // SUPPRIMER UN MATÉRIAU
+    // ========================================
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.remove-mat-btn');
+        if (!btn) return;
+
+        const matItem = btn.closest('.projet-mat-item');
+        const catId = matItem.dataset.catId;
+        const matId = matItem.dataset.matId;
+
+        // Supprimer l'élément du DOM
+        matItem.remove();
+
+        // Supprimer via AJAX
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=remove_material&cat_id=${catId}&mat_id=${matId}&csrf_token=${csrfToken}`
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Erreur suppression:', data.error);
+            }
+        });
+
+        // Recalculer les totaux
+        updateTotals();
+        autoSave();
     });
 
     // ========================================
