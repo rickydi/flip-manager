@@ -1188,6 +1188,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const matItem = qteBadge.closest('.projet-mat-item');
         const currentQte = parseInt(matItem.dataset.qte) || 1;
         const originalText = qteBadge.textContent;
+        let cancelled = false;
 
         // Créer l'input
         const input = document.createElement('input');
@@ -1202,6 +1203,8 @@ document.addEventListener('DOMContentLoaded', function() {
         input.select();
 
         function saveQte() {
+            if (cancelled) return;
+
             const newQte = Math.max(1, parseInt(input.value) || 1);
             matItem.dataset.qte = newQte;
             qteBadge.textContent = 'x' + newQte;
@@ -1231,6 +1234,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ev.preventDefault();
                 input.blur();
             } else if (ev.key === 'Escape') {
+                cancelled = true;
                 qteBadge.textContent = originalText;
             }
         });
@@ -1249,6 +1253,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const matItem = prixBadge.closest('.projet-mat-item');
         const currentPrix = parseFloat(matItem.dataset.prix) || 0;
         const originalText = prixBadge.textContent;
+        let cancelled = false;
 
         // Créer l'input
         const input = document.createElement('input');
@@ -1262,6 +1267,8 @@ document.addEventListener('DOMContentLoaded', function() {
         input.select();
 
         function savePrix() {
+            if (cancelled) return;
+
             const newPrix = parseFloat(input.value.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
             matItem.dataset.prix = newPrix;
             prixBadge.textContent = formatMoney(newPrix);
@@ -1291,6 +1298,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 ev.preventDefault();
                 input.blur();
             } else if (ev.key === 'Escape') {
+                cancelled = true;
                 prixBadge.textContent = originalText;
             }
         });
@@ -1301,6 +1309,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (prix !== null) body += `&prix=${prix}`;
         if (qte !== null) body += `&qte=${qte}`;
 
+        console.log('Saving item:', { catId, matId, prix, qte, body });
+
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1308,11 +1318,16 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(r => r.json())
         .then(data => {
+            console.log('Save response:', data);
             if (!data.success) {
                 console.error('Erreur sauvegarde:', data.error);
+                alert('Erreur: ' + (data.error || 'Sauvegarde échouée'));
             }
         })
-        .catch(err => console.error('Network error:', err));
+        .catch(err => {
+            console.error('Network error:', err);
+            alert('Erreur réseau: ' + err.message);
+        });
     }
 });
 </script>
