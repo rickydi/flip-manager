@@ -775,7 +775,15 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
-                                    <span class="badge item-badge badge-qte text-light me-1 editable-qte" role="button" title="Cliquer pour modifier">x<?= $qteItem ?></span>
+                                    <div class="btn-group btn-group-sm me-1">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                                            <i class="bi bi-dash"></i>
+                                        </button>
+                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">x<?= $qteItem ?></span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
                                     <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
                                     <span class="badge item-badge badge-total text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
                                 </div>
@@ -1179,68 +1187,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ========================================
-    // ÉDITION INLINE DES QUANTITÉS
+    // BOUTONS +/- POUR QUANTITÉS DE MATÉRIAUX
     // ========================================
     document.addEventListener('click', function(e) {
-        const qteBadge = e.target.closest('.editable-qte');
-        if (!qteBadge) return;
+        const btn = e.target.closest('.mat-qte-btn');
+        if (!btn) return;
 
-        // Éviter les clics multiples
-        if (qteBadge.querySelector('input')) return;
+        const action = btn.dataset.action;
+        const matItem = btn.closest('.projet-mat-item');
+        const matQteDisplay = matItem.querySelector('.mat-qte-display');
 
-        const matItem = qteBadge.closest('.projet-mat-item');
-        const currentQte = parseInt(matItem.dataset.qte) || 1;
-        const originalText = qteBadge.textContent;
-        let cancelled = false;
+        let currentQte = parseInt(matItem.dataset.qte) || 1;
 
-        // Créer l'input
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.className = 'qte-input';
-        input.value = currentQte;
-        input.min = 1;
-
-        qteBadge.textContent = '';
-        qteBadge.appendChild(input);
-        input.focus();
-        input.select();
-
-        function saveQte() {
-            if (cancelled) return;
-
-            const newQte = Math.max(1, parseInt(input.value) || 1);
-            matItem.dataset.qte = newQte;
-            qteBadge.textContent = 'x' + newQte;
-
-            // Mettre à jour le total de la ligne
-            const prix = parseFloat(matItem.dataset.prix) || 0;
-
-            // Récupérer les quantités de catégorie et groupe
-            const catContainer = matItem.closest('.projet-item');
-            const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
-            const groupeContainer = matItem.closest('.projet-groupe');
-            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
-
-            const total = prix * newQte * catQte * groupeQte * 1.14975;
-            matItem.querySelector('.badge-total').textContent = formatMoney(total);
-
-            // Sauvegarder via AJAX
-            saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, newQte);
-
-            // Recalculer les totaux
-            updateTotals();
+        if (action === 'plus') {
+            currentQte++;
+        } else if (action === 'minus' && currentQte > 1) {
+            currentQte--;
         }
 
-        input.addEventListener('blur', saveQte);
-        input.addEventListener('keydown', function(ev) {
-            if (ev.key === 'Enter') {
-                ev.preventDefault();
-                input.blur();
-            } else if (ev.key === 'Escape') {
-                cancelled = true;
-                qteBadge.textContent = originalText;
-            }
-        });
+        matItem.dataset.qte = currentQte;
+        matQteDisplay.textContent = 'x' + currentQte;
+
+        // Mettre à jour le total de la ligne
+        const prix = parseFloat(matItem.dataset.prix) || 0;
+        const catContainer = matItem.closest('.projet-item');
+        const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+        const groupeContainer = matItem.closest('.projet-groupe');
+        const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+
+        const total = prix * currentQte * catQte * groupeQte * 1.14975;
+        matItem.querySelector('.badge-total').textContent = formatMoney(total);
+
+        // Sauvegarder via AJAX
+        saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, currentQte);
+
+        // Recalculer les totaux
+        updateTotals();
     });
 
     // ========================================
