@@ -418,6 +418,23 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     min-width: 85px;
     text-align: right;
 }
+.projet-panel .badge-prix.editable-prix {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.projet-panel .badge-prix.editable-prix:hover {
+    background-color: rgba(13, 202, 240, 0.3) !important;
+}
+.projet-panel .prix-input {
+    width: 80px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    text-align: right;
+    border: 1px solid #0dcaf0;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #0dcaf0;
+}
 .projet-panel .badge-total {
     min-width: 100px;
     text-align: right;
@@ -733,14 +750,15 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                 ?>
                                 <div class="tree-content mat-item projet-mat-item"
                                      data-mat-id="<?= $mat['id'] ?>"
-                                     data-cat-id="<?= $catId ?>">
+                                     data-cat-id="<?= $catId ?>"
+                                     data-prix="<?= $prixItem ?>">
 
                                     <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
                                     <span class="badge item-badge badge-qte text-light me-1">x<?= $qteItem ?></span>
-                                    <span class="badge item-badge badge-prix text-info me-1"><?= formatMoney($prixItem) ?></span>
+                                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
                                     <span class="badge item-badge badge-total text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
                                 </div>
                                 <?php endforeach; ?>
@@ -1134,5 +1152,81 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // ========================================
+    // ÉDITION INLINE DES PRIX
+    // ========================================
+    document.addEventListener('click', function(e) {
+        const prixBadge = e.target.closest('.editable-prix');
+        if (!prixBadge) return;
+
+        // Éviter les clics multiples
+        if (prixBadge.querySelector('input')) return;
+
+        const matItem = prixBadge.closest('.projet-mat-item');
+        const currentPrix = parseFloat(matItem.dataset.prix) || 0;
+        const originalText = prixBadge.textContent;
+
+        // Créer l'input
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'prix-input';
+        input.value = currentPrix.toFixed(2);
+
+        prixBadge.textContent = '';
+        prixBadge.appendChild(input);
+        input.focus();
+        input.select();
+
+        function savePrix() {
+            const newPrix = parseFloat(input.value.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+            matItem.dataset.prix = newPrix;
+            prixBadge.textContent = formatMoney(newPrix);
+
+            // Mettre à jour le total de la ligne
+            const qteMatch = matItem.querySelector('.badge-qte').textContent.match(/x(\d+)/);
+            const qte = qteMatch ? parseInt(qteMatch[1]) : 1;
+
+            // Récupérer les quantités de catégorie et groupe
+            const catContainer = matItem.closest('.projet-item');
+            const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+            const groupeContainer = matItem.closest('.projet-groupe');
+            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+
+            const total = newPrix * qte * catQte * groupeQte * 1.14975;
+            matItem.querySelector('.badge-total').textContent = formatMoney(total);
+
+            // Sauvegarder via AJAX
+            savePrixItem(matItem.dataset.catId, matItem.dataset.matId, newPrix);
+
+            // Recalculer les totaux
+            updateTotals();
+        }
+
+        input.addEventListener('blur', savePrix);
+        input.addEventListener('keydown', function(ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                input.blur();
+            } else if (ev.key === 'Escape') {
+                prixBadge.textContent = originalText;
+            }
+        });
+    });
+
+    function savePrixItem(catId, matId, prix) {
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=update_item_prix&cat_id=${catId}&mat_id=${matId}&prix=${prix}&csrf_token=${csrfToken}`
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Erreur sauvegarde prix:', data.error);
+            }
+        })
+        .catch(err => console.error('Network error:', err));
+    }
 });
 </script>

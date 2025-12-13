@@ -693,6 +693,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     exit;
 }
 
+// ========================================
+// AJAX: Mise à jour du prix d'un item
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'update_item_prix') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $catId = (int)($_POST['cat_id'] ?? 0);
+    $matId = (int)($_POST['mat_id'] ?? 0);
+    $prix = parseNumber($_POST['prix'] ?? 0);
+
+    try {
+        // Mettre à jour le prix dans projet_items
+        $stmt = $pdo->prepare("
+            UPDATE projet_items
+            SET prix_unitaire = ?
+            WHERE projet_id = ? AND materiau_id = ?
+        ");
+        $stmt->execute([$prix, $projetId, $matId]);
+
+        echo json_encode(['success' => true, 'prix' => $prix]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 $projet = getProjetById($pdo, $projetId);
 
 if (!$projet) {
