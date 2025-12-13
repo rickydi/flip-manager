@@ -730,14 +730,11 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 
                             <strong class="flex-grow-1"><?= e($cat['nom']) ?></strong>
 
-                            <!-- Quantité catégorie -->
-                            <div class="qte-controls me-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(<?= $catId ?>, -1)">-</button>
-                                <input type="number" class="cat-qte-input" data-cat-id="<?= $catId ?>"
-                                       value="<?= $qteCat ?>" min="1" max="20"
-                                       onchange="updateCatQte(<?= $catId ?>)">
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(<?= $catId ?>, 1)">+</button>
-                            </div>
+                            <!-- Quantité catégorie (cliquable) -->
+                            <span class="badge item-badge badge-qte text-light me-1 editable-cat-qte"
+                                  role="button" title="Cliquer pour modifier"
+                                  data-cat-id="<?= $catId ?>">x<?= $qteCat ?></span>
+                            <input type="hidden" class="cat-qte-input" data-cat-id="<?= $catId ?>" value="<?= $qteCat ?>">
 
                             <span class="badge item-badge badge-count text-info me-1">
                                 <i class="bi bi-box-seam me-1"></i><?= $nbItemsCat ?>
@@ -1300,6 +1297,68 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (ev.key === 'Escape') {
                 cancelled = true;
                 prixBadge.textContent = originalText;
+            }
+        });
+    });
+
+    // ========================================
+    // ÉDITION INLINE DES QUANTITÉS DE CATÉGORIE
+    // ========================================
+    document.addEventListener('click', function(e) {
+        const catQteBadge = e.target.closest('.editable-cat-qte');
+        if (!catQteBadge) return;
+
+        // Éviter les clics multiples
+        if (catQteBadge.querySelector('input')) return;
+
+        const catItem = catQteBadge.closest('.projet-item');
+        const catQteInput = catItem.querySelector('.cat-qte-input');
+        const currentQte = parseInt(catQteInput.value) || 1;
+        const originalText = catQteBadge.textContent;
+        let cancelled = false;
+
+        // Créer l'input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'qte-input';
+        input.value = currentQte;
+        input.min = 1;
+
+        catQteBadge.textContent = '';
+        catQteBadge.appendChild(input);
+        input.focus();
+        input.select();
+
+        function saveCatQte() {
+            if (cancelled) return;
+
+            const newQte = Math.max(1, parseInt(input.value) || 1);
+            catQteInput.value = newQte;
+            catQteBadge.textContent = 'x' + newQte;
+
+            // Mettre à jour les totaux de tous les matériaux de cette catégorie
+            catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
+                const prix = parseFloat(matItem.dataset.prix) || 0;
+                const qte = parseInt(matItem.dataset.qte) || 1;
+                const groupeContainer = matItem.closest('.projet-groupe');
+                const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+                const total = prix * qte * newQte * groupeQte * 1.14975;
+                matItem.querySelector('.badge-total').textContent = formatMoney(total);
+            });
+
+            // Recalculer les totaux et sauvegarder
+            updateTotals();
+            autoSave();
+        }
+
+        input.addEventListener('blur', saveCatQte);
+        input.addEventListener('keydown', function(ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                input.blur();
+            } else if (ev.key === 'Escape') {
+                cancelled = true;
+                catQteBadge.textContent = originalText;
             }
         });
     });
