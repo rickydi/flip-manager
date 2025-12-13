@@ -405,6 +405,30 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     font-size: 0.75rem;
 }
 
+/* Alignement des badges dans le projet */
+.projet-panel .badge-qte {
+    min-width: 35px;
+    text-align: center;
+}
+.projet-panel .badge-count {
+    min-width: 40px;
+    text-align: center;
+}
+.projet-panel .badge-prix {
+    min-width: 85px;
+    text-align: right;
+}
+.projet-panel .badge-total {
+    min-width: 100px;
+    text-align: right;
+}
+
+/* Contrôles quantité alignés */
+.qte-controls {
+    min-width: 90px;
+    justify-content: center;
+}
+
 /* Zone de drop vide */
 .drop-zone-empty {
     border: 2px dashed var(--border-color);
@@ -684,11 +708,11 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                 <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(<?= $catId ?>, 1)">+</button>
                             </div>
 
-                            <span class="badge item-badge text-info me-1">
+                            <span class="badge item-badge badge-count text-info me-1">
                                 <i class="bi bi-box-seam me-1"></i><?= $nbItemsCat ?>
                             </span>
 
-                            <span class="badge item-badge text-success fw-bold cat-total" data-cat-id="<?= $catId ?>">
+                            <span class="badge item-badge badge-total text-success fw-bold cat-total" data-cat-id="<?= $catId ?>">
                                 <?= formatMoney($catTotal * 1.14975) ?>
                             </span>
 
@@ -715,9 +739,9 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
-                                    <span class="badge item-badge text-light me-1">x<?= $qteItem ?></span>
-                                    <span class="badge item-badge text-info me-1"><?= formatMoney($prixItem) ?></span>
-                                    <span class="badge item-badge text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
+                                    <span class="badge item-badge badge-qte text-light me-1">x<?= $qteItem ?></span>
+                                    <span class="badge item-badge badge-prix text-info me-1"><?= formatMoney($prixItem) ?></span>
+                                    <span class="badge item-badge badge-total text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
                                 </div>
                                 <?php endforeach; ?>
                             <?php endforeach; ?>
@@ -917,7 +941,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                onchange="updateCatQte(${data.catId || data.id})">
                         <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1" onclick="changeCatQte(${data.catId || data.id}, 1)">+</button>
                     </div>
-                    <span class="badge item-badge text-success fw-bold cat-total" data-cat-id="${data.catId || data.id}">
+                    <span class="badge item-badge badge-total text-success fw-bold cat-total" data-cat-id="${data.catId || data.id}">
                         ${formatMoney(data.prix * (data.qte || 1) * 1.14975)}
                     </span>
                     <button type="button" class="btn btn-sm btn-link text-danger ms-2 p-0" onclick="removeProjetItem(this)" title="Retirer">
