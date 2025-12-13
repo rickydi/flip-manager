@@ -2566,8 +2566,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             <?php endif; ?>
                         </td>
                         <td class="text-end detail-cat-budget" id="detailCatBudget_<?= $cat['id'] ?>"><?= formatMoney($budgetAffiche) ?></td>
-                        <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
-                        <td class="text-end"><?= formatMoney($depense) ?></td>
+                        <td class="text-end detail-cat-diff <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
+                        <td class="text-end detail-cat-reel"><?= formatMoney($depense) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     

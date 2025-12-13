@@ -1177,6 +1177,20 @@ document.addEventListener('DOMContentLoaded', function() {
         return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
     }
 
+    function parseMoneyText(text) {
+        if (!text) return 0;
+        // Supporte "1 234,56 $" / NBSP / etc.
+        const cleaned = text
+            .replace(/\u00A0/g, ' ')
+            .replace(/[^\d,-]/g, '')
+            .replace(',', '.');
+        return parseFloat(cleaned) || 0;
+    }
+
+    function parseMoneyFromCell(cell) {
+        return cell ? parseMoneyText(cell.textContent) : 0;
+    }
+
     // ========================================
     // QUANTITÉS
     // ========================================
@@ -1363,17 +1377,23 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('.detail-cat-row').forEach(row => {
             const catId = row.dataset.catId;
             const budgetCell = row.querySelector('.detail-cat-budget');
-            const cells = row.querySelectorAll('td');
+            const diffCell = row.querySelector('.detail-cat-diff');
+            const reelCell = row.querySelector('.detail-cat-reel') || row.querySelectorAll('td')[3];
 
-            // Colonne "Réel" est la 4ème (index 3)
-            const reelCell = cells[3];
-            const reelValue = reelCell ? parseFloat(reelCell.textContent.replace(/[^\d,-]/g, '').replace(',', '.')) || 0 : 0;
-
+            const reelValue = parseMoneyFromCell(reelCell);
             const budgetValue = categoryTotals[catId] || 0;
 
             // Mettre à jour la valeur du budget
             if (budgetCell) {
                 budgetCell.textContent = formatMoney(budgetValue);
+            }
+
+            // Mettre à jour la colonne Diff (budget - réel)
+            if (diffCell) {
+                const diffValue = budgetValue - reelValue;
+                diffCell.textContent = diffValue !== 0 ? formatMoney(diffValue) : '-';
+                diffCell.classList.remove('positive', 'negative');
+                diffCell.classList.add(diffValue >= 0 ? 'positive' : 'negative');
             }
 
             // Afficher si budget > 0 OU dépenses réelles > 0
@@ -1398,19 +1418,37 @@ document.addEventListener('DOMContentLoaded', function() {
         if (detailRenoTotal) detailRenoTotal.textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi le total-row de la section Rénovation
+        // Base inclut la main-d'œuvre dans ce sous-total, donc on l'ajoute ici pour rester cohérent.
         const renoTotalRow = detailRenoTotal ? detailRenoTotal.closest('tr') : null;
         if (renoTotalRow) {
             const cells = renoTotalRow.querySelectorAll('td');
-            if (cells.length >= 2) {
-                cells[1].textContent = formatMoney(grandTotal);
+
+            const laborRow = document.querySelector('.labor-row');
+            const laborCells = laborRow ? laborRow.querySelectorAll('td') : null;
+            const laborBudget = laborCells && laborCells.length >= 2 ? parseMoneyFromCell(laborCells[1]) : 0;
+
+            const newRenoBudgetTTC = grandTotal + laborBudget;
+
+            if (cells.length >= 4) {
+                const reelRenoValue = parseMoneyFromCell(cells[3]);
+                const diffRenoValue = newRenoBudgetTTC - reelRenoValue;
+
+                cells[1].textContent = formatMoney(newRenoBudgetTTC);
+                cells[2].textContent = formatMoney(diffRenoValue);
+                cells[2].classList.remove('positive', 'negative');
+                cells[2].classList.add(diffRenoValue >= 0 ? 'positive' : 'negative');
             }
         }
 
         // Mettre à jour les valeurs stockées dans le header de section pour le toggle
         const renoHeader = document.querySelector('.section-header[data-section="renovation"]');
         if (renoHeader) {
-            renoHeader.dataset.extrapole = formatMoney(grandTotal);
-            // Note: diff et reel ne changent pas car ils viennent des dépenses réelles
+            // On expose la même valeur que la cellule Extrapolé du sous-total rénovation
+            const renoTotalRowNow = detailRenoTotal ? detailRenoTotal.closest('tr') : null;
+            const renoCellsNow = renoTotalRowNow ? renoTotalRowNow.querySelectorAll('td') : null;
+            if (renoCellsNow && renoCellsNow.length >= 2) {
+                renoHeader.dataset.extrapole = renoCellsNow[1].textContent.trim();
+            }
         }
     }
 
