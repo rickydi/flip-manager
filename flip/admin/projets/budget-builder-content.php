@@ -488,16 +488,8 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                 <span class="opacity-75">Contingence <?= $projet['taux_contingence'] ?>%:</span>
                 <strong id="totalContingence"><?= formatMoney($contingence) ?></strong>
             </span>
-            <span>
-                <span class="opacity-75">TPS:</span>
-                <strong id="totalTPS"><?= formatMoney($tps) ?></strong>
-            </span>
-            <span>
-                <span class="opacity-75">TVQ:</span>
-                <strong id="totalTVQ"><?= formatMoney($tvq) ?></strong>
-            </span>
             <span class="border-start ps-3">
-                <span class="opacity-75">Total TTC:</span>
+                <span class="opacity-75">Total:</span>
                 <strong class="fs-5" id="grandTotal"><?= formatMoney($grandTotal) ?></strong>
             </span>
         </div>
@@ -1041,8 +1033,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('totalHT').textContent = formatMoney(totalHT);
         document.getElementById('totalContingence').textContent = formatMoney(contingence);
-        document.getElementById('totalTPS').textContent = formatMoney(tps);
-        document.getElementById('totalTVQ').textContent = formatMoney(tvq);
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
     }
 
