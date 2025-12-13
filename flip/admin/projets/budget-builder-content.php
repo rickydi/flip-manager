@@ -418,12 +418,26 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     min-width: 85px;
     text-align: right;
 }
+.projet-panel .badge-qte.editable-qte,
 .projet-panel .badge-prix.editable-prix {
     cursor: pointer;
     transition: background-color 0.2s;
 }
+.projet-panel .badge-qte.editable-qte:hover {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
 .projet-panel .badge-prix.editable-prix:hover {
     background-color: rgba(13, 202, 240, 0.3) !important;
+}
+.projet-panel .qte-input {
+    width: 45px;
+    padding: 2px 4px;
+    font-size: 0.75rem;
+    text-align: center;
+    border: 1px solid #adb5bd;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #fff;
 }
 .projet-panel .prix-input {
     width: 80px;
@@ -751,13 +765,14 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                 <div class="tree-content mat-item projet-mat-item"
                                      data-mat-id="<?= $mat['id'] ?>"
                                      data-cat-id="<?= $catId ?>"
-                                     data-prix="<?= $prixItem ?>">
+                                     data-prix="<?= $prixItem ?>"
+                                     data-qte="<?= $qteItem ?>">
 
                                     <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
-                                    <span class="badge item-badge badge-qte text-light me-1">x<?= $qteItem ?></span>
+                                    <span class="badge item-badge badge-qte text-light me-1 editable-qte" role="button" title="Cliquer pour modifier">x<?= $qteItem ?></span>
                                     <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
                                     <span class="badge item-badge badge-total text-success fw-bold"><?= formatMoney($totalItem * 1.14975) ?></span>
                                 </div>
@@ -1154,6 +1169,67 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ========================================
+    // ÉDITION INLINE DES QUANTITÉS
+    // ========================================
+    document.addEventListener('click', function(e) {
+        const qteBadge = e.target.closest('.editable-qte');
+        if (!qteBadge) return;
+
+        // Éviter les clics multiples
+        if (qteBadge.querySelector('input')) return;
+
+        const matItem = qteBadge.closest('.projet-mat-item');
+        const currentQte = parseInt(matItem.dataset.qte) || 1;
+        const originalText = qteBadge.textContent;
+
+        // Créer l'input
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'qte-input';
+        input.value = currentQte;
+        input.min = 1;
+
+        qteBadge.textContent = '';
+        qteBadge.appendChild(input);
+        input.focus();
+        input.select();
+
+        function saveQte() {
+            const newQte = Math.max(1, parseInt(input.value) || 1);
+            matItem.dataset.qte = newQte;
+            qteBadge.textContent = 'x' + newQte;
+
+            // Mettre à jour le total de la ligne
+            const prix = parseFloat(matItem.dataset.prix) || 0;
+
+            // Récupérer les quantités de catégorie et groupe
+            const catContainer = matItem.closest('.projet-item');
+            const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+            const groupeContainer = matItem.closest('.projet-groupe');
+            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+
+            const total = prix * newQte * catQte * groupeQte * 1.14975;
+            matItem.querySelector('.badge-total').textContent = formatMoney(total);
+
+            // Sauvegarder via AJAX
+            saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, newQte);
+
+            // Recalculer les totaux
+            updateTotals();
+        }
+
+        input.addEventListener('blur', saveQte);
+        input.addEventListener('keydown', function(ev) {
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                input.blur();
+            } else if (ev.key === 'Escape') {
+                qteBadge.textContent = originalText;
+            }
+        });
+    });
+
+    // ========================================
     // ÉDITION INLINE DES PRIX
     // ========================================
     document.addEventListener('click', function(e) {
@@ -1184,8 +1260,7 @@ document.addEventListener('DOMContentLoaded', function() {
             prixBadge.textContent = formatMoney(newPrix);
 
             // Mettre à jour le total de la ligne
-            const qteMatch = matItem.querySelector('.badge-qte').textContent.match(/x(\d+)/);
-            const qte = qteMatch ? parseInt(qteMatch[1]) : 1;
+            const qte = parseInt(matItem.dataset.qte) || 1;
 
             // Récupérer les quantités de catégorie et groupe
             const catContainer = matItem.closest('.projet-item');
@@ -1197,7 +1272,7 @@ document.addEventListener('DOMContentLoaded', function() {
             matItem.querySelector('.badge-total').textContent = formatMoney(total);
 
             // Sauvegarder via AJAX
-            savePrixItem(matItem.dataset.catId, matItem.dataset.matId, newPrix);
+            saveItemData(matItem.dataset.catId, matItem.dataset.matId, newPrix, null);
 
             // Recalculer les totaux
             updateTotals();
@@ -1214,16 +1289,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    function savePrixItem(catId, matId, prix) {
+    function saveItemData(catId, matId, prix, qte) {
+        let body = `ajax_action=update_item_data&cat_id=${catId}&mat_id=${matId}&csrf_token=${csrfToken}`;
+        if (prix !== null) body += `&prix=${prix}`;
+        if (qte !== null) body += `&qte=${qte}`;
+
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `ajax_action=update_item_prix&cat_id=${catId}&mat_id=${matId}&prix=${prix}&csrf_token=${csrfToken}`
+            body: body
         })
         .then(r => r.json())
         .then(data => {
             if (!data.success) {
-                console.error('Erreur sauvegarde prix:', data.error);
+                console.error('Erreur sauvegarde:', data.error);
             }
         })
         .catch(err => console.error('Network error:', err));

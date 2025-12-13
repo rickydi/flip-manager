@@ -694,9 +694,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
-// AJAX: Mise à jour du prix d'un item
+// AJAX: Mise à jour d'un item (prix et/ou quantité)
 // ========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'update_item_prix') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'update_item_data') {
     header('Content-Type: application/json');
 
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -706,18 +706,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
     $catId = (int)($_POST['cat_id'] ?? 0);
     $matId = (int)($_POST['mat_id'] ?? 0);
-    $prix = parseNumber($_POST['prix'] ?? 0);
 
     try {
-        // Mettre à jour le prix dans projet_items
-        $stmt = $pdo->prepare("
-            UPDATE projet_items
-            SET prix_unitaire = ?
-            WHERE projet_id = ? AND materiau_id = ?
-        ");
-        $stmt->execute([$prix, $projetId, $matId]);
+        $updates = [];
+        $params = [];
 
-        echo json_encode(['success' => true, 'prix' => $prix]);
+        if (isset($_POST['prix'])) {
+            $updates[] = "prix_unitaire = ?";
+            $params[] = parseNumber($_POST['prix']);
+        }
+        if (isset($_POST['qte'])) {
+            $updates[] = "quantite = ?";
+            $params[] = max(1, (int)$_POST['qte']);
+        }
+
+        if (!empty($updates)) {
+            $params[] = $projetId;
+            $params[] = $matId;
+
+            $stmt = $pdo->prepare("
+                UPDATE projet_items
+                SET " . implode(', ', $updates) . "
+                WHERE projet_id = ? AND materiau_id = ?
+            ");
+            $stmt->execute($params);
+        }
+
+        echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
