@@ -3428,6 +3428,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
         $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'categorie_nom')));
         sort($facturesCategories);
+        $facturesFournisseurs = array_unique(array_filter(array_column($facturesProjet, 'fournisseur')));
+        sort($facturesFournisseurs);
         ?>
 
         <!-- Barre compacte : Total + Filtres + Actions -->
@@ -3454,6 +3456,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <option value="">Toutes catégories</option>
                 <?php foreach ($facturesCategories as $cat): ?>
                     <option value="<?= e($cat) ?>"><?= e($cat) ?></option>
+                <?php endforeach; ?>
+            </select>
+
+            <select class="form-select form-select-sm" id="filtreFacturesFournisseur" onchange="filtrerFactures()" style="width: auto; min-width: 150px;">
+                <option value="">Tous fournisseurs</option>
+                <?php foreach ($facturesFournisseurs as $four): ?>
+                    <option value="<?= e($four) ?>"><?= e($four) ?></option>
                 <?php endforeach; ?>
             </select>
 
@@ -3489,7 +3498,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['categorie_nom'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>">
+                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['categorie_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>">
                             <td><?= formatDate($f['date_facture']) ?></td>
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
                             <td><?= e($f['categorie_nom'] ?? 'N/A') ?></td>
@@ -4868,6 +4877,7 @@ function resetFiltresPhotos() {
 function filtrerFactures() {
     const statut = document.getElementById('filtreFacturesStatut').value;
     const categorie = document.getElementById('filtreFacturesCategorie').value;
+    const fournisseur = document.getElementById('filtreFacturesFournisseur').value;
     const factures = document.querySelectorAll('.facture-row');
     let count = 0;
     let total = 0;
@@ -4875,12 +4885,14 @@ function filtrerFactures() {
     factures.forEach(row => {
         const rowStatut = row.dataset.statut;
         const rowCategorie = row.dataset.categorie;
+        const rowFournisseur = row.dataset.fournisseur;
         const rowMontant = parseFloat(row.dataset.montant) || 0;
 
         const matchStatut = !statut || rowStatut === statut;
         const matchCategorie = !categorie || rowCategorie === categorie;
+        const matchFournisseur = !fournisseur || rowFournisseur === fournisseur;
 
-        if (matchStatut && matchCategorie) {
+        if (matchStatut && matchCategorie && matchFournisseur) {
             row.style.display = '';
             count++;
             total += rowMontant;
@@ -4896,6 +4908,7 @@ function filtrerFactures() {
 function resetFiltresFactures() {
     document.getElementById('filtreFacturesStatut').value = '';
     document.getElementById('filtreFacturesCategorie').value = '';
+    document.getElementById('filtreFacturesFournisseur').value = '';
     filtrerFactures();
 }
 
