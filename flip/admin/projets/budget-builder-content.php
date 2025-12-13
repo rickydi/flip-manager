@@ -1142,12 +1142,26 @@ document.addEventListener('DOMContentLoaded', function() {
         if (zone) {
             zone.insertAdjacentHTML('beforeend', itemHtml);
             console.log('Item added successfully');
+
+            // Sauvegarder en base de données
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `ajax_action=add_dropped_item&type=${data.type}&item_id=${data.id}&cat_id=${data.catId || data.id}&groupe=${groupe}&prix=${data.prix}&qte=${data.qte || 1}&csrf_token=${csrfToken}`
+            })
+            .then(r => r.json())
+            .then(result => {
+                console.log('Save result:', result);
+                if (!result.success) {
+                    console.error('Erreur sauvegarde:', result.error);
+                }
+            })
+            .catch(err => console.error('Network error:', err));
         } else {
             console.error('Drop zone not found for groupe:', groupe);
         }
 
         updateTotals();
-        autoSave();
     }
 
     function escapeHtml(text) {
@@ -1219,31 +1233,49 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateTotals() {
         let totalHT = 0;
 
-        // Parcourir toutes les catégories
+        // Parcourir toutes les catégories/items
         document.querySelectorAll('.projet-item').forEach(catItem => {
             const groupe = catItem.dataset.groupe;
             let catTotal = 0;
 
-            const catQteInput = catItem.querySelector('.cat-qte-input');
-            const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
-
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-            // Parcourir tous les matériaux de cette catégorie
-            catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
-                const prix = parseFloat(matItem.dataset.prix) || 0;
-                const qte = parseInt(matItem.dataset.qte) || 1;
-                catTotal += prix * qte;
-            });
+            // Vérifier si c'est un item avec sous-items (matériaux)
+            const matItems = catItem.querySelectorAll('.projet-mat-item');
+            if (matItems.length > 0) {
+                // Item avec sous-matériaux
+                const catQteInput = catItem.querySelector('.cat-qte-input');
+                const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
 
-            const itemTotal = catTotal * qteCat * qteGroupe;
-            totalHT += itemTotal;
+                matItems.forEach(matItem => {
+                    const prix = parseFloat(matItem.dataset.prix) || 0;
+                    const qte = parseInt(matItem.dataset.qte) || 1;
+                    catTotal += prix * qte;
+                });
 
-            // Mettre à jour affichage du total catégorie
-            const totalSpan = catItem.querySelector('.cat-total');
-            if (totalSpan) {
-                totalSpan.textContent = formatMoney(itemTotal * 1.14975);
+                const itemTotal = catTotal * qteCat * qteGroupe;
+                totalHT += itemTotal;
+
+                // Mettre à jour affichage du total catégorie
+                const totalSpan = catItem.querySelector('.cat-total');
+                if (totalSpan) {
+                    totalSpan.textContent = formatMoney(itemTotal * 1.14975);
+                }
+            } else {
+                // Item simple (ajouté par drag-drop)
+                const prix = parseFloat(catItem.dataset.prix) || 0;
+                const qteDisplay = catItem.querySelector('.added-item-qte-display');
+                const qte = qteDisplay ? parseInt(qteDisplay.textContent) || 1 : 1;
+
+                const itemTotal = prix * qte * qteGroupe;
+                totalHT += itemTotal;
+
+                // Mettre à jour affichage du total
+                const totalSpan = catItem.querySelector('.badge-total');
+                if (totalSpan) {
+                    totalSpan.textContent = formatMoney(itemTotal * 1.14975);
+                }
             }
         });
 

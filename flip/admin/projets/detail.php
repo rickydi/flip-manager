@@ -763,6 +763,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     exit;
 }
 
+// ========================================
+// AJAX: Ajouter un item par drag-drop
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'add_dropped_item') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $type = $_POST['type'] ?? '';
+    $itemId = (int)($_POST['item_id'] ?? 0);
+    $catId = (int)($_POST['cat_id'] ?? 0);
+    $groupe = $_POST['groupe'] ?? '';
+    $prix = parseNumber($_POST['prix'] ?? 0);
+    $qte = max(1, (int)($_POST['qte'] ?? 1));
+
+    try {
+        // Vérifier si un projet_poste existe pour cette catégorie, sinon le créer
+        $stmt = $pdo->prepare("SELECT id FROM projet_postes WHERE projet_id = ? AND categorie_id = ?");
+        $stmt->execute([$projetId, $catId]);
+        $poste = $stmt->fetch();
+
+        if (!$poste) {
+            // Créer le projet_poste
+            $stmt = $pdo->prepare("INSERT INTO projet_postes (projet_id, categorie_id, groupe, quantite) VALUES (?, ?, ?, 1)");
+            $stmt->execute([$projetId, $catId, $groupe]);
+            $posteId = $pdo->lastInsertId();
+        } else {
+            $posteId = $poste['id'];
+        }
+
+        // Si c'est un matériau, l'ajouter à projet_items
+        if ($type === 'materiau') {
+            // Vérifier si l'item existe déjà
+            $stmt = $pdo->prepare("SELECT id FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
+            $stmt->execute([$projetId, $itemId]);
+            $existing = $stmt->fetch();
+
+            if (!$existing) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                    VALUES (?, ?, ?, ?, ?, 0)
+                ");
+                $stmt->execute([$projetId, $posteId, $itemId, $prix, $qte]);
+            }
+        }
+
+        echo json_encode(['success' => true, 'poste_id' => $posteId]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 $projet = getProjetById($pdo, $projetId);
 
 if (!$projet) {
