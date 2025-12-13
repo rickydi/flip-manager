@@ -1386,6 +1386,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const detailRenoTotal = document.getElementById('detailRenoTotal');
         if (detailRenoTotal) detailRenoTotal.textContent = formatMoney(grandTotal);
+
+        // Mettre à jour aussi le total-row de la section Rénovation
+        const renoTotalRow = detailRenoTotal ? detailRenoTotal.closest('tr') : null;
+        if (renoTotalRow) {
+            const cells = renoTotalRow.querySelectorAll('td');
+            if (cells.length >= 2) {
+                cells[1].textContent = formatMoney(grandTotal);
+            }
+        }
+
+        // Mettre à jour les valeurs stockées dans le header de section pour le toggle
+        const renoHeader = document.querySelector('.section-header[data-section="renovation"]');
+        if (renoHeader) {
+            renoHeader.dataset.extrapole = formatMoney(grandTotal);
+            // Note: diff et reel ne changent pas car ils viennent des dépenses réelles
+        }
     }
 
     // ========================================
