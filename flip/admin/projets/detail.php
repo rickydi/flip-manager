@@ -2529,21 +2529,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <!-- TAB FINANCEMENT -->
     <div class="tab-pane fade <?= $tab === 'financement' ? 'show active' : '' ?>" id="financement" role="tabpanel">
 
-    <!-- Explications -->
-    <div class="alert alert-info mb-4">
-        <div class="row">
-            <div class="col-md-6">
-                <h6><i class="bi bi-bank me-1"></i> PRÊTEUR</h6>
-                <small>Prête de l'argent → Reçoit des <strong>INTÉRÊTS</strong> (= coût pour le projet)</small>
-            </div>
-            <div class="col-md-6">
-                <h6><i class="bi bi-people me-1"></i> INVESTISSEUR</h6>
-                <small>Met de l'argent "à risque" → Reçoit un <strong>% DES PROFITS</strong> (= partage des gains)</small>
-            </div>
-        </div>
-    </div>
-
     <?php
+    // Calcul du montant requis pour le notaire
+    $prixAchatNotaire = (float)($projet['prix_achat'] ?? 0);
+    $cessionNotaire = (float)($projet['cession'] ?? 0);
+    $soldeVendeurNotaire = (float)($projet['solde_vendeur'] ?? 0);
+    $montantRequis = $prixAchatNotaire + $cessionNotaire + $soldeVendeurNotaire;
+
     // Séparer les prêteurs des investisseurs
     $listePreteurs = [];
     $listeInvestisseurs = [];
@@ -2562,7 +2554,99 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             $totalInvest += $montant;
         }
     }
+
+    // Calcul de la différence
+    $difference = $totalPretsCalc - $montantRequis;
+    $isBalanced = abs($difference) < 0.01;
     ?>
+
+    <!-- RÉSUMÉ FINANCEMENT NOTAIRE -->
+    <div class="card mb-4 <?= $isBalanced ? 'border-success' : 'border-danger' ?>">
+        <div class="card-header <?= $isBalanced ? 'bg-success' : 'bg-danger' ?> text-white py-2">
+            <i class="bi bi-bank2 me-2"></i><strong>Financement requis pour le notaire</strong>
+            <?php if (!$isBalanced): ?>
+                <span class="badge bg-warning text-dark float-end"><i class="bi bi-exclamation-triangle me-1"></i>Non balancé</span>
+            <?php else: ?>
+                <span class="badge bg-light text-success float-end"><i class="bi bi-check-circle me-1"></i>OK</span>
+            <?php endif; ?>
+        </div>
+        <div class="card-body py-3">
+            <div class="row align-items-center">
+                <!-- Montant requis -->
+                <div class="col-md-4">
+                    <div class="text-muted small mb-1">Montant requis</div>
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 0.9rem;">
+                        <tr>
+                            <td class="py-0">Prix d'achat</td>
+                            <td class="py-0 text-end"><?= formatMoney($prixAchatNotaire) ?></td>
+                        </tr>
+                        <?php if ($cessionNotaire > 0): ?>
+                        <tr>
+                            <td class="py-0">Cession</td>
+                            <td class="py-0 text-end"><?= formatMoney($cessionNotaire) ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if ($soldeVendeurNotaire > 0): ?>
+                        <tr>
+                            <td class="py-0">Solde vendeur</td>
+                            <td class="py-0 text-end"><?= formatMoney($soldeVendeurNotaire) ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <tr class="border-top">
+                            <td class="py-1 fw-bold">Total requis</td>
+                            <td class="py-1 text-end fw-bold text-primary"><?= formatMoney($montantRequis) ?></td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Signe = ou ≠ -->
+                <div class="col-md-1 text-center">
+                    <span class="fs-2 <?= $isBalanced ? 'text-success' : 'text-danger' ?>">
+                        <?= $isBalanced ? '=' : '≠' ?>
+                    </span>
+                </div>
+
+                <!-- Montant des prêts -->
+                <div class="col-md-4">
+                    <div class="text-muted small mb-1">Total des prêts</div>
+                    <div class="fs-3 fw-bold text-warning"><?= formatMoney($totalPretsCalc) ?></div>
+                    <small class="text-muted"><?= count($listePreteurs) ?> prêteur(s)</small>
+                </div>
+
+                <!-- Différence -->
+                <div class="col-md-3 text-center">
+                    <?php if (!$isBalanced): ?>
+                        <div class="text-muted small mb-1"><?= $difference > 0 ? 'Surplus' : 'Manque' ?></div>
+                        <div class="fs-3 fw-bold <?= $difference > 0 ? 'text-success' : 'text-danger' ?>">
+                            <?= $difference > 0 ? '+' : '' ?><?= formatMoney($difference) ?>
+                        </div>
+                        <?php if ($difference < 0): ?>
+                            <small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Financement insuffisant!</small>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <div class="text-success">
+                            <i class="bi bi-check-circle-fill fs-1"></i>
+                            <div class="small mt-1">Financement complet</div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Explications -->
+    <div class="alert alert-info mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <h6><i class="bi bi-bank me-1"></i> PRÊTEUR</h6>
+                <small>Prête de l'argent → Reçoit des <strong>INTÉRÊTS</strong> (= coût pour le projet)</small>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="bi bi-people me-1"></i> INVESTISSEUR</h6>
+                <small>Met de l'argent "à risque" → Reçoit un <strong>% DES PROFITS</strong> (= partage des gains)</small>
+            </div>
+        </div>
+    </div>
 
     <div class="row">
         <!-- COLONNE PRÊTEURS -->
