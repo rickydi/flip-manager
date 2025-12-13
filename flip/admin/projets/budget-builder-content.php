@@ -1330,12 +1330,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi "Détail des coûts" si présent
-        // D'abord, CACHER toutes les lignes de catégories
-        document.querySelectorAll('.detail-cat-row').forEach(row => {
-            row.style.display = 'none';
-        });
-
-        // Ensuite, calculer les totaux seulement pour les catégories dans le Budget Builder
+        // Calculer les totaux pour les catégories dans le Budget Builder
         const categoryTotals = {};
         document.querySelectorAll('.projet-item[data-type="categorie"]').forEach(catItem => {
             const catId = catItem.dataset.id;
@@ -1364,13 +1359,28 @@ document.addEventListener('DOMContentLoaded', function() {
             categoryTotals[catId] = (categoryTotals[catId] || 0) + catTotal;
         });
 
-        // Afficher et mettre à jour SEULEMENT les catégories dans le Budget Builder
-        Object.keys(categoryTotals).forEach(catId => {
-            const row = document.querySelector(`.detail-cat-row[data-cat-id="${catId}"]`);
-            if (row) {
-                row.style.display = ''; // Afficher la ligne
-                const cell = row.querySelector('.detail-cat-budget');
-                if (cell) cell.textContent = formatMoney(categoryTotals[catId]);
+        // Pour chaque ligne de catégorie, décider si on l'affiche ou pas
+        document.querySelectorAll('.detail-cat-row').forEach(row => {
+            const catId = row.dataset.catId;
+            const budgetCell = row.querySelector('.detail-cat-budget');
+            const cells = row.querySelectorAll('td');
+
+            // Colonne "Réel" est la 4ème (index 3)
+            const reelCell = cells[3];
+            const reelValue = reelCell ? parseFloat(reelCell.textContent.replace(/[^\d,-]/g, '').replace(',', '.')) || 0 : 0;
+
+            const budgetValue = categoryTotals[catId] || 0;
+
+            // Mettre à jour la valeur du budget
+            if (budgetCell) {
+                budgetCell.textContent = formatMoney(budgetValue);
+            }
+
+            // Afficher si budget > 0 OU dépenses réelles > 0
+            if (budgetValue > 0 || reelValue > 0) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
             }
         });
 
