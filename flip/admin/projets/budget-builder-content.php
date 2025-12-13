@@ -848,6 +848,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = '<?= generateCSRFToken() ?>';
     let saveTimeout = null;
 
+    // Debug: Vérifier que les éléments Détail des coûts existent
+    console.log('Budget Builder init - checking Détail des coûts elements:');
+    console.log('  detailContingence:', document.getElementById('detailContingence'));
+    console.log('  detailTPS:', document.getElementById('detailTPS'));
+    console.log('  detailTVQ:', document.getElementById('detailTVQ'));
+    console.log('  detailRenoTotal:', document.getElementById('detailRenoTotal'));
+
     // ========================================
     // UNDO/REDO SYSTEM
     // ========================================
@@ -1330,16 +1337,22 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi "Détail des coûts" si présent
+        console.log('Updating Détail des coûts:', {totalHT, contingence, tps, tvq, grandTotal});
+
         const detailContingence = document.getElementById('detailContingence');
+        console.log('detailContingence element:', detailContingence);
         if (detailContingence) detailContingence.textContent = formatMoney(contingence);
 
         const detailTPS = document.getElementById('detailTPS');
+        console.log('detailTPS element:', detailTPS);
         if (detailTPS) detailTPS.textContent = formatMoney(tps);
 
         const detailTVQ = document.getElementById('detailTVQ');
+        console.log('detailTVQ element:', detailTVQ);
         if (detailTVQ) detailTVQ.textContent = formatMoney(tvq);
 
         const detailRenoTotal = document.getElementById('detailRenoTotal');
+        console.log('detailRenoTotal element:', detailRenoTotal);
         if (detailRenoTotal) detailRenoTotal.textContent = formatMoney(grandTotal);
     }
 
