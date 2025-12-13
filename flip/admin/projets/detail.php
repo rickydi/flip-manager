@@ -2438,13 +2438,6 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end"><?= formatMoney($indicateurs['equite_reelle']) ?></td>
                     </tr>
                     
-                    <tr>
-                        <td><strong>ROI @ Leverage</strong></td>
-                        <td class="text-end"><?= formatPercent($indicateurs['roi_leverage']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatPercent($indicateurs['roi_leverage_reel']) ?></td>
-                    </tr>
-
                     <!-- PARTAGE DES PROFITS -->
                     <?php if (!empty($indicateurs['preteurs']) || !empty($indicateurs['investisseurs'])): ?>
                     <tr class="section-header" data-section="partage">
