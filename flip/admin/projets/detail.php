@@ -2536,7 +2536,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     $prixAchatNotaire = (float)($projet['prix_achat'] ?? 0);
     $cessionNotaire = (float)($projet['cession'] ?? 0);
     $soldeVendeurNotaire = (float)($projet['solde_vendeur'] ?? 0);
-    $montantRequis = $prixAchatNotaire + $cessionNotaire + $soldeVendeurNotaire;
+    $montantRequisNotaire = $prixAchatNotaire + $cessionNotaire + $soldeVendeurNotaire;
+
+    // Cashflow nécessaire (même calcul que page principale)
+    $cashFlowNecessaire = $indicateurs['cash_flow_necessaire'] ?? 0;
 
     // Séparer les prêteurs des investisseurs (basé sur type_financement, pas le taux)
     $listePreteurs = [];
@@ -2558,9 +2561,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         }
     }
 
-    // Calcul de la différence
-    $difference = $totalPretsCalc - $montantRequis;
-    $isBalanced = abs($difference) < 0.01;
+    // Calcul des différences
+    $diffNotaire = $totalPretsCalc - $montantRequisNotaire;
+    $isNotaireBalanced = abs($diffNotaire) < 0.01;
+    $diffCashflow = $totalPretsCalc - $cashFlowNecessaire;
+    $isCashflowBalanced = abs($diffCashflow) < 0.01;
     ?>
 
     <!-- RÉSUMÉ FINANCEMENT - DEUX TABLEAUX CÔTE À CÔTE -->
@@ -2568,8 +2573,17 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <!-- Tableau 1: Financement Notaire -->
         <div class="col-md-6">
             <div class="card h-100" style="border-color: #3d4f5f;">
-                <div class="card-header py-2" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
-                    <i class="bi bi-bank2 me-2 text-info"></i><strong>Financement Notaire</strong>
+                <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
+                    <span><i class="bi bi-bank2 me-2 text-info"></i><strong>Financement Notaire</strong></span>
+                    <?php if (!$isNotaireBalanced): ?>
+                        <?php if ($diffNotaire > 0): ?>
+                            <span class="badge" style="background: #3d5a4a; color: #27ae60;">+<?= formatMoney($diffNotaire) ?></span>
+                        <?php else: ?>
+                            <span class="badge" style="background: #5a3d3d; color: #e74c3c;"><?= formatMoney($diffNotaire) ?></span>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <span class="badge" style="background: #3d5a4a; color: #27ae60;"><i class="bi bi-check-circle me-1"></i>OK</span>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body py-3">
                     <table class="table table-sm table-borderless mb-0">
@@ -2593,8 +2607,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </tbody>
                         <tfoot>
                             <tr style="border-top: 1px solid #3d4f5f;">
-                                <td class="fw-bold pt-2">Montant requis</td>
-                                <td class="text-end fw-bold pt-2 fs-5"><?= formatMoney($montantRequis) ?></td>
+                                <td class="fw-bold pt-2">Requis au notaire</td>
+                                <td class="text-end fw-bold pt-2 fs-5"><?= formatMoney($montantRequisNotaire) ?></td>
+                            </tr>
+                            <tr>
+                                <td class="text-secondary">Total des prêts</td>
+                                <td class="text-end"><?= formatMoney($totalPretsCalc) ?></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -2602,13 +2620,17 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
 
-        <!-- Tableau 2: Cashflow -->
+        <!-- Tableau 2: Cashflow (même calcul que page principale) -->
         <div class="col-md-6">
             <div class="card h-100" style="border-color: #3d4f5f;">
                 <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background: #2c3e50; border-bottom: 1px solid #3d4f5f;">
-                    <span><i class="bi bi-cash-stack me-2 text-info"></i><strong>Cashflow</strong></span>
-                    <?php if (!$isBalanced): ?>
-                        <span class="badge" style="background: #5a3d3d; color: #e74c3c;"><i class="bi bi-exclamation-circle me-1"></i>Non balancé</span>
+                    <span><i class="bi bi-cash-stack me-2 text-info"></i><strong>Cashflow Nécessaire</strong></span>
+                    <?php if (!$isCashflowBalanced): ?>
+                        <?php if ($diffCashflow > 0): ?>
+                            <span class="badge" style="background: #3d5a4a; color: #27ae60;">+<?= formatMoney($diffCashflow) ?></span>
+                        <?php else: ?>
+                            <span class="badge" style="background: #5a3d3d; color: #e74c3c;"><?= formatMoney($diffCashflow) ?></span>
+                        <?php endif; ?>
                     <?php else: ?>
                         <span class="badge" style="background: #3d5a4a; color: #27ae60;"><i class="bi bi-check-circle me-1"></i>OK</span>
                     <?php endif; ?>
@@ -2617,8 +2639,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <table class="table table-sm table-borderless mb-0">
                         <tbody>
                             <tr>
-                                <td class="text-secondary">Montant requis</td>
-                                <td class="text-end"><?= formatMoney($montantRequis) ?></td>
+                                <td class="text-secondary">Cashflow nécessaire</td>
+                                <td class="text-end"><?= formatMoney($cashFlowNecessaire) ?></td>
                             </tr>
                             <tr>
                                 <td class="text-secondary">Total des prêts <small class="text-muted">(<?= count($listePreteurs) ?>)</small></td>
@@ -2628,10 +2650,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <tfoot>
                             <tr style="border-top: 1px solid #3d4f5f;">
                                 <td class="fw-bold pt-2">
-                                    <?= $difference >= 0 ? 'Surplus' : 'Cash à sortir' ?>
+                                    <?= $diffCashflow >= 0 ? 'Surplus' : 'Cash à sortir' ?>
                                 </td>
-                                <td class="text-end fw-bold pt-2 fs-5 <?= $difference < 0 ? 'text-danger' : ($difference > 0 ? 'text-info' : '') ?>">
-                                    <?= $difference >= 0 ? formatMoney($difference) : formatMoney(abs($difference)) ?>
+                                <td class="text-end fw-bold pt-2 fs-5 <?= $diffCashflow < 0 ? 'text-danger' : ($diffCashflow > 0 ? 'text-info' : '') ?>">
+                                    <?= formatMoney(abs($diffCashflow)) ?>
                                 </td>
                             </tr>
                         </tfoot>
