@@ -738,6 +738,21 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         background: rgba(255,255,255,0.2);
     }
 
+    /* Drag handle pour groupes */
+    .drag-handle-groupe {
+        cursor: grab;
+        color: var(--text-muted, #6c757d);
+        padding: 4px 2px;
+        border-radius: 4px;
+    }
+    .drag-handle-groupe:hover {
+        color: var(--primary-color, #0d6efd);
+        background: rgba(13, 110, 253, 0.15);
+    }
+    .drag-handle-groupe:active {
+        cursor: grabbing;
+    }
+
     /* Inline editing */
     .editable-name {
         cursor: text;
@@ -1196,31 +1211,12 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                     </button>
                 </div>
                 <div class="collapse" id="groupesContent">
-                    <div class="list-group list-group-flush" style="max-height: 30vh; overflow-y: auto;">
+                    <div class="list-group list-group-flush sortable-groupes" style="max-height: 30vh; overflow-y: auto;">
                         <?php foreach ($groupes as $idx => $grp): ?>
-                            <div class="list-group-item py-1 d-flex justify-content-between align-items-center small">
+                            <div class="list-group-item py-1 d-flex justify-content-between align-items-center small" data-id="<?= $grp['id'] ?>">
+                                <i class="bi bi-grip-vertical drag-handle-groupe" style="cursor: grab; color: var(--text-muted); margin-right: 6px;"></i>
                                 <span class="editable-name flex-grow-1" data-type="groupe" data-id="<?= $grp['id'] ?>"><?= e($grp['nom']) ?></span>
                                 <div class="btn-group btn-group-sm ms-2">
-                                    <?php if ($idx > 0): ?>
-                                    <form method="POST" class="d-inline">
-                                        <?php csrfField(); ?>
-                                        <input type="hidden" name="action" value="monter_groupe">
-                                        <input type="hidden" name="id" value="<?= $grp['id'] ?>">
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Monter">
-                                            <i class="bi bi-arrow-up" style="font-size: 0.65rem;"></i>
-                                        </button>
-                                    </form>
-                                    <?php endif; ?>
-                                    <?php if ($idx < count($groupes) - 1): ?>
-                                    <form method="POST" class="d-inline">
-                                        <?php csrfField(); ?>
-                                        <input type="hidden" name="action" value="descendre_groupe">
-                                        <input type="hidden" name="id" value="<?= $grp['id'] ?>">
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm py-0 px-1" title="Descendre">
-                                            <i class="bi bi-arrow-down" style="font-size: 0.65rem;"></i>
-                                        </button>
-                                    </form>
-                                    <?php endif; ?>
                                     <?php if ($grp['code'] !== 'autre'): ?>
                                     <button type="button" class="btn btn-outline-danger btn-sm py-0 px-1" data-bs-toggle="modal" data-bs-target="#deleteGroupeModal<?= $grp['id'] ?>" title="Supprimer">
                                         <i class="bi bi-trash" style="font-size: 0.65rem;"></i>
@@ -1634,6 +1630,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // 4. Initialiser le tri des Groupes
+    const groupesList = document.querySelector('.sortable-groupes');
+    if (groupesList) {
+        new Sortable(groupesList, {
+            animation: 0,
+            handle: '.drag-handle-groupe',
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            onEnd: function (evt) {
+                const items = Array.from(groupesList.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
+                saveOrder('groupe', items, null);
+            }
+        });
+    }
 });
 
 function saveOrder(type, items, parentId, categorieId = null) {

@@ -27,7 +27,21 @@ $categorieId = $data['categorieId'] ?? null; // ID de la catégorie racine (obli
 $pdo->beginTransaction();
 
 try {
-    if ($type === 'categorie') {
+    if ($type === 'groupe') {
+        // Mise à jour de l'ordre pour les groupes
+        foreach ($items as $index => $itemId) {
+            $stmt = $pdo->prepare("
+                UPDATE category_groups
+                SET ordre = ?
+                WHERE id = ?
+            ");
+            $stmt->execute([
+                $index + 1,        // Nouvel ordre (1-based)
+                $itemId
+            ]);
+        }
+    }
+    elseif ($type === 'categorie') {
         // Mise à jour de l'ordre et du groupe pour les catégories
         foreach ($items as $index => $itemId) {
             $stmt = $pdo->prepare("
