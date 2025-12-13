@@ -2474,7 +2474,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         $totalBudgetReno += $budgetHT;
                         $totalReelReno += $depense;
                     ?>
-                    <tr class="sub-item" data-cat-id="<?= $cat['id'] ?>">
+                    <tr class="sub-item detail-cat-row" data-cat-id="<?= $cat['id'] ?>">
                         <td>
                             <?= e($cat['nom']) ?>
                             <?php if ($qteGroupe > 1): ?>

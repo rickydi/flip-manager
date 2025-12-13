@@ -1330,9 +1330,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi "Détail des coûts" si présent
-        // D'abord, réinitialiser TOUTES les cellules de catégories à 0
-        document.querySelectorAll('.detail-cat-budget').forEach(cell => {
-            cell.textContent = formatMoney(0);
+        // D'abord, CACHER toutes les lignes de catégories
+        document.querySelectorAll('.detail-cat-row').forEach(row => {
+            row.style.display = 'none';
         });
 
         // Ensuite, calculer les totaux seulement pour les catégories dans le Budget Builder
@@ -1364,10 +1364,14 @@ document.addEventListener('DOMContentLoaded', function() {
             categoryTotals[catId] = (categoryTotals[catId] || 0) + catTotal;
         });
 
-        // Mettre à jour les cellules de budget par catégorie
+        // Afficher et mettre à jour SEULEMENT les catégories dans le Budget Builder
         Object.keys(categoryTotals).forEach(catId => {
-            const cell = document.getElementById('detailCatBudget_' + catId);
-            if (cell) cell.textContent = formatMoney(categoryTotals[catId]);
+            const row = document.querySelector(`.detail-cat-row[data-cat-id="${catId}"]`);
+            if (row) {
+                row.style.display = ''; // Afficher la ligne
+                const cell = row.querySelector('.detail-cat-budget');
+                if (cell) cell.textContent = formatMoney(categoryTotals[catId]);
+            }
         });
 
         // Mettre à jour contingence, taxes et total
