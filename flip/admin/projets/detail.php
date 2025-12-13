@@ -819,6 +819,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     exit;
 }
 
+// ========================================
+// AJAX: Sauvegarde complète du budget builder (JSON)
+// ========================================
+$jsonInput = file_get_contents('php://input');
+$jsonData = json_decode($jsonInput, true);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonData['ajax_action']) && $jsonData['ajax_action'] === 'save_budget_builder') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($jsonData['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    try {
+        // Sauvegarder les quantités des groupes
+        if (isset($jsonData['groupes'])) {
+            foreach ($jsonData['groupes'] as $groupe => $qte) {
+                $stmt = $pdo->prepare("
+                    UPDATE projet_postes
+                    SET groupe_qte = ?
+                    WHERE projet_id = ? AND groupe = ?
+                ");
+                $stmt->execute([$qte, $projetId, $groupe]);
+            }
+        }
+
+        // Sauvegarder les quantités des items
+        if (isset($jsonData['items'])) {
+            foreach ($jsonData['items'] as $item) {
+                if ($item['type'] === 'categorie') {
+                    $stmt = $pdo->prepare("
+                        UPDATE projet_postes
+                        SET quantite = ?
+                        WHERE projet_id = ? AND categorie_id = ?
+                    ");
+                    $stmt->execute([$item['quantite'], $projetId, $item['id']]);
+                }
+            }
+        }
+
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 $projet = getProjetById($pdo, $projetId);
 
 if (!$projet) {
