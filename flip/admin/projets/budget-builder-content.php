@@ -1108,41 +1108,99 @@ document.addEventListener('DOMContentLoaded', function() {
         if (emptyMsg) emptyMsg.style.display = 'none';
 
         // Créer l'élément avec le même layout que les items existants
-        const itemHtml = `
-            <div class="tree-item mb-1 is-kit projet-item"
-                 data-type="${data.type}"
-                 data-id="${data.id}"
-                 data-cat-id="${data.catId || data.id}"
-                 data-unique-id="${uniqueId}"
-                 data-groupe="${groupe}"
-                 data-prix="${data.prix}">
-                <div class="tree-content">
-                    <i class="bi bi-grip-vertical drag-handle"></i>
-                    <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
-                    <div class="type-icon">
-                        <i class="bi ${data.type === 'materiau' ? 'bi-box-seam text-primary' : 'bi-folder-fill text-warning'}"></i>
-                    </div>
-                    <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
+        // Pour catégories/sous-catégories: inclure un container pour les sous-items
+        const isCategory = data.type === 'categorie' || data.type === 'sous_categorie';
+        const contentId = `projetContent${uniqueId.replace(/[^a-zA-Z0-9]/g, '')}`;
 
-                    <span class="badge item-badge badge-prix text-info me-1">${formatMoney(data.prix)}</span>
-                    <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(data.prix * (data.qte || 1) * 1.14975)}</span>
+        let itemHtml;
+        if (isCategory) {
+            // Catégorie avec container pour sous-items
+            itemHtml = `
+                <div class="tree-item mb-1 is-kit projet-item"
+                     data-type="${data.type}"
+                     data-id="${data.id}"
+                     data-cat-id="${data.catId || data.id}"
+                     data-unique-id="${uniqueId}"
+                     data-groupe="${groupe}"
+                     data-prix="${data.prix}">
+                    <div class="tree-content">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <span class="tree-toggle" onclick="toggleTreeItem(this, '${contentId}')">
+                            <i class="bi bi-caret-down-fill"></i>
+                        </span>
+                        <div class="type-icon">
+                            <i class="bi bi-folder-fill text-warning"></i>
+                        </div>
+                        <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
 
-                    <div class="btn-group btn-group-sm me-2">
-                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="minus">
-                            <i class="bi bi-dash"></i>
+                        <span class="badge item-badge badge-count text-info me-1">
+                            <i class="bi bi-box-seam me-1"></i><span class="item-count">0</span>
+                        </span>
+
+                        <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="${data.id}">
+                            ${formatMoney(0)}
+                        </span>
+
+                        <!-- Quantité catégorie (+/-) -->
+                        <div class="btn-group btn-group-sm me-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${data.id}" data-action="minus">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="${data.id}">1</span>
+                            <input type="hidden" class="cat-qte-input" data-cat-id="${data.id}" value="1">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${data.id}" data-action="plus">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                            <i class="bi bi-x-lg"></i>
                         </button>
-                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 added-item-qte-display">${data.qte || 1}</span>
-                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="plus">
-                            <i class="bi bi-plus"></i>
-                        </button>
                     </div>
-
-                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
+                    <!-- Container pour sous-items -->
+                    <div class="collapse show tree-children" id="${contentId}">
+                        <div class="text-muted small p-2"><i class="bi bi-hourglass-split me-1"></i>Chargement...</div>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        } else {
+            // Matériau simple
+            itemHtml = `
+                <div class="tree-item mb-1 is-kit projet-item"
+                     data-type="${data.type}"
+                     data-id="${data.id}"
+                     data-cat-id="${data.catId || data.id}"
+                     data-unique-id="${uniqueId}"
+                     data-groupe="${groupe}"
+                     data-prix="${data.prix}">
+                    <div class="tree-content">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
+                        <div class="type-icon">
+                            <i class="bi bi-box-seam text-primary"></i>
+                        </div>
+                        <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
+
+                        <span class="badge item-badge badge-prix text-info me-1">${formatMoney(data.prix)}</span>
+                        <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(data.prix * (data.qte || 1) * 1.14975)}</span>
+
+                        <div class="btn-group btn-group-sm me-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="minus">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 added-item-qte-display">${data.qte || 1}</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="plus">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
 
         const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
         console.log('Found drop zone:', zone, 'for groupe:', groupe);
@@ -1161,7 +1219,82 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('Save result:', result);
                 if (!result.success) {
                     console.error('Erreur sauvegarde:', result.error);
+                    return;
                 }
+
+                // Si c'est une catégorie et qu'il y a des sous-items retournés, les afficher
+                if (isCategory && result.added_items && result.added_items.length > 0) {
+                    const container = document.getElementById(contentId);
+                    if (container) {
+                        // Vider le message de chargement
+                        container.innerHTML = '';
+
+                        // Calculer le total de la catégorie
+                        let catTotal = 0;
+                        const catId = data.id;
+
+                        // Ajouter chaque sous-item
+                        result.added_items.forEach(item => {
+                            const itemTotal = (parseFloat(item.prix) || 0) * (parseInt(item.qte) || 1);
+                            catTotal += itemTotal;
+
+                            const matHtml = `
+                                <div class="tree-content mat-item projet-mat-item"
+                                     data-mat-id="${item.mat_id}"
+                                     data-cat-id="${catId}"
+                                     data-prix="${item.prix}"
+                                     data-qte="${item.qte}"
+                                     data-sans-taxe="${item.sans_taxe ? 1 : 0}">
+                                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                                    <span class="flex-grow-1 small">${escapeHtml(item.nom)}</span>
+
+                                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(item.prix) || 0)}</span>
+                                    <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal * 1.14975)}</span>
+
+                                    <div class="btn-group btn-group-sm me-2">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                                            <i class="bi bi-dash"></i>
+                                        </button>
+                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">${item.qte}</span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                                            <i class="bi bi-plus"></i>
+                                        </button>
+                                    </div>
+
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            `;
+                            container.insertAdjacentHTML('beforeend', matHtml);
+                        });
+
+                        // Mettre à jour le compteur et total dans le header de la catégorie
+                        const projetItem = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
+                        if (projetItem) {
+                            const countSpan = projetItem.querySelector('.item-count');
+                            if (countSpan) countSpan.textContent = result.added_items.length;
+
+                            const totalSpan = projetItem.querySelector('.cat-total');
+                            if (totalSpan) totalSpan.textContent = formatMoney(catTotal * 1.14975);
+
+                            // Mettre à jour data-prix
+                            projetItem.dataset.prix = catTotal;
+                        }
+
+                        console.log(`Added ${result.added_items.length} sub-items to category`);
+                    }
+                } else if (isCategory) {
+                    // Catégorie vide - afficher un message
+                    const container = document.getElementById(contentId);
+                    if (container) {
+                        container.innerHTML = '<div class="text-muted small p-2"><i class="bi bi-info-circle me-1"></i>Aucun matériau</div>';
+                    }
+                }
+
+                // Recalculer les totaux après l'ajout des sous-items
+                updateTotals();
             })
             .catch(err => console.error('Network error:', err));
         } else {

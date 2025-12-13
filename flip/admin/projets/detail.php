@@ -773,9 +773,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             $posteId = $poste['id'];
         }
 
-        // Si c'est un matériau, l'ajouter à projet_items
+        $addedItems = []; // Liste des items ajoutés pour retourner au frontend
+
         if ($type === 'materiau') {
-            // Vérifier si l'item existe déjà
+            // Ajouter un seul matériau
             $stmt = $pdo->prepare("SELECT id FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
             $stmt->execute([$projetId, $itemId]);
             $existing = $stmt->fetch();
@@ -786,13 +787,94 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                     VALUES (?, ?, ?, ?, ?, 0)
                 ");
                 $stmt->execute([$projetId, $posteId, $itemId, $prix, $qte]);
+
+                // Récupérer les infos du matériau pour le retour
+                $stmt = $pdo->prepare("SELECT id, nom, prix_unitaire FROM materiaux WHERE id = ?");
+                $stmt->execute([$itemId]);
+                $mat = $stmt->fetch();
+                if ($mat) {
+                    $addedItems[] = [
+                        'mat_id' => $mat['id'],
+                        'nom' => $mat['nom'],
+                        'prix' => $prix,
+                        'qte' => $qte,
+                        'sans_taxe' => 0
+                    ];
+                }
+            }
+        } elseif ($type === 'categorie' || $type === 'sous_categorie') {
+            // Ajouter tous les matériaux de cette catégorie/sous-catégorie
+
+            // Fonction récursive pour récupérer tous les IDs de sous-catégories
+            $allSousCatIds = [];
+
+            if ($type === 'categorie') {
+                // Récupérer toutes les sous-catégories de cette catégorie
+                $stmt = $pdo->prepare("SELECT id FROM sous_categories WHERE categorie_id = ? AND actif = 1");
+                $stmt->execute([$itemId]);
+            } else {
+                // Récupérer cette sous-catégorie et ses enfants
+                $stmt = $pdo->prepare("SELECT id FROM sous_categories WHERE (id = ? OR parent_id = ?) AND actif = 1");
+                $stmt->execute([$itemId, $itemId]);
+            }
+
+            while ($row = $stmt->fetch()) {
+                $allSousCatIds[] = $row['id'];
+            }
+
+            // Récupérer aussi les sous-sous-catégories (récursif niveau 2)
+            if (!empty($allSousCatIds)) {
+                $placeholders = implode(',', array_fill(0, count($allSousCatIds), '?'));
+                $stmt = $pdo->prepare("SELECT id FROM sous_categories WHERE parent_id IN ($placeholders) AND actif = 1");
+                $stmt->execute($allSousCatIds);
+                while ($row = $stmt->fetch()) {
+                    $allSousCatIds[] = $row['id'];
+                }
+            }
+
+            // Récupérer tous les matériaux de ces sous-catégories
+            if (!empty($allSousCatIds)) {
+                $placeholders = implode(',', array_fill(0, count($allSousCatIds), '?'));
+                $stmt = $pdo->prepare("SELECT id, nom, prix_unitaire, quantite_defaut FROM materiaux WHERE sous_categorie_id IN ($placeholders) AND actif = 1");
+                $stmt->execute($allSousCatIds);
+                $materiaux = $stmt->fetchAll();
+
+                foreach ($materiaux as $mat) {
+                    // Vérifier si le matériau existe déjà
+                    $checkStmt = $pdo->prepare("SELECT id FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
+                    $checkStmt->execute([$projetId, $mat['id']]);
+
+                    if (!$checkStmt->fetch()) {
+                        $matPrix = (float)$mat['prix_unitaire'];
+                        $matQte = max(1, (int)($mat['quantite_defaut'] ?? 1));
+
+                        $insertStmt = $pdo->prepare("
+                            INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                            VALUES (?, ?, ?, ?, ?, 0)
+                        ");
+                        $insertStmt->execute([$projetId, $posteId, $mat['id'], $matPrix, $matQte]);
+
+                        $addedItems[] = [
+                            'mat_id' => $mat['id'],
+                            'nom' => $mat['nom'],
+                            'prix' => $matPrix,
+                            'qte' => $matQte,
+                            'sans_taxe' => 0
+                        ];
+                    }
+                }
             }
         }
 
         // Sync la table budgets
         syncBudgetsFromProjetItems($pdo, $projetId);
 
-        echo json_encode(['success' => true, 'poste_id' => $posteId]);
+        echo json_encode([
+            'success' => true,
+            'poste_id' => $posteId,
+            'added_items' => $addedItems,
+            'count' => count($addedItems)
+        ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
