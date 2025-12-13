@@ -848,13 +848,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const csrfToken = '<?= generateCSRFToken() ?>';
     let saveTimeout = null;
 
-    // Debug: Vérifier que les éléments Détail des coûts existent
-    console.log('Budget Builder init - checking Détail des coûts elements:');
-    console.log('  detailContingence:', document.getElementById('detailContingence'));
-    console.log('  detailTPS:', document.getElementById('detailTPS'));
-    console.log('  detailTVQ:', document.getElementById('detailTVQ'));
-    console.log('  detailRenoTotal:', document.getElementById('detailRenoTotal'));
-
     // ========================================
     // UNDO/REDO SYSTEM
     // ========================================
@@ -1337,9 +1330,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi "Détail des coûts" si présent
-        console.log('Updating Détail des coûts:', {totalHT, contingence, tps, tvq, grandTotal});
-
-        // Collecter les totaux par catégorie pour mettre à jour "Détail des coûts"
         const categoryTotals = {};
         document.querySelectorAll('.projet-item[data-type="categorie"]').forEach(catItem => {
             const catId = catItem.dataset.id;
@@ -1368,30 +1358,23 @@ document.addEventListener('DOMContentLoaded', function() {
             categoryTotals[catId] = (categoryTotals[catId] || 0) + catTotal;
         });
 
-        // Mettre à jour les cellules de budget par catégorie dans Détail des coûts
-        console.log('Category totals:', categoryTotals);
+        // Mettre à jour les cellules de budget par catégorie
         Object.keys(categoryTotals).forEach(catId => {
             const cell = document.getElementById('detailCatBudget_' + catId);
-            console.log('  detailCatBudget_' + catId + ':', cell, '->', formatMoney(categoryTotals[catId]));
-            if (cell) {
-                cell.textContent = formatMoney(categoryTotals[catId]);
-            }
+            if (cell) cell.textContent = formatMoney(categoryTotals[catId]);
         });
 
+        // Mettre à jour contingence, taxes et total
         const detailContingence = document.getElementById('detailContingence');
-        console.log('detailContingence element:', detailContingence);
         if (detailContingence) detailContingence.textContent = formatMoney(contingence);
 
         const detailTPS = document.getElementById('detailTPS');
-        console.log('detailTPS element:', detailTPS);
         if (detailTPS) detailTPS.textContent = formatMoney(tps);
 
         const detailTVQ = document.getElementById('detailTVQ');
-        console.log('detailTVQ element:', detailTVQ);
         if (detailTVQ) detailTVQ.textContent = formatMoney(tvq);
 
         const detailRenoTotal = document.getElementById('detailRenoTotal');
-        console.log('detailRenoTotal element:', detailRenoTotal);
         if (detailRenoTotal) detailRenoTotal.textContent = formatMoney(grandTotal);
     }
 
@@ -1711,7 +1694,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Appeler updateTotals au chargement pour synchroniser "Détail des coûts"
-    console.log('Calling initial updateTotals()');
     updateTotals();
 });
 </script>
