@@ -770,7 +770,7 @@ function calculerIndicateursProjet($pdo, $projet) {
             'cout' => $mainDoeuvreExtrapole['cout'],
             'jours' => $mainDoeuvreExtrapole['jours']
         ],
-        'contingence' => $contingence,
+        'contingence' => $budgetComplet['contingence'],
         'cout_total_projet' => $coutTotalProjet,
         'valeur_potentielle' => $valeurPotentielle,
         'equite_potentielle' => $equitePotentielle,
