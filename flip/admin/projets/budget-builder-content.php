@@ -1181,7 +1181,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                         <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
 
-                        <span class="badge item-badge badge-prix text-info me-1">${formatMoney(data.prix)}</span>
+                        <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(data.prix)}</span>
                         <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(data.prix * (data.qte || 1) * 1.14975)}</span>
 
                         <div class="btn-group btn-group-sm me-2">
@@ -1816,8 +1816,19 @@ document.addEventListener('DOMContentLoaded', function() {
         if (prixBadge.querySelector('input')) return;
 
         saveState();
-        const matItem = prixBadge.closest('.projet-mat-item');
-        const currentPrix = parseFloat(matItem.dataset.prix) || 0;
+
+        // Supporter les deux types: matériau dans catégorie (.projet-mat-item) ou matériau simple dropé (.projet-item)
+        let targetItem = prixBadge.closest('.projet-mat-item');
+        let isSimpleItem = false;
+
+        if (!targetItem) {
+            targetItem = prixBadge.closest('.projet-item');
+            isSimpleItem = true;
+        }
+
+        if (!targetItem) return;
+
+        const currentPrix = parseFloat(targetItem.dataset.prix) || 0;
         const originalText = prixBadge.textContent;
         let cancelled = false;
 
@@ -1836,23 +1847,35 @@ document.addEventListener('DOMContentLoaded', function() {
             if (cancelled) return;
 
             const newPrix = parseFloat(input.value.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-            matItem.dataset.prix = newPrix;
+            targetItem.dataset.prix = newPrix;
             prixBadge.textContent = formatMoney(newPrix);
 
-            // Mettre à jour le total de la ligne
-            const qte = parseInt(matItem.dataset.qte) || 1;
+            if (isSimpleItem) {
+                // Matériau simple dropé directement
+                const qteDisplay = targetItem.querySelector('.added-item-qte-display');
+                const qte = qteDisplay ? parseInt(qteDisplay.textContent) || 1 : 1;
+                const groupeContainer = targetItem.closest('.projet-groupe');
+                const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
 
-            // Récupérer les quantités de catégorie et groupe
-            const catContainer = matItem.closest('.projet-item');
-            const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
-            const groupeContainer = matItem.closest('.projet-groupe');
-            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+                const total = newPrix * qte * groupeQte * 1.14975;
+                targetItem.querySelector('.badge-total').textContent = formatMoney(total);
 
-            const total = newPrix * qte * catQte * groupeQte * 1.14975;
-            matItem.querySelector('.badge-total').textContent = formatMoney(total);
+                // Sauvegarder via AJAX - pour items simples, on utilise data-id comme mat_id
+                saveItemData(targetItem.dataset.catId, targetItem.dataset.id, newPrix, null);
+            } else {
+                // Matériau dans une catégorie
+                const qte = parseInt(targetItem.dataset.qte) || 1;
+                const catContainer = targetItem.closest('.projet-item');
+                const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+                const groupeContainer = targetItem.closest('.projet-groupe');
+                const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
 
-            // Sauvegarder via AJAX
-            saveItemData(matItem.dataset.catId, matItem.dataset.matId, newPrix, null);
+                const total = newPrix * qte * catQte * groupeQte * 1.14975;
+                targetItem.querySelector('.badge-total').textContent = formatMoney(total);
+
+                // Sauvegarder via AJAX
+                saveItemData(targetItem.dataset.catId, targetItem.dataset.matId, newPrix, null);
+            }
 
             // Recalculer les totaux
             updateTotals();
