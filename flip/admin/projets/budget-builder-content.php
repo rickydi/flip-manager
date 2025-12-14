@@ -783,45 +783,105 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                             </button>
                         </div>
 
-                        <!-- Détail des items -->
+                        <!-- Détail des items - avec sous-catégories -->
                         <div class="collapse show tree-children" id="projetContent<?= $catId ?>">
-                            <?php foreach ($cat['sous_categories'] ?? [] as $sc): ?>
-                                <?php foreach ($sc['materiaux'] ?? [] as $mat):
-                                    if (!isset($projetItems[$catId][$mat['id']])) continue;
-                                    $item = $projetItems[$catId][$mat['id']];
-                                    $qteItem = (int)$item['quantite'];
-                                    $prixItem = (float)$item['prix_unitaire'];
-                                    $totalItem = $prixItem * $qteItem * $qteCat * $qteGroupe;
-                                ?>
-                <div class="tree-content mat-item projet-mat-item"
-                                     data-mat-id="<?= $mat['id'] ?>"
-                                     data-cat-id="<?= $catId ?>"
-                                     data-prix="<?= $prixItem ?>"
-                                     data-qte="<?= $qteItem ?>"
-                                     data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
+                            <?php foreach ($cat['sous_categories'] ?? [] as $sc):
+                                // Vérifier si cette sous-catégorie a des items dans le projet
+                                $scHasItems = false;
+                                $scTotal = 0;
+                                $scItemCount = 0;
+                                foreach ($sc['materiaux'] ?? [] as $mat) {
+                                    if (isset($projetItems[$catId][$mat['id']])) {
+                                        $scHasItems = true;
+                                        $item = $projetItems[$catId][$mat['id']];
+                                        $scTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'];
+                                        $scItemCount++;
+                                    }
+                                }
+                                if (!$scHasItems) continue;
+                            ?>
+                            <!-- Sous-catégorie container -->
+                            <div class="tree-item mb-1 is-kit projet-item"
+                                 data-type="sous_categorie"
+                                 data-id="<?= $sc['id'] ?>"
+                                 data-cat-id="<?= $catId ?>"
+                                 data-unique-id="sous_categorie-<?= $sc['id'] ?>"
+                                 data-groupe="<?= $groupe ?>"
+                                 data-prix="<?= $scTotal ?>">
+                                <div class="tree-content">
+                                    <i class="bi bi-grip-vertical drag-handle"></i>
+                                    <span class="tree-toggle" onclick="toggleTreeItem(this, 'projetSc<?= $sc['id'] ?>')">
+                                        <i class="bi bi-caret-down-fill"></i>
+                                    </span>
+                                    <div class="type-icon">
+                                        <i class="bi bi-folder text-warning"></i>
+                                    </div>
+                                    <strong class="flex-grow-1"><?= e($sc['nom']) ?></strong>
 
-                                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
-                                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
-                                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+                                    <span class="badge item-badge badge-count text-info me-1">
+                                        <i class="bi bi-box-seam me-1"></i><span class="item-count"><?= $scItemCount ?></span>
+                                    </span>
 
-                                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
-                                    <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem * 1.14975) ?></span>
+                                    <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="<?= $sc['id'] ?>">
+                                        <?= formatMoney($scTotal * $qteCat * $qteGroupe * 1.14975) ?>
+                                    </span>
 
                                     <div class="btn-group btn-group-sm me-2">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $sc['id'] ?>" data-action="minus">
                                             <i class="bi bi-dash"></i>
                                         </button>
-                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display"><?= $qteItem ?></span>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $sc['id'] ?>">1</span>
+                                        <input type="hidden" class="cat-qte-input" data-cat-id="<?= $sc['id'] ?>" value="1">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $sc['id'] ?>" data-action="plus">
                                             <i class="bi bi-plus"></i>
                                         </button>
                                     </div>
 
-                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
                                         <i class="bi bi-x-lg"></i>
                                     </button>
                                 </div>
-                                <?php endforeach; ?>
+
+                                <!-- Matériaux de la sous-catégorie -->
+                                <div class="collapse show tree-children" id="projetSc<?= $sc['id'] ?>">
+                                    <?php foreach ($sc['materiaux'] ?? [] as $mat):
+                                        if (!isset($projetItems[$catId][$mat['id']])) continue;
+                                        $item = $projetItems[$catId][$mat['id']];
+                                        $qteItem = (int)$item['quantite'];
+                                        $prixItem = (float)$item['prix_unitaire'];
+                                        $totalItem = $prixItem * $qteItem * $qteCat * $qteGroupe;
+                                    ?>
+                                    <div class="tree-content mat-item projet-mat-item"
+                                         data-mat-id="<?= $mat['id'] ?>"
+                                         data-cat-id="<?= $sc['id'] ?>"
+                                         data-prix="<?= $prixItem ?>"
+                                         data-qte="<?= $qteItem ?>"
+                                         data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
+
+                                        <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                        <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                                        <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+
+                                        <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
+                                        <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem * 1.14975) ?></span>
+
+                                        <div class="btn-group btn-group-sm me-2">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display"><?= $qteItem ?></span>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                                                <i class="bi bi-plus"></i>
+                                            </button>
+                                        </div>
+
+                                        <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
                             <?php endforeach; ?>
                         </div>
                     </div>
@@ -1354,9 +1414,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Item added successfully');
 
         // Sauvegarder en base de données
-        // Pour les matériaux: envoyer l'ID de la sous-catégorie
-        // Pour les catégories: envoyer leur propre ID
-        const saveId = isMaterial ? data.scId : (data.catId || data.id);
+        // TOUJOURS envoyer l'ID de la CATÉGORIE (pas sous-catégorie) pour la cohérence BD
+        const saveId = data.catId || data.id;
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
