@@ -42,7 +42,7 @@ function compterMateriauxRecursif($sousCategories) {
 /**
  * Afficher les sous-catégories de façon récursive pour le catalogue (drag & drop)
  */
-function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $groupe, $niveau = 0) {
+function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNom, $groupe, $niveau = 0) {
     if (empty($sousCategories)) return;
 
     foreach ($sousCategories as $sc):
@@ -121,6 +121,7 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $group
                      data-id="<?= $mat['id'] ?>"
                      data-sc-id="<?= $sc['id'] ?>"
                      data-cat-id="<?= $catId ?>"
+                     data-cat-nom="<?= e($catNom) ?>"
                      data-groupe="<?= $groupe ?>"
                      data-nom="<?= e($mat['nom']) ?>"
                      data-prix="<?= $mat['prix_defaut'] ?? 0 ?>"
@@ -139,7 +140,7 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $group
 
                 <?php // Récursion pour les sous-sous-catégories ?>
                 <?php if ($hasEnfants): ?>
-                    <?php afficherSousCategoriesRecursifCatalogue($sc['enfants'], $catId, $groupe, $niveau + 1); ?>
+                    <?php afficherSousCategoriesRecursifCatalogue($sc['enfants'], $catId, $catNom, $groupe, $niveau + 1); ?>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -644,7 +645,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                         <?php if ($hasContent): ?>
                         <div class="collapse show tree-children" id="catContent<?= $catId ?>">
                             <?php // Affichage récursif des sous-catégories ?>
-                            <?php afficherSousCategoriesRecursifCatalogue($cat['sous_categories'], $catId, $groupe); ?>
+                            <?php afficherSousCategoriesRecursifCatalogue($cat['sous_categories'], $catId, $cat['nom'], $groupe); ?>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1009,6 +1010,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 type: this.dataset.type,
                 id: this.dataset.id,
                 catId: this.dataset.catId || this.dataset.id,
+                catNom: this.dataset.catNom || this.dataset.nom, // Pour matériaux: nom catégorie, sinon: nom item
                 groupe: this.dataset.groupe,
                 nom: this.dataset.nom,
                 prix: parseFloat(this.dataset.prix) || 0,
@@ -1080,25 +1082,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function addItemToProjet(data, groupe) {
         console.log('addItemToProjet called:', { data, groupe });
 
-        // Créer un ID unique basé sur le type et l'id
-        const uniqueId = `${data.type}-${data.id}`;
+        const isCategory = data.type === 'categorie' || data.type === 'sous_categorie';
+        const isMaterial = data.type === 'materiau';
 
-        // Vérifier si l'item existe déjà
-        const existingItem = document.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
-        if (existingItem) {
-            console.log('Item already exists, flashing');
-            existingItem.querySelector('.tree-content').style.background = 'rgba(13, 110, 253, 0.3)';
-            setTimeout(() => {
-                existingItem.querySelector('.tree-content').style.background = '';
-            }, 500);
-            return;
-        }
-
-        saveState();
+        // Pour les matériaux, on utilise la catégorie parente comme container
+        const catId = data.catId || data.id;
+        const catNom = data.catNom || data.nom;
+        const uniqueId = isCategory ? `${data.type}-${data.id}` : `categorie-${catId}`;
 
         // Afficher le groupe s'il est masqué
         const groupeDiv = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
-        console.log('Found groupeDiv:', groupeDiv);
         if (groupeDiv) {
             groupeDiv.style.display = '';
         }
@@ -1107,19 +1100,96 @@ document.addEventListener('DOMContentLoaded', function() {
         const emptyMsg = document.getElementById('projetEmpty');
         if (emptyMsg) emptyMsg.style.display = 'none';
 
-        // Créer l'élément avec le même layout que les items existants
-        // Pour catégories/sous-catégories: inclure un container pour les sous-items
-        const isCategory = data.type === 'categorie' || data.type === 'sous_categorie';
+        const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
+        if (!zone) {
+            console.error('Drop zone not found for groupe:', groupe);
+            return;
+        }
+
+        // Pour les matériaux: vérifier si le matériau existe déjà
+        if (isMaterial) {
+            const existingMat = zone.querySelector(`.projet-mat-item[data-mat-id="${data.id}"]`);
+            if (existingMat) {
+                console.log('Material already exists, flashing');
+                existingMat.style.background = 'rgba(13, 110, 253, 0.3)';
+                setTimeout(() => { existingMat.style.background = ''; }, 500);
+                return;
+            }
+        }
+
+        saveState();
+
+        // Vérifier si la catégorie existe déjà dans le projet
+        let categoryContainer = zone.querySelector(`.projet-item[data-id="${catId}"]`);
         const contentId = `projetContent${uniqueId.replace(/[^a-zA-Z0-9]/g, '')}`;
 
-        let itemHtml;
+        // Si c'est un matériau et la catégorie n'existe pas, la créer d'abord
+        if (isMaterial && !categoryContainer) {
+            const catHtml = `
+                <div class="tree-item mb-1 is-kit projet-item"
+                     data-type="categorie"
+                     data-id="${catId}"
+                     data-cat-id="${catId}"
+                     data-unique-id="${uniqueId}"
+                     data-groupe="${groupe}"
+                     data-prix="0">
+                    <div class="tree-content">
+                        <i class="bi bi-grip-vertical drag-handle"></i>
+                        <span class="tree-toggle" onclick="toggleTreeItem(this, '${contentId}')">
+                            <i class="bi bi-caret-down-fill"></i>
+                        </span>
+                        <div class="type-icon">
+                            <i class="bi bi-folder-fill text-warning"></i>
+                        </div>
+                        <strong class="flex-grow-1">${escapeHtml(catNom)}</strong>
+
+                        <span class="badge item-badge badge-count text-info me-1">
+                            <i class="bi bi-box-seam me-1"></i><span class="item-count">0</span>
+                        </span>
+
+                        <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="${catId}">
+                            ${formatMoney(0)}
+                        </span>
+
+                        <div class="btn-group btn-group-sm me-2">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${catId}" data-action="minus">
+                                <i class="bi bi-dash"></i>
+                            </button>
+                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="${catId}">1</span>
+                            <input type="hidden" class="cat-qte-input" data-cat-id="${catId}" value="1">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${catId}" data-action="plus">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                        </div>
+
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div class="collapse show tree-children" id="${contentId}"></div>
+                </div>
+            `;
+            zone.insertAdjacentHTML('beforeend', catHtml);
+            categoryContainer = zone.querySelector(`.projet-item[data-id="${catId}"]`);
+            console.log('Created category container for material');
+        }
+
+        // Si c'est une catégorie/sous-catégorie qui existe déjà, flash et stop
         if (isCategory) {
-            // Catégorie avec container pour sous-items
-            itemHtml = `
+            const existingCat = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
+            if (existingCat) {
+                console.log('Category already exists, flashing');
+                existingCat.querySelector('.tree-content').style.background = 'rgba(13, 110, 253, 0.3)';
+                setTimeout(() => { existingCat.querySelector('.tree-content').style.background = ''; }, 500);
+                return;
+            }
+
+            // Créer la catégorie
+            const itemHtml = `
                 <div class="tree-item mb-1 is-kit projet-item"
                      data-type="${data.type}"
                      data-id="${data.id}"
-                     data-cat-id="${data.catId || data.id}"
+                     data-cat-id="${catId}"
                      data-unique-id="${uniqueId}"
                      data-groupe="${groupe}"
                      data-prix="${data.prix}">
@@ -1141,7 +1211,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${formatMoney(0)}
                         </span>
 
-                        <!-- Quantité catégorie (+/-) -->
                         <div class="btn-group btn-group-sm me-2">
                             <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${data.id}" data-action="minus">
                                 <i class="bi bi-dash"></i>
@@ -1157,151 +1226,160 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
-                    <!-- Container pour sous-items -->
                     <div class="collapse show tree-children" id="${contentId}">
                         <div class="text-muted small p-2"><i class="bi bi-hourglass-split me-1"></i>Chargement...</div>
                     </div>
                 </div>
             `;
-        } else {
-            // Matériau simple
-            itemHtml = `
-                <div class="tree-item mb-1 is-kit projet-item"
-                     data-type="${data.type}"
-                     data-id="${data.id}"
-                     data-cat-id="${data.catId || data.id}"
-                     data-unique-id="${uniqueId}"
-                     data-groupe="${groupe}"
-                     data-prix="${data.prix}">
-                    <div class="tree-content">
-                        <i class="bi bi-grip-vertical drag-handle"></i>
-                        <span class="tree-toggle" style="visibility: hidden;"><i class="bi bi-caret-down-fill"></i></span>
-                        <div class="type-icon">
-                            <i class="bi bi-box-seam text-primary"></i>
-                        </div>
-                        <strong class="flex-grow-1">${escapeHtml(data.nom)}</strong>
+            zone.insertAdjacentHTML('beforeend', itemHtml);
+        }
 
-                        <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(data.prix)}</span>
-                        <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(data.prix * (data.qte || 1) * 1.14975)}</span>
+        // Pour les matériaux: ajouter dans le container de la catégorie
+        if (isMaterial && categoryContainer) {
+            const matContainer = categoryContainer.querySelector('.tree-children');
+            if (matContainer) {
+                const itemTotal = (parseFloat(data.prix) || 0) * (parseInt(data.qte) || 1);
+                const matHtml = `
+                    <div class="tree-content mat-item projet-mat-item"
+                         data-mat-id="${data.id}"
+                         data-cat-id="${catId}"
+                         data-prix="${data.prix}"
+                         data-qte="${data.qte || 1}"
+                         data-sans-taxe="0">
+                        <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                        <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                        <span class="flex-grow-1 small">${escapeHtml(data.nom)}</span>
+
+                        <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(data.prix) || 0)}</span>
+                        <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal * 1.14975)}</span>
 
                         <div class="btn-group btn-group-sm me-2">
-                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="minus">
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
                                 <i class="bi bi-dash"></i>
                             </button>
-                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 added-item-qte-display">${data.qte || 1}</span>
-                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 added-item-qte-btn" data-unique-id="${uniqueId}" data-action="plus">
+                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">${data.qte || 1}</span>
+                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
                                 <i class="bi bi-plus"></i>
                             </button>
                         </div>
 
-                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                        <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
-                </div>
-            `;
+                `;
+                matContainer.insertAdjacentHTML('beforeend', matHtml);
+
+                // Mettre à jour le compteur et total de la catégorie
+                updateCategoryStats(categoryContainer);
+            }
         }
 
-        const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
-        console.log('Found drop zone:', zone, 'for groupe:', groupe);
-        if (zone) {
-            zone.insertAdjacentHTML('beforeend', itemHtml);
-            console.log('Item added successfully');
+        console.log('Item added successfully');
 
-            // Sauvegarder en base de données
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `ajax_action=add_dropped_item&type=${data.type}&item_id=${data.id}&cat_id=${data.catId || data.id}&groupe=${groupe}&prix=${data.prix}&qte=${data.qte || 1}&csrf_token=${csrfToken}`
-            })
-            .then(r => r.json())
-            .then(result => {
-                console.log('Save result:', result);
-                if (!result.success) {
-                    console.error('Erreur sauvegarde:', result.error);
-                    return;
-                }
+        // Sauvegarder en base de données
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=add_dropped_item&type=${data.type}&item_id=${data.id}&cat_id=${catId}&groupe=${groupe}&prix=${data.prix}&qte=${data.qte || 1}&csrf_token=${csrfToken}`
+        })
+        .then(r => r.json())
+        .then(result => {
+            console.log('Save result:', result);
+            if (!result.success) {
+                console.error('Erreur sauvegarde:', result.error);
+                return;
+            }
 
-                // Si c'est une catégorie et qu'il y a des sous-items retournés, les afficher
-                if (isCategory && result.added_items && result.added_items.length > 0) {
-                    const container = document.getElementById(contentId);
-                    if (container) {
-                        // Vider le message de chargement
-                        container.innerHTML = '';
+            // Si c'est une catégorie et qu'il y a des sous-items retournés, les afficher
+            if (isCategory && result.added_items && result.added_items.length > 0) {
+                const container = document.getElementById(contentId);
+                if (container) {
+                    // Vider le message de chargement
+                    container.innerHTML = '';
 
-                        // Calculer le total de la catégorie
-                        let catTotal = 0;
-                        const catId = data.id;
+                    // Calculer le total de la catégorie
+                    let catTotalCalc = 0;
 
-                        // Ajouter chaque sous-item
-                        result.added_items.forEach(item => {
-                            const itemTotal = (parseFloat(item.prix) || 0) * (parseInt(item.qte) || 1);
-                            catTotal += itemTotal;
+                    // Ajouter chaque sous-item
+                    result.added_items.forEach(item => {
+                        const itemTotal = (parseFloat(item.prix) || 0) * (parseInt(item.qte) || 1);
+                        catTotalCalc += itemTotal;
 
-                            const matHtml = `
-                                <div class="tree-content mat-item projet-mat-item"
-                                     data-mat-id="${item.mat_id}"
-                                     data-cat-id="${catId}"
-                                     data-prix="${item.prix}"
-                                     data-qte="${item.qte}"
-                                     data-sans-taxe="${item.sans_taxe ? 1 : 0}">
-                                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
-                                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
-                                    <span class="flex-grow-1 small">${escapeHtml(item.nom)}</span>
+                        const matHtml = `
+                            <div class="tree-content mat-item projet-mat-item"
+                                 data-mat-id="${item.mat_id}"
+                                 data-cat-id="${catId}"
+                                 data-prix="${item.prix}"
+                                 data-qte="${item.qte}"
+                                 data-sans-taxe="${item.sans_taxe ? 1 : 0}">
+                                <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                                <span class="flex-grow-1 small">${escapeHtml(item.nom)}</span>
 
-                                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(item.prix) || 0)}</span>
-                                    <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal * 1.14975)}</span>
+                                <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(item.prix) || 0)}</span>
+                                <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal * 1.14975)}</span>
 
-                                    <div class="btn-group btn-group-sm me-2">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
-                                            <i class="bi bi-dash"></i>
-                                        </button>
-                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">${item.qte}</span>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
-                                    </div>
-
-                                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
-                                        <i class="bi bi-x-lg"></i>
+                                <div class="btn-group btn-group-sm me-2">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                                        <i class="bi bi-dash"></i>
+                                    </button>
+                                    <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">${item.qte}</span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                                        <i class="bi bi-plus"></i>
                                     </button>
                                 </div>
-                            `;
-                            container.insertAdjacentHTML('beforeend', matHtml);
-                        });
 
-                        // Mettre à jour le compteur et total dans le header de la catégorie
-                        const projetItem = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
-                        if (projetItem) {
-                            const countSpan = projetItem.querySelector('.item-count');
-                            if (countSpan) countSpan.textContent = result.added_items.length;
+                                <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        `;
+                        container.insertAdjacentHTML('beforeend', matHtml);
+                    });
 
-                            const totalSpan = projetItem.querySelector('.cat-total');
-                            if (totalSpan) totalSpan.textContent = formatMoney(catTotal * 1.14975);
-
-                            // Mettre à jour data-prix
-                            projetItem.dataset.prix = catTotal;
-                        }
-
-                        console.log(`Added ${result.added_items.length} sub-items to category`);
+                    // Mettre à jour le compteur et total dans le header de la catégorie
+                    const projetItem = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
+                    if (projetItem) {
+                        updateCategoryStats(projetItem);
                     }
-                } else if (isCategory) {
-                    // Catégorie vide - afficher un message
-                    const container = document.getElementById(contentId);
-                    if (container) {
-                        container.innerHTML = '<div class="text-muted small p-2"><i class="bi bi-info-circle me-1"></i>Aucun matériau</div>';
-                    }
+
+                    console.log(`Added ${result.added_items.length} sub-items to category`);
                 }
+            } else if (isCategory) {
+                // Catégorie vide - afficher un message
+                const container = document.getElementById(contentId);
+                if (container) {
+                    container.innerHTML = '<div class="text-muted small p-2"><i class="bi bi-info-circle me-1"></i>Aucun matériau</div>';
+                }
+            }
 
-                // Recalculer les totaux après l'ajout des sous-items
-                updateTotals();
-            })
-            .catch(err => console.error('Network error:', err));
-        } else {
-            console.error('Drop zone not found for groupe:', groupe);
-        }
+            // Recalculer les totaux après l'ajout
+            updateTotals();
+        })
+        .catch(err => console.error('Network error:', err));
 
         updateTotals();
+    }
+
+    // Mettre à jour les stats (compteur et total) d'une catégorie
+    function updateCategoryStats(categoryContainer) {
+        const matItems = categoryContainer.querySelectorAll('.projet-mat-item');
+        let catTotal = 0;
+
+        matItems.forEach(matItem => {
+            const prix = parseFloat(matItem.dataset.prix) || 0;
+            const qte = parseInt(matItem.dataset.qte) || 1;
+            catTotal += prix * qte;
+        });
+
+        const countSpan = categoryContainer.querySelector('.item-count');
+        if (countSpan) countSpan.textContent = matItems.length;
+
+        const totalSpan = categoryContainer.querySelector('.cat-total');
+        if (totalSpan) totalSpan.textContent = formatMoney(catTotal * 1.14975);
+
+        categoryContainer.dataset.prix = catTotal;
     }
 
     function escapeHtml(text) {
