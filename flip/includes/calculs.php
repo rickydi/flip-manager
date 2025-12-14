@@ -880,13 +880,9 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
     $budgetHT = $totalTaxable + $totalNonTaxable;
     $contingence = $budgetHT * ($tauxContingence / 100);
 
-    // Contingence proportionnelle taxable
-    $contingenceTaxable = $budgetHT > 0 ? $contingence * ($totalTaxable / $budgetHT) : 0;
-
-    // Base taxable = items taxables + portion taxable de la contingence
-    $baseTaxable = $totalTaxable + $contingenceTaxable;
-    $tps = $baseTaxable * 0.05; // 5%
-    $tvq = $baseTaxable * 0.09975; // 9.975%
+    // Pas de taxe sur la contingence
+    $tps = $totalTaxable * 0.05; // 5%
+    $tvq = $totalTaxable * 0.09975; // 9.975%
     $totalAvecTaxes = $budgetHT + $contingence + $tps + $tvq;
 
     return [
