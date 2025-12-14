@@ -1088,18 +1088,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const isCategory = data.type === 'categorie' || data.type === 'sous_categorie';
         const isMaterial = data.type === 'materiau';
 
-        // Pour les matériaux, on utilise la SOUS-CATÉGORIE comme container (pas la catégorie parent)
-        // Pour les catégories/sous-catégories, on utilise leur propre ID
-        let containerId, containerNom;
-        if (isMaterial && data.scId) {
-            containerId = data.scId;
-            containerNom = data.scNom || data.nom;
-        } else {
-            containerId = data.catId || data.id;
-            containerNom = data.catNom || data.nom;
-        }
-        const uniqueId = isCategory ? `${data.type}-${data.id}` : `sous_categorie-${containerId}`;
-
         // Afficher le groupe s'il est masqué
         const groupeDiv = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
         if (groupeDiv) {
@@ -1129,60 +1117,132 @@ document.addEventListener('DOMContentLoaded', function() {
 
         saveState();
 
-        // Vérifier si le container (sous-catégorie) existe déjà dans le projet
-        let categoryContainer = zone.querySelector(`.projet-item[data-id="${containerId}"]`);
-        const contentId = `projetContent${uniqueId.replace(/[^a-zA-Z0-9]/g, '')}`;
+        // Pour les matériaux: créer la CHAÎNE COMPLÈTE (Catégorie > Sous-catégorie > Matériau)
+        let scContainer = null;
+        if (isMaterial && data.scId) {
+            const catId = data.catId;
+            const catNom = data.catNom || 'Catégorie';
+            const scId = data.scId;
+            const scNom = data.scNom || 'Sous-catégorie';
 
-        // Si c'est un matériau et le container n'existe pas, le créer d'abord
-        if (isMaterial && !categoryContainer) {
-            const containerHtml = `
-                <div class="tree-item mb-1 is-kit projet-item"
-                     data-type="sous_categorie"
-                     data-id="${containerId}"
-                     data-cat-id="${data.catId}"
-                     data-unique-id="${uniqueId}"
-                     data-groupe="${groupe}"
-                     data-prix="0">
-                    <div class="tree-content">
-                        <i class="bi bi-grip-vertical drag-handle"></i>
-                        <span class="tree-toggle" onclick="toggleTreeItem(this, '${contentId}')">
-                            <i class="bi bi-caret-down-fill"></i>
-                        </span>
-                        <div class="type-icon">
-                            <i class="bi bi-folder-fill text-warning"></i>
-                        </div>
-                        <strong class="flex-grow-1">${escapeHtml(containerNom)}</strong>
+            // 1. Vérifier/créer la CATÉGORIE parent
+            let catContainer = zone.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
+            const catContentId = `projetContentCategorie${catId}`;
 
-                        <span class="badge item-badge badge-count text-info me-1">
-                            <i class="bi bi-box-seam me-1"></i><span class="item-count">0</span>
-                        </span>
+            if (!catContainer) {
+                const catHtml = `
+                    <div class="tree-item mb-1 is-kit projet-item"
+                         data-type="categorie"
+                         data-id="${catId}"
+                         data-cat-id="${catId}"
+                         data-unique-id="categorie-${catId}"
+                         data-groupe="${groupe}"
+                         data-prix="0">
+                        <div class="tree-content">
+                            <i class="bi bi-grip-vertical drag-handle"></i>
+                            <span class="tree-toggle" onclick="toggleTreeItem(this, '${catContentId}')">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </span>
+                            <div class="type-icon">
+                                <i class="bi bi-folder-fill text-warning"></i>
+                            </div>
+                            <strong class="flex-grow-1">${escapeHtml(catNom)}</strong>
 
-                        <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="${containerId}">
-                            ${formatMoney(0)}
-                        </span>
+                            <span class="badge item-badge badge-count text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><span class="item-count">0</span>
+                            </span>
 
-                        <div class="btn-group btn-group-sm me-2">
-                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${containerId}" data-action="minus">
-                                <i class="bi bi-dash"></i>
+                            <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="${catId}">
+                                ${formatMoney(0)}
+                            </span>
+
+                            <div class="btn-group btn-group-sm me-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${catId}" data-action="minus">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="${catId}">1</span>
+                                <input type="hidden" class="cat-qte-input" data-cat-id="${catId}" value="1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${catId}" data-action="plus">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                                <i class="bi bi-x-lg"></i>
                             </button>
-                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="${containerId}">1</span>
-                            <input type="hidden" class="cat-qte-input" data-cat-id="${containerId}" value="1">
-                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${containerId}" data-action="plus">
-                                <i class="bi bi-plus"></i>
-                            </button>
                         </div>
-
-                        <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
-                            <i class="bi bi-x-lg"></i>
-                        </button>
+                        <div class="collapse show tree-children" id="${catContentId}"></div>
                     </div>
-                    <div class="collapse show tree-children" id="${contentId}"></div>
-                </div>
-            `;
-            zone.insertAdjacentHTML('beforeend', containerHtml);
-            categoryContainer = zone.querySelector(`.projet-item[data-id="${containerId}"]`);
-            console.log('Created sous-category container for material:', containerNom);
+                `;
+                zone.insertAdjacentHTML('beforeend', catHtml);
+                catContainer = zone.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
+                console.log('Created category container:', catNom);
+            }
+
+            // 2. Vérifier/créer la SOUS-CATÉGORIE dans la catégorie
+            const catChildren = catContainer.querySelector('.tree-children');
+            scContainer = catChildren.querySelector(`.projet-item[data-type="sous_categorie"][data-id="${scId}"]`);
+            const scContentId = `projetContentSousCategorie${scId}`;
+
+            if (!scContainer && catChildren) {
+                const scHtml = `
+                    <div class="tree-item mb-1 is-kit projet-item"
+                         data-type="sous_categorie"
+                         data-id="${scId}"
+                         data-cat-id="${catId}"
+                         data-unique-id="sous_categorie-${scId}"
+                         data-groupe="${groupe}"
+                         data-prix="0">
+                        <div class="tree-content">
+                            <i class="bi bi-grip-vertical drag-handle"></i>
+                            <span class="tree-toggle" onclick="toggleTreeItem(this, '${scContentId}')">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </span>
+                            <div class="type-icon">
+                                <i class="bi bi-folder text-warning"></i>
+                            </div>
+                            <strong class="flex-grow-1">${escapeHtml(scNom)}</strong>
+
+                            <span class="badge item-badge badge-count text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><span class="item-count">0</span>
+                            </span>
+
+                            <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="${scId}">
+                                ${formatMoney(0)}
+                            </span>
+
+                            <div class="btn-group btn-group-sm me-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${scId}" data-action="minus">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="${scId}">1</span>
+                                <input type="hidden" class="cat-qte-input" data-cat-id="${scId}" value="1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${scId}" data-action="plus">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div class="collapse show tree-children" id="${scContentId}"></div>
+                    </div>
+                `;
+                catChildren.insertAdjacentHTML('beforeend', scHtml);
+                scContainer = catChildren.querySelector(`.projet-item[data-type="sous_categorie"][data-id="${scId}"]`);
+                console.log('Created sous-category container:', scNom);
+
+                // Mettre à jour le compteur de la catégorie parent
+                updateCategoryStats(catContainer);
+            }
         }
+
+        // Pour catégories/sous-catégories dropées directement
+        const containerId = data.catId || data.id;
+        const containerNom = data.catNom || data.nom;
+        const uniqueId = isCategory ? `${data.type}-${data.id}` : `sous_categorie-${data.scId}`;
+        const contentId = `projetContent${uniqueId.replace(/[^a-zA-Z0-9]/g, '')}`;
 
         // Si c'est une catégorie/sous-catégorie qui existe déjà, flash et stop
         if (isCategory) {
@@ -1245,14 +1305,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // Pour les matériaux: ajouter dans le container de la sous-catégorie
-        if (isMaterial && categoryContainer) {
-            const matContainer = categoryContainer.querySelector('.tree-children');
+        if (isMaterial && scContainer) {
+            const matContainer = scContainer.querySelector('.tree-children');
             if (matContainer) {
                 const itemTotal = (parseFloat(data.prix) || 0) * (parseInt(data.qte) || 1);
                 const matHtml = `
                     <div class="tree-content mat-item projet-mat-item"
                          data-mat-id="${data.id}"
-                         data-cat-id="${containerId}"
+                         data-cat-id="${data.scId}"
                          data-prix="${data.prix}"
                          data-qte="${data.qte || 1}"
                          data-sans-taxe="0">
@@ -1280,17 +1340,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 matContainer.insertAdjacentHTML('beforeend', matHtml);
 
-                // Mettre à jour le compteur et total de la catégorie
-                updateCategoryStats(categoryContainer);
+                // Mettre à jour le compteur et total de la sous-catégorie
+                updateCategoryStats(scContainer);
+
+                // Mettre à jour aussi la catégorie parent
+                const parentCat = zone.querySelector(`.projet-item[data-type="categorie"][data-id="${data.catId}"]`);
+                if (parentCat) {
+                    updateCategoryStats(parentCat);
+                }
             }
         }
 
         console.log('Item added successfully');
 
         // Sauvegarder en base de données
-        // Pour les matériaux: envoyer l'ID de la sous-catégorie (containerId)
+        // Pour les matériaux: envoyer l'ID de la sous-catégorie
         // Pour les catégories: envoyer leur propre ID
-        const saveId = isMaterial ? containerId : (data.catId || data.id);
+        const saveId = isMaterial ? data.scId : (data.catId || data.id);
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
