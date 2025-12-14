@@ -1229,6 +1229,8 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
 }
 
 $categories = getCategories($pdo);
+// Synchroniser budgets depuis projet_items avant lecture
+syncBudgetsFromProjetItems($pdo, $projetId);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
 
