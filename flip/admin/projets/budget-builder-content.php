@@ -1642,8 +1642,9 @@ document.addEventListener('DOMContentLoaded', function() {
         let totalTaxable = 0;
         let totalNonTaxable = 0;
 
-        // Parcourir toutes les catégories/items
-        document.querySelectorAll('.projet-item').forEach(catItem => {
+        // Parcourir SEULEMENT les catégories de premier niveau (enfants directs de drop-zone)
+        // Évite le double comptage des sous-catégories imbriquées
+        document.querySelectorAll('.projet-drop-zone > .projet-item').forEach(catItem => {
             const groupe = catItem.dataset.groupe;
             let catTotalHT = 0;
             let catTotalTaxable = 0;
