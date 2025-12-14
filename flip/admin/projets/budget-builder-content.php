@@ -185,10 +185,9 @@ foreach ($projetPostes as $catId => $poste) {
 
 $totalProjetHT = $totalProjetTaxable + $totalProjetNonTaxable;
 $contingence = $totalProjetHT * ((float)$projet['taux_contingence'] / 100);
-$contingenceTaxable = $totalProjetHT > 0 ? $contingence * ($totalProjetTaxable / $totalProjetHT) : 0;
-$baseTaxable = $totalProjetTaxable + $contingenceTaxable;
-$tps = $baseTaxable * 0.05;
-$tvq = $baseTaxable * 0.09975;
+// Pas de taxe sur la contingence
+$tps = $totalProjetTaxable * 0.05;
+$tvq = $totalProjetTaxable * 0.09975;
 $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 ?>
 
@@ -1717,12 +1716,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         const contingence = totalHT * (tauxContingence / 100);
-        // Contingence proportionnelle taxable
-        const contingenceTaxable = totalHT > 0 ? contingence * (totalTaxable / totalHT) : 0;
-        
-        const baseTaxable = totalTaxable + contingenceTaxable;
-        const tps = baseTaxable * 0.05;
-        const tvq = baseTaxable * 0.09975;
+        // Pas de taxe sur la contingence
+        const tps = totalTaxable * 0.05;
+        const tvq = totalTaxable * 0.09975;
         const grandTotal = totalHT + contingence + tps + tvq;
 
         document.getElementById('totalHT').textContent = formatMoney(totalHT);
