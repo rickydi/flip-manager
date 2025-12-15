@@ -550,11 +550,13 @@ function compterSousCategories($sousCategories) {
 
 include '../../includes/header.php';
 
-// Ajouter SortableJS
+// Ajouter SortableJS et styles d'arbre
 echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>';
+echo '<link rel="stylesheet" href="' . url('/assets/css/tree-style.css') . '">';
 
 ?>
 <style>
+<<<<<<< HEAD
     /* Styles spécifiques à templates/liste.php */
     /* (Les styles tree de base sont dans style.css) */
 
@@ -631,6 +633,10 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         margin-bottom: 0;
     }
 
+=======
+    /* Styles spécifiques pour Templates (non inclus dans tree-style.css) */
+    
+>>>>>>> 8e57240 (Unification du style visuel (Tree View) pour Templates et Budget Builder)
     /* Drag & drop pour catégories */
     .sortable-categories {
         position: relative;
@@ -679,58 +685,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     }
     .drag-handle-groupe:active {
         cursor: grabbing;
-    }
-
-    /* Inline editing */
-    .editable-name {
-        cursor: text;
-        padding: 2px 4px;
-        border-radius: 3px;
-        border: 1px solid transparent;
-    }
-    .editable-name:hover {
-        background: rgba(13, 110, 253, 0.1);
-        border-color: rgba(13, 110, 253, 0.2);
-    }
-    .list-group-item.active .editable-name:hover {
-        background: rgba(255, 255, 255, 0.15);
-        border-color: rgba(255, 255, 255, 0.3);
-    }
-    .editable-name.editing {
-        background: transparent !important;
-        border: none;
-        padding: 0;
-    }
-    .editable-input,
-    .editable-input:focus,
-    .editable-input:active,
-    input.editable-input {
-        background: #0f1e32 !important;
-        background-color: #0f1e32 !important;
-        border: 1px solid var(--primary-color, #0d6efd) !important;
-        color: #fff !important;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: inherit;
-        width: 100%;
-        min-width: 100px;
-        outline: none !important;
-        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25) !important;
-    }
-    /* Forcer fond sombre sur toute la ligne en édition */
-    .tree-content:has(.editing),
-    .mat-item:has(.editing),
-    .list-group-item:has(.editing) {
-        background: rgba(15, 30, 50, 0.95) !important;
-    }
-
-    /* Désactiver les animations Bootstrap collapse */
-    .collapse,
-    .collapsing {
-        transition: none !important;
-    }
-    .collapsing {
-        height: auto !important;
     }
 
     /* Éviter flash blanc lors du chargement */
@@ -1734,6 +1688,48 @@ document.querySelectorAll('.editable-name').forEach(el => {
         });
     });
 });
+
+    // ========================================
+    // MISE À JOUR DES CONNECTEURS D'ARBRE
+    // ========================================
+    function updateTreeConnectors() {
+        document.querySelectorAll('.tree-children').forEach(container => {
+            const children = container.querySelectorAll(':scope > .tree-item, :scope > .tree-content');
+            children.forEach((child, index) => {
+                const connector = child.querySelector('.tree-connector');
+                if (connector) {
+                    const isLast = index === children.length - 1;
+                    connector.textContent = isLast ? '└──' : '├──';
+                }
+            });
+        });
+    }
+
+    // Appeler au chargement
+    updateTreeConnectors();
+
+    // Appeler après le drag & drop
+    const originalSaveOrder = window.saveOrder;
+    window.saveOrder = function(type, items, parentId, categorieId = null) {
+        // Appeler la fonction originale
+        // Note: Ici saveOrder est définie plus bas, donc on ne peut pas vraiment la wrapper ainsi
+        // Mais on peut écouter les événements Sortable
+        
+        // La fonction saveOrder fait un fetch, on ne peut pas facilement s'accrocher après.
+        // Mais le Sortable onEnd appelle saveOrder.
+        // On peut juste appeler updateTreeConnectors() dans onEnd de Sortable.
+    };
+
+    // On va modifier les options de Sortable pour appeler updateTreeConnectors
+    // Mais les instances sont déjà créées. 
+    // On va utiliser un MutationObserver pour détecter les changements dans le DOM
+    const observer = new MutationObserver(function(mutations) {
+        updateTreeConnectors();
+    });
+    
+    document.querySelectorAll('.tree-children').forEach(el => {
+        observer.observe(el, { childList: true });
+    });
 
 // Fonction AJAX pour sauvegarder le nom
 function saveInlineName(type, id, newName) {
