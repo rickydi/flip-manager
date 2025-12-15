@@ -3,30 +3,155 @@
  * Gestion du Drag & Drop, calculs, et interface arborescente.
  */
 
+// Variables globales du module (initialisées au chargement)
+let bb_projetId = 0;
+let bb_tauxContingence = 0;
+let bb_csrfToken = '';
+let bb_saveTimeout = null;
+
+// ========================================
+// FONCTIONS GLOBALES UI (Accessibles immédiatement)
+// ========================================
+
+window.toggleCatalogueGroupe = function(header) {
+    header.classList.toggle('collapsed');
+    const groupe = header.dataset.groupe;
+    const content = header.nextElementSibling;
+    if (content) {
+        content.style.display = header.classList.contains('collapsed') ? 'none' : 'block';
+    }
+};
+
+window.toggleTreeItem = function(toggle, id) {
+    toggle.classList.toggle('collapsed');
+    const content = document.getElementById(id) ||
+                    document.getElementById('catContent' + id) ||
+                    document.getElementById('projetContent' + id);
+    if (content) {
+        content.classList.toggle('show');
+    }
+};
+
+// ========================================
+// FONCTIONS GLOBALES LOGIQUE (Définies ici pour être accessibles)
+// ========================================
+
+window.changeCatQte = function(catId, delta) {
+    const input = document.querySelector(`.cat-qte-input[data-cat-id="${catId}"]`);
+    if (input) {
+        const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
+        input.value = newVal;
+        window.updateCatQte(catId);
+    }
+};
+
+window.updateCatQte = function(catId) {
+    const catItem = document.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
+    if (catItem) {
+        catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
+            window.updateMaterialTotal(matItem);
+        });
+        catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
+            window.updateSousCategorieStats(sc);
+        });
+        window.updateSousCategorieStats(catItem); // updateContainerStats pour la catégorie
+    }
+    window.updateTotals();
+    autoSave();
+};
+
+window.changeGroupeQte = function(groupe, delta) {
+    const input = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
+    if (input) {
+        const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
+        input.value = newVal;
+        window.updateGroupeQte(groupe);
+    }
+};
+
+window.updateGroupeQte = function(groupe) {
+    const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
+    if (zone) {
+        zone.querySelectorAll('.projet-mat-item').forEach(matItem => {
+            window.updateMaterialTotal(matItem);
+        });
+        zone.querySelectorAll('.projet-item').forEach(item => {
+            window.updateSousCategorieStats(item);
+        });
+    }
+    window.updateTotals();
+    autoSave();
+};
+
+window.removeProjetItem = function(btn) {
+    saveState();
+    const item = btn.closest('.projet-item');
+    const groupe = item.dataset.groupe;
+    
+    // Si c'est un container, le supprimer
+    // Pour mettre à jour le parent, on le récupère avant
+    const parent = item.parentElement ? item.parentElement.closest('.projet-item') : null;
+    
+    item.remove();
+
+    // Vérifier si groupe vide
+    const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
+    if (zone && zone.querySelectorAll('.projet-item').length === 0) {
+        zone.closest('.projet-groupe').style.display = 'none';
+    }
+
+    // Vérifier si tout vide
+    if (document.querySelectorAll('.projet-item').length === 0) {
+        const emptyMsg = document.getElementById('projetEmpty');
+        if (emptyMsg) emptyMsg.style.display = '';
+    }
+
+    if (parent) window.updateAllParents(parent.querySelector('.tree-content') || parent);
+
+    window.updateTotals();
+    autoSave();
+};
+
+window.clearAllBudget = function() {
+    if (!confirm('Voulez-vous vraiment supprimer tous les items du budget?')) {
+        return;
+    }
+
+    saveState();
+
+    document.querySelectorAll('.projet-item').forEach(item => item.remove());
+    document.querySelectorAll('.projet-mat-item').forEach(item => item.remove());
+    document.querySelectorAll('.projet-groupe').forEach(groupe => {
+        groupe.style.display = 'none';
+    });
+
+    const emptyMsg = document.getElementById('projetEmpty');
+    if (emptyMsg) emptyMsg.style.display = '';
+
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `ajax_action=clear_all_budget&csrf_token=${bb_csrfToken}`
+    });
+
+    window.updateTotals();
+};
+
+// ========================================
+// INITIALISATION
+// ========================================
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Budget Builder initializing...');
-
-    // ========================================
-    // VARIABLES LOCALES & CONFIG
-    // ========================================
-    const projetId = window.budgetBuilderConfig?.projetId || 0;
-    const tauxContingence = window.budgetBuilderConfig?.tauxContingence || 0;
-    const csrfToken = window.budgetBuilderConfig?.csrfToken || '';
     
-    let saveTimeout = null;
-    let pendingMaterialAdd = null;
-    
-    const historyStack = [];
-    const redoStack = [];
-    const maxHistory = 50;
+    // Init Config
+    bb_projetId = window.budgetBuilderConfig?.projetId || 0;
+    bb_tauxContingence = window.budgetBuilderConfig?.tauxContingence || 0;
+    bb_csrfToken = window.budgetBuilderConfig?.csrfToken || '';
 
-    // Variables pour la modal d'ajout
+    // Init Modal
     const confirmAddModalEl = document.getElementById('confirmAddMaterialModal');
     let confirmAddModal = null;
-    
-    // ========================================
-    // INITIALISATION MODAL
-    // ========================================
     if (confirmAddModalEl) {
         confirmAddModal = new bootstrap.Modal(confirmAddModalEl);
         const addQteInput = document.getElementById('addQteInput');
@@ -43,6 +168,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    let pendingMaterialAdd = null;
 
     if (document.getElementById('confirmAddBtn')) {
         document.getElementById('confirmAddBtn').addEventListener('click', function() {
@@ -62,12 +189,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 const qteDisplay = existingMat.querySelector('.mat-qte-display');
                 if (qteDisplay) qteDisplay.textContent = newQte;
 
-                updateMaterialTotal(existingMat);
-                saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
-                updateAllParents(existingMat);
-                updateTotals();
+                window.updateMaterialTotal(existingMat);
+                window.saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
+                window.updateAllParents(existingMat);
+                window.updateTotals();
                 autoSave();
                 
+                // Flash
                 flashElement(existingMat);
 
                 pendingMaterialAdd = null;
@@ -75,447 +203,94 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ========================================
-    // FONCTIONS UTILITAIRES INTERNES
-    // ========================================
-    function flashElement(element) {
-        element.style.transition = 'background-color 0.5s ease';
-        element.style.backgroundColor = 'rgba(25, 135, 84, 0.4)';
-        setTimeout(() => {
-            element.style.backgroundColor = '';
-        }, 3000);
-    }
-
-    function getDepth(element) {
-        let depth = 0;
-        let p = element.parentElement;
-        while(p) {
-            if (p.classList.contains('projet-item')) depth++;
-            p = p.parentElement;
-        }
-        return depth;
-    }
+    // Init Drag & Drop Catalogue
+    const draggables = document.querySelectorAll('.catalogue-draggable');
+    console.log('Found draggable items:', draggables.length);
     
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+    draggables.forEach(item => {
+        item.addEventListener('dragstart', function(e) {
+            console.log('Drag start:', this.dataset.nom);
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+                type: this.dataset.type,
+                id: this.dataset.id,
+                scId: this.dataset.scId,
+                catId: this.dataset.catId || this.dataset.id,
+                catNom: this.dataset.catNom || this.dataset.nom,
+                groupe: this.dataset.groupe,
+                nom: this.dataset.nom,
+                prix: parseFloat(this.dataset.prix) || 0,
+                qte: parseInt(this.dataset.qte) || 1,
+                catOrdre: parseInt(this.dataset.catOrdre) || 0,
+                scOrdre: parseInt(this.dataset.scOrdre) || 0,
+                matOrdre: parseInt(this.dataset.matOrdre) || 0,
+                path: this.dataset.path ? JSON.parse(this.dataset.path) : null
+            }));
+            this.style.opacity = '0.5';
+        });
 
-    function initSortable(element) {
-        if (typeof Sortable === 'undefined') return;
-        new Sortable(element, {
-            group: 'projet-items',
-            animation: 150,
-            handle: '.drag-handle',
-            ghostClass: 'sortable-ghost',
-            onStart: function() {
-                // saveState();
-            },
-            onEnd: function() {
-                autoSave();
+        item.addEventListener('dragend', function() {
+            this.style.opacity = '1';
+        });
+    });
+
+    // Init Drop Zones
+    const dropZones = document.querySelectorAll('.projet-drop-zone');
+    console.log('Found drop zones:', dropZones.length);
+
+    dropZones.forEach(zone => {
+        zone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('drop-zone-active');
+        });
+        zone.addEventListener('dragleave', function() {
+            this.classList.remove('drop-zone-active');
+        });
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drop-zone-active');
+            console.log('Drop event on zone:', this.dataset.groupe);
+            try {
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                window.addItemToProjet(data, this.dataset.groupe);
+            } catch (err) {
+                console.error('Drop error:', err);
             }
         });
-    }
+        initSortable(zone);
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+            e.preventDefault();
+            undoAction();
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+            e.preventDefault();
+            redoAction();
+        }
+    });
     
-    function insertInOrder(container, newElement, orderAttr, orderValue) {
-        const children = container.querySelectorAll(':scope > .tree-item, :scope > .projet-item');
-        let inserted = false;
-        for (const child of children) {
-            const childOrder = parseInt(child.dataset[orderAttr]) || 0;
-            if (orderValue < childOrder) {
-                container.insertBefore(newElement, child);
-                inserted = true;
-                break;
-            }
-        }
-        if (!inserted) {
-            container.appendChild(newElement);
-        }
-    }
-
-    function createElementFromHTML(htmlString) {
-        const div = document.createElement('div');
-        div.innerHTML = htmlString.trim();
-        return div.firstChild;
-    }
-
-    // ========================================
-    // FONCTIONS EXPOSÉES (GLOBALES)
-    // ========================================
-
-    window.formatMoney = function(val) {
-        return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
-    };
-
-    window.saveItemData = function(catId, matId, prix, qte) {
-        let body = `ajax_action=update_item_data&cat_id=${catId}&mat_id=${matId}&csrf_token=${csrfToken}`;
-        if (prix !== null) body += `&prix=${prix}`;
-        if (qte !== null) body += `&qte=${qte}`;
-
-        fetch(window.location.href, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: body
-        });
-    };
-
-    window.updateMaterialTotal = function(matItem) {
-        const prix = parseFloat(matItem.dataset.prix) || 0;
-        const qte = parseInt(matItem.dataset.qte) || 1;
-        const totalLigneHT = prix * qte;
-        
-        let multiplier = 1;
-        let p = matItem.closest('.projet-item, .projet-groupe');
-        while(p) {
-            if (p.classList.contains('projet-item')) {
-                 const qInput = p.querySelector('.cat-qte-input');
-                 if (qInput) multiplier *= (parseInt(qInput.value) || 1);
-            }
-            if (p.classList.contains('projet-groupe')) {
-                 const gInput = p.querySelector('.groupe-qte-input');
-                 if (gInput) multiplier *= (parseInt(gInput.value) || 1);
-            }
-            p = p.parentElement ? p.parentElement.closest('.projet-item, .projet-groupe') : null;
-        }
-
-        const total = totalLigneHT * multiplier * 1.14975;
-        const badge = matItem.querySelector('.badge-total');
-        if (badge) badge.textContent = window.formatMoney(total);
-    };
-
-    window.updateSousCategorieStats = function(container) {
-        if (!container) return;
-
-        // 1. Somme des matériaux directs
-        let sumHT = 0;
-        const matItems = container.querySelectorAll(':scope > .tree-children > .projet-mat-item');
-        matItems.forEach(mat => {
-            const prix = parseFloat(mat.dataset.prix) || 0;
-            const qte = parseInt(mat.dataset.qte) || 1;
-            sumHT += prix * qte;
-        });
-        
-        // 2. Somme des sous-containers directs
-        const subContainers = container.querySelectorAll(':scope > .tree-children > .projet-item');
-        subContainers.forEach(sub => {
-            const subTotalProprietaire = parseFloat(sub.dataset.totalPropreHt) || 0;
-            const subQteInput = sub.querySelector('.cat-qte-input');
-            const subQte = subQteInput ? parseInt(subQteInput.value) || 1 : 1;
-            sumHT += subTotalProprietaire * subQte;
-        });
-
-        container.dataset.totalPropreHt = sumHT;
-        
-        // 3. Calculer le total TTC affiché
-        let multiplier = 1;
-        let p = container;
-        while(p) {
-            if (p.classList.contains('projet-item')) {
-                 const qInput = p.querySelector('.cat-qte-input');
-                 if (qInput) multiplier *= (parseInt(qInput.value) || 1);
-            }
-            if (p.classList.contains('projet-groupe')) {
-                 const gInput = p.querySelector('.groupe-qte-input');
-                 if (gInput) multiplier *= (parseInt(gInput.value) || 1);
-            }
-            p = p.parentElement ? p.parentElement.closest('.projet-item, .projet-groupe') : null;
-        }
-
-        const totalTTC = sumHT * multiplier * 1.14975;
-        
-        const countSpan = container.querySelector('.item-count');
-        const totalMatCount = container.querySelectorAll('.projet-mat-item').length;
-        if (countSpan) countSpan.textContent = totalMatCount;
-
-        const totalSpan = container.querySelector('.cat-total');
-        if (totalSpan) totalSpan.textContent = window.formatMoney(totalTTC);
-    };
-
-    window.updateContainerStats = window.updateSousCategorieStats; // Alias
-
-    window.updateAllParents = function(element) {
-        let parent = element.parentElement ? element.parentElement.closest('.projet-item') : null;
-        while (parent) {
-            window.updateSousCategorieStats(parent);
-            parent = parent.parentElement ? parent.parentElement.closest('.projet-item') : null;
-        }
-    };
-
-    window.updateTotals = function() {
-        // 1. Matériaux
-        document.querySelectorAll('.projet-mat-item').forEach(mat => window.updateMaterialTotal(mat));
-        
-        // 2. Containers (profond d'abord)
-        const items = Array.from(document.querySelectorAll('.projet-item'));
-        items.sort((a, b) => {
-            const depthA = getDepth(a);
-            const depthB = getDepth(b);
-            return depthB - depthA;
-        });
-        items.forEach(item => window.updateSousCategorieStats(item));
-
-        // 3. Grand total
-        let grandTotalHT = 0;
-        document.querySelectorAll('.projet-mat-item').forEach(mat => {
-             const prix = parseFloat(mat.dataset.prix) || 0;
-             const qte = parseInt(mat.dataset.qte) || 1;
-             let multiplier = 1;
-             let p = mat.closest('.projet-item, .projet-groupe');
-             while(p) {
-                if (p.classList.contains('projet-item')) {
-                     const qInput = p.querySelector('.cat-qte-input');
-                     if (qInput) multiplier *= (parseInt(qInput.value) || 1);
-                }
-                if (p.classList.contains('projet-groupe')) {
-                     const gInput = p.querySelector('.groupe-qte-input');
-                     if (gInput) multiplier *= (parseInt(gInput.value) || 1);
-                }
-                p = p.parentElement ? p.parentElement.closest('.projet-item, .projet-groupe') : null;
-            }
-            grandTotalHT += prix * qte * multiplier;
-        });
-        
-        const contingence = grandTotalHT * (tauxContingence / 100);
-        const grandTotalTTC = (grandTotalHT + contingence) * 1.14975;
-        
-        if (document.getElementById('totalHT')) document.getElementById('totalHT').textContent = window.formatMoney(grandTotalHT);
-        if (document.getElementById('totalContingence')) document.getElementById('totalContingence').textContent = window.formatMoney(contingence);
-        if (document.getElementById('grandTotal')) document.getElementById('grandTotal').textContent = window.formatMoney(grandTotalTTC);
-    };
-
-    window.toggleCatalogueGroupe = function(header) {
-        header.classList.toggle('collapsed');
-        const groupe = header.dataset.groupe;
-        const content = header.nextElementSibling;
-        if (content) {
-            content.style.display = header.classList.contains('collapsed') ? 'none' : 'block';
-        }
-    };
-
-    window.toggleTreeItem = function(toggle, id) {
-        toggle.classList.toggle('collapsed');
-        const content = document.getElementById(id) ||
-                        document.getElementById('catContent' + id) ||
-                        document.getElementById('projetContent' + id);
-        if (content) {
-            content.classList.toggle('show');
-        }
-    };
-
-    window.changeCatQte = function(catId, delta) {
-        const input = document.querySelector(`.cat-qte-input[data-cat-id="${catId}"]`);
-        if (input) {
-            saveState();
-            const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
-            input.value = newVal;
-            window.updateCatQte(catId);
-        }
-    };
-
-    window.updateCatQte = function(catId) {
-        const catItem = document.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
-        if (catItem) {
-            // Mettre à jour récursivement
-            window.updateAllParents(catItem.querySelector('.cat-qte-input') || catItem); // Hack pour trigger update depuis cet élément
-        }
-        window.updateTotals();
-        autoSave();
-    };
-
-    window.changeGroupeQte = function(groupe, delta) {
-        const input = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
-        if (input) {
-            saveState();
-            const newVal = Math.max(1, Math.min(20, parseInt(input.value) + delta));
-            input.value = newVal;
-            window.updateGroupeQte(groupe);
-        }
-    };
-
-    window.updateGroupeQte = function(groupe) {
-        window.updateTotals();
-        autoSave();
-    };
-
-    window.removeProjetItem = function(btn) {
+    // Delegation d'événements pour les éléments dynamiques
+    
+    // Boutons +/- pour items ajoutés par drag
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.added-item-qte-btn');
+        if (!btn) return;
         saveState();
-        const item = btn.closest('.projet-item');
-        const groupe = item.dataset.groupe;
-        
-        const parent = item.parentElement.closest('.projet-item');
-        
-        item.remove();
-
-        const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
-        if (zone && zone.querySelectorAll('.projet-item').length === 0) {
-            zone.closest('.projet-groupe').style.display = 'none';
-        }
-
-        if (document.querySelectorAll('.projet-item').length === 0) {
-            document.getElementById('projetEmpty').style.display = '';
-        }
-
-        if (parent) window.updateAllParents(parent.querySelector('.tree-content') || parent);
-
+        const action = btn.dataset.action;
+        const projetItem = btn.closest('.projet-item');
+        const qteDisplay = projetItem.querySelector('.added-item-qte-display');
+        let currentQte = parseInt(qteDisplay.textContent) || 1;
+        if (action === 'plus') currentQte++;
+        else if (action === 'minus' && currentQte > 1) currentQte--;
+        qteDisplay.textContent = currentQte;
+        const prix = parseFloat(projetItem.dataset.prix) || 0;
+        const totalBadge = projetItem.querySelector('.badge-total');
+        if (totalBadge) totalBadge.textContent = window.formatMoney(prix * currentQte * 1.14975);
         window.updateTotals();
         autoSave();
-    };
+    });
 
-    window.clearAllBudget = function() {
-        if (!confirm('Voulez-vous vraiment supprimer tous les items du budget?')) {
-            return;
-        }
-        saveState();
-        document.querySelectorAll('.projet-item').forEach(item => item.remove());
-        document.querySelectorAll('.projet-mat-item').forEach(item => item.remove());
-        document.querySelectorAll('.projet-groupe').forEach(groupe => {
-            groupe.style.display = 'none';
-        });
-        document.getElementById('projetEmpty').style.display = '';
-
-        fetch(window.location.href, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `ajax_action=clear_all_budget&csrf_token=${csrfToken}`
-        });
-
-        window.updateTotals();
-    };
-
-    window.undoAction = function() {
-        if (historyStack.length === 0) return;
-        const currentState = getState();
-        redoStack.push(currentState);
-        const previousState = historyStack.pop();
-        restoreState(previousState);
-        updateUndoRedoButtons();
-        autoSave();
-    };
-
-    window.redoAction = function() {
-        if (redoStack.length === 0) return;
-        const currentState = getState();
-        historyStack.push(currentState);
-        const nextState = redoStack.pop();
-        restoreState(nextState);
-        updateUndoRedoButtons();
-        autoSave();
-    };
-
-    function saveState() {
-        const state = getState();
-        if (!state) return;
-        historyStack.push(state);
-        if (historyStack.length > maxHistory) historyStack.shift();
-        redoStack.length = 0;
-        updateUndoRedoButtons();
-    }
-
-    function getState() {
-        const content = document.getElementById('projetContent');
-        if (!content) return null;
-        const state = {
-            html: content.innerHTML,
-            groupeVisibility: {}
-        };
-        document.querySelectorAll('.projet-groupe').forEach(g => {
-            state.groupeVisibility[g.dataset.groupe] = g.style.display;
-        });
-        return state;
-    }
-
-    function restoreState(state) {
-        if (!state) return;
-        document.getElementById('projetContent').innerHTML = state.html;
-        Object.keys(state.groupeVisibility).forEach(groupe => {
-            const g = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
-            if (g) g.style.display = state.groupeVisibility[groupe];
-        });
-        document.querySelectorAll('.projet-drop-zone').forEach(zone => {
-            initSortable(zone);
-        });
-        window.updateTotals();
-    }
-
-    function updateUndoRedoButtons() {
-        const undoBtn = document.getElementById('undoBtn');
-        const redoBtn = document.getElementById('redoBtn');
-        if (undoBtn) undoBtn.disabled = historyStack.length === 0;
-        if (redoBtn) redoBtn.disabled = redoStack.length === 0;
-    }
-
-    function autoSave() {
-        if (saveTimeout) clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(function() {
-            const saveStatus = document.getElementById('saveSaving');
-            if(saveStatus) {
-                document.getElementById('saveIdle').classList.add('d-none');
-                saveStatus.classList.remove('d-none');
-                document.getElementById('saveSaved').classList.add('d-none');
-            }
-
-            const items = [];
-            const groupes = {};
-            document.querySelectorAll('.projet-item').forEach(item => {
-                const catQteInput = item.querySelector('.cat-qte-input');
-                items.push({
-                    type: item.dataset.type,
-                    id: item.dataset.id,
-                    groupe: item.dataset.groupe,
-                    quantite: catQteInput ? parseInt(catQteInput.value) : 1
-                });
-            });
-            document.querySelectorAll('.groupe-qte-input').forEach(input => {
-                groupes[input.dataset.groupe] = parseInt(input.value) || 1;
-            });
-
-            fetch(window.location.href, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ajax_action: 'save_budget_builder',
-                    csrf_token: csrfToken,
-                    items: items,
-                    groupes: groupes
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if(saveStatus) {
-                    saveStatus.classList.add('d-none');
-                    document.getElementById('saveSaved').classList.remove('d-none');
-                    setTimeout(() => {
-                        document.getElementById('saveSaved').classList.add('d-none');
-                        document.getElementById('saveIdle').classList.remove('d-none');
-                    }, 2000);
-                }
-            });
-        }, 500);
-    }
-    
-    // ========================================
-    // DELEGATED EVENT LISTENERS (pour éviter doublons avec onclick)
-    // ========================================
-    
-    // Matériau +/- et Supprimer : Ceux-là n'ont pas de onclick dans le HTML généré par JS (voir addItemToProjet),
-    // MAIS le PHP initial a peut-être généré des onclicks ? 
-    // Vérifions le PHP : non, le PHP initial (dans budget-builder-content.php avant refactor) avait des onclick ?
-    // Non, mon dernier write_to_file de budget-builder-content.php a supprimé la génération PHP du contenu projet car "La logique JS prendra le relais".
-    // Ah ! Si j'ai supprimé le rendu PHP initial, le projet est vide au chargement !
-    // "Pour l'instant, on garde la structure générée par PHP telle quelle." dit le commentaire, mais j'ai écrasé le fichier.
-    // J'ai besoin que le PHP génère l'état initial.
-    // Heureusement, dans mon `write_to_file` précédent de `budget-builder-content.php`, j'ai gardé le bloc PHP qui génère `$catalogueData` mais j'ai aussi gardé la boucle `foreach ($groupeLabels ...)` qui génère le contenu du projet.
-    // Et dans ce contenu PHP, j'ai mis des `onclick` ?
-    // Vérifions le contenu de `budget-builder-content.php` que j'ai écrit.
-    
-    // Dans le fichier PHP généré : 
-    // <button ... onclick="removeProjetItem(this)" ...>
-    // <button ... class="mat-qte-btn" ...> (PAS de onclick ici, utilise listener global ?)
-    
-    // Si les boutons matériaux n'ont pas de onclick, ils dépendent des listeners globaux.
-    // J'ai retiré les listeners globaux redondants (pour ceux qui ont des onclicks) mais j'ai gardé ceux pour les matériaux (+/- et delete).
-    
     // Boutons +/- Matériaux
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('.mat-qte-btn');
@@ -555,7 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `ajax_action=remove_material&cat_id=${catId}&mat_id=${matId}&csrf_token=${csrfToken}`
+            body: `ajax_action=remove_material&cat_id=${catId}&mat_id=${matId}&csrf_token=${bb_csrfToken}`
         });
         
         window.updateTotals();
@@ -566,36 +341,43 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('click', function(e) {
         const prixBadge = e.target.closest('.editable-prix');
         if (!prixBadge || prixBadge.querySelector('input')) return;
+
         saveState();
-        // ... (logique édition prix)
-        // Je dois réintégrer la logique d'édition prix ici
         let targetItem = prixBadge.closest('.projet-mat-item');
         if (!targetItem) targetItem = prixBadge.closest('.projet-item');
         if (!targetItem) return;
+
         const currentPrix = parseFloat(targetItem.dataset.prix) || 0;
         const originalText = prixBadge.textContent;
         let cancelled = false;
+
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'prix-input';
         input.value = currentPrix.toFixed(2);
+        
         prixBadge.textContent = '';
         prixBadge.appendChild(input);
         input.focus();
         input.select();
-        
+
         function savePrix() {
             if (cancelled) return;
             const newPrix = parseFloat(input.value.replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
             targetItem.dataset.prix = newPrix;
             prixBadge.textContent = window.formatMoney(newPrix);
+            
             if (targetItem.classList.contains('projet-mat-item')) {
                  window.saveItemData(targetItem.dataset.catId, targetItem.dataset.matId, newPrix, null);
                  window.updateMaterialTotal(targetItem);
                  window.updateAllParents(targetItem);
+            } else {
+                 window.saveItemData(targetItem.dataset.catId, targetItem.dataset.id, newPrix, null);
+                 // TODO: update simple item total
             }
             window.updateTotals();
         }
+
         input.addEventListener('blur', savePrix);
         input.addEventListener('keydown', function(ev) {
             if (ev.key === 'Enter') { ev.preventDefault(); input.blur(); }
@@ -605,10 +387,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Fonctions Drop (copie du précédent message)
     window.addItemToProjet = function(data, groupe) {
-        // ... (reprise du code addItemToProjet complet)
-        // Je vais le remettre car je l'ai coupé dans le bloc précédent par erreur
         console.log('addItemToProjet', data, groupe);
-        // ...
         
         const isMaterial = data.type === 'materiau';
         const groupeDiv = document.querySelector(`.projet-groupe[data-groupe="${groupe}"]`);
@@ -669,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 2. Sous-catégorie
         if (data.scId) {
             const scId = data.scId;
-            const scNom = data.scNom || 'Sous-catégorie'; // Note: scNom manquant si drop matériel
+            const scNom = data.scNom || 'Sous-catégorie'; 
             const scContentId = `projetContentSousCategorie${scId}`;
             let scItem = currentContainer.querySelector(`.projet-item[data-type="sous_categorie"][data-id="${scId}"]`);
             if (!scItem) {
@@ -731,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `ajax_action=add_dropped_item&type=${data.type}&item_id=${data.id}&cat_id=${saveId}&groupe=${groupe}&prix=${data.prix}&qte=${data.qte || 1}&csrf_token=${csrfToken}`
+            body: `ajax_action=add_dropped_item&type=${data.type}&item_id=${data.id}&cat_id=${saveId}&groupe=${groupe}&prix=${data.prix}&qte=${data.qte || 1}&csrf_token=${bb_csrfToken}`
         });
 
         window.updateTotals();
@@ -740,3 +519,218 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialisation
     console.log('Budget Builder Initialized');
 });
+
+// ========================================
+// HELPERS
+// ========================================
+
+window.saveItemData = function(catId, matId, prix, qte) {
+    let body = `ajax_action=update_item_data&cat_id=${catId}&mat_id=${matId}&csrf_token=${bb_csrfToken}`;
+    if (prix !== null) body += `&prix=${prix}`;
+    if (qte !== null) body += `&qte=${qte}`;
+
+    fetch(window.location.href, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body
+    });
+};
+
+window.updateAllParents = function(element) {
+    let parent = element.parentElement ? element.parentElement.closest('.projet-item') : null;
+    while (parent) {
+        window.updateSousCategorieStats(parent);
+        parent = parent.parentElement ? parent.parentElement.closest('.projet-item') : null;
+    }
+};
+
+window.updateSousCategorieStats = function(container) {
+    if (!container) return;
+
+    // 1. Somme des matériaux directs
+    let sumHT = 0;
+    const matItems = container.querySelectorAll(':scope > .tree-children > .projet-mat-item');
+    matItems.forEach(mat => {
+        const prix = parseFloat(mat.dataset.prix) || 0;
+        const qte = parseInt(mat.dataset.qte) || 1;
+        sumHT += prix * qte;
+    });
+    
+    // 2. Somme des sous-containers directs
+    const subContainers = container.querySelectorAll(':scope > .tree-children > .projet-item');
+    subContainers.forEach(sub => {
+        const subTotalProprietaire = parseFloat(sub.dataset.totalPropreHt) || 0;
+        const subQteInput = sub.querySelector('.cat-qte-input');
+        const subQte = subQteInput ? parseInt(subQteInput.value) || 1 : 1;
+        sumHT += subTotalProprietaire * subQte;
+    });
+
+    container.dataset.totalPropreHt = sumHT;
+    
+    // 3. Calculer le total TTC affiché
+    let multiplier = 1;
+    let p = container;
+    while(p) {
+        if (p.classList.contains('projet-item')) {
+             const qInput = p.querySelector('.cat-qte-input');
+             if (qInput) multiplier *= (parseInt(qInput.value) || 1);
+        }
+        if (p.classList.contains('projet-groupe')) {
+             const gInput = p.querySelector('.groupe-qte-input');
+             if (gInput) multiplier *= (parseInt(gInput.value) || 1);
+        }
+        p = p.parentElement ? p.parentElement.closest('.projet-item, .projet-groupe') : null;
+    }
+
+    const totalTTC = sumHT * multiplier * 1.14975;
+    
+    const countSpan = container.querySelector('.item-count');
+    const totalMatCount = container.querySelectorAll('.projet-mat-item').length;
+    if (countSpan) countSpan.textContent = totalMatCount;
+
+    const totalSpan = container.querySelector('.cat-total');
+    if (totalSpan) totalSpan.textContent = window.formatMoney(totalTTC);
+};
+
+window.updateContainerStats = window.updateSousCategorieStats; // Alias
+
+window.updateMaterialTotal = function(matItem) {
+    const prix = parseFloat(matItem.dataset.prix) || 0;
+    const qte = parseInt(matItem.dataset.qte) || 1;
+    const totalLigneHT = prix * qte;
+    
+    let multiplier = 1;
+    let p = matItem.closest('.projet-item, .projet-groupe');
+    while(p) {
+        if (p.classList.contains('projet-item')) {
+             const qInput = p.querySelector('.cat-qte-input');
+             if (qInput) multiplier *= (parseInt(qInput.value) || 1);
+        }
+        if (p.classList.contains('projet-groupe')) {
+             const gInput = p.querySelector('.groupe-qte-input');
+             if (gInput) multiplier *= (parseInt(gInput.value) || 1);
+        }
+        p = p.parentElement ? p.parentElement.closest('.projet-item, .projet-groupe') : null;
+    }
+
+    const total = totalLigneHT * multiplier * 1.14975;
+    const badge = matItem.querySelector('.badge-total');
+    if (badge) badge.textContent = window.formatMoney(total);
+};
+
+window.updateTotals = function() {
+    // 1. Matériaux
+    document.querySelectorAll('.projet-mat-item').forEach(mat => window.updateMaterialTotal(mat));
+    
+    // 2. Containers (profond d'abord)
+    const items = Array.from(document.querySelectorAll('.projet-item'));
+    items.sort((a, b) => {
+        let depthA = 0, pA = a; while(pA.parentElement) { if(pA.classList.contains('projet-item')) depthA++; pA = pA.parentElement; }
+        let depthB = 0, pB = b; while(pB.parentElement) { if(pB.classList.contains('projet-item')) depthB++; pB = pB.parentElement; }
+        return depthB - depthA;
+    });
+    items.forEach(item => window.updateSousCategorieStats(item));
+
+    // 3. Grand total
+    let grandTotalHT = 0;
+    document.querySelectorAll('.projet-mat-item').forEach(mat => {
+         const prix = parseFloat(mat.dataset.prix) || 0;
+         const qte = parseInt(mat.dataset.qte) || 1;
+         let multiplier = 1;
+         let p = mat.closest('.projet-item, .projet-groupe');
+         while(p) {
+            if (p.classList.contains('projet-item')) {
+                 const qInput = p.querySelector('.cat-qte-input');
+                 if (qInput) multiplier *= (parseInt(qInput.value) || 1);
+            }
+            if (p.classList.contains('projet-groupe')) {
+                 const gInput = p.querySelector('.groupe-qte-input');
+                 if (gInput) multiplier *= (parseInt(gInput.value) || 1);
+            }
+            p = p.parentElement ? p.parentElement.closest('.projet-item, .projet-groupe') : null;
+        }
+        grandTotalHT += prix * qte * multiplier;
+    });
+    
+    const contingence = grandTotalHT * (bb_tauxContingence / 100);
+    const grandTotalTTC = (grandTotalHT + contingence) * 1.14975;
+    
+    if (document.getElementById('totalHT')) document.getElementById('totalHT').textContent = window.formatMoney(grandTotalHT);
+    if (document.getElementById('totalContingence')) document.getElementById('totalContingence').textContent = window.formatMoney(contingence);
+    if (document.getElementById('grandTotal')) document.getElementById('grandTotal').textContent = window.formatMoney(grandTotalTTC);
+};
+
+window.formatMoney = function(val) {
+    return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+};
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function autoSave() {
+    if (bb_saveTimeout) clearTimeout(bb_saveTimeout);
+    bb_saveTimeout = setTimeout(function() {
+        const saveStatus = document.getElementById('saveSaving');
+        if(saveStatus) {
+            document.getElementById('saveIdle').classList.add('d-none');
+            saveStatus.classList.remove('d-none');
+            document.getElementById('saveSaved').classList.add('d-none');
+        }
+
+        const items = [];
+        const groupes = {};
+        document.querySelectorAll('.projet-item').forEach(item => {
+            const catQteInput = item.querySelector('.cat-qte-input');
+            items.push({
+                type: item.dataset.type,
+                id: item.dataset.id,
+                groupe: item.dataset.groupe,
+                quantite: catQteInput ? parseInt(catQteInput.value) : 1
+            });
+        });
+        document.querySelectorAll('.groupe-qte-input').forEach(input => {
+            groupes[input.dataset.groupe] = parseInt(input.value) || 1;
+        });
+
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ajax_action: 'save_budget_builder',
+                csrf_token: bb_csrfToken,
+                items: items,
+                groupes: groupes
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(saveStatus) {
+                saveStatus.classList.add('d-none');
+                document.getElementById('saveSaved').classList.remove('d-none');
+                setTimeout(() => {
+                    document.getElementById('saveSaved').classList.add('d-none');
+                    document.getElementById('saveIdle').classList.remove('d-none');
+                }, 2000);
+            }
+        });
+    }, 500);
+}
+
+function initSortable(element) {
+    if (typeof Sortable === 'undefined') return;
+    new Sortable(element, {
+        group: 'projet-items',
+        animation: 150,
+        handle: '.drag-handle',
+        ghostClass: 'sortable-ghost',
+        onStart: function() {
+            // saveState(); // TODO: implémenter saveState globalement
+        },
+        onEnd: function() {
+            autoSave();
+        }
+    });
+}
