@@ -555,12 +555,14 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 
 ?>
 <style>
-    /* Petite flèche simple */
-    .tree-arrow {
+    /* Numéro hiérarchique (1.1, 1.2.1, etc.) */
+    .tree-number {
         color: #64748b;
-        font-size: 10px;
-        margin-right: 6px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 11px;
+        margin-right: 8px;
         user-select: none;
+        min-width: 35px;
     }
 
     /* Item de l'arbre */
@@ -844,15 +846,19 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 
 /**
  * Afficher les sous-catégories de façon récursive
+ * @param string $numPrefix Préfixe de numérotation (ex: "1." pour générer 1.1, 1.2, etc.)
  */
-function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
+function afficherSousCategoriesRecursif($sousCategories, $categorieId, $numPrefix = '') {
     if (empty($sousCategories)) return;
 
     ?>
     <div class="list-group tree-children sortable-list" data-id-list="subcats">
     <?php
 
+    $index = 0;
     foreach ($sousCategories as $sc):
+        $index++;
+        $currentNum = $numPrefix . $index;
         $uniqueId = $sc['id'];
         $hasChildren = !empty($sc['enfants']);
         $hasMateriaux = !empty($sc['materiaux']);
@@ -860,8 +866,8 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
     ?>
         <div class="tree-item mb-1 <?= $isKit ? 'is-kit' : '' ?>" data-id="<?= $uniqueId ?>" data-type="sous_categorie">
             <div class="tree-content">
-                <!-- Petite flèche -->
-                <span class="tree-arrow">▸</span>
+                <!-- Numéro hiérarchique -->
+                <span class="tree-number"><?= $currentNum ?></span>
                 <!-- Poignée de drag -->
                 <i class="bi bi-grip-vertical drag-handle"></i>
 
@@ -912,14 +918,17 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
             <div class="collapse show ms-3" id="content<?= $uniqueId ?>">
                 <!-- Zone Matériaux (Sortable) -->
                 <div class="sortable-materials" data-parent-id="<?= $uniqueId ?>">
-                    <?php if ($hasMateriaux): ?>
+                    <?php if ($hasMateriaux):
+                        $matIndex = 0;
+                    ?>
                         <?php foreach ($sc['materiaux'] as $mat):
+                            $matIndex++;
                             $qte = $mat['quantite_defaut'] ?? 1;
                             $total = $mat['prix_defaut'] * $qte;
                         ?>
                             <div class="tree-content mat-item"
                                  data-id="<?= $mat['id'] ?>" data-type="materiaux">
-                                <span class="tree-arrow">▸</span>
+                                <span class="tree-number"><?= $currentNum ?>.<?= $matIndex ?></span>
                                 <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="editable-name flex-grow-1 small" data-type="materiaux" data-id="<?= $mat['id'] ?>"><?= e($mat['nom']) ?></span>
@@ -1008,7 +1017,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                 <!-- Récursion pour les enfants -->
                 <div class="sortable-subcats" data-parent-id="<?= $uniqueId ?>">
                     <?php if ($hasChildren): ?>
-                        <?php afficherSousCategoriesRecursif($sc['enfants'], $categorieId); ?>
+                        <?php afficherSousCategoriesRecursif($sc['enfants'], $categorieId, $currentNum . '.'); ?>
                     <?php endif; ?>
                 </div>
             </div>
