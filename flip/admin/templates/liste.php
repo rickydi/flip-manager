@@ -556,14 +556,18 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 ?>
 <style>
     /* ============================================
-       SYSTÈME DE CONNECTEURS TREE - CARACTÈRES UNICODE
+       SYSTÈME DE CONNECTEURS TREE - LIGNES CONTINUES
        ============================================ */
 
-    /* Connecteur d'arbre style Windows Explorer */
+    :root {
+        --tree-line-color: #64748b;
+    }
+
+    /* Connecteur d'arbre (├── ou └──) */
     .tree-connector {
-        color: #64748b;
+        color: var(--tree-line-color);
         font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        font-size: 12px;
+        font-size: 13px;
         margin-right: 2px;
         user-select: none;
         white-space: pre;
@@ -571,16 +575,60 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         line-height: 1;
     }
 
-    /* Container des enfants */
+    /* Container des enfants avec ligne verticale */
     .tree-children {
         position: relative;
-        padding-left: 4px;
+        padding-left: 20px;
+        margin-left: 8px;
         min-height: 5px;
+    }
+
+    /* Ligne verticale continue │ pour tree-children */
+    .tree-children::before {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 0;
+        bottom: 15px;
+        width: 1px;
+        background: var(--tree-line-color);
     }
 
     /* Item de l'arbre */
     .tree-item {
         position: relative;
+    }
+
+    /* Cacher la ligne après le dernier enfant */
+    .tree-children:has(> .tree-item:last-child:only-child)::before {
+        display: none;
+    }
+
+    /* Container des matériaux avec ligne verticale */
+    .sortable-materials:not(:empty) {
+        position: relative;
+        padding-left: 20px;
+        margin-left: 8px;
+    }
+
+    .sortable-materials:not(:empty)::before {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 0;
+        bottom: 15px;
+        width: 1px;
+        background: var(--tree-line-color);
+    }
+
+    /* Cacher la ligne si un seul matériau */
+    .sortable-materials:has(> .mat-item:only-child)::before {
+        display: none;
+    }
+
+    /* Container sortable-subcats avec ligne verticale */
+    .sortable-subcats:not(:empty) .tree-children {
+        /* Hérite déjà des styles de .tree-children */
     }
 
     .tree-content {
@@ -681,13 +729,7 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         border-style: solid;
     }
 
-    /* Container des matériaux */
-    .sortable-materials {
-        position: relative;
-        padding-left: 4px;
-    }
-
-    /* Matériaux */
+    /* Matériaux - pas de margin-left car géré par le container */
     .sortable-materials > .mat-item {
         margin-left: 0 !important;
     }
