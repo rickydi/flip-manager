@@ -582,11 +582,18 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
             </div>
             <div class="modal-body text-center">
                 <p class="mb-3">Ce matériau est déjà dans le budget.</p>
-                <p class="fw-bold mb-0">Ajouter +1 à la quantité ?</p>
+                <div class="mb-3">
+                    <label for="addQteInput" class="form-label text-muted small">Quantité à ajouter</label>
+                    <div class="input-group justify-content-center">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="document.getElementById('addQteInput').stepDown()">-</button>
+                        <input type="number" class="form-control form-control-sm text-center bg-dark text-white border-secondary" id="addQteInput" value="1" min="1" style="max-width: 80px;">
+                        <button class="btn btn-outline-secondary btn-sm" type="button" onclick="document.getElementById('addQteInput').stepUp()">+</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer border-secondary justify-content-center">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Non</button>
-                <button type="button" class="btn btn-success btn-sm" id="confirmAddBtn">Oui, ajouter +1</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success btn-sm" id="confirmAddBtn">Ajouter</button>
             </div>
         </div>
     </div>
@@ -600,19 +607,36 @@ document.addEventListener('DOMContentLoaded', function() {
     let saveTimeout = null;
 
     // Variables pour la modal
-    const confirmAddModal = new bootstrap.Modal(document.getElementById('confirmAddMaterialModal'));
+    const confirmAddModalEl = document.getElementById('confirmAddMaterialModal');
+    const confirmAddModal = new bootstrap.Modal(confirmAddModalEl);
+    const addQteInput = document.getElementById('addQteInput');
     let pendingMaterialAdd = null;
+
+    // Focus sur l'input quand la modal s'ouvre
+    confirmAddModalEl.addEventListener('shown.bs.modal', function () {
+        addQteInput.focus();
+        addQteInput.select();
+    });
+
+    // Support Entrée dans l'input
+    addQteInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('confirmAddBtn').click();
+        }
+    });
 
     document.getElementById('confirmAddBtn').addEventListener('click', function() {
         if (pendingMaterialAdd) {
             confirmAddModal.hide();
             const { existingMat } = pendingMaterialAdd;
+            const qteToAdd = parseInt(addQteInput.value) || 1;
             
             // Undo/redo: on sauvegarde l'état avant modification
             saveState();
 
             const currentQte = parseInt(existingMat.dataset.qte) || 1;
-            const newQte = currentQte + 1;
+            const newQte = currentQte + qteToAdd;
 
             existingMat.dataset.qte = newQte;
 
@@ -640,6 +664,13 @@ document.addEventListener('DOMContentLoaded', function() {
             updateTotals();
             autoSave();
             
+            // Flash visuel long (3 sec)
+            existingMat.style.transition = 'background-color 0.5s ease';
+            existingMat.style.backgroundColor = 'rgba(25, 135, 84, 0.4)'; // Vert succès
+            setTimeout(() => {
+                existingMat.style.backgroundColor = '';
+            }, 3000);
+
             // Reset state
             pendingMaterialAdd = null;
         }
@@ -940,11 +971,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Préparer l'état pour la modal
                 pendingMaterialAdd = { existingMat };
                 
+                // Initialiser l'input avec la quantité dropée ou 1
+                document.getElementById('addQteInput').value = data.qte || 1;
+
                 // Ouvrir la modal
                 confirmAddModal.show();
                 
-                // Nettoyer l'effet visuel après 2s (même si modal ouverte)
-                setTimeout(() => { existingMat.style.background = ''; }, 2000);
+                // Nettoyer l'effet visuel initial après 1s
+                setTimeout(() => { existingMat.style.background = ''; }, 1000);
                 return;
             }
         }
