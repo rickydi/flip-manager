@@ -306,7 +306,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 }
 
 .tree-children {
-    padding-left: 25px;
+    padding-left: 30px;
     min-height: 5px;
     margin-left: 15px;
     position: relative;
@@ -323,22 +323,34 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     background-color: #64748b;
 }
 
-/* Connecteur horizontal pour chaque enfant */
-.tree-children > .tree-item::before,
-.tree-children > .tree-content::before {
-    content: '';
-    position: absolute;
-    left: -25px;
-    top: 50%;
-    width: 20px;
-    height: 2px;
-    background-color: #64748b;
-}
-
 /* Position relative pour les enfants directs */
 .tree-children > .tree-item,
 .tree-children > .tree-content {
     position: relative;
+}
+
+/* Connecteur avec flèche pour chaque enfant */
+.tree-children > .tree-item::before,
+.tree-children > .tree-content::before {
+    content: '►';
+    position: absolute;
+    left: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 10px;
+}
+
+/* Ligne horizontale connecteur */
+.tree-children > .tree-item::after,
+.tree-children > .tree-content::after {
+    content: '';
+    position: absolute;
+    left: -30px;
+    top: 50%;
+    width: 12px;
+    height: 2px;
+    background-color: #64748b;
 }
 
 .tree-content {
