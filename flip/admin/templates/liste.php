@@ -575,60 +575,58 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         line-height: 1;
     }
 
-    /* Container des enfants avec ligne verticale */
+    /* Item de l'arbre - position relative pour les lignes */
+    .tree-item {
+        position: relative;
+        padding-left: 20px;
+    }
+
+    /* Ligne verticale qui part du dossier parent vers ses enfants */
+    .tree-item.is-kit::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: 40px; /* Commence après le header du dossier */
+        bottom: 10px;
+        width: 1px;
+        background: var(--tree-line-color);
+    }
+
+    /* Pas de ligne si le collapse est fermé */
+    .tree-item.is-kit:has(> .collapse:not(.show))::before {
+        display: none;
+    }
+
+    /* Container des enfants */
     .tree-children {
         position: relative;
         padding-left: 20px;
-        margin-left: 8px;
         min-height: 5px;
     }
 
-    /* Ligne verticale continue │ pour tree-children */
-    .tree-children::before {
-        content: '';
-        position: absolute;
-        left: 5px;
-        top: 0;
-        bottom: 15px;
-        width: 1px;
-        background: var(--tree-line-color);
-    }
-
-    /* Item de l'arbre */
-    .tree-item {
-        position: relative;
-    }
-
-    /* Cacher la ligne après le dernier enfant */
-    .tree-children:has(> .tree-item:last-child:only-child)::before {
-        display: none;
-    }
-
-    /* Container des matériaux avec ligne verticale */
-    .sortable-materials:not(:empty) {
-        position: relative;
+    /* Ligne verticale pour les niveaux imbriqués */
+    .tree-children > .tree-item {
         padding-left: 20px;
-        margin-left: 8px;
     }
 
-    .sortable-materials:not(:empty)::before {
-        content: '';
-        position: absolute;
-        left: 5px;
-        top: 0;
-        bottom: 15px;
-        width: 1px;
-        background: var(--tree-line-color);
+    .tree-children > .tree-item.is-kit::before {
+        left: 8px;
     }
 
-    /* Cacher la ligne si un seul matériau */
-    .sortable-materials:has(> .mat-item:only-child)::before {
-        display: none;
+    /* Container des matériaux */
+    .sortable-materials {
+        position: relative;
+        padding-left: 0;
     }
 
-    /* Container sortable-subcats avec ligne verticale */
-    .sortable-subcats:not(:empty) .tree-children {
-        /* Hérite déjà des styles de .tree-children */
+    /* Matériaux avec indentation */
+    .sortable-materials > .mat-item {
+        margin-left: 20px !important;
+    }
+
+    /* Container sortable-subcats */
+    .sortable-subcats {
+        position: relative;
     }
 
     .tree-content {
