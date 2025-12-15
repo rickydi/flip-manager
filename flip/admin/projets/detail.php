@@ -1343,12 +1343,13 @@ try {
     $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre, nom");
     $categories = $stmt->fetchAll();
 
-    foreach ($categories as $cat) {
+    foreach ($categories as $catIndex => $cat) {
         $catId = $cat['id'];
         $templatesBudgets[$catId] = [
             'id' => $catId,
             'nom' => $cat['nom'],
             'groupe' => $cat['groupe'],
+            'ordre' => $cat['ordre'] ?? $catIndex,
             'sous_categories' => getSousCategoriesRecursifBudget($pdo, $catId)
         ];
     }

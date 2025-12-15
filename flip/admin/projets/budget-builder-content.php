@@ -42,14 +42,15 @@ function compterMateriauxRecursif($sousCategories) {
 /**
  * Afficher les sous-catégories de façon récursive pour le catalogue (drag & drop)
  */
-function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNom, $groupe, $niveau = 0) {
+function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNom, $groupe, $catOrdre = 0, $niveau = 0) {
     if (empty($sousCategories)) return;
 
-    foreach ($sousCategories as $sc):
+    foreach ($sousCategories as $scIndex => $sc):
         $hasEnfants = !empty($sc['enfants']);
         $hasMateriaux = !empty($sc['materiaux']);
         $isKit = $hasEnfants || $hasMateriaux;
         $uniqueId = 'cat' . $catId . '_sc' . $sc['id'];
+        $scOrdre = $sc['ordre'] ?? $scIndex;
 
         // Calculer totaux pour ce noeud
         $nbItems = count($sc['materiaux'] ?? []);
@@ -69,6 +70,8 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
                  data-type="sous_categorie"
                  data-id="<?= $sc['id'] ?>"
                  data-cat-id="<?= $catId ?>"
+                 data-cat-ordre="<?= $catOrdre ?>"
+                 data-sc-ordre="<?= $scOrdre ?>"
                  data-groupe="<?= $groupe ?>"
                  data-nom="<?= e($sc['nom']) ?>"
                  data-prix="<?= $totalSc ?>">
@@ -111,9 +114,10 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
             <?php if ($isKit): ?>
             <div class="collapse show tree-children" id="<?= $uniqueId ?>">
                 <?php // Afficher les matériaux de cette sous-catégorie ?>
-                <?php foreach ($sc['materiaux'] ?? [] as $mat):
+                <?php foreach ($sc['materiaux'] ?? [] as $matIndex => $mat):
                     $qte = $mat['quantite_defaut'] ?? 1;
                     $total = ($mat['prix_defaut'] ?? 0) * $qte;
+                    $matOrdre = $mat['ordre'] ?? $matIndex;
                 ?>
                 <div class="tree-content mat-item catalogue-draggable"
                      draggable="true"
@@ -121,8 +125,11 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
                      data-id="<?= $mat['id'] ?>"
                      data-sc-id="<?= $sc['id'] ?>"
                      data-sc-nom="<?= e($sc['nom']) ?>"
+                     data-sc-ordre="<?= $scOrdre ?>"
                      data-cat-id="<?= $catId ?>"
                      data-cat-nom="<?= e($catNom) ?>"
+                     data-cat-ordre="<?= $catOrdre ?>"
+                     data-mat-ordre="<?= $matOrdre ?>"
                      data-groupe="<?= $groupe ?>"
                      data-nom="<?= e($mat['nom']) ?>"
                      data-prix="<?= $mat['prix_defaut'] ?? 0 ?>"
@@ -141,7 +148,7 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
 
                 <?php // Récursion pour les sous-sous-catégories ?>
                 <?php if ($hasEnfants): ?>
-                    <?php afficherSousCategoriesRecursifCatalogue($sc['enfants'], $catId, $catNom, $groupe, $niveau + 1); ?>
+                    <?php afficherSousCategoriesRecursifCatalogue($sc['enfants'], $catId, $catNom, $groupe, $catOrdre, $niveau + 1); ?>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -599,12 +606,14 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                         $totalCat = $stats['total'];
                         $nbItems = $stats['count'];
                         $nbSousCategories = count($cat['sous_categories'] ?? []);
+                        $catOrdre = $cat['ordre'] ?? 0;
                     ?>
                     <div class="tree-item mb-1 <?= $hasContent ? 'is-kit' : '' ?>">
                         <div class="tree-content catalogue-draggable"
                              draggable="true"
                              data-type="categorie"
                              data-id="<?= $catId ?>"
+                             data-cat-ordre="<?= $catOrdre ?>"
                              data-groupe="<?= $groupe ?>"
                              data-nom="<?= e($cat['nom']) ?>"
                              data-prix="<?= $totalCat ?>">
@@ -647,7 +656,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                         <?php if ($hasContent): ?>
                         <div class="collapse show tree-children" id="catContent<?= $catId ?>">
                             <?php // Affichage récursif des sous-catégories ?>
-                            <?php afficherSousCategoriesRecursifCatalogue($cat['sous_categories'], $catId, $cat['nom'], $groupe); ?>
+                            <?php afficherSousCategoriesRecursifCatalogue($cat['sous_categories'], $catId, $cat['nom'], $groupe, $catOrdre); ?>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -1078,7 +1087,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 groupe: this.dataset.groupe,
                 nom: this.dataset.nom,
                 prix: parseFloat(this.dataset.prix) || 0,
-                qte: parseInt(this.dataset.qte) || 1
+                qte: parseInt(this.dataset.qte) || 1,
+                catOrdre: parseInt(this.dataset.catOrdre) || 0,
+                scOrdre: parseInt(this.dataset.scOrdre) || 0,
+                matOrdre: parseInt(this.dataset.matOrdre) || 0
             }));
             this.style.opacity = '0.5';
         });
@@ -1141,6 +1153,34 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ========================================
+    // HELPER: INSÉRER DANS L'ORDRE
+    // ========================================
+    function insertInOrder(container, newElement, orderAttr, orderValue) {
+        const children = container.querySelectorAll(':scope > .tree-item, :scope > .projet-item');
+        let inserted = false;
+
+        for (const child of children) {
+            const childOrder = parseInt(child.dataset[orderAttr]) || 0;
+            if (orderValue < childOrder) {
+                container.insertBefore(newElement, child);
+                inserted = true;
+                break;
+            }
+        }
+
+        if (!inserted) {
+            container.appendChild(newElement);
+        }
+    }
+
+    // Créer élément depuis HTML string
+    function createElementFromHTML(htmlString) {
+        const div = document.createElement('div');
+        div.innerHTML = htmlString.trim();
+        return div.firstChild;
+    }
+
+    // ========================================
     // AJOUTER AU PROJET
     // ========================================
     function addItemToProjet(data, groupe) {
@@ -1191,11 +1231,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const catContentId = `projetContentCategorie${catId}`;
 
             if (!catContainer) {
+                const catOrdre = data.catOrdre || 0;
                 const catHtml = `
                     <div class="tree-item mb-1 is-kit projet-item"
                          data-type="categorie"
                          data-id="${catId}"
                          data-cat-id="${catId}"
+                         data-cat-ordre="${catOrdre}"
                          data-unique-id="categorie-${catId}"
                          data-groupe="${groupe}"
                          data-prix="0">
@@ -1235,7 +1277,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="collapse show tree-children" id="${catContentId}"></div>
                     </div>
                 `;
-                zone.insertAdjacentHTML('beforeend', catHtml);
+                const catElement = createElementFromHTML(catHtml);
+                insertInOrder(zone, catElement, 'catOrdre', catOrdre);
                 catContainer = zone.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
                 console.log('Created category container:', catNom);
             }
@@ -1246,11 +1289,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const scContentId = `projetContentSousCategorie${scId}`;
 
             if (!scContainer && catChildren) {
+                const scOrdre = data.scOrdre || 0;
                 const scHtml = `
                     <div class="tree-item mb-1 is-kit projet-item"
                          data-type="sous_categorie"
                          data-id="${scId}"
                          data-cat-id="${catId}"
+                         data-sc-ordre="${scOrdre}"
                          data-unique-id="sous_categorie-${scId}"
                          data-groupe="${groupe}"
                          data-prix="0">
@@ -1290,7 +1335,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="collapse show tree-children" id="${scContentId}"></div>
                     </div>
                 `;
-                catChildren.insertAdjacentHTML('beforeend', scHtml);
+                const scElement = createElementFromHTML(scHtml);
+                insertInOrder(catChildren, scElement, 'scOrdre', scOrdre);
                 scContainer = catChildren.querySelector(`.projet-item[data-type="sous_categorie"][data-id="${scId}"]`);
                 console.log('Created sous-category container:', scNom);
 
@@ -1370,9 +1416,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const matContainer = scContainer.querySelector('.tree-children');
             if (matContainer) {
                 const itemTotal = (parseFloat(data.prix) || 0) * (parseInt(data.qte) || 1);
+                const matOrdre = data.matOrdre || 0;
                 const matHtml = `
                     <div class="tree-content mat-item projet-mat-item"
                          data-mat-id="${data.id}"
+                         data-mat-ordre="${matOrdre}"
                          data-cat-id="${data.scId}"
                          data-prix="${data.prix}"
                          data-qte="${data.qte || 1}"
@@ -1399,7 +1447,21 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </div>
                 `;
-                matContainer.insertAdjacentHTML('beforeend', matHtml);
+                // Insérer dans l'ordre
+                const matElement = createElementFromHTML(matHtml);
+                const existingMats = matContainer.querySelectorAll('.projet-mat-item');
+                let inserted = false;
+                for (const existing of existingMats) {
+                    const existingOrdre = parseInt(existing.dataset.matOrdre) || 0;
+                    if (matOrdre < existingOrdre) {
+                        matContainer.insertBefore(matElement, existing);
+                        inserted = true;
+                        break;
+                    }
+                }
+                if (!inserted) {
+                    matContainer.appendChild(matElement);
+                }
 
                 // Mettre à jour le compteur et total de la sous-catégorie
                 updateCategoryStats(scContainer);
