@@ -306,10 +306,39 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 }
 
 .tree-children {
-    padding-left: 20px;
+    padding-left: 25px;
     min-height: 5px;
-    border-left: 3px solid #6b7280;
-    margin-left: 12px;
+    margin-left: 15px;
+    position: relative;
+}
+
+/* Ligne verticale à gauche des enfants */
+.tree-children::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 10px;
+    width: 2px;
+    background-color: #64748b;
+}
+
+/* Connecteur horizontal pour chaque enfant */
+.tree-children > .tree-item::before,
+.tree-children > .tree-content::before {
+    content: '';
+    position: absolute;
+    left: -25px;
+    top: 50%;
+    width: 20px;
+    height: 2px;
+    background-color: #64748b;
+}
+
+/* Position relative pour les enfants directs */
+.tree-children > .tree-item,
+.tree-children > .tree-content {
+    position: relative;
 }
 
 .tree-content {
