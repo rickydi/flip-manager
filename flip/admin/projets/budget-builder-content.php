@@ -313,6 +313,23 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     border-left: 1px solid #64748b;
 }
 
+/* Dernier enfant: pas de bordure qui continue */
+.tree-children > .tree-item:last-child,
+.tree-children > .tree-content:last-child {
+    position: relative;
+}
+
+.tree-children > .tree-item:last-child::before,
+.tree-children > .tree-content:last-child::before {
+    content: '';
+    position: absolute;
+    left: -9px;
+    top: 20px;
+    bottom: 0;
+    width: 10px;
+    background: var(--bg-body, #0f172a);
+}
+
 /* Icône de connecteur */
 .tree-connector {
     color: #64748b;
@@ -321,6 +338,14 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     margin-right: 5px;
     margin-left: -12px;
     user-select: none;
+}
+
+.tree-connector.last-child {
+    /* └── pour dernier élément */
+}
+
+.tree-connector.has-siblings {
+    /* ├── pour éléments avec frères en dessous */
 }
 
 .tree-content {
@@ -938,6 +963,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const tauxContingence = <?= (float)$projet['taux_contingence'] ?>;
     const csrfToken = '<?= generateCSRFToken() ?>';
     let saveTimeout = null;
+
+    // ========================================
+    // MISE À JOUR DES CONNECTEURS D'ARBRE
+    // ========================================
+    function updateTreeConnectors() {
+        document.querySelectorAll('.tree-children').forEach(container => {
+            const children = container.querySelectorAll(':scope > .tree-item, :scope > .tree-content');
+            children.forEach((child, index) => {
+                const connector = child.querySelector('.tree-connector');
+                if (connector) {
+                    const isLast = index === children.length - 1;
+                    connector.textContent = isLast ? '└──' : '├──';
+                }
+            });
+        });
+    }
+
+    // Appeler au chargement
+    updateTreeConnectors();
 
     // ========================================
     // UNDO/REDO SYSTEM
@@ -1914,6 +1958,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 renoHeader.dataset.extrapole = renoCellsNow[1].textContent.trim();
             }
         }
+
+        // Mettre à jour les connecteurs d'arbre
+        updateTreeConnectors();
     }
 
     // ========================================
