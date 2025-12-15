@@ -789,7 +789,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 $stmt->execute([$projetId, $posteId, $itemId, $prix, $qte]);
 
                 // Récupérer les infos du matériau pour le retour
-                $stmt = $pdo->prepare("SELECT id, nom, prix_unitaire FROM materiaux WHERE id = ?");
+                // NOTE: la colonne est prix_defaut (pas prix_unitaire) dans cette DB
+                $stmt = $pdo->prepare("SELECT id, nom, prix_defaut FROM materiaux WHERE id = ?");
                 $stmt->execute([$itemId]);
                 $mat = $stmt->fetch();
                 if ($mat) {
@@ -835,7 +836,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             // Récupérer tous les matériaux de ces sous-catégories
             if (!empty($allSousCatIds)) {
                 $placeholders = implode(',', array_fill(0, count($allSousCatIds), '?'));
-                $stmt = $pdo->prepare("SELECT id, nom, prix_unitaire, quantite_defaut FROM materiaux WHERE sous_categorie_id IN ($placeholders) AND actif = 1");
+                $stmt = $pdo->prepare("SELECT id, nom, prix_defaut, quantite_defaut FROM materiaux WHERE sous_categorie_id IN ($placeholders) AND actif = 1");
                 $stmt->execute($allSousCatIds);
                 $materiaux = $stmt->fetchAll();
 
@@ -845,7 +846,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                     $checkStmt->execute([$projetId, $mat['id']]);
 
                     if (!$checkStmt->fetch()) {
-                        $matPrix = (float)$mat['prix_unitaire'];
+                        $matPrix = (float)($mat['prix_defaut'] ?? 0);
                         $matQte = max(1, (int)($mat['quantite_defaut'] ?? 1));
 
                         $insertStmt = $pdo->prepare("
