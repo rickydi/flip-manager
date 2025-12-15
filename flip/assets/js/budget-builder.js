@@ -719,6 +719,18 @@ document.addEventListener('DOMContentLoaded', function() {
         return depth;
     }
 
+    // Expose functions globally for onclick attributes
+    window.toggleCatalogueGroupe = toggleCatalogueGroupe;
+    window.toggleTreeItem = toggleTreeItem;
+    window.changeGroupeQte = changeGroupeQte;
+    window.updateGroupeQte = updateGroupeQte;
+    window.changeCatQte = changeCatQte;
+    window.updateCatQte = updateCatQte;
+    window.removeProjetItem = removeProjetItem;
+    window.clearAllBudget = clearAllBudget;
+    window.undoAction = undoAction;
+    window.redoAction = redoAction;
+    
     // Expose helpers globally
     window.updateMaterialTotal = updateMaterialTotal;
     window.updateAllParents = updateAllParents;
