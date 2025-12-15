@@ -555,9 +555,131 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 
 ?>
 <style>
-    /* Styles pour l'arbre style Explorateur / Fusion 360 */
+    /* ============================================
+       SYSTÈME DE CONNECTEURS TREE - STYLE VS CODE
+       ============================================ */
+
+    /* Variables pour les couleurs des lignes */
+    :root {
+        --tree-line-color: #64748b;
+        --tree-line-width: 1px;
+    }
+
+    [data-theme="dark"] {
+        --tree-line-color: #64748b;
+    }
+
+    /* Container principal du collapse avec la ligne verticale */
+    .collapse.show,
+    .collapse.collapsing {
+        position: relative;
+    }
+
+    /* Ligne verticale principale partant du dossier parent */
+    .collapse.show::before,
+    .collapsing::before {
+        content: '';
+        position: absolute;
+        left: 23px;
+        top: 0;
+        bottom: 8px;
+        width: var(--tree-line-width);
+        background: var(--tree-line-color);
+        z-index: 1;
+    }
+
+    /* Container des enfants (sous-dossiers récursifs) */
+    .tree-children {
+        position: relative;
+        padding-left: 24px;
+        margin-left: 12px;
+        min-height: 5px;
+    }
+
+    /* Ligne verticale pour les enfants récursifs */
+    .tree-children::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 8px;
+        width: var(--tree-line-width);
+        background: var(--tree-line-color);
+    }
+
+    /* Item de l'arbre */
     .tree-item {
-        border-left: 2px solid var(--border-color, #dee2e6);
+        position: relative;
+    }
+
+    /* Connecteur horizontal (─) pour chaque item */
+    .tree-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 18px;
+        width: 18px;
+        height: var(--tree-line-width);
+        background: var(--tree-line-color);
+    }
+
+    /* Ligne verticale (│) qui descend vers les frères suivants */
+    .tree-item::after {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 0;
+        width: var(--tree-line-width);
+        height: calc(100% + 3px);
+        background: var(--tree-line-color);
+    }
+
+    /* Dernier enfant: ligne verticale s'arrête au connecteur (└) */
+    .tree-children > .tree-item:last-child::after {
+        height: 18px;
+    }
+
+    /* Premier niveau dans sortable-subcats (pas de connecteur car géré par collapse) */
+    .sortable-subcats:not(.tree-children) > .tree-item::before,
+    .sortable-subcats:not(.tree-children) > .tree-item::after {
+        display: none;
+    }
+
+    /* Si un seul enfant, pas besoin de ligne verticale longue */
+    .tree-children:has(> .tree-item:only-child)::before {
+        bottom: calc(100% - 18px);
+    }
+
+    /* Container sortable-subcats dans le collapse (premier niveau d'enfants) */
+    .collapse > .sortable-subcats {
+        position: relative;
+        padding-left: 24px;
+        margin-left: 12px;
+    }
+
+    /* Connecteurs pour les tree-children dans sortable-subcats */
+    .collapse > .sortable-subcats > .tree-children > .tree-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 18px;
+        width: 18px;
+        height: var(--tree-line-width);
+        background: var(--tree-line-color);
+    }
+
+    .collapse > .sortable-subcats > .tree-children > .tree-item::after {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 0;
+        width: var(--tree-line-width);
+        height: calc(100% + 3px);
+        background: var(--tree-line-color);
+    }
+
+    .collapse > .sortable-subcats > .tree-children > .tree-item:last-child::after {
+        height: 18px;
     }
 
     .tree-content {
@@ -601,12 +723,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     .tree-toggle.collapsed i,
     [aria-expanded="false"] .tree-toggle i {
         transform: rotate(-90deg);
-    }
-
-    /* Zone de drop pour l'imbrication */
-    .tree-children {
-        padding-left: 25px;
-        min-height: 5px;
     }
 
     /* Style lors du drag */
@@ -657,10 +773,56 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         background: var(--bg-card, #f8f9fa);
         border: 1px dashed var(--border-color, #dee2e6);
         padding: 6px 10px;
+        position: relative;
     }
     .tree-content.mat-item:hover {
         background: rgba(30, 58, 95, 0.8) !important;
         border-style: solid;
+    }
+
+    /* Container des matériaux */
+    .sortable-materials {
+        position: relative;
+        padding-left: 24px;
+        margin-left: 12px;
+    }
+
+    /* Connecteur horizontal pour chaque matériau */
+    .sortable-materials > .mat-item {
+        margin-left: 0 !important;
+        position: relative;
+    }
+
+    .sortable-materials > .mat-item::before {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: var(--tree-line-width);
+        background: var(--tree-line-color);
+    }
+
+    /* Ligne verticale vers le connecteur pour matériaux */
+    .sortable-materials > .mat-item::after {
+        content: '';
+        position: absolute;
+        left: -24px;
+        top: 0;
+        width: var(--tree-line-width);
+        height: calc(50% + 3px);
+        background: var(--tree-line-color);
+    }
+
+    /* Matériaux du milieu - ligne continue */
+    .sortable-materials > .mat-item:not(:last-child)::after {
+        height: calc(100% + 3px);
+    }
+
+    /* Dernier matériau quand il y a aussi des sous-dossiers après */
+    .sortable-materials:has(+ .sortable-subcats:not(:empty)) > .mat-item:last-child::after {
+        height: calc(100% + 3px);
     }
 
     /* Card collapsible pour Groupes */
