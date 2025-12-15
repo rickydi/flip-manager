@@ -102,8 +102,6 @@
    ======================================== */
 .tree-item {
     position: relative;
-    /* Style explorateur (templates) */
-    /* border-left: 2px solid var(--border-color, #dee2e6); */
 }
 
 .tree-children {
@@ -111,14 +109,21 @@
     min-height: 5px;
 }
 
-/* Connecteur d'arbre style Windows */
+/* Connecteur d'arbre (placé à gauche de la case) */
 .tree-connector {
     color: #64748b;
     font-family: monospace;
     font-size: 13px;
-    margin-right: 4px;
     user-select: none;
     white-space: pre;
+    
+    /* Positionnement hors de la case */
+    position: absolute;
+    left: -25px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    text-align: right;
 }
 
 .tree-content {
@@ -130,6 +135,10 @@
     margin-bottom: 3px;
     border-radius: 6px;
     position: relative;
+    
+    /* Marge pour le connecteur */
+    margin-left: 25px;
+    overflow: visible; /* Pour voir le connecteur qui dépasse */
 }
 
 .tree-content:hover {
