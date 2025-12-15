@@ -555,27 +555,8 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 
 ?>
 <style>
-    /* Connecteur d'arbre style Windows */
-    .tree-connector {
-        color: #64748b;
-        font-family: monospace;
-        font-size: 13px;
-        margin-right: 4px;
-        user-select: none;
-        white-space: pre;
-    }
-
-    /* Item de l'arbre */
-    .tree-item {
-        position: relative;
-    }
-
-    /* Container des enfants avec indentation */
-    .tree-children {
-        position: relative;
-        margin-left: 20px;
-        min-height: 5px;
-    }
+    /* Styles spécifiques à templates/liste.php */
+    /* (Les styles tree de base sont dans style.css) */
 
     /* Container des matériaux avec indentation */
     .sortable-materials {
@@ -586,87 +567,6 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     /* Container sortable-subcats */
     .sortable-subcats {
         position: relative;
-    }
-
-    .tree-content {
-        display: flex;
-        align-items: center;
-        padding: 8px 12px;
-        background: var(--bg-card, #f8f9fa);
-        border: 1px solid var(--border-color, #e9ecef);
-        margin-bottom: 3px;
-        border-radius: 6px;
-        position: relative;
-    }
-
-    .tree-content:hover {
-        background: rgba(30, 58, 95, 0.8) !important;
-        border-color: var(--primary-color, #0d6efd);
-    }
-
-    /* Indicateur de dossier ouvert/fermé */
-    .tree-toggle {
-        cursor: pointer;
-        width: 24px;
-        height: 24px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 6px;
-        color: var(--text-muted, #6c757d);
-        border-radius: 4px;
-    }
-
-    .tree-toggle:hover {
-        color: var(--primary-color, #0d6efd);
-        background: rgba(13, 110, 253, 0.1);
-    }
-
-    .tree-toggle i {
-        /* Pas de transition */
-    }
-
-    .tree-toggle.collapsed i,
-    [aria-expanded="false"] .tree-toggle i {
-        transform: rotate(-90deg);
-    }
-
-    /* Style lors du drag */
-    .sortable-ghost {
-        opacity: 0.4;
-        background: rgba(13, 110, 253, 0.15) !important;
-        border: 2px dashed var(--primary-color, #0d6efd) !important;
-        border-radius: 6px;
-    }
-
-    .sortable-drag {
-        background: var(--bg-card, #f8f9fa) !important;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        cursor: grabbing;
-        border-radius: 6px;
-    }
-
-    /* Handle pour attraper */
-    .drag-handle {
-        cursor: grab;
-        color: var(--text-muted, #adb5bd);
-        margin-right: 8px;
-        padding: 4px;
-        border-radius: 4px;
-    }
-    .drag-handle:hover {
-        color: var(--primary-color, #0d6efd);
-        background: rgba(13, 110, 253, 0.1);
-    }
-    .drag-handle:active {
-        cursor: grabbing;
-    }
-
-    /* Types d'items */
-    .type-icon {
-        width: 24px;
-        text-align: center;
-        margin-right: 8px;
     }
 
     .is-kit .tree-content {

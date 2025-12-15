@@ -2079,3 +2079,94 @@ select.form-select option {
         transform: rotate(360deg);
     }
 }
+
+/* ========================================
+   STYLES ARBRE (Tree View)
+   Partagé entre: templates, categories, budget-builder
+   ======================================== */
+.tree-item {
+    position: relative;
+}
+
+.tree-children {
+    position: relative;
+    margin-left: 20px;
+    min-height: 5px;
+}
+
+/* Connecteur d'arbre style Windows */
+.tree-connector {
+    color: #64748b;
+    font-family: monospace;
+    font-size: 13px;
+    margin-right: 4px;
+    user-select: none;
+    white-space: pre;
+}
+
+.tree-content {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: var(--bg-card, #f8f9fa);
+    border: 1px solid var(--border-color, #e9ecef);
+    margin-bottom: 3px;
+    border-radius: 6px;
+    position: relative;
+}
+
+.tree-content:hover {
+    background: rgba(30, 58, 95, 0.8) !important;
+    border-color: var(--primary-color, #0d6efd);
+}
+
+.tree-toggle {
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 6px;
+    color: var(--text-muted, #6c757d);
+    border-radius: 4px;
+}
+
+.tree-toggle:hover {
+    color: var(--primary-color, #0d6efd);
+    background: rgba(13, 110, 253, 0.1);
+}
+
+.tree-toggle.collapsed i,
+[aria-expanded="false"] .tree-toggle i {
+    transform: rotate(-90deg);
+}
+
+/* Drag styles pour arbre */
+.sortable-ghost {
+    opacity: 0.4;
+    background: rgba(13, 110, 253, 0.15) !important;
+    border: 2px dashed var(--primary-color, #0d6efd) !important;
+    border-radius: 6px;
+}
+
+.sortable-drag {
+    background: var(--bg-card, #f8f9fa) !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    cursor: grabbing;
+    border-radius: 6px;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: var(--text-muted, #adb5bd);
+    margin-right: 8px;
+}
+
+.drag-handle:hover {
+    color: var(--primary-color, #0d6efd);
+}
+
+.type-icon {
+    margin-right: 8px;
+}

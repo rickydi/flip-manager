@@ -221,14 +221,7 @@ include '../../includes/header.php';
             display: flex;
             gap: 0.5rem;
         }
-        .tree-connector {
-            color: #64748b;
-            font-family: monospace;
-            font-size: 13px;
-            margin-right: 4px;
-            user-select: none;
-            white-space: pre;
-        }
+        /* .tree-connector est défini dans style.css */
         .add-to-group-btn {
             width: 22px;
             height: 22px;
