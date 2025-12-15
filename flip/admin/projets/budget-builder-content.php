@@ -308,8 +308,8 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 .tree-children {
     padding-left: 20px;
     min-height: 5px;
-    border-left: 2px solid var(--border-color, #4a5568);
-    margin-left: 10px;
+    border-left: 3px solid #6b7280;
+    margin-left: 12px;
 }
 
 .tree-content {
@@ -753,6 +753,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                     <div class="tree-item mb-1 is-kit projet-item"
                          data-type="categorie"
                          data-id="<?= $catId ?>"
+                         data-cat-ordre="<?= $cat['ordre'] ?? 0 ?>"
                          data-groupe="<?= $groupe ?>"
                          data-prix="<?= $catTotal ?>">
                         <div class="tree-content">
@@ -814,6 +815,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                             <div class="tree-item mb-1 is-kit projet-item"
                                  data-type="sous_categorie"
                                  data-id="<?= $sc['id'] ?>"
+                                 data-sc-ordre="<?= $sc['ordre'] ?? 0 ?>"
                                  data-cat-id="<?= $catId ?>"
                                  data-unique-id="sous_categorie-<?= $sc['id'] ?>"
                                  data-groupe="<?= $groupe ?>"
@@ -863,6 +865,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                     ?>
                                     <div class="tree-content mat-item projet-mat-item"
                                          data-mat-id="<?= $mat['id'] ?>"
+                                         data-mat-ordre="<?= $mat['ordre'] ?? 0 ?>"
                                          data-cat-id="<?= $sc['id'] ?>"
                                          data-prix="<?= $prixItem ?>"
                                          data-qte="<?= $qteItem ?>"
