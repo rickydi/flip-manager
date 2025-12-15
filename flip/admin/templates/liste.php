@@ -555,18 +555,14 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 
 ?>
 <style>
-    /* Numéro hiérarchique (1.1, 1.2.1, etc.) */
-    .tree-number {
-        color: #ff0000;
-        font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 14px;
-        font-weight: bold;
-        margin-right: 8px;
+    /* Connecteur d'arbre style Windows */
+    .tree-connector {
+        color: #64748b;
+        font-family: monospace;
+        font-size: 13px;
+        margin-right: 4px;
         user-select: none;
-        min-width: 40px;
-        background: yellow;
-        padding: 2px 5px;
-        border-radius: 3px;
+        white-space: pre;
     }
 
     /* Item de l'arbre */
@@ -870,8 +866,8 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $numPrefi
     ?>
         <div class="tree-item mb-1 <?= $isKit ? 'is-kit' : '' ?>" data-id="<?= $uniqueId ?>" data-type="sous_categorie">
             <div class="tree-content">
-                <!-- Numéro hiérarchique -->
-                <span class="tree-number"><?= $currentNum ?></span>
+                <!-- Connecteur d'arbre -->
+                <span class="tree-connector">└►</span>
                 <!-- Poignée de drag -->
                 <i class="bi bi-grip-vertical drag-handle"></i>
 
@@ -932,7 +928,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $numPrefi
                         ?>
                             <div class="tree-content mat-item"
                                  data-id="<?= $mat['id'] ?>" data-type="materiaux">
-                                <span class="tree-number"><?= $currentNum ?>.<?= $matIndex ?></span>
+                                <span class="tree-connector">└►</span>
                                 <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="editable-name flex-grow-1 small" data-type="materiaux" data-id="<?= $mat['id'] ?>"><?= e($mat['nom']) ?></span>

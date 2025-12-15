@@ -221,17 +221,13 @@ include '../../includes/header.php';
             display: flex;
             gap: 0.5rem;
         }
-        .category-number {
-            color: #ff0000;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 12px;
-            font-weight: bold;
-            margin-right: 8px;
-            background: yellow;
-            padding: 2px 6px;
-            border-radius: 3px;
-            min-width: 24px;
-            text-align: center;
+        .tree-connector {
+            color: #64748b;
+            font-family: monospace;
+            font-size: 13px;
+            margin-right: 4px;
+            user-select: none;
+            white-space: pre;
         }
         .add-to-group-btn {
             width: 22px;
@@ -265,11 +261,9 @@ include '../../includes/header.php';
                 <?php if (empty($categoriesGroupees[$groupe])): ?>
                     <p class="text-muted small">Aucune catégorie</p>
                 <?php else: ?>
-                    <?php $catIndex = 0; ?>
                     <?php foreach ($categoriesGroupees[$groupe] as $cat): ?>
-                        <?php $catIndex++; ?>
                         <div class="category-item" onclick="document.getElementById('editBtn<?= $cat['id'] ?>').click()">
-                            <span class="category-number"><?= $catIndex ?></span>
+                            <span class="tree-connector">└►</span>
                             <span class="category-item-name"><?= e($cat['nom']) ?></span>
                             <div class="category-item-actions" onclick="event.stopPropagation()">
                                 <button type="button" id="editBtn<?= $cat['id'] ?>" class="btn btn-outline-primary btn-sm"
