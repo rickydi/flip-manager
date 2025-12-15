@@ -1444,6 +1444,17 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.updateCatQte = function(catId) {
+        // Mettre à jour les sous-catégories de cette catégorie
+        const catItem = document.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
+        if (catItem) {
+            catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
+                updateSousCategorieStats(sc);
+            });
+            // Aussi mettre à jour les totaux des matériaux individuels (déjà fait dans le listener click, mais bon pour input direct)
+            catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
+                updateMaterialTotal(matItem);
+            });
+        }
         updateTotals();
         autoSave();
     };
@@ -1458,9 +1469,37 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.updateGroupeQte = function(groupe) {
+        // Mettre à jour toutes les sous-catégories et matériaux de ce groupe
+        const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
+        if (zone) {
+            zone.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
+                updateSousCategorieStats(sc);
+            });
+            zone.querySelectorAll('.projet-mat-item').forEach(matItem => {
+                updateMaterialTotal(matItem);
+            });
+        }
         updateTotals();
         autoSave();
     };
+
+    // Helper pour mettre à jour le total d'un matériau
+    function updateMaterialTotal(matItem) {
+        const prix = parseFloat(matItem.dataset.prix) || 0;
+        const qte = parseInt(matItem.dataset.qte) || 1;
+        
+        const catContainer = matItem.closest('.projet-item[data-type="categorie"]');
+        const catQteInput = catContainer ? catContainer.querySelector('.cat-qte-input') : null;
+        const catQte = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
+        
+        const groupeContainer = matItem.closest('.projet-groupe');
+        const groupeQteInput = groupeContainer ? groupeContainer.querySelector('.groupe-qte-input') : null;
+        const groupeQte = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
+
+        const total = prix * qte * catQte * groupeQte * 1.14975;
+        const badge = matItem.querySelector('.badge-total');
+        if (badge) badge.textContent = formatMoney(total);
+    }
 
     window.clearAllBudget = function() {
         if (!confirm('Voulez-vous vraiment supprimer tous les items du budget?')) {
@@ -2033,14 +2072,14 @@ document.addEventListener('DOMContentLoaded', function() {
         catQteInput.value = currentQte;
         catQteDisplay.textContent = currentQte;
 
-        // Mettre à jour les totaux de tous les matériaux de cette catégorie
+        // Mettre à jour les totaux de tous les matériaux
         catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
-            const prix = parseFloat(matItem.dataset.prix) || 0;
-            const qte = parseInt(matItem.dataset.qte) || 1;
-            const groupeContainer = matItem.closest('.projet-groupe');
-            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
-            const total = prix * qte * currentQte * groupeQte * 1.14975;
-            matItem.querySelector('.badge-total').textContent = formatMoney(total);
+            updateMaterialTotal(matItem);
+        });
+
+        // Mettre à jour les sous-catégories
+        catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
+            updateSousCategorieStats(sc);
         });
 
         // Recalculer les totaux et sauvegarder
