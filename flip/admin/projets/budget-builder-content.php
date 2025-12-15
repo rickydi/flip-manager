@@ -1167,6 +1167,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Save result:', result);
             if (!result.success) {
                 console.error('Erreur sauvegarde:', result.error);
+                if (isCategory) {
+                    const container = document.getElementById(contentId);
+                    if (container) {
+                        container.innerHTML = `<div class="text-danger small p-2"><i class="bi bi-exclamation-triangle me-1"></i>Erreur: ${result.error}</div>`;
+                    }
+                }
                 return;
             }
 
@@ -1237,7 +1243,15 @@ document.addEventListener('DOMContentLoaded', function() {
             // Recalculer les totaux après l'ajout
             updateTotals();
         })
-        .catch(err => console.error('Network error:', err));
+        .catch(err => {
+            console.error('Network error:', err);
+            if (isCategory) {
+                const container = document.getElementById(contentId);
+                if (container) {
+                    container.innerHTML = `<div class="text-danger small p-2"><i class="bi bi-wifi-off me-1"></i>Erreur réseau</div>`;
+                }
+            }
+        });
 
         updateTotals();
     }
