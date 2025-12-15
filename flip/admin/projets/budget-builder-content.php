@@ -658,8 +658,7 @@ document.addEventListener('DOMContentLoaded', function() {
             saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
 
             // Recalcul global
-            const scContainer = existingMat.closest('.projet-item[data-type="sous_categorie"]');
-            if (scContainer) updateSousCategorieStats(scContainer);
+            updateAllParents(existingMat);
 
             updateTotals();
             autoSave();
@@ -1368,6 +1367,15 @@ document.addEventListener('DOMContentLoaded', function() {
         categoryContainer.dataset.prix = catTotal;
     }
 
+    // Met à jour récursivement les totaux des parents
+    function updateAllParents(element) {
+        let parent = element.parentElement ? element.parentElement.closest('.projet-item') : null;
+        while (parent) {
+            updateSousCategorieStats(parent);
+            parent = parent.parentElement ? parent.parentElement.closest('.projet-item') : null;
+        }
+    }
+
     // Met à jour le total affiché d'une SOUS-CATÉGORIE (avec multiplicateurs)
     function updateSousCategorieStats(scContainer) {
         if (!scContainer) return;
@@ -1447,13 +1455,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mettre à jour les sous-catégories de cette catégorie
         const catItem = document.querySelector(`.projet-item[data-type="categorie"][data-id="${catId}"]`);
         if (catItem) {
-            catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
-                updateSousCategorieStats(sc);
-            });
-            // Aussi mettre à jour les totaux des matériaux individuels (déjà fait dans le listener click, mais bon pour input direct)
+            // Mettre à jour les totaux des matériaux individuels
             catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
                 updateMaterialTotal(matItem);
             });
+            // Mettre à jour les totaux des sous-catégories (récursivement)
+            catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
+                updateSousCategorieStats(sc);
+            });
+            // Mettre à jour le total de la catégorie elle-même
+            updateSousCategorieStats(catItem);
         }
         updateTotals();
         autoSave();
@@ -1472,11 +1483,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Mettre à jour toutes les sous-catégories et matériaux de ce groupe
         const zone = document.querySelector(`.projet-drop-zone[data-groupe="${groupe}"]`);
         if (zone) {
-            zone.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
-                updateSousCategorieStats(sc);
-            });
             zone.querySelectorAll('.projet-mat-item').forEach(matItem => {
                 updateMaterialTotal(matItem);
+            });
+            zone.querySelectorAll('.projet-item').forEach(item => {
+                updateSousCategorieStats(item);
             });
         }
         updateTotals();
@@ -1911,9 +1922,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Sauvegarder via AJAX
         saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, currentQte);
 
-        // Recalculer les totaux + mettre à jour le total de la sous-catégorie
-        const scContainer = matItem.closest('.projet-item[data-type="sous_categorie"]');
-        if (scContainer) updateSousCategorieStats(scContainer);
+        // Recalculer les totaux + mettre à jour récursivement
+        updateAllParents(matItem);
 
         updateTotals();
     });
@@ -1930,12 +1940,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const catId = matItem.dataset.catId;
         const matId = matItem.dataset.matId;
 
+        // Mettre à jour le total affiché de la sous-catégorie AVANT de supprimer (pour avoir le parent)
+        // En fait non, on doit supprimer puis recalculer le parent
+        const parentItem = matItem.closest('.projet-item');
+
         // Supprimer l'élément du DOM
         matItem.remove();
 
-        // Mettre à jour le total affiché de la sous-catégorie
-        const scContainer = btn.closest('.projet-item[data-type="sous_categorie"]');
-        if (scContainer) updateSousCategorieStats(scContainer);
+        // Mettre à jour le total affiché du parent
+        if (parentItem) updateAllParents(parentItem.querySelector('.tree-content')); // Hack pour passer un élément enfant du parent
 
         // Supprimer via AJAX
         fetch(window.location.href, {
@@ -2028,8 +2041,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Mettre à jour le total affiché de la sous-catégorie
-            const scContainer = targetItem.closest('.projet-item[data-type="sous_categorie"]');
-            if (scContainer) updateSousCategorieStats(scContainer);
+            updateAllParents(targetItem);
 
             // Recalculer les totaux
             updateTotals();
@@ -2081,6 +2093,9 @@ document.addEventListener('DOMContentLoaded', function() {
         catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
             updateSousCategorieStats(sc);
         });
+        
+        // Mettre à jour la catégorie elle-même (si elle contient des sous-catégories)
+        updateSousCategorieStats(catItem);
 
         // Recalculer les totaux et sauvegarder
         updateTotals();
