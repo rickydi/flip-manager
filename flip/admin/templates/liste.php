@@ -557,12 +557,16 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 <style>
     /* Numéro hiérarchique (1.1, 1.2.1, etc.) */
     .tree-number {
-        color: #64748b;
+        color: #ff0000;
         font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 11px;
+        font-size: 14px;
+        font-weight: bold;
         margin-right: 8px;
         user-select: none;
-        min-width: 35px;
+        min-width: 40px;
+        background: yellow;
+        padding: 2px 5px;
+        border-radius: 3px;
     }
 
     /* Item de l'arbre */
