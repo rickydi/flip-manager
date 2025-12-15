@@ -885,9 +885,41 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isMaterial) {
             const existingMat = zone.querySelector(`.projet-mat-item[data-mat-id="${data.id}"]`);
             if (existingMat) {
-                console.log('Material already exists, flashing');
-                existingMat.style.background = 'rgba(13, 110, 253, 0.3)';
-                setTimeout(() => { existingMat.style.background = ''; }, 500);
+                const confirmAdd = confirm("Ce matériau est déjà dans le budget. Ajouter +1 à la quantité ?");
+                if (!confirmAdd) {
+                    existingMat.style.background = 'rgba(13, 110, 253, 0.3)';
+                    setTimeout(() => { existingMat.style.background = ''; }, 500);
+                    return;
+                }
+
+                // Undo/redo: on sauvegarde l'état avant modification
+                saveState();
+
+                const currentQte = parseInt(existingMat.dataset.qte) || 1;
+                const newQte = currentQte + 1;
+
+                existingMat.dataset.qte = newQte;
+
+                const qteDisplay = existingMat.querySelector('.mat-qte-display');
+                if (qteDisplay) qteDisplay.textContent = newQte;
+
+                // Mettre à jour le total de la ligne (TTC) selon les multiplicateurs actuels
+                const prix = parseFloat(existingMat.dataset.prix) || 0;
+                const catContainer = existingMat.closest('.projet-item');
+                const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+                const groupeContainer = existingMat.closest('.projet-groupe');
+                const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+
+                const total = prix * newQte * catQte * groupeQte * 1.14975;
+                const totalBadge = existingMat.querySelector('.badge-total');
+                if (totalBadge) totalBadge.textContent = formatMoney(total);
+
+                // Sauvegarder en base (update_item_data)
+                saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
+
+                // Recalcul global
+                updateTotals();
+                autoSave();
                 return;
             }
         }
