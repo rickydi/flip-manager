@@ -556,130 +556,31 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 ?>
 <style>
     /* ============================================
-       SYSTÈME DE CONNECTEURS TREE - STYLE VS CODE
+       SYSTÈME DE CONNECTEURS TREE - CARACTÈRES UNICODE
        ============================================ */
 
-    /* Variables pour les couleurs des lignes */
-    :root {
-        --tree-line-color: #64748b;
-        --tree-line-width: 1px;
+    /* Connecteur d'arbre style Windows Explorer */
+    .tree-connector {
+        color: #64748b;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+        margin-right: 2px;
+        user-select: none;
+        white-space: pre;
+        display: inline-block;
+        line-height: 1;
     }
 
-    [data-theme="dark"] {
-        --tree-line-color: #64748b;
-    }
-
-    /* Container principal du collapse avec la ligne verticale */
-    .collapse.show,
-    .collapse.collapsing {
-        position: relative;
-    }
-
-    /* Ligne verticale principale partant du dossier parent */
-    .collapse.show::before,
-    .collapsing::before {
-        content: '';
-        position: absolute;
-        left: 23px;
-        top: 0;
-        bottom: 8px;
-        width: var(--tree-line-width);
-        background: var(--tree-line-color);
-        z-index: 1;
-    }
-
-    /* Container des enfants (sous-dossiers récursifs) */
+    /* Container des enfants */
     .tree-children {
         position: relative;
-        padding-left: 24px;
-        margin-left: 12px;
+        padding-left: 4px;
         min-height: 5px;
-    }
-
-    /* Ligne verticale pour les enfants récursifs */
-    .tree-children::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 0;
-        bottom: 8px;
-        width: var(--tree-line-width);
-        background: var(--tree-line-color);
     }
 
     /* Item de l'arbre */
     .tree-item {
         position: relative;
-    }
-
-    /* Connecteur horizontal (─) pour chaque item */
-    .tree-item::before {
-        content: '';
-        position: absolute;
-        left: -24px;
-        top: 18px;
-        width: 18px;
-        height: var(--tree-line-width);
-        background: var(--tree-line-color);
-    }
-
-    /* Ligne verticale (│) qui descend vers les frères suivants */
-    .tree-item::after {
-        content: '';
-        position: absolute;
-        left: -24px;
-        top: 0;
-        width: var(--tree-line-width);
-        height: calc(100% + 3px);
-        background: var(--tree-line-color);
-    }
-
-    /* Dernier enfant: ligne verticale s'arrête au connecteur (└) */
-    .tree-children > .tree-item:last-child::after {
-        height: 18px;
-    }
-
-    /* Premier niveau dans sortable-subcats (pas de connecteur car géré par collapse) */
-    .sortable-subcats:not(.tree-children) > .tree-item::before,
-    .sortable-subcats:not(.tree-children) > .tree-item::after {
-        display: none;
-    }
-
-    /* Si un seul enfant, pas besoin de ligne verticale longue */
-    .tree-children:has(> .tree-item:only-child)::before {
-        bottom: calc(100% - 18px);
-    }
-
-    /* Container sortable-subcats dans le collapse (premier niveau d'enfants) */
-    .collapse > .sortable-subcats {
-        position: relative;
-        padding-left: 24px;
-        margin-left: 12px;
-    }
-
-    /* Connecteurs pour les tree-children dans sortable-subcats */
-    .collapse > .sortable-subcats > .tree-children > .tree-item::before {
-        content: '';
-        position: absolute;
-        left: -24px;
-        top: 18px;
-        width: 18px;
-        height: var(--tree-line-width);
-        background: var(--tree-line-color);
-    }
-
-    .collapse > .sortable-subcats > .tree-children > .tree-item::after {
-        content: '';
-        position: absolute;
-        left: -24px;
-        top: 0;
-        width: var(--tree-line-width);
-        height: calc(100% + 3px);
-        background: var(--tree-line-color);
-    }
-
-    .collapse > .sortable-subcats > .tree-children > .tree-item:last-child::after {
-        height: 18px;
     }
 
     .tree-content {
@@ -783,46 +684,12 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
     /* Container des matériaux */
     .sortable-materials {
         position: relative;
-        padding-left: 24px;
-        margin-left: 12px;
+        padding-left: 4px;
     }
 
-    /* Connecteur horizontal pour chaque matériau */
+    /* Matériaux */
     .sortable-materials > .mat-item {
         margin-left: 0 !important;
-        position: relative;
-    }
-
-    .sortable-materials > .mat-item::before {
-        content: '';
-        position: absolute;
-        left: -24px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 18px;
-        height: var(--tree-line-width);
-        background: var(--tree-line-color);
-    }
-
-    /* Ligne verticale vers le connecteur pour matériaux */
-    .sortable-materials > .mat-item::after {
-        content: '';
-        position: absolute;
-        left: -24px;
-        top: 0;
-        width: var(--tree-line-width);
-        height: calc(50% + 3px);
-        background: var(--tree-line-color);
-    }
-
-    /* Matériaux du milieu - ligne continue */
-    .sortable-materials > .mat-item:not(:last-child)::after {
-        height: calc(100% + 3px);
-    }
-
-    /* Dernier matériau quand il y a aussi des sous-dossiers après */
-    .sortable-materials:has(+ .sortable-subcats:not(:empty)) > .mat-item:last-child::after {
-        height: calc(100% + 3px);
     }
 
     /* Card collapsible pour Groupes */
@@ -999,6 +866,8 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
     ?>
         <div class="tree-item mb-1 <?= $isKit ? 'is-kit' : '' ?>" data-id="<?= $uniqueId ?>" data-type="sous_categorie">
             <div class="tree-content">
+                <!-- Connecteur d'arbre -->
+                <span class="tree-connector">├──</span>
                 <!-- Poignée de drag -->
                 <i class="bi bi-grip-vertical drag-handle"></i>
 
@@ -1054,8 +923,9 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
                             $qte = $mat['quantite_defaut'] ?? 1;
                             $total = $mat['prix_defaut'] * $qte;
                         ?>
-                            <div class="tree-content mat-item" style="margin-left: 20px;"
+                            <div class="tree-content mat-item"
                                  data-id="<?= $mat['id'] ?>" data-type="materiaux">
+                                <span class="tree-connector">├──</span>
                                 <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="editable-name flex-grow-1 small" data-type="materiaux" data-id="<?= $mat['id'] ?>"><?= e($mat['nom']) ?></span>
@@ -1700,6 +1570,59 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+
+    // ========================================
+    // MISE À JOUR DES CONNECTEURS D'ARBRE
+    // ========================================
+    function updateTreeConnectors() {
+        // Pour les sous-catégories dans tree-children
+        document.querySelectorAll('.tree-children').forEach(container => {
+            const children = container.querySelectorAll(':scope > .tree-item');
+            children.forEach((child, index) => {
+                const connector = child.querySelector(':scope > .tree-content > .tree-connector');
+                if (connector) {
+                    const isLast = index === children.length - 1;
+                    connector.textContent = isLast ? '└──' : '├──';
+                }
+            });
+        });
+
+        // Pour les matériaux dans sortable-materials
+        document.querySelectorAll('.sortable-materials').forEach(container => {
+            const materials = container.querySelectorAll(':scope > .mat-item');
+            const subcatsContainer = container.nextElementSibling;
+            const hasSubcatsAfter = subcatsContainer &&
+                                    subcatsContainer.classList.contains('sortable-subcats') &&
+                                    subcatsContainer.querySelector('.tree-children');
+
+            materials.forEach((mat, index) => {
+                const connector = mat.querySelector('.tree-connector');
+                if (connector) {
+                    const isLast = index === materials.length - 1 && !hasSubcatsAfter;
+                    connector.textContent = isLast ? '└──' : '├──';
+                }
+            });
+        });
+
+        // Pour les sous-dossiers dans sortable-subcats (premier niveau dans collapse)
+        document.querySelectorAll('.collapse > .sortable-subcats > .tree-children').forEach(container => {
+            const children = container.querySelectorAll(':scope > .tree-item');
+            const materialsContainer = container.closest('.collapse').querySelector('.sortable-materials');
+            const hasMaterialsBefore = materialsContainer && materialsContainer.querySelector('.mat-item');
+
+            children.forEach((child, index) => {
+                const connector = child.querySelector(':scope > .tree-content > .tree-connector');
+                if (connector) {
+                    const isLast = index === children.length - 1;
+                    connector.textContent = isLast ? '└──' : '├──';
+                }
+            });
+        });
+    }
+
+    // Appeler au chargement
+    updateTreeConnectors();
+
     // 1. Initialiser le tri des Items (Matériaux)
     // Ils peuvent être déplacés entre différentes sous-catégories
     const materialLists = document.querySelectorAll('.sortable-materials');
@@ -1715,11 +1638,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const itemEl = evt.item;
                 const newParentList = evt.to;
                 const newParentId = newParentList.getAttribute('data-parent-id');
-                
+
                 // Récupérer tous les items de la nouvelle liste pour avoir l'ordre
                 const items = Array.from(newParentList.querySelectorAll('[data-type="materiaux"]')).map(el => el.getAttribute('data-id'));
-                
+
                 saveOrder('materiaux', items, newParentId);
+                updateTreeConnectors(); // Mettre à jour les connecteurs
             }
         });
     });
@@ -1765,12 +1689,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Récupérer IDs
                 const items = Array.from(newParentList.children).map(el => el.getAttribute('data-id')).filter(id => id != null);
-                
+
                 // Il faut aussi l'ID de la catégorie principale (page courante)
                 // On peut le chopper dans l'URL ou un input hidden
                 const categorieId = new URLSearchParams(window.location.search).get('categorie');
-                
+
                 saveOrder('sous_categorie', items, newParentId, categorieId);
+                updateTreeConnectors(); // Mettre à jour les connecteurs
             }
         });
     });
