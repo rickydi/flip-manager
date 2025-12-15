@@ -306,46 +306,18 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 }
 
 .tree-children {
-    padding-left: 20px;
+    padding-left: 25px;
     min-height: 5px;
-    position: relative;
-    margin-left: 8px;
-    border-left: 1px solid #64748b;
 }
 
-/* Dernier enfant: pas de bordure qui continue */
-.tree-children > .tree-item:last-child,
-.tree-children > .tree-content:last-child {
-    position: relative;
-}
-
-.tree-children > .tree-item:last-child::before,
-.tree-children > .tree-content:last-child::before {
-    content: '';
-    position: absolute;
-    left: -9px;
-    top: 20px;
-    bottom: 0;
-    width: 10px;
-    background: var(--bg-body, #0f172a);
-}
-
-/* Icône de connecteur */
+/* Connecteur d'arbre style Windows */
 .tree-connector {
     color: #64748b;
     font-family: monospace;
-    font-size: 14px;
-    margin-right: 5px;
-    margin-left: -12px;
+    font-size: 13px;
+    margin-right: 4px;
     user-select: none;
-}
-
-.tree-connector.last-child {
-    /* └── pour dernier élément */
-}
-
-.tree-connector.has-siblings {
-    /* ├── pour éléments avec frères en dessous */
+    white-space: pre;
 }
 
 .tree-content {
