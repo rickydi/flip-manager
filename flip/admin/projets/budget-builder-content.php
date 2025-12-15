@@ -580,27 +580,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let saveTimeout = null;
 
     // ========================================
-    // MISE À JOUR DES CONNECTEURS D'ARBRE
-    // (Désactivé pour garder le style └► demandé)
-    // ========================================
-    /*
-    function updateTreeConnectors() {
-        document.querySelectorAll('.tree-children').forEach(container => {
-            const children = container.querySelectorAll(':scope > .tree-item, :scope > .tree-content');
-            children.forEach((child, index) => {
-                const connector = child.querySelector('.tree-connector');
-                if (connector) {
-                    const isLast = index === children.length - 1;
-                    connector.textContent = isLast ? '└──' : '├──';
-                }
-            });
-        });
-    }
-    // Appeler au chargement
-    // updateTreeConnectors();
-    */
-
-    // ========================================
     // UNDO/REDO SYSTEM
     // ========================================
     const historyStack = [];
@@ -918,6 +897,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
 
                 // Recalcul global
+                const scContainer = existingMat.closest('.projet-item[data-type="sous_categorie"]');
+                if (scContainer) updateSousCategorieStats(scContainer);
+
                 updateTotals();
                 autoSave();
                 return;
@@ -1173,8 +1155,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     matContainer.appendChild(matElement);
                 }
 
-                // Mettre à jour le compteur et total de la sous-catégorie
-                updateCategoryStats(scContainer);
+                // Mettre à jour le compteur et total de la sous-catégorie (avec multiplicateurs)
+                updateSousCategorieStats(scContainer);
 
                 // Mettre à jour aussi la catégorie parent
                 const parentCat = zone.querySelector(`.projet-item[data-type="categorie"][data-id="${data.catId}"]`);
@@ -1306,6 +1288,45 @@ document.addEventListener('DOMContentLoaded', function() {
         if (totalSpan) totalSpan.textContent = formatMoney(catTotal * 1.14975);
 
         categoryContainer.dataset.prix = catTotal;
+    }
+
+    // Met à jour le total affiché d'une SOUS-CATÉGORIE (avec multiplicateurs)
+    function updateSousCategorieStats(scContainer) {
+        if (!scContainer) return;
+
+        const matItems = scContainer.querySelectorAll('.projet-mat-item');
+        let totalTaxable = 0;
+        let totalNonTaxable = 0;
+
+        matItems.forEach(matItem => {
+            const prix = parseFloat(matItem.dataset.prix) || 0;
+            const qte = parseInt(matItem.dataset.qte) || 1;
+            const sansTaxe = matItem.dataset.sansTaxe === '1';
+            const ht = prix * qte;
+
+            if (sansTaxe) totalNonTaxable += ht;
+            else totalTaxable += ht;
+        });
+
+        const groupeContainer = scContainer.closest('.projet-groupe');
+        const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+
+        // Le parent "catégorie" (poste) du projet
+        const catContainer = scContainer.closest('.projet-drop-zone')?.querySelector('.projet-item[data-type="categorie"]')
+            ? scContainer.closest('.projet-item[data-type="categorie"]')
+            : scContainer.closest('.projet-item[data-type="categorie"]');
+        const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+
+        const totalNonTaxableMult = totalNonTaxable * catQte * groupeQte;
+        const totalTaxableMult = totalTaxable * catQte * groupeQte;
+
+        const totalTTC = totalNonTaxableMult + (totalTaxableMult * 1.14975);
+
+        const countSpan = scContainer.querySelector('.item-count');
+        if (countSpan) countSpan.textContent = matItems.length;
+
+        const totalSpan = scContainer.querySelector('.cat-total');
+        if (totalSpan) totalSpan.textContent = formatMoney(totalTTC);
     }
 
     function escapeHtml(text) {
@@ -1773,7 +1794,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Sauvegarder via AJAX
         saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, currentQte);
 
-        // Recalculer les totaux
+        // Recalculer les totaux + mettre à jour le total de la sous-catégorie
+        const scContainer = matItem.closest('.projet-item[data-type="sous_categorie"]');
+        if (scContainer) updateSousCategorieStats(scContainer);
+
         updateTotals();
     });
 
@@ -1791,6 +1815,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Supprimer l'élément du DOM
         matItem.remove();
+
+        // Mettre à jour le total affiché de la sous-catégorie
+        const scContainer = btn.closest('.projet-item[data-type="sous_categorie"]');
+        if (scContainer) updateSousCategorieStats(scContainer);
 
         // Supprimer via AJAX
         fetch(window.location.href, {
@@ -1881,6 +1909,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Sauvegarder via AJAX
                 saveItemData(targetItem.dataset.catId, targetItem.dataset.matId, newPrix, null);
             }
+
+            // Mettre à jour le total affiché de la sous-catégorie
+            const scContainer = targetItem.closest('.projet-item[data-type="sous_categorie"]');
+            if (scContainer) updateSousCategorieStats(scContainer);
 
             // Recalculer les totaux
             updateTotals();
