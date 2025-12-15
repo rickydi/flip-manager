@@ -200,7 +200,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 
 <!-- SortableJS pour le Drag & Drop et Styles Communs -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-<link rel="stylesheet" href="<?= url('/assets/css/tree-style.css') ?>">
+<link rel="stylesheet" href="<?= url('/assets/css/tree-style.css') ?>?v=<?= time() ?>">
 
 <!-- Barre de totaux sticky -->
 <div class="bg-primary text-white mb-3 rounded" style="font-size: 0.85rem;">

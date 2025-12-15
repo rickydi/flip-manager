@@ -552,7 +552,7 @@ include '../../includes/header.php';
 
 // Ajouter SortableJS et styles d'arbre
 echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>';
-echo '<link rel="stylesheet" href="' . url('/assets/css/tree-style.css') . '">';
+echo '<link rel="stylesheet" href="' . url('/assets/css/tree-style.css') . '?v=' . time() . '">';
 
 ?>
 <style>
