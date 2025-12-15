@@ -572,12 +572,78 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     </a>
 </div>
 
+<!-- Modal Confirmation Ajout Matériau -->
+<div class="modal fade" id="confirmAddMaterialModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title fs-6">Matériau existant</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <p class="mb-3">Ce matériau est déjà dans le budget.</p>
+                <p class="fw-bold mb-0">Ajouter +1 à la quantité ?</p>
+            </div>
+            <div class="modal-footer border-secondary justify-content-center">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Non</button>
+                <button type="button" class="btn btn-success btn-sm" id="confirmAddBtn">Oui, ajouter +1</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const projetId = <?= $projetId ?>;
     const tauxContingence = <?= (float)$projet['taux_contingence'] ?>;
     const csrfToken = '<?= generateCSRFToken() ?>';
     let saveTimeout = null;
+
+    // Variables pour la modal
+    const confirmAddModal = new bootstrap.Modal(document.getElementById('confirmAddMaterialModal'));
+    let pendingMaterialAdd = null;
+
+    document.getElementById('confirmAddBtn').addEventListener('click', function() {
+        if (pendingMaterialAdd) {
+            confirmAddModal.hide();
+            const { existingMat } = pendingMaterialAdd;
+            
+            // Undo/redo: on sauvegarde l'état avant modification
+            saveState();
+
+            const currentQte = parseInt(existingMat.dataset.qte) || 1;
+            const newQte = currentQte + 1;
+
+            existingMat.dataset.qte = newQte;
+
+            const qteDisplay = existingMat.querySelector('.mat-qte-display');
+            if (qteDisplay) qteDisplay.textContent = newQte;
+
+            // Mettre à jour le total de la ligne (TTC) selon les multiplicateurs actuels
+            const prix = parseFloat(existingMat.dataset.prix) || 0;
+            const catContainer = existingMat.closest('.projet-item');
+            const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+            const groupeContainer = existingMat.closest('.projet-groupe');
+            const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+
+            const total = prix * newQte * catQte * groupeQte * 1.14975;
+            const totalBadge = existingMat.querySelector('.badge-total');
+            if (totalBadge) totalBadge.textContent = formatMoney(total);
+
+            // Sauvegarder en base (update_item_data)
+            saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
+
+            // Recalcul global
+            const scContainer = existingMat.closest('.projet-item[data-type="sous_categorie"]');
+            if (scContainer) updateSousCategorieStats(scContainer);
+
+            updateTotals();
+            autoSave();
+            
+            // Reset state
+            pendingMaterialAdd = null;
+        }
+    });
 
     // ========================================
     // UNDO/REDO SYSTEM
@@ -864,44 +930,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isMaterial) {
             const existingMat = zone.querySelector(`.projet-mat-item[data-mat-id="${data.id}"]`);
             if (existingMat) {
-                const confirmAdd = confirm("Ce matériau est déjà dans le budget. Ajouter +1 à la quantité ?");
-                if (!confirmAdd) {
-                    existingMat.style.background = 'rgba(13, 110, 253, 0.3)';
-                    setTimeout(() => { existingMat.style.background = ''; }, 500);
-                    return;
-                }
-
-                // Undo/redo: on sauvegarde l'état avant modification
-                saveState();
-
-                const currentQte = parseInt(existingMat.dataset.qte) || 1;
-                const newQte = currentQte + 1;
-
-                existingMat.dataset.qte = newQte;
-
-                const qteDisplay = existingMat.querySelector('.mat-qte-display');
-                if (qteDisplay) qteDisplay.textContent = newQte;
-
-                // Mettre à jour le total de la ligne (TTC) selon les multiplicateurs actuels
-                const prix = parseFloat(existingMat.dataset.prix) || 0;
-                const catContainer = existingMat.closest('.projet-item');
-                const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
-                const groupeContainer = existingMat.closest('.projet-groupe');
-                const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
-
-                const total = prix * newQte * catQte * groupeQte * 1.14975;
-                const totalBadge = existingMat.querySelector('.badge-total');
-                if (totalBadge) totalBadge.textContent = formatMoney(total);
-
-                // Sauvegarder en base (update_item_data)
-                saveItemData(existingMat.dataset.catId, existingMat.dataset.matId, null, newQte);
-
-                // Recalcul global
-                const scContainer = existingMat.closest('.projet-item[data-type="sous_categorie"]');
-                if (scContainer) updateSousCategorieStats(scContainer);
-
-                updateTotals();
-                autoSave();
+                // Scroll vers l'élément existant pour montrer où il est
+                existingMat.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Effet visuel
+                existingMat.style.background = 'rgba(13, 110, 253, 0.3)';
+                existingMat.style.transition = 'background 0.5s';
+                
+                // Préparer l'état pour la modal
+                pendingMaterialAdd = { existingMat };
+                
+                // Ouvrir la modal
+                confirmAddModal.show();
+                
+                // Nettoyer l'effet visuel après 2s (même si modal ouverte)
+                setTimeout(() => { existingMat.style.background = ''; }, 2000);
                 return;
             }
         }
@@ -1047,8 +1090,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const existingCat = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
             if (existingCat) {
                 console.log('Category already exists, flashing');
+                existingCat.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 existingCat.querySelector('.tree-content').style.background = 'rgba(13, 110, 253, 0.3)';
-                setTimeout(() => { existingCat.querySelector('.tree-content').style.background = ''; }, 500);
+                setTimeout(() => { existingCat.querySelector('.tree-content').style.background = ''; }, 1000);
                 return;
             }
 
