@@ -306,51 +306,17 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 }
 
 .tree-children {
-    padding-left: 30px;
+    padding-left: 20px;
     min-height: 5px;
-    margin-left: 15px;
-    position: relative;
 }
 
-/* Ligne verticale à gauche des enfants */
-.tree-children::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 10px;
-    width: 2px;
-    background-color: #64748b;
-}
-
-/* Position relative pour les enfants directs */
-.tree-children > .tree-item,
-.tree-children > .tree-content {
-    position: relative;
-}
-
-/* Connecteur avec flèche pour chaque enfant */
-.tree-children > .tree-item::before,
-.tree-children > .tree-content::before {
-    content: '►';
-    position: absolute;
-    left: -22px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #94a3b8;
-    font-size: 10px;
-}
-
-/* Ligne horizontale connecteur */
-.tree-children > .tree-item::after,
-.tree-children > .tree-content::after {
-    content: '';
-    position: absolute;
-    left: -30px;
-    top: 50%;
-    width: 12px;
-    height: 2px;
-    background-color: #64748b;
+/* Icône de connecteur */
+.tree-connector {
+    color: #64748b;
+    font-family: monospace;
+    font-size: 14px;
+    margin-right: 5px;
+    user-select: none;
 }
 
 .tree-content {
@@ -862,6 +828,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                  data-groupe="<?= $groupe ?>"
                                  data-prix="<?= $scTotal ?>">
                                 <div class="tree-content">
+                                    <span class="tree-connector">└►</span>
                                     <i class="bi bi-grip-vertical drag-handle"></i>
                                     <span class="tree-toggle" onclick="toggleTreeItem(this, 'projetSc<?= $sc['id'] ?>')">
                                         <i class="bi bi-caret-down-fill"></i>
@@ -911,7 +878,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                                          data-prix="<?= $prixItem ?>"
                                          data-qte="<?= $qteItem ?>"
                                          data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
-
+                                        <span class="tree-connector">└►</span>
                                         <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                         <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                         <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
@@ -1344,6 +1311,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          data-groupe="${groupe}"
                          data-prix="0">
                         <div class="tree-content">
+                            <span class="tree-connector">└►</span>
                             <i class="bi bi-grip-vertical drag-handle"></i>
                             <span class="tree-toggle" onclick="toggleTreeItem(this, '${scContentId}')">
                                 <i class="bi bi-caret-down-fill"></i>
@@ -1469,6 +1437,7 @@ document.addEventListener('DOMContentLoaded', function() {
                          data-prix="${data.prix}"
                          data-qte="${data.qte || 1}"
                          data-sans-taxe="0">
+                        <span class="tree-connector">└►</span>
                         <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                         <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                         <span class="flex-grow-1 small">${escapeHtml(data.nom)}</span>
@@ -1558,6 +1527,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                  data-prix="${item.prix}"
                                  data-qte="${item.qte}"
                                  data-sans-taxe="${item.sans_taxe ? 1 : 0}">
+                                <span class="tree-connector">└►</span>
                                 <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="flex-grow-1 small">${escapeHtml(item.nom)}</span>
