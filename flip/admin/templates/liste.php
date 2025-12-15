@@ -1691,7 +1691,9 @@ document.querySelectorAll('.editable-name').forEach(el => {
 
     // ========================================
     // MISE À JOUR DES CONNECTEURS D'ARBRE
+    // (Désactivé pour garder le style └► demandé)
     // ========================================
+    /*
     function updateTreeConnectors() {
         document.querySelectorAll('.tree-children').forEach(container => {
             const children = container.querySelectorAll(':scope > .tree-item, :scope > .tree-content');
@@ -1704,32 +1706,9 @@ document.querySelectorAll('.editable-name').forEach(el => {
             });
         });
     }
-
     // Appeler au chargement
-    updateTreeConnectors();
-
-    // Appeler après le drag & drop
-    const originalSaveOrder = window.saveOrder;
-    window.saveOrder = function(type, items, parentId, categorieId = null) {
-        // Appeler la fonction originale
-        // Note: Ici saveOrder est définie plus bas, donc on ne peut pas vraiment la wrapper ainsi
-        // Mais on peut écouter les événements Sortable
-        
-        // La fonction saveOrder fait un fetch, on ne peut pas facilement s'accrocher après.
-        // Mais le Sortable onEnd appelle saveOrder.
-        // On peut juste appeler updateTreeConnectors() dans onEnd de Sortable.
-    };
-
-    // On va modifier les options de Sortable pour appeler updateTreeConnectors
-    // Mais les instances sont déjà créées. 
-    // On va utiliser un MutationObserver pour détecter les changements dans le DOM
-    const observer = new MutationObserver(function(mutations) {
-        updateTreeConnectors();
-    });
-    
-    document.querySelectorAll('.tree-children').forEach(el => {
-        observer.observe(el, { childList: true });
-    });
+    // updateTreeConnectors();
+    */
 
 // Fonction AJAX pour sauvegarder le nom
 function saveInlineName(type, id, newName) {

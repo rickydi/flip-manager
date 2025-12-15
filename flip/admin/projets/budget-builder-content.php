@@ -581,7 +581,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ========================================
     // MISE À JOUR DES CONNECTEURS D'ARBRE
+    // (Désactivé pour garder le style └► demandé)
     // ========================================
+    /*
     function updateTreeConnectors() {
         document.querySelectorAll('.tree-children').forEach(container => {
             const children = container.querySelectorAll(':scope > .tree-item, :scope > .tree-content');
@@ -594,9 +596,9 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
-
     // Appeler au chargement
-    updateTreeConnectors();
+    // updateTreeConnectors();
+    */
 
     // ========================================
     // UNDO/REDO SYSTEM
@@ -1574,8 +1576,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Mettre à jour les connecteurs d'arbre
-        updateTreeConnectors();
+        // Mettre à jour les connecteurs d'arbre (Désactivé)
+        // updateTreeConnectors();
     }
 
     // ========================================
