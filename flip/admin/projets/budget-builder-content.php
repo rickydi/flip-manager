@@ -76,6 +76,7 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
                  data-nom="<?= e($sc['nom']) ?>"
                  data-prix="<?= $totalSc ?>">
 
+                <span class="tree-connector">└►</span>
                 <i class="bi bi-grip-vertical drag-handle"></i>
 
                 <?php if ($isKit): ?>
@@ -136,6 +137,7 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
                      data-qte="<?= $qte ?>"
                      data-sans-taxe="<?= !empty($mat['sans_taxe']) ? 1 : 0 ?>">
 
+                    <span class="tree-connector">└►</span>
                     <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                     <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                     <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
