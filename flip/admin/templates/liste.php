@@ -555,25 +555,12 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 
 ?>
 <style>
-    /* ============================================
-       SYSTÈME DE CONNECTEURS TREE - CARACTÈRES UNICODE
-       ============================================ */
-
-    :root {
-        --tree-line-color: #64748b;
-    }
-
-    /* Connecteur d'arbre (│   ├── └──) */
-    .tree-connector {
-        color: var(--tree-line-color);
-        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-        font-size: 12px;
-        margin-right: 4px;
+    /* Petite flèche simple */
+    .tree-arrow {
+        color: #64748b;
+        font-size: 10px;
+        margin-right: 6px;
         user-select: none;
-        white-space: pre;
-        display: inline-block;
-        line-height: 1.2;
-        flex-shrink: 0;
     }
 
     /* Item de l'arbre */
@@ -581,15 +568,17 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
         position: relative;
     }
 
-    /* Container des enfants */
+    /* Container des enfants avec indentation */
     .tree-children {
         position: relative;
+        margin-left: 20px;
         min-height: 5px;
     }
 
-    /* Container des matériaux */
+    /* Container des matériaux avec indentation */
     .sortable-materials {
         position: relative;
+        margin-left: 20px;
     }
 
     /* Container sortable-subcats */
@@ -854,42 +843,25 @@ echo '<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortab
 <?php
 
 /**
- * Afficher les sous-catégories de façon récursive (Nouvelle version Drag & Drop)
- * @param array $sousCategories Liste des sous-catégories
- * @param int $categorieId ID de la catégorie parente
- * @param int $depth Niveau de profondeur (0 = racine)
- * @param string $prefix Préfixe de lignes verticales hérité des parents
+ * Afficher les sous-catégories de façon récursive
  */
-function afficherSousCategoriesRecursif($sousCategories, $categorieId, $depth = 0, $prefix = '') {
+function afficherSousCategoriesRecursif($sousCategories, $categorieId) {
     if (empty($sousCategories)) return;
 
-    // L'ID du container dépend du parent (pour SortableJS)
-    // On utilise un attribut data-parent-id pour le script JS
     ?>
     <div class="list-group tree-children sortable-list" data-id-list="subcats">
     <?php
 
-    $total = count($sousCategories);
-    $index = 0;
-
     foreach ($sousCategories as $sc):
-        $index++;
-        $isLast = ($index === $total);
         $uniqueId = $sc['id'];
         $hasChildren = !empty($sc['enfants']);
         $hasMateriaux = !empty($sc['materiaux']);
-        // Est-ce un kit ? (Si a des enfants ou matériaux)
         $isKit = $hasChildren || $hasMateriaux;
-
-        // Connecteur: └── si dernier, ├── sinon
-        $connector = $isLast ? '└── ' : '├── ';
-        // Préfixe pour les enfants: espace si dernier parent, │ sinon
-        $childPrefix = $prefix . ($isLast ? '    ' : '│   ');
     ?>
-        <div class="tree-item mb-1 <?= $isKit ? 'is-kit' : '' ?>" data-id="<?= $uniqueId ?>" data-type="sous_categorie" data-depth="<?= $depth ?>" data-prefix="<?= htmlspecialchars($childPrefix) ?>">
+        <div class="tree-item mb-1 <?= $isKit ? 'is-kit' : '' ?>" data-id="<?= $uniqueId ?>" data-type="sous_categorie">
             <div class="tree-content">
-                <!-- Connecteur d'arbre avec préfixe -->
-                <span class="tree-connector"><?= $prefix . $connector ?></span>
+                <!-- Petite flèche -->
+                <span class="tree-arrow">▸</span>
                 <!-- Poignée de drag -->
                 <i class="bi bi-grip-vertical drag-handle"></i>
 
@@ -939,22 +911,15 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $depth = 
             <!-- Contenu (Enfants + Matériaux) -->
             <div class="collapse show ms-3" id="content<?= $uniqueId ?>">
                 <!-- Zone Matériaux (Sortable) -->
-                <div class="sortable-materials" data-parent-id="<?= $uniqueId ?>" data-prefix="<?= htmlspecialchars($childPrefix) ?>">
-                    <?php if ($hasMateriaux):
-                        $totalMat = count($sc['materiaux']);
-                        $matIndex = 0;
-                    ?>
+                <div class="sortable-materials" data-parent-id="<?= $uniqueId ?>">
+                    <?php if ($hasMateriaux): ?>
                         <?php foreach ($sc['materiaux'] as $mat):
-                            $matIndex++;
                             $qte = $mat['quantite_defaut'] ?? 1;
                             $total = $mat['prix_defaut'] * $qte;
-                            // Dernier matériau ET pas d'enfants après = └──
-                            $isLastMat = ($matIndex === $totalMat) && !$hasChildren;
-                            $matConnector = $isLastMat ? '└── ' : '├── ';
                         ?>
                             <div class="tree-content mat-item"
                                  data-id="<?= $mat['id'] ?>" data-type="materiaux">
-                                <span class="tree-connector"><?= $childPrefix . $matConnector ?></span>
+                                <span class="tree-arrow">▸</span>
                                 <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
                                 <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
                                 <span class="editable-name flex-grow-1 small" data-type="materiaux" data-id="<?= $mat['id'] ?>"><?= e($mat['nom']) ?></span>
@@ -1043,7 +1008,7 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $depth = 
                 <!-- Récursion pour les enfants -->
                 <div class="sortable-subcats" data-parent-id="<?= $uniqueId ?>">
                     <?php if ($hasChildren): ?>
-                        <?php afficherSousCategoriesRecursif($sc['enfants'], $categorieId, $depth + 1, $childPrefix); ?>
+                        <?php afficherSousCategoriesRecursif($sc['enfants'], $categorieId); ?>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1600,49 +1565,6 @@ function afficherSousCategoriesRecursif($sousCategories, $categorieId, $depth = 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
 
-    // ========================================
-    // MISE À JOUR DES CONNECTEURS D'ARBRE
-    // ========================================
-    function updateTreeConnectors() {
-        // Pour les sous-catégories dans chaque container
-        document.querySelectorAll('.tree-children').forEach(container => {
-            const parentItem = container.closest('.tree-item');
-            const prefix = parentItem ? (parentItem.dataset.prefix || '') : '';
-
-            const children = container.querySelectorAll(':scope > .tree-item');
-            children.forEach((child, index) => {
-                const isLast = index === children.length - 1;
-                const connector = child.querySelector(':scope > .tree-content > .tree-connector');
-                if (connector) {
-                    connector.textContent = prefix + (isLast ? '└── ' : '├── ');
-                }
-                // Mettre à jour le préfixe pour les enfants de cet item
-                child.dataset.prefix = prefix + (isLast ? '    ' : '│   ');
-            });
-        });
-
-        // Pour les matériaux dans sortable-materials
-        document.querySelectorAll('.sortable-materials').forEach(container => {
-            const prefix = container.dataset.prefix || '';
-            const materials = container.querySelectorAll(':scope > .mat-item');
-            const subcatsContainer = container.nextElementSibling;
-            const hasSubcatsAfter = subcatsContainer &&
-                                    subcatsContainer.classList.contains('sortable-subcats') &&
-                                    subcatsContainer.querySelector('.tree-item');
-
-            materials.forEach((mat, index) => {
-                const connector = mat.querySelector('.tree-connector');
-                if (connector) {
-                    const isLast = index === materials.length - 1 && !hasSubcatsAfter;
-                    connector.textContent = prefix + (isLast ? '└── ' : '├── ');
-                }
-            });
-        });
-    }
-
-    // Appeler au chargement (les connecteurs sont déjà générés par PHP, mais on appelle pour le drag&drop)
-    // updateTreeConnectors(); // Désactivé car PHP génère les connecteurs
-
     // 1. Initialiser le tri des Items (Matériaux)
     // Ils peuvent être déplacés entre différentes sous-catégories
     const materialLists = document.querySelectorAll('.sortable-materials');
@@ -1663,7 +1585,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const items = Array.from(newParentList.querySelectorAll('[data-type="materiaux"]')).map(el => el.getAttribute('data-id'));
 
                 saveOrder('materiaux', items, newParentId);
-                updateTreeConnectors(); // Mettre à jour les connecteurs
             }
         });
     });
@@ -1715,7 +1636,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const categorieId = new URLSearchParams(window.location.search).get('categorie');
 
                 saveOrder('sous_categorie', items, newParentId, categorieId);
-                updateTreeConnectors(); // Mettre à jour les connecteurs
             }
         });
     });
