@@ -74,6 +74,37 @@ try {
     ");
 }
 
+// Table pour stocker les quantités des sous-catégories par projet
+try {
+    $pdo->query("SELECT 1 FROM projet_sous_categories LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_sous_categories (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL,
+            sous_categorie_id INT NOT NULL,
+            quantite INT DEFAULT 1,
+            is_direct_drop TINYINT(1) DEFAULT 0,
+            groupe VARCHAR(50) DEFAULT NULL,
+            FOREIGN KEY (projet_id) REFERENCES projets(id) ON DELETE CASCADE,
+            FOREIGN KEY (sous_categorie_id) REFERENCES sous_categories(id) ON DELETE CASCADE,
+            UNIQUE KEY unique_projet_sc (projet_id, sous_categorie_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// Migration: ajouter les colonnes is_direct_drop et groupe si elles n'existent pas
+try {
+    $pdo->query("SELECT is_direct_drop FROM projet_sous_categories LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE projet_sous_categories ADD COLUMN is_direct_drop TINYINT(1) DEFAULT 0");
+}
+try {
+    $pdo->query("SELECT groupe FROM projet_sous_categories LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE projet_sous_categories ADD COLUMN groupe VARCHAR(50) DEFAULT NULL");
+}
+
 // Table pour stocker les valeurs de coûts récurrents par projet (types dynamiques)
 try {
     $pdo->query("SELECT 1 FROM projet_recurrents LIMIT 1");
@@ -741,25 +772,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
-// AJAX: Ajouter un item par drag-drop
+// AJAX: Ajouter un item par drag-drop (supporte form-data ET JSON)
 // ========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'add_dropped_item') {
+$dropData = null;
+$jsonInputDrop = file_get_contents('php://input');
+$jsonDataDrop = json_decode($jsonInputDrop, true);
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonDataDrop['ajax_action']) && $jsonDataDrop['ajax_action'] === 'add_dropped_item') {
+    $dropData = $jsonDataDrop;
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'add_dropped_item') {
+    $dropData = $_POST;
+}
+
+if ($dropData) {
     header('Content-Type: application/json');
 
-    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+    if (!verifyCSRFToken($dropData['csrf_token'] ?? '')) {
         echo json_encode(['success' => false, 'error' => 'Token invalide']);
         exit;
     }
 
-    $type = $_POST['type'] ?? '';
-    $itemId = (int)($_POST['item_id'] ?? 0);
-    $catId = (int)($_POST['cat_id'] ?? 0);
-    $groupe = $_POST['groupe'] ?? '';
-    $prix = parseNumber($_POST['prix'] ?? 0);
-    $qte = max(1, (int)($_POST['qte'] ?? 1));
+    $type = $dropData['type'] ?? '';
+    $itemId = (int)($dropData['item_id'] ?? 0);
+    $catId = (int)($dropData['cat_id'] ?? 0);
+    $groupe = $dropData['groupe'] ?? '';
+    $prix = parseNumber($dropData['prix'] ?? 0);
+    $qte = max(1, (int)($dropData['qte'] ?? 1));
+    $descendants = isset($dropData['descendants']) ? json_decode($dropData['descendants'], true) : null;
 
     try {
-        // Vérifier si un projet_poste existe pour cette catégorie, sinon le créer
+        $addedItems = []; // Liste des items ajoutés pour retourner au frontend
+        $posteId = null;
+
+        // Si c'est une sous-catégorie droppée directement, marquer comme direct drop
+        if ($type === 'sous_categorie') {
+            // Enregistrer cette sous-catégorie comme un "direct drop" (entrée autonome)
+            $stmt = $pdo->prepare("
+                INSERT INTO projet_sous_categories (projet_id, sous_categorie_id, quantite, is_direct_drop, groupe)
+                VALUES (?, ?, 1, 1, ?)
+                ON DUPLICATE KEY UPDATE is_direct_drop = 1, groupe = VALUES(groupe)
+            ");
+            $stmt->execute([$projetId, $itemId, $groupe]);
+
+            // On a quand même besoin d'un projet_poste pour stocker les matériaux
+            // Utiliser la catégorie parente de cette sous-catégorie
+            $stmt = $pdo->prepare("SELECT categorie_id FROM sous_categories WHERE id = ?");
+            $stmt->execute([$itemId]);
+            $scRow = $stmt->fetch();
+            if ($scRow) {
+                $catId = (int)$scRow['categorie_id'];
+            }
+        }
+
+        // Créer un projet_poste si nécessaire (pour catégories, matériaux ET sous-catégories direct drop)
         $stmt = $pdo->prepare("SELECT id FROM projet_postes WHERE projet_id = ? AND categorie_id = ?");
         $stmt->execute([$projetId, $catId]);
         $poste = $stmt->fetch();
@@ -772,8 +836,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         } else {
             $posteId = $poste['id'];
         }
-
-        $addedItems = []; // Liste des items ajoutés pour retourner au frontend
 
         if ($type === 'materiau') {
             // Ajouter un seul matériau
@@ -867,6 +929,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             }
         }
 
+        // Si on a des descendants (structure imbriquée), les sauvegarder récursivement
+        if ($descendants && is_array($descendants)) {
+            saveDescendantsRecursively($pdo, $projetId, $posteId, $descendants, $addedItems);
+        }
+
         // Sync la table budgets
         syncBudgetsFromProjetItems($pdo, $projetId);
 
@@ -880,6 +947,84 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
     exit;
+}
+
+// Fonction récursive pour sauvegarder les descendants (sous-catégories et matériaux)
+function saveDescendantsRecursively($pdo, $projetId, $posteId, $descendants, &$addedItems) {
+    foreach ($descendants as $item) {
+        if ($item['type'] === 'sous_categorie') {
+            $scId = (int)$item['id'];
+
+            // Sauvegarder/initialiser la quantité de la sous-catégorie (défaut 1)
+            $stmt = $pdo->prepare("
+                INSERT INTO projet_sous_categories (projet_id, sous_categorie_id, quantite)
+                VALUES (?, ?, 1)
+                ON DUPLICATE KEY UPDATE sous_categorie_id = sous_categorie_id
+            ");
+            $stmt->execute([$projetId, $scId]);
+
+            // Sauvegarder les matériaux de cette sous-catégorie
+            if (isset($item['materiaux']) && is_array($item['materiaux'])) {
+                foreach ($item['materiaux'] as $mat) {
+                    $matId = (int)$mat['id'];
+                    $matPrix = (float)($mat['prix'] ?? 0);
+                    $matQte = max(1, (int)($mat['qte'] ?? 1));
+
+                    // Vérifier si le matériau existe déjà
+                    $checkStmt = $pdo->prepare("SELECT id FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
+                    $checkStmt->execute([$projetId, $matId]);
+
+                    if (!$checkStmt->fetch()) {
+                        $insertStmt = $pdo->prepare("
+                            INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ");
+                        $sansTaxe = !empty($mat['sansTaxe']) ? 1 : 0;
+                        $insertStmt->execute([$projetId, $posteId, $matId, $matPrix, $matQte, $sansTaxe]);
+
+                        $addedItems[] = [
+                            'mat_id' => $matId,
+                            'nom' => $mat['nom'] ?? '',
+                            'prix' => $matPrix,
+                            'qte' => $matQte,
+                            'sans_taxe' => $sansTaxe,
+                            'sc_id' => $scId
+                        ];
+                    }
+                }
+            }
+
+            // Récursion pour les sous-sous-catégories
+            if (isset($item['enfants']) && is_array($item['enfants'])) {
+                saveDescendantsRecursively($pdo, $projetId, $posteId, $item['enfants'], $addedItems);
+            }
+        } elseif ($item['type'] === 'materiau') {
+            // Matériau direct (pas dans une sous-catégorie)
+            $matId = (int)$item['id'];
+            $matPrix = (float)($item['prix'] ?? 0);
+            $matQte = max(1, (int)($item['qte'] ?? 1));
+
+            $checkStmt = $pdo->prepare("SELECT id FROM projet_items WHERE projet_id = ? AND materiau_id = ?");
+            $checkStmt->execute([$projetId, $matId]);
+
+            if (!$checkStmt->fetch()) {
+                $insertStmt = $pdo->prepare("
+                    INSERT INTO projet_items (projet_id, projet_poste_id, materiau_id, prix_unitaire, quantite, sans_taxe)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                ");
+                $sansTaxe = !empty($item['sansTaxe']) ? 1 : 0;
+                $insertStmt->execute([$projetId, $posteId, $matId, $matPrix, $matQte, $sansTaxe]);
+
+                $addedItems[] = [
+                    'mat_id' => $matId,
+                    'nom' => $item['nom'] ?? '',
+                    'prix' => $matPrix,
+                    'qte' => $matQte,
+                    'sans_taxe' => $sansTaxe
+                ];
+            }
+        }
+    }
 }
 
 // ========================================
@@ -908,16 +1053,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonData['ajax_action']) && 
             }
         }
 
-        // Sauvegarder les quantités des items (catégories)
+        // Collecter les IDs des catégories et sous-catégories présentes dans le DOM
+        $presentCatIds = [];
+        $presentScIds = [];
+
         if (isset($jsonData['items'])) {
             foreach ($jsonData['items'] as $item) {
-                $stmt = $pdo->prepare("
-                    UPDATE projet_postes
-                    SET quantite = ?
-                    WHERE projet_id = ? AND categorie_id = ?
-                ");
-                $stmt->execute([$item['quantite'] ?? 1, $projetId, $item['id']]);
+                $type = $item['type'] ?? 'categorie';
+                $qte = $item['quantite'] ?? 1;
+                $id = (int)$item['id'];
+
+                if ($type === 'categorie') {
+                    $presentCatIds[] = $id;
+                    // Catégorie: mettre à jour projet_postes
+                    $stmt = $pdo->prepare("
+                        UPDATE projet_postes
+                        SET quantite = ?
+                        WHERE projet_id = ? AND categorie_id = ?
+                    ");
+                    $stmt->execute([$qte, $projetId, $id]);
+                } else if ($type === 'sous_categorie') {
+                    $presentScIds[] = $id;
+                    // Sous-catégorie: insérer/mettre à jour projet_sous_categories
+                    $stmt = $pdo->prepare("
+                        INSERT INTO projet_sous_categories (projet_id, sous_categorie_id, quantite)
+                        VALUES (?, ?, ?)
+                        ON DUPLICATE KEY UPDATE quantite = VALUES(quantite)
+                    ");
+                    $stmt->execute([$projetId, $id, $qte]);
+                }
             }
+        }
+
+        // Supprimer les catégories qui ne sont plus présentes dans le DOM
+        if (!empty($presentCatIds)) {
+            $placeholders = implode(',', array_fill(0, count($presentCatIds), '?'));
+            $params = array_merge([$projetId], $presentCatIds);
+
+            // D'abord supprimer les items liés aux postes qui vont être supprimés
+            $stmt = $pdo->prepare("
+                DELETE pi FROM projet_items pi
+                JOIN projet_postes pp ON pi.projet_poste_id = pp.id
+                WHERE pp.projet_id = ? AND pp.categorie_id NOT IN ($placeholders)
+            ");
+            $stmt->execute($params);
+
+            // Ensuite supprimer les postes
+            $stmt = $pdo->prepare("
+                DELETE FROM projet_postes
+                WHERE projet_id = ? AND categorie_id NOT IN ($placeholders)
+            ");
+            $stmt->execute($params);
+        } else {
+            // Aucune catégorie présente = tout supprimer
+            $stmt = $pdo->prepare("
+                DELETE pi FROM projet_items pi
+                JOIN projet_postes pp ON pi.projet_poste_id = pp.id
+                WHERE pp.projet_id = ?
+            ");
+            $stmt->execute([$projetId]);
+
+            $stmt = $pdo->prepare("DELETE FROM projet_postes WHERE projet_id = ?");
+            $stmt->execute([$projetId]);
+        }
+
+        // Supprimer les sous-catégories direct drop qui ne sont plus présentes
+        // (on garde les sous-catégories non-direct-drop car elles font partie des catégories)
+        if (!empty($presentScIds)) {
+            $placeholders = implode(',', array_fill(0, count($presentScIds), '?'));
+            $params = array_merge([$projetId], $presentScIds);
+            $stmt = $pdo->prepare("
+                DELETE FROM projet_sous_categories
+                WHERE projet_id = ? AND is_direct_drop = 1 AND sous_categorie_id NOT IN ($placeholders)
+            ");
+            $stmt->execute($params);
+        } else {
+            // Aucune sous-catégorie présente = supprimer tous les direct drops
+            $stmt = $pdo->prepare("
+                DELETE FROM projet_sous_categories
+                WHERE projet_id = ? AND is_direct_drop = 1
+            ");
+            $stmt->execute([$projetId]);
         }
 
         // Sync la table budgets
@@ -952,6 +1168,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
         // Supprimer les quantités de groupes
         $stmt = $pdo->prepare("DELETE FROM projet_groupes WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+
+        // Supprimer les quantités de sous-catégories
+        $stmt = $pdo->prepare("DELETE FROM projet_sous_categories WHERE projet_id = ?");
         $stmt->execute([$projetId]);
 
         // IMPORTANT: Supprimer aussi de la table budgets pour sync avec Détail des coûts
@@ -1005,7 +1225,8 @@ $tousInvestisseurs = $stmt->fetchAll();
 try {
     $stmt = $pdo->prepare("
         SELECT pi.*, i.nom as investisseur_nom,
-               COALESCE(pi.type_financement, IF(pi.taux_interet > 0, 'preteur', 'investisseur')) as type_calc
+               COALESCE(pi.type_financement, 'preteur') as type_calc,
+               COALESCE(pi.pourcentage_profit, 0) as pourcentage_profit
         FROM projet_investisseurs pi
         JOIN investisseurs i ON pi.investisseur_id = i.id
         WHERE pi.projet_id = ?
@@ -1144,36 +1365,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $montant = parseNumber($_POST['montant_pret'] ?? 0);
                 $tauxInteret = parseNumber($_POST['taux_interet_pret'] ?? 10);
                 $typeFinancement = $_POST['type_financement'] ?? 'preteur';
+                $pourcentageProfit = parseNumber($_POST['pourcentage_profit'] ?? 0);
 
-                if ($investisseurId && $montant > 0) {
+                if ($investisseurId && ($montant > 0 || $pourcentageProfit > 0)) {
                     $stmt = $pdo->prepare("
-                        INSERT INTO projet_investisseurs (projet_id, investisseur_id, type_financement, montant, taux_interet)
-                        VALUES (?, ?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE montant = VALUES(montant), taux_interet = VALUES(taux_interet), type_financement = VALUES(type_financement)
+                        INSERT INTO projet_investisseurs (projet_id, investisseur_id, type_financement, montant, taux_interet, pourcentage_profit)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        ON DUPLICATE KEY UPDATE montant = VALUES(montant), taux_interet = VALUES(taux_interet), type_financement = VALUES(type_financement), pourcentage_profit = VALUES(pourcentage_profit)
                     ");
-                    $stmt->execute([$projetId, $investisseurId, $typeFinancement, $montant, $tauxInteret]);
-                    setFlashMessage('success', 'Prêteur ajouté!');
+                    $stmt->execute([$projetId, $investisseurId, $typeFinancement, $montant, $tauxInteret, $pourcentageProfit]);
+                    setFlashMessage('success', $typeFinancement === 'investisseur' ? 'Investisseur ajouté!' : 'Prêteur ajouté!');
                 }
             } elseif ($subAction === 'supprimer') {
                 $preteurId = (int)($_POST['preteur_id'] ?? 0);
                 if ($preteurId) {
                     $stmt = $pdo->prepare("DELETE FROM projet_investisseurs WHERE id = ? AND projet_id = ?");
                     $stmt->execute([$preteurId, $projetId]);
-                    setFlashMessage('success', 'Prêteur supprimé.');
+                    setFlashMessage('success', 'Supprimé.');
                 }
             } elseif ($subAction === 'modifier') {
                 $preteurId = (int)($_POST['preteur_id'] ?? 0);
                 $montant = parseNumber($_POST['montant_pret'] ?? 0);
                 $tauxInteret = parseNumber($_POST['taux_interet_pret'] ?? 0);
+                $pourcentageProfit = parseNumber($_POST['pourcentage_profit'] ?? 0);
 
-                if ($preteurId && $montant > 0) {
+                if ($preteurId && ($montant > 0 || $pourcentageProfit > 0)) {
                     $stmt = $pdo->prepare("
                         UPDATE projet_investisseurs
-                        SET montant = ?, taux_interet = ?
+                        SET montant = ?, taux_interet = ?, pourcentage_profit = ?
                         WHERE id = ? AND projet_id = ?
                     ");
-                    $stmt->execute([$montant, $tauxInteret, $preteurId, $projetId]);
+                    $stmt->execute([$montant, $tauxInteret, $pourcentageProfit, $preteurId, $projetId]);
                     setFlashMessage('success', 'Financement mis à jour!');
+                }
+            } elseif ($subAction === 'convertir') {
+                // Convertir prêteur <-> investisseur
+                $preteurId = (int)($_POST['preteur_id'] ?? 0);
+                $nouveauType = $_POST['nouveau_type'] ?? '';
+
+                if ($preteurId && in_array($nouveauType, ['preteur', 'investisseur'])) {
+                    $stmt = $pdo->prepare("
+                        UPDATE projet_investisseurs
+                        SET type_financement = ?, taux_interet = ?
+                        WHERE id = ? AND projet_id = ?
+                    ");
+                    // Si on convertit en investisseur, on met le taux à 0
+                    $nouveauTaux = ($nouveauType === 'investisseur') ? 0 : 10;
+                    $stmt->execute([$nouveauType, $nouveauTaux, $preteurId, $projetId]);
+                    setFlashMessage('success', 'Converti en ' . ($nouveauType === 'investisseur' ? 'investisseur' : 'prêteur') . '!');
                 }
             }
             redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=financement');
@@ -1209,6 +1448,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $projet = getProjetById($pdo, $projetId);
 $tab = $_GET['tab'] ?? 'base';
 $pageTitle = $projet['nom'];
+
+// IMPORTANT: Synchroniser budgets AVANT de calculer les indicateurs
+// pour que calculerIndicateursProjet ait les bonnes valeurs de rénovation
+syncBudgetsFromProjetItems($pdo, $projetId);
+
 $indicateurs = calculerIndicateursProjet($pdo, $projet);
 
 // Sauvegarder le dernier projet visité (pour raccourci "Projet récent")
@@ -1230,8 +1474,7 @@ if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
 }
 
 $categories = getCategories($pdo);
-// Synchroniser budgets depuis projet_items avant lecture
-syncBudgetsFromProjetItems($pdo, $projetId);
+// syncBudgetsFromProjetItems déjà appelé plus haut avant calculerIndicateursProjet
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
 
@@ -1379,6 +1622,21 @@ try {
     $stmt->execute([$projetId]);
     foreach ($stmt->fetchAll() as $row) {
         $projetGroupes[$row['groupe_nom']] = (int)$row['quantite'];
+    }
+
+    // Charger les quantités des sous-catégories existantes + les direct drops
+    $projetSousCategories = [];
+    $projetDirectDrops = []; // sous-catégories droppées directement comme entrées autonomes
+    $stmt = $pdo->prepare("SELECT sous_categorie_id, quantite, is_direct_drop, groupe FROM projet_sous_categories WHERE projet_id = ?");
+    $stmt->execute([$projetId]);
+    foreach ($stmt->fetchAll() as $row) {
+        $projetSousCategories[$row['sous_categorie_id']] = (int)$row['quantite'];
+        if (!empty($row['is_direct_drop'])) {
+            $projetDirectDrops[$row['sous_categorie_id']] = [
+                'quantite' => (int)$row['quantite'],
+                'groupe' => $row['groupe']
+            ];
+        }
     }
 } catch (Exception $e) {
     // Tables pas encore créées, ignorer
@@ -1779,6 +2037,7 @@ include '../../includes/header.php';
 .cost-table .total-row { background: #374151; color: white; font-weight: 600; }
 .cost-table .grand-total { background: #1e3a5f; color: white; font-weight: 700; }
 .cost-table .profit-row { background: #198754; color: white; font-weight: 700; }
+.cost-table .loss-row { background: #dc3545; color: white; font-weight: 700; }
 .cost-table .text-end { text-align: right; }
 .cost-table .positive { color: #198754; }
 .cost-table .negative { color: #dc3545; }
@@ -1904,35 +2163,42 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <div class="tab-pane fade <?= $tab === 'base' ? 'show active' : '' ?>" id="base" role="tabpanel">
 
     <!-- Indicateurs en haut -->
+    <?php
+    // Déterminer les couleurs pour Extrapolé et Réel
+    $extrapoleBgClass = $indicateurs['equite_potentielle'] >= 0 ? 'bg-success' : 'bg-danger';
+    $extrapoleTextClass = $indicateurs['equite_potentielle'] >= 0 ? 'text-success' : 'text-danger';
+    $reelBgClass = $indicateurs['equite_reelle'] >= 0 ? 'bg-success' : 'bg-danger';
+    $reelTextClass = $indicateurs['equite_reelle'] >= 0 ? 'text-success' : 'text-danger';
+    ?>
     <div class="row g-2 mb-3">
         <div class="col-6 col-lg">
-            <div class="card text-center p-2 bg-primary bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Prix de vente estimé de la propriété après rénovations">
+            <div class="card text-center p-2" style="background: rgba(100, 116, 139, 0.1);" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Prix de vente estimé de la propriété après rénovations">
                 <small class="text-muted">Valeur potentielle <i class="bi bi-info-circle small"></i></small>
-                <strong class="fs-5 text-primary" id="indValeurPotentielle"><?= formatMoney($indicateurs['valeur_potentielle']) ?></strong>
+                <strong class="fs-5" style="color: #64748b;" id="indValeurPotentielle"><?= formatMoney($indicateurs['valeur_potentielle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-lg">
-            <div class="card text-center p-2 bg-warning bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit prévu si vous respectez le budget. Calcul: Valeur potentielle - Prix d'achat - Budget total - Frais">
-                <small class="text-muted">Équité Budget <i class="bi bi-info-circle small"></i></small>
-                <strong class="fs-5 text-warning" id="indEquiteBudget"><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
+            <div class="card text-center p-2 <?= $extrapoleBgClass ?> bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit prévu si vous respectez le budget. Calcul: Valeur potentielle - Prix d'achat - Budget total - Frais">
+                <small class="text-muted">Extrapolé <i class="bi bi-info-circle small"></i></small>
+                <strong class="fs-5 <?= $extrapoleTextClass ?>" id="indEquiteBudget"><?= formatMoney($indicateurs['equite_potentielle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-lg">
-            <div class="card text-center p-2 bg-info bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Cash flow nécessaire. Exclut: courtier, taxes mun/scol, mutation. Sans intérêts: <?= formatMoney($indicateurs['cash_flow_moins_interets'], false) ?>$">
+            <div class="card text-center p-2" style="background: rgba(100, 116, 139, 0.1);" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Cash flow nécessaire. Exclut: courtier, taxes mun/scol, mutation. Sans intérêts: <?= formatMoney($indicateurs['cash_flow_moins_interets'], false) ?>$">
                 <small class="text-muted">Cash Flow <i class="bi bi-info-circle small"></i></small>
-                <strong class="fs-5 text-info" id="indCashFlow"><?= formatMoney($indicateurs['cash_flow_necessaire']) ?></strong>
+                <strong class="fs-5" style="color: #64748b;" id="indCashFlow"><?= formatMoney($indicateurs['cash_flow_necessaire']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-lg">
-            <div class="card text-center p-2 bg-success bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit réel basé sur les dépenses actuelles. Calcul: Valeur potentielle - Prix d'achat - Dépenses réelles - Frais">
-                <small class="text-muted">Équité Réelle <i class="bi bi-info-circle small"></i></small>
-                <strong class="fs-5 text-success" id="indEquiteReelle"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
+            <div class="card text-center p-2 <?= $reelBgClass ?> bg-opacity-10" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Profit réel basé sur les dépenses actuelles. Calcul: Valeur potentielle - Prix d'achat - Dépenses réelles - Frais">
+                <small class="text-muted">Réel <i class="bi bi-info-circle small"></i></small>
+                <strong class="fs-5 <?= $reelTextClass ?>" id="indEquiteReelle"><?= formatMoney($indicateurs['equite_reelle']) ?></strong>
             </div>
         </div>
         <div class="col-6 col-lg">
-            <div class="card text-center p-2" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Retour sur investissement basé sur votre mise de fonds (cash investi). Calcul: Équité Réelle ÷ Mise de fonds × 100">
+            <div class="card text-center p-2" style="background: rgba(100, 116, 139, 0.1);" role="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Retour sur investissement basé sur votre mise de fonds (cash investi). Calcul: Équité Réelle ÷ Mise de fonds × 100">
                 <small class="text-muted">ROI Leverage <i class="bi bi-info-circle small"></i></small>
-                <strong class="fs-5" id="indRoiLeverage"><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
+                <strong class="fs-5" style="color: #64748b;" id="indRoiLeverage"><?= formatPercent($indicateurs['roi_leverage']) ?></strong>
             </div>
         </div>
     </div>
@@ -2146,25 +2412,25 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <label class="form-label">Durée (mois)</label>
                                 <input type="number" class="form-control bg-light" name="temps_assume_mois" id="duree_mois" value="<?= (int)$projet['temps_assume_mois'] ?>" readonly title="Calculé automatiquement: Date vente (ou fin travaux) - Date achat">
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Cession</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="cession" value="<?= formatMoney($projet['cession'] ?? 0, false) ?>">
                                 </div>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Notaire</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="notaire" value="<?= formatMoney($projet['notaire'], false) ?>">
                                 </div>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Arpenteurs</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="arpenteurs" value="<?= formatMoney($projet['arpenteurs'], false) ?>">
                                 </div>
                             </div>
-                            <div class="col-4">
+                            <div class="col-3">
                                 <label class="form-label">Ass. titre</label>
                                 <div class="input-group"><span class="input-group-text">$</span>
                                     <input type="text" class="form-control money-input" name="assurance_titre" value="<?= formatMoney($projet['assurance_titre'], false) ?>">
@@ -2639,7 +2905,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </tr>
                     
                     <?php $diffEquite = $indicateurs['equite_reelle'] - $indicateurs['equite_potentielle']; ?>
-                    <tr class="profit-row">
+                    <tr class="total-row">
                         <td>ÉQUITÉ / PROFIT</td>
                         <td class="text-end"><?= formatMoney($indicateurs['equite_potentielle']) ?></td>
                         <td class="text-end" style="color:<?= $diffEquite >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffEquite >= 0 ? '+' : '' ?><?= formatMoney($diffEquite) ?></td>
@@ -2652,74 +2918,122 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td colspan="4"><i class="bi bi-pie-chart me-1"></i> Partage des profits <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
 
-                    <?php if (!empty($indicateurs['preteurs'])): ?>
-                    <?php foreach ($indicateurs['preteurs'] as $preteur): ?>
-                    <tr class="sub-item">
-                        <td><i class="bi bi-bank text-warning me-1"></i><?= e($preteur['nom']) ?> (<?= $preteur['taux'] ?>%)</td>
-                        <td class="text-end text-success">+<?= formatMoney($preteur['interets_total']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end text-success">+<?= formatMoney($preteur['interets_total']) ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
-
-                    <?php if (!empty($indicateurs['investisseurs'])): ?>
-                    <?php foreach ($indicateurs['investisseurs'] as $inv): ?>
-                    <tr class="sub-item">
-                        <td><i class="bi bi-person text-info me-1"></i><?= e($inv['nom']) ?> (<?= number_format($inv['pourcentage'], 1) ?>%)</td>
-                        <td class="text-end text-success">+<?= formatMoney($inv['profit_estime']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end text-success">+<?= formatMoney($inv['profit_estime']) ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
-
                     <?php
-                    // Les intérêts des prêteurs sont DÉJÀ inclus dans les coûts de vente
-                    // Donc on ne soustrait que la part des investisseurs (partage de profits)
-                    $totalPartageInvestisseurs = 0;
-                    foreach ($indicateurs['investisseurs'] ?? [] as $inv) {
-                        $totalPartageInvestisseurs += $inv['profit_estime'];
-                    }
-                    $profitNet = $indicateurs['equite_potentielle'] - $totalPartageInvestisseurs;
+                    // Calcul du profit net EXTRAPOLÉ (avant partage) = équité potentielle
+                    $profitNetAvantPartage = $indicateurs['equite_potentielle'];
+                    // Calcul du profit net RÉEL (avant partage) = équité réelle
+                    $profitNetAvantPartageReel = $indicateurs['equite_reelle'];
 
-                    // Calcul impôt sur le profit (gain en capital)
-                    // 12,2% sur les premiers 500 000$ (Fédéral 9% + Québec 3,2%)
-                    // 26,5% au-delà de 500 000$
+                    // Calcul impôt sur le profit EXTRAPOLÉ
                     $seuilImpot = 500000;
                     $tauxBase = 0.122; // 12,2%
                     $tauxEleve = 0.265; // 26,5%
 
-                    if ($profitNet <= 0) {
+                    if ($profitNetAvantPartage <= 0) {
                         $impotAPayer = 0;
-                    } elseif ($profitNet <= $seuilImpot) {
-                        $impotAPayer = $profitNet * $tauxBase;
+                    } elseif ($profitNetAvantPartage <= $seuilImpot) {
+                        $impotAPayer = $profitNetAvantPartage * $tauxBase;
                     } else {
-                        $impotAPayer = ($seuilImpot * $tauxBase) + (($profitNet - $seuilImpot) * $tauxEleve);
+                        $impotAPayer = ($seuilImpot * $tauxBase) + (($profitNetAvantPartage - $seuilImpot) * $tauxEleve);
                     }
-                    $profitApresImpot = $profitNet - $impotAPayer;
+                    $profitApresImpot = $profitNetAvantPartage - $impotAPayer;
+
+                    // Calcul impôt sur le profit RÉEL
+                    if ($profitNetAvantPartageReel <= 0) {
+                        $impotAPayerReel = 0;
+                    } elseif ($profitNetAvantPartageReel <= $seuilImpot) {
+                        $impotAPayerReel = $profitNetAvantPartageReel * $tauxBase;
+                    } else {
+                        $impotAPayerReel = ($seuilImpot * $tauxBase) + (($profitNetAvantPartageReel - $seuilImpot) * $tauxEleve);
+                    }
+                    $profitApresImpotReel = $profitNetAvantPartageReel - $impotAPayerReel;
                     ?>
-                    <tr class="total-row">
-                        <td>PROFIT NET (après partage)</td>
-                        <td class="text-end"><?= formatMoney($profitNet) ?></td>
+
+                    <!-- Prêteurs (capital + intérêts à rembourser) -->
+                    <?php if (!empty($indicateurs['preteurs'])): ?>
+                    <?php foreach ($indicateurs['preteurs'] as $preteur):
+                        $totalDu = $preteur['montant'] + $preteur['interets_total'];
+                    ?>
+                    <tr class="sub-item">
+                        <td>
+                            <i class="bi bi-bank text-warning me-1"></i><?= e($preteur['nom']) ?>
+                            <?php if ($preteur['taux'] > 0): ?>
+                                <small class="text-muted">(<?= $preteur['taux'] ?>% = <?= formatMoney($preteur['interets_total']) ?> int.)</small>
+                            <?php else: ?>
+                                <small class="text-muted">(prêt 0%)</small>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-end" style="color: #e74c3c;">-<?= formatMoney($totalDu) ?></td>
                         <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($profitNet) ?></td>
+                        <td class="text-end" style="color: #e74c3c;">-<?= formatMoney($totalDu) ?></td>
                     </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+
+                    <!-- PROFIT NET (avant partage) -->
+                    <?php $diffProfitNet = $profitNetAvantPartageReel - $profitNetAvantPartage; ?>
+                    <tr class="total-row">
+                        <td>PROFIT NET (avant partage)</td>
+                        <td class="text-end"><?= formatMoney($profitNetAvantPartage) ?></td>
+                        <td class="text-end" style="color:<?= $diffProfitNet >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffProfitNet >= 0 ? '+' : '' ?><?= formatMoney($diffProfitNet) ?></td>
+                        <td class="text-end"><?= formatMoney($profitNetAvantPartageReel) ?></td>
+                    </tr>
+
+                    <!-- Impôt à payer -->
+                    <?php $diffImpot = $impotAPayerReel - $impotAPayer; ?>
                     <tr class="sub-item text-danger">
                         <td>
                             <i class="bi bi-bank2 me-1"></i>Impôt à payer
-                            <small class="text-muted">(<?= $profitNet <= $seuilImpot ? '12,2%' : '12,2% + 26,5%' ?>)</small>
+                            <small class="text-muted">(<?= $profitNetAvantPartage <= $seuilImpot ? '12,2%' : '12,2% + 26,5%' ?>)</small>
                         </td>
                         <td class="text-end">-<?= formatMoney($impotAPayer) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end">-<?= formatMoney($impotAPayer) ?></td>
+                        <td class="text-end" style="color:<?= $diffImpot <= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffImpot >= 0 ? '+' : '' ?><?= formatMoney($diffImpot) ?></td>
+                        <td class="text-end">-<?= formatMoney($impotAPayerReel) ?></td>
                     </tr>
-                    <tr class="total-row table-success">
+
+                    <!-- PROFIT APRÈS IMPÔT -->
+                    <?php
+                    $profitNegatif = $profitApresImpot < 0;
+                    $profitReelNegatif = $profitApresImpotReel < 0;
+                    $profitRowClass = $profitNegatif ? 'loss-row' : 'profit-row';
+                    $diffProfitApres = $profitApresImpotReel - $profitApresImpot;
+                    ?>
+                    <tr class="<?= $profitRowClass ?>">
                         <td><strong><i class="bi bi-cash-stack me-1"></i>PROFIT APRÈS IMPÔT</strong></td>
                         <td class="text-end"><strong><?= formatMoney($profitApresImpot) ?></strong></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><strong><?= formatMoney($profitApresImpot) ?></strong></td>
+                        <td class="text-end" style="color:<?= $diffProfitApres >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffProfitApres >= 0 ? '+' : '' ?><?= formatMoney($diffProfitApres) ?></td>
+                        <td class="text-end"><strong><?= formatMoney($profitApresImpotReel) ?></strong></td>
                     </tr>
+
+                    <!-- Ligne miroir de séparation -->
+                    <tr>
+                        <td colspan="4" style="padding: 0; height: 3px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);"></td>
+                    </tr>
+
+                    <!-- Division entre investisseurs -->
+                    <?php if (!empty($indicateurs['investisseurs'])): ?>
+                    <tr class="section-header" data-section="division">
+                        <td colspan="4"><i class="bi bi-people me-1"></i> Division entre investisseurs <i class="bi bi-chevron-down toggle-icon"></i></td>
+                    </tr>
+                    <?php foreach ($indicateurs['investisseurs'] as $inv): ?>
+                    <?php
+                    // Calculer la part de chaque investisseur sur le profit après impôt (extrapolé et réel)
+                    $partInvestisseur = $profitApresImpot * ($inv['pourcentage'] / 100);
+                    $partInvestisseurReel = $profitApresImpotReel * ($inv['pourcentage'] / 100);
+                    $isNegatif = $partInvestisseur < 0;
+                    $invRowClass = $isNegatif ? 'loss-row' : 'profit-row';
+                    $prefix = $isNegatif ? '' : '+';
+                    $prefixReel = $partInvestisseurReel < 0 ? '' : '+';
+                    $diffInv = $partInvestisseurReel - $partInvestisseur;
+                    ?>
+                    <tr class="<?= $invRowClass ?>">
+                        <td><i class="bi bi-person text-info me-1"></i><?= e($inv['nom']) ?> (<?= number_format($inv['pourcentage'], 1) ?>%)</td>
+                        <td class="text-end"><?= $prefix ?><?= formatMoney($partInvestisseur) ?></td>
+                        <td class="text-end" style="color:<?= $diffInv >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffInv >= 0 ? '+' : '' ?><?= formatMoney($diffInv) ?></td>
+                        <td class="text-end"><?= $prefixReel ?><?= formatMoney($partInvestisseurReel) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -2747,18 +3061,21 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     $listeInvestisseurs = [];
     $totalPretsCalc = 0;
     $totalInvest = 0;
+    $totalPctDirect = 0; // Total des pourcentages entrés directement
 
     foreach ($preteursProjet as $p) {
         $montant = (float)($p['montant'] ?? $p['mise_de_fonds'] ?? 0);
         $taux = (float)($p['taux_interet'] ?? 0);
+        $pctProfit = (float)($p['pourcentage_profit'] ?? 0);
         $type = $p['type_calc'] ?? ($taux > 0 ? 'preteur' : 'investisseur');
 
         if ($type === 'preteur') {
             $listePreteurs[] = array_merge($p, ['montant_calc' => $montant, 'taux_calc' => $taux]);
             $totalPretsCalc += $montant;
         } else {
-            $listeInvestisseurs[] = array_merge($p, ['montant_calc' => $montant, 'pct_calc' => $taux]);
+            $listeInvestisseurs[] = array_merge($p, ['montant_calc' => $montant, 'pct_direct' => $pctProfit]);
             $totalInvest += $montant;
+            $totalPctDirect += $pctProfit;
         }
     }
 
@@ -2924,6 +3241,16 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                                 <i class="bi bi-check"></i>
                                             </button>
                                     </form>
+                                            <form method="POST" class="d-inline" title="Convertir en investisseur">
+                                                <?php csrfField(); ?>
+                                                <input type="hidden" name="action" value="preteurs">
+                                                <input type="hidden" name="sub_action" value="convertir">
+                                                <input type="hidden" name="preteur_id" value="<?= $p['id'] ?>">
+                                                <input type="hidden" name="nouveau_type" value="investisseur">
+                                                <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #2ecc71;" title="Convertir en investisseur">
+                                                    <i class="bi bi-arrow-right-circle"></i>
+                                                </button>
+                                            </form>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
                                                 <?php csrfField(); ?>
                                                 <input type="hidden" name="action" value="preteurs">
@@ -3016,17 +3343,23 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             <thead>
                                 <tr style="background: #34495e;">
                                     <th class="text-light">Nom</th>
-                                    <th class="text-end text-light">Mise</th>
-                                    <th class="text-center text-light">% Profits</th>
+                                    <th class="text-end text-light">Mise $</th>
+                                    <th class="text-center text-light">% Direct</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                             <?php
-                            $totalPctInvest = 0;
+                            $totalPctFinal = 0;
                             foreach ($listeInvestisseurs as $inv):
-                                $pct = $totalInvest > 0 ? ($inv['montant_calc'] / $totalInvest) * 100 : 0;
-                                $totalPctInvest += $pct;
+                                // Si pourcentage direct est défini, l'utiliser, sinon calculer selon la mise
+                                $pctDirect = (float)($inv['pct_direct'] ?? 0);
+                                if ($pctDirect > 0) {
+                                    $pctFinal = $pctDirect;
+                                } else {
+                                    $pctFinal = $totalInvest > 0 ? ($inv['montant_calc'] / $totalInvest) * 100 : 0;
+                                }
+                                $totalPctFinal += $pctFinal;
                             ?>
                                 <tr style="background: #1e2a38;">
                                     <form method="POST" id="form-invest-<?= $inv['id'] ?>">
@@ -3038,15 +3371,34 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                         <td class="align-middle"><i class="bi bi-person-circle text-secondary me-1"></i><?= e($inv['investisseur_nom']) ?></td>
                                         <td class="text-end">
                                             <input type="text" class="form-control form-control-sm money-input text-end"
-                                                   name="montant_pret" value="<?= number_format($inv['montant_calc'], 0, ',', ' ') ?>"
-                                                   style="width: 100px; display: inline-block; background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
+                                                   name="montant_pret" value="<?= $inv['montant_calc'] > 0 ? number_format($inv['montant_calc'], 0, ',', ' ') : '' ?>"
+                                                   placeholder="0"
+                                                   style="width: 90px; display: inline-block; background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                                         </td>
-                                        <td class="text-center"><span class="badge" style="background: #34495e; color: #ecf0f1;"><?= number_format($pct, 1) ?>%</span></td>
+                                        <td class="text-center">
+                                            <div class="input-group input-group-sm" style="width: 80px; display: inline-flex;">
+                                                <input type="text" class="form-control form-control-sm text-end"
+                                                       name="pourcentage_profit" value="<?= $pctDirect > 0 ? number_format($pctDirect, 1) : '' ?>"
+                                                       placeholder="<?= number_format($pctFinal, 1) ?>"
+                                                       style="background: #2c3e50; border-color: #3d4f5f; color: <?= $pctDirect > 0 ? '#3498db' : '#95a5a6' ?>;">
+                                                <span class="input-group-text" style="background: #34495e; border-color: #3d4f5f; color: #95a5a6; padding: 0 4px;">%</span>
+                                            </div>
+                                        </td>
                                         <td class="text-nowrap">
                                             <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #3498db;" title="Sauvegarder">
                                                 <i class="bi bi-check"></i>
                                             </button>
                                     </form>
+                                            <form method="POST" class="d-inline" title="Convertir en prêteur">
+                                                <?php csrfField(); ?>
+                                                <input type="hidden" name="action" value="preteurs">
+                                                <input type="hidden" name="sub_action" value="convertir">
+                                                <input type="hidden" name="preteur_id" value="<?= $inv['id'] ?>">
+                                                <input type="hidden" name="nouveau_type" value="preteur">
+                                                <button type="submit" class="btn btn-sm py-0 px-1" style="border-color: #3d4f5f; color: #f39c12;" title="Convertir en prêteur">
+                                                    <i class="bi bi-arrow-left-circle"></i>
+                                                </button>
+                                            </form>
                                             <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer?')">
                                                 <?php csrfField(); ?>
                                                 <input type="hidden" name="action" value="preteurs">
@@ -3066,13 +3418,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
                 <!-- Formulaire ajout investisseur -->
                 <div class="card-footer" style="background: #243342; border-top: 1px solid #3d4f5f;">
-                    <form method="POST" class="row g-2 align-items-end">
+                    <form method="POST" class="row g-2 align-items-end" id="form-add-investisseur">
                         <?php csrfField(); ?>
                         <input type="hidden" name="action" value="preteurs">
                         <input type="hidden" name="sub_action" value="ajouter">
                         <input type="hidden" name="type_financement" value="investisseur">
                         <input type="hidden" name="taux_interet_pret" value="0">
-                        <div class="col-6">
+                        <div class="col-5">
                             <label class="form-label small mb-0 text-secondary">Personne</label>
                             <select class="form-select form-select-sm" name="investisseur_id" required style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                                 <option value="">Choisir...</option>
@@ -3081,24 +3433,58 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-4">
+                        <div class="col-3">
                             <label class="form-label small mb-0 text-secondary">Mise $</label>
-                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" required placeholder="0" style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
+                            <input type="text" class="form-control form-control-sm money-input" name="montant_pret" placeholder="0" style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
+                        </div>
+                        <div class="col-2">
+                            <label class="form-label small mb-0 text-secondary">OU %</label>
+                            <input type="text" class="form-control form-control-sm" name="pourcentage_profit" placeholder="%" style="background: #2c3e50; border-color: #3d4f5f; color: #ecf0f1;">
                         </div>
                         <div class="col-2">
                             <button type="submit" class="btn btn-sm w-100" style="background: #3498db; border-color: #3498db; color: white;"><i class="bi bi-plus-lg"></i></button>
                         </div>
                     </form>
-                    <small class="text-muted">% calculé automatiquement selon la mise</small>
+                    <small class="text-muted">Entrez une mise $ (% calculé auto) OU un % direct</small>
                 </div>
             </div>
 
-            <!-- Total investisseurs -->
+            <!-- Total investisseurs et avertissement -->
+            <?php
+            // Calculer le total final des pourcentages
+            $totalPctAffiche = 0;
+            foreach ($listeInvestisseurs as $inv) {
+                $pctDirect = (float)($inv['pct_direct'] ?? 0);
+                if ($pctDirect > 0) {
+                    $totalPctAffiche += $pctDirect;
+                } else {
+                    $totalPctAffiche += $totalInvest > 0 ? ($inv['montant_calc'] / $totalInvest) * 100 : 0;
+                }
+            }
+            $pctManquant = 100 - $totalPctAffiche;
+            ?>
             <div class="card mb-4" style="border-color: #3d4f5f; background: #2c3e50;">
                 <div class="card-body py-2">
-                    <div class="d-flex justify-content-between">
+                    <div class="d-flex justify-content-between mb-1">
                         <span class="text-secondary">Total mises</span>
                         <strong><?= formatMoney($totalInvest) ?></strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-secondary">Total %</span>
+                        <?php if (abs($pctManquant) < 0.1): ?>
+                            <span class="badge" style="background: #27ae60;"><i class="bi bi-check-circle me-1"></i>100%</span>
+                        <?php elseif ($pctManquant > 0): ?>
+                            <span class="badge" style="background: #e74c3c;">
+                                <?= number_format($totalPctAffiche, 1) ?>%
+                                <i class="bi bi-arrow-right mx-1"></i>
+                                Manque <?= number_format($pctManquant, 1) ?>%
+                            </span>
+                        <?php else: ?>
+                            <span class="badge" style="background: #e67e22;">
+                                <?= number_format($totalPctAffiche, 1) ?>%
+                                <i class="bi bi-exclamation-triangle ms-1"></i>
+                            </span>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
