@@ -7,6 +7,7 @@
 require_once '../config.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/notifications.php';
 
 requireLogin();
 
@@ -76,13 +77,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
                 $stmt->execute([$projetId, $targetUserId, $dateTravail, $heures, $targetTauxHoraire, $description]);
                 
+                // Envoyer notification Pushover
+                $stmt = $pdo->prepare("SELECT nom FROM projets WHERE id = ?");
+                $stmt->execute([$projetId]);
+                $projetNom = $stmt->fetchColumn();
+
                 if ($targetUserId === $userId) {
+                    notifyNewHeures(getCurrentUserName(), $projetNom, $heures, $dateTravail);
                     setFlashMessage('success', 'Heures enregistrées avec succès (' . $heures . 'h)');
                 } else {
                     // Récupérer le nom de l'employé pour le message
                     $stmt = $pdo->prepare("SELECT CONCAT(prenom, ' ', nom) FROM users WHERE id = ?");
                     $stmt->execute([$targetUserId]);
                     $nomEmploye = $stmt->fetchColumn();
+                    notifyNewHeures($nomEmploye, $projetNom, $heures, $dateTravail);
                     setFlashMessage('success', 'Heures enregistrées pour ' . $nomEmploye . ' (' . $heures . 'h)');
                 }
                 redirect('/employe/feuille-temps.php');

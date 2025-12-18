@@ -7,6 +7,7 @@
 require_once '../config.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/notifications.php';
 
 requireLogin();
 
@@ -183,6 +184,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($uploadedCount > 0) {
+                // Envoyer notification Pushover
+                $stmt = $pdo->prepare("SELECT nom FROM projets WHERE id = ?");
+                $stmt->execute([$projetId]);
+                $projetNom = $stmt->fetchColumn();
+                notifyNewPhotos(getCurrentUserName(), $projetNom, $uploadedCount);
+
                 setFlashMessage('success', $uploadedCount . ' ' . __('photos_uploaded'));
                 redirect('/employe/photos.php?groupe=' . $groupeId . '&projet=' . $projetId);
             } else {

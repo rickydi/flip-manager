@@ -7,6 +7,7 @@
 require_once '../config.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/notifications.php';
 
 // Vérifier que l'utilisateur est connecté
 requireLogin();
@@ -130,6 +131,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             
             if ($result) {
+                // Envoyer notification Pushover
+                $stmt = $pdo->prepare("SELECT nom FROM projets WHERE id = ?");
+                $stmt->execute([$projetId]);
+                $projetNom = $stmt->fetchColumn();
+                notifyNewFacture(getCurrentUserName(), $projetNom, $fournisseur, abs($montantTotal));
+
                 setFlashMessage('success', 'Facture soumise avec succès!');
                 redirect('/employe/index.php');
             } else {
