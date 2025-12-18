@@ -34,10 +34,15 @@ class ClaudeService {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
             
-            // Insérer la clé par défaut si création (vide par sécurité)
+            // Insérer les clés par défaut si création (vides par sécurité)
             $this->setConfiguration('ANTHROPIC_API_KEY', '', 'Clé API Claude', 1);
             $this->setConfiguration('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022', 'Modèle Claude', 0);
+            $this->setConfiguration('PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1);
+            $this->setConfiguration('PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1);
         }
+
+        // S'assurer que les clés Pushover existent (migration)
+        $this->ensurePushoverConfig();
 
         $this->apiKey = $this->getConfiguration('ANTHROPIC_API_KEY');
         $this->model = $this->getConfiguration('CLAUDE_MODEL') ?: 'claude-3-5-sonnet-20241022';
@@ -51,11 +56,27 @@ class ClaudeService {
 
     private function setConfiguration($key, $value, $description, $sensitive) {
         $stmt = $this->pdo->prepare("
-            INSERT INTO app_configurations (cle, valeur, description, est_sensible) 
-            VALUES (?, ?, ?, ?) 
+            INSERT INTO app_configurations (cle, valeur, description, est_sensible)
+            VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE valeur = VALUES(valeur)
         ");
         $stmt->execute([$key, $value, $description, $sensitive]);
+    }
+
+    /**
+     * S'assure que les clés Pushover existent (migration pour bases existantes)
+     */
+    private function ensurePushoverConfig() {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM app_configurations WHERE cle = 'PUSHOVER_APP_TOKEN'");
+        $stmt->execute();
+        if ($stmt->fetchColumn() == 0) {
+            $stmt = $this->pdo->prepare("
+                INSERT IGNORE INTO app_configurations (cle, valeur, description, est_sensible)
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt->execute(['PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1]);
+            $stmt->execute(['PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1]);
+        }
     }
 
     /**

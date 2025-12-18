@@ -29,6 +29,15 @@ try {
     ");
 }
 
+// S'assurer que les clés Pushover existent (migration)
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM app_configurations WHERE cle = 'PUSHOVER_APP_TOKEN'");
+$stmt->execute();
+if ($stmt->fetchColumn() == 0) {
+    $stmt = $pdo->prepare("INSERT IGNORE INTO app_configurations (cle, valeur, description, est_sensible) VALUES (?, ?, ?, ?)");
+    $stmt->execute(['PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1]);
+    $stmt->execute(['PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1]);
+}
+
 $errors = [];
 $success = '';
 
