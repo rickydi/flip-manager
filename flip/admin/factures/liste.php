@@ -299,7 +299,7 @@ include '../../includes/header.php';
                                     </td>
                                     <td class="text-center" onclick="event.stopPropagation()">
                                         <a href="?toggle_paiement=1&id=<?= $facture['id'] ?>"
-                                           class="badge <?= !empty($facture['est_payee']) ? 'bg-success' : 'bg-primary' ?>"
+                                           class="badge <?= !empty($facture['est_payee']) ? 'bg-success' : 'bg-primary' ?> text-white"
                                            style="cursor:pointer; text-decoration:none;"
                                            title="Cliquer pour changer le statut de paiement">
                                             <?php if (!empty($facture['est_payee'])): ?>
