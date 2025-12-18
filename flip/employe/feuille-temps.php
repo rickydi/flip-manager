@@ -356,11 +356,11 @@ include '../includes/header.php';
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label"><?= __('arrival') ?></label>
-                                    <input type="time" class="form-control" id="heureDebutAdd" value="08:00">
+                                    <input type="time" class="form-control time-input-clickable" id="heureDebutAdd" value="08:00">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label"><?= __('departure') ?></label>
-                                    <input type="time" class="form-control" id="heureFinAdd" value="16:00">
+                                    <input type="time" class="form-control time-input-clickable" id="heureFinAdd" value="16:00">
                                 </div>
                             </div>
 
@@ -404,10 +404,22 @@ include '../includes/header.php';
 [data-theme="dark"] .mobile-entry-btn {
     box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
 }
+
+/* Time input clickable anywhere */
+.time-input-clickable {
+    cursor: pointer;
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Time inputs: ouvrir le picker au clic n'importe où sur le champ
+    document.querySelectorAll('.time-input-clickable').forEach(function(input) {
+        input.addEventListener('click', function() {
+            this.showPicker();
+        });
+    });
+
     // Fonction pour calculer les heures entre deux horaires
     function calculerHeures(debut, fin) {
         if (!debut || !fin) return 0;
