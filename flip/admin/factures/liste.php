@@ -11,6 +11,34 @@ require_once '../../includes/functions.php';
 // Vérifier que l'utilisateur est admin
 requireAdmin();
 
+// Migration automatique: ajouter colonne est_payee si elle n'existe pas
+try {
+    $pdo->query("SELECT est_payee FROM factures LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE factures ADD COLUMN est_payee TINYINT(1) DEFAULT 0 AFTER statut");
+}
+
+// Traitement du toggle paiement (AJAX ou GET)
+if (isset($_GET['toggle_paiement']) && isset($_GET['id'])) {
+    $factureId = (int)$_GET['id'];
+    $stmt = $pdo->prepare("UPDATE factures SET est_payee = NOT est_payee WHERE id = ?");
+    $stmt->execute([$factureId]);
+
+    // Si AJAX, renvoyer le nouveau statut
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        $stmt = $pdo->prepare("SELECT est_payee FROM factures WHERE id = ?");
+        $stmt->execute([$factureId]);
+        header('Content-Type: application/json');
+        echo json_encode(['est_payee' => (bool)$stmt->fetchColumn()]);
+        exit;
+    }
+
+    // Sinon rediriger
+    $redirect = $_SERVER['HTTP_REFERER'] ?? url('/admin/factures/liste.php');
+    header('Location: ' . $redirect);
+    exit;
+}
+
 // Répondre aux requêtes AJAX pour le comptage (sans vérification header)
 if (isset($_GET['check_count'])) {
     header('Content-Type: text/plain');
@@ -19,12 +47,14 @@ if (isset($_GET['check_count'])) {
     $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
     $filtreStatut = isset($_GET['statut']) ? $_GET['statut'] : '';
     $filtreCategorie = isset($_GET['categorie']) ? (int)$_GET['categorie'] : 0;
-    
+    $filtrePaiement = isset($_GET['paiement']) ? $_GET['paiement'] : '';
+
     $where = "WHERE 1=1";
     $params = [];
     if ($filtreProjet > 0) { $where .= " AND projet_id = ?"; $params[] = $filtreProjet; }
     if ($filtreStatut !== '') { $where .= " AND statut = ?"; $params[] = $filtreStatut; }
     if ($filtreCategorie > 0) { $where .= " AND categorie_id = ?"; $params[] = $filtreCategorie; }
+    if ($filtrePaiement !== '') { $where .= " AND est_payee = ?"; $params[] = ($filtrePaiement === 'paye' ? 1 : 0); }
     
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM factures $where");
     $stmt->execute($params);
@@ -43,6 +73,7 @@ $offset = getOffset($page, $perPage);
 $filtreProjet = isset($_GET['projet']) ? (int)$_GET['projet'] : 0;
 $filtreStatut = isset($_GET['statut']) ? $_GET['statut'] : '';
 $filtreCategorie = isset($_GET['categorie']) ? (int)$_GET['categorie'] : 0;
+$filtrePaiement = isset($_GET['paiement']) ? $_GET['paiement'] : '';
 
 // Construire la requête
 $where = "WHERE 1=1";
@@ -61,6 +92,11 @@ if ($filtreStatut !== '') {
 if ($filtreCategorie > 0) {
     $where .= " AND f.categorie_id = ?";
     $params[] = $filtreCategorie;
+}
+
+if ($filtrePaiement !== '') {
+    $where .= " AND f.est_payee = ?";
+    $params[] = ($filtrePaiement === 'paye' ? 1 : 0);
 }
 
 // Compter le total
@@ -133,7 +169,7 @@ include '../../includes/header.php';
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="" class="row g-3" id="filterForm">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="projet" class="form-label">Projet</label>
                     <select class="form-select auto-submit" id="projet" name="projet">
                         <option value="">Tous les projets</option>
@@ -144,7 +180,7 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="statut" class="form-label">Statut</label>
                     <select class="form-select auto-submit" id="statut" name="statut">
                         <option value="">Tous les statuts</option>
@@ -153,7 +189,7 @@ include '../../includes/header.php';
                         <option value="rejetee" <?= $filtreStatut === 'rejetee' ? 'selected' : '' ?>>Rejetée</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label for="categorie" class="form-label">Catégorie</label>
                     <select class="form-select auto-submit" id="categorie" name="categorie">
                         <option value="">Toutes les catégories</option>
@@ -164,7 +200,15 @@ include '../../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
+                <div class="col-md-2">
+                    <label for="paiement" class="form-label">Paiement</label>
+                    <select class="form-select auto-submit" id="paiement" name="paiement">
+                        <option value="">Tous</option>
+                        <option value="paye" <?= $filtrePaiement === 'paye' ? 'selected' : '' ?>>Payé</option>
+                        <option value="non_paye" <?= $filtrePaiement === 'non_paye' ? 'selected' : '' ?>>Non payé</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
                     <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-x-circle me-1"></i>Réinitialiser
                     </a>
@@ -206,6 +250,7 @@ include '../../includes/header.php';
                                 <th>Employé</th>
                                 <th class="text-end">Montant</th>
                                 <th class="text-center">Statut</th>
+                                <th class="text-center">Paiement</th>
                                 <th style="width:50px"></th>
                             </tr>
                         </thead>
@@ -251,6 +296,18 @@ include '../../includes/header.php';
                                             <?= getStatutFactureIcon($facture['statut']) ?>
                                             <?= getStatutFactureLabel($facture['statut']) ?>
                                         </span>
+                                    </td>
+                                    <td class="text-center" onclick="event.stopPropagation()">
+                                        <a href="?toggle_paiement=1&id=<?= $facture['id'] ?>"
+                                           class="badge <?= !empty($facture['est_payee']) ? 'bg-success' : 'bg-primary' ?>"
+                                           style="cursor:pointer; text-decoration:none;"
+                                           title="Cliquer pour changer le statut de paiement">
+                                            <?php if (!empty($facture['est_payee'])): ?>
+                                                <i class="bi bi-check-circle me-1"></i>Payé
+                                            <?php else: ?>
+                                                <i class="bi bi-clock me-1"></i>Non payé
+                                            <?php endif; ?>
+                                        </a>
                                     </td>
                                     <td class="text-center" onclick="event.stopPropagation()">
                                         <button type="button" class="btn btn-outline-danger btn-sm"
