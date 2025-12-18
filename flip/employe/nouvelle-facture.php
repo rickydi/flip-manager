@@ -137,6 +137,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $projetNom = $stmt->fetchColumn();
                 notifyNewFacture(getCurrentUserName(), $projetNom, $fournisseur, abs($montantTotal));
 
+                // Notification supplémentaire si gros montant (> 3000$)
+                notifyGrosMontant(getCurrentUserName(), $projetNom, $fournisseur, abs($montantTotal));
+
                 setFlashMessage('success', 'Facture soumise avec succès!');
                 redirect('/employe/index.php');
             } else {

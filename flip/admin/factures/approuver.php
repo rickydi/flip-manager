@@ -7,6 +7,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/notifications.php';
 
 // Vérifier que l'utilisateur est admin
 requireAdmin();
@@ -19,14 +20,36 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     $factureId = (int)$_GET['id'];
     
     if ($action === 'approuver') {
+        // Récupérer les infos de la facture avant mise à jour
+        $stmtInfo = $pdo->prepare("
+            SELECT f.*, p.nom as projet_nom, CONCAT(u.prenom, ' ', u.nom) as employe_nom
+            FROM factures f
+            JOIN projets p ON f.projet_id = p.id
+            JOIN users u ON f.user_id = u.id
+            WHERE f.id = ?
+        ");
+        $stmtInfo->execute([$factureId]);
+        $factureInfo = $stmtInfo->fetch();
+
         $stmt = $pdo->prepare("
-            UPDATE factures SET 
-                statut = 'approuvee', 
-                approuve_par = ?, 
-                date_approbation = NOW() 
+            UPDATE factures SET
+                statut = 'approuvee',
+                approuve_par = ?,
+                date_approbation = NOW()
             WHERE id = ? AND statut = 'en_attente'
         ");
         $stmt->execute([getCurrentUserId(), $factureId]);
+
+        // Notification Pushover
+        if ($factureInfo) {
+            notifyFactureApprouvee(
+                $factureInfo['employe_nom'],
+                $factureInfo['projet_nom'],
+                $factureInfo['fournisseur'],
+                $factureInfo['montant_total']
+            );
+        }
+
         setFlashMessage('success', 'Facture approuvée avec succès.');
     } elseif ($action === 'rejeter') {
         // Afficher le formulaire de rejet
@@ -96,15 +119,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $commentaire = trim($_POST['commentaire'] ?? '');
         
         if ($action === 'rejeter' && $factureId > 0 && !empty($commentaire)) {
+            // Récupérer les infos de la facture avant mise à jour
+            $stmtInfo = $pdo->prepare("
+                SELECT f.*, p.nom as projet_nom, CONCAT(u.prenom, ' ', u.nom) as employe_nom
+                FROM factures f
+                JOIN projets p ON f.projet_id = p.id
+                JOIN users u ON f.user_id = u.id
+                WHERE f.id = ?
+            ");
+            $stmtInfo->execute([$factureId]);
+            $factureInfo = $stmtInfo->fetch();
+
             $stmt = $pdo->prepare("
-                UPDATE factures SET 
-                    statut = 'rejetee', 
+                UPDATE factures SET
+                    statut = 'rejetee',
                     commentaire_admin = ?,
-                    approuve_par = ?, 
-                    date_approbation = NOW() 
+                    approuve_par = ?,
+                    date_approbation = NOW()
                 WHERE id = ? AND statut = 'en_attente'
             ");
             $stmt->execute([$commentaire, getCurrentUserId(), $factureId]);
+
+            // Notification Pushover
+            if ($factureInfo) {
+                notifyFactureRejetee(
+                    $factureInfo['employe_nom'],
+                    $factureInfo['projet_nom'],
+                    $factureInfo['fournisseur'],
+                    $factureInfo['montant_total'],
+                    $commentaire
+                );
+            }
+
             setFlashMessage('warning', 'Facture rejetée.');
         }
     }

@@ -7,6 +7,7 @@
 require_once 'config.php';
 require_once 'includes/auth.php';
 require_once 'includes/functions.php';
+require_once 'includes/notifications.php';
 
 // Si déjà connecté, rediriger vers le dashboard approprié
 if (isLoggedIn()) {
@@ -33,6 +34,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             loginUser($user);
             updateLastLogin($pdo, $user['id']);
             logActivity($pdo, $user['id'], 'login', null, 'Connexion réussie');
+
+            // Notification Pushover de connexion
+            $userName = $user['prenom'] . ' ' . $user['nom'];
+            notifyConnexion($userName, $user['role'], $_SERVER['REMOTE_ADDR'] ?? '');
 
             if ($user['role'] === 'admin') {
                 redirect('/admin/index.php');

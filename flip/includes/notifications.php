@@ -136,3 +136,75 @@ function notifyNewPhotos($employeNom, $projetNom, $nbPhotos) {
 
     return sendPushoverNotification($title, $message, '-1', $url); // Priorité basse pour photos
 }
+
+/**
+ * Notification quand une facture est approuvée (pour l'employé - via admin)
+ */
+function notifyFactureApprouvee($employeNom, $projetNom, $fournisseur, $montant) {
+    $title = "Facture approuvée";
+    $message = "Votre facture a été approuvée!\n";
+    $message .= "Projet: $projetNom\n";
+    $message .= "Fournisseur: $fournisseur\n";
+    $message .= "Montant: " . number_format($montant, 2, ',', ' ') . " $";
+
+    return sendPushoverNotification($title, $message, '-1'); // Priorité basse
+}
+
+/**
+ * Notification quand une facture est rejetée (pour l'employé - via admin)
+ */
+function notifyFactureRejetee($employeNom, $projetNom, $fournisseur, $montant, $raison) {
+    $title = "Facture rejetée";
+    $message = "Votre facture a été rejetée\n";
+    $message .= "Projet: $projetNom\n";
+    $message .= "Fournisseur: $fournisseur\n";
+    $message .= "Montant: " . number_format($montant, 2, ',', ' ') . " $\n";
+    $message .= "Raison: $raison";
+
+    return sendPushoverNotification($title, $message, '0'); // Priorité normale
+}
+
+/**
+ * Notification pour facture de gros montant (> seuil)
+ */
+function notifyGrosMontant($employeNom, $projetNom, $fournisseur, $montant, $seuil = 3000) {
+    if ($montant < $seuil) return false;
+
+    $title = "Facture importante!";
+    $message = "$employeNom a soumis une grosse facture\n";
+    $message .= "Projet: $projetNom\n";
+    $message .= "Fournisseur: $fournisseur\n";
+    $message .= "Montant: " . number_format($montant, 2, ',', ' ') . " $";
+
+    $url = APP_URL . BASE_PATH . '/admin/factures/approuver.php';
+
+    return sendPushoverNotification($title, $message, '1', $url); // Priorité haute
+}
+
+/**
+ * Notification quand quelqu'un se connecte
+ */
+function notifyConnexion($userName, $userRole, $ip = '') {
+    $title = "Connexion";
+    $message = "$userName s'est connecté\n";
+    $message .= "Rôle: " . ($userRole === 'admin' ? 'Administrateur' : 'Employé');
+    if ($ip) {
+        $message .= "\nIP: $ip";
+    }
+
+    return sendPushoverNotification($title, $message, '-2'); // Priorité très basse (silencieux)
+}
+
+/**
+ * Notification rappel heures à approuver
+ */
+function notifyHeuresEnAttente($nombre) {
+    if ($nombre <= 0) return false;
+
+    $title = "Heures à approuver";
+    $message = "$nombre entrée(s) d'heures en attente d'approbation";
+
+    $url = APP_URL . BASE_PATH . '/admin/temps/liste.php';
+
+    return sendPushoverNotification($title, $message, '0', $url);
+}
