@@ -104,7 +104,7 @@ function notifyNewFacture($employeNom, $projetNom, $fournisseur, $montant) {
     $message .= "Fournisseur: $fournisseur\n";
     $message .= "Montant: " . number_format($montant, 2, ',', ' ') . " $";
 
-    $url = APP_URL . BASE_PATH . '/admin/factures.php';
+    $url = APP_URL . BASE_PATH . '/admin/factures/liste.php';
 
     return sendPushoverNotification($title, $message, '0', $url);
 }
@@ -119,7 +119,7 @@ function notifyNewHeures($employeNom, $projetNom, $heures, $date) {
     $message .= "Heures: " . number_format($heures, 1) . "h\n";
     $message .= "Date: $date";
 
-    $url = APP_URL . BASE_PATH . '/admin/heures.php';
+    $url = APP_URL . BASE_PATH . '/admin/temps/liste.php';
 
     return sendPushoverNotification($title, $message, '0', $url);
 }
@@ -132,7 +132,7 @@ function notifyNewPhotos($employeNom, $projetNom, $nbPhotos) {
     $message = "$employeNom a ajouté $nbPhotos photo(s)\n";
     $message .= "Projet: $projetNom";
 
-    $url = APP_URL . BASE_PATH . '/admin/photos.php';
+    $url = APP_URL . BASE_PATH . '/admin/photos/liste.php';
 
     return sendPushoverNotification($title, $message, '-1', $url); // Priorité basse pour photos
 }
