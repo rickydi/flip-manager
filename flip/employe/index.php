@@ -47,6 +47,18 @@ $stmt = $pdo->prepare("SELECT SUM(montant_total) FROM factures WHERE user_id = ?
 $stmt->execute([$userId]);
 $totalMontant = $stmt->fetchColumn() ?: 0;
 
+// Récupérer les dernières entrées d'heures
+$stmt = $pdo->prepare("
+    SELECT h.*, p.nom as projet_nom
+    FROM heures_travaillees h
+    JOIN projets p ON h.projet_id = p.id
+    WHERE h.user_id = ?
+    ORDER BY h.date_travail DESC, h.date_creation DESC
+    LIMIT 10
+");
+$stmt->execute([$userId]);
+$mesHeures = $stmt->fetchAll();
+
 include '../includes/header.php';
 ?>
 
@@ -218,6 +230,56 @@ include '../includes/header.php';
                                                 <i class="bi bi-pencil"></i>
                                             </a>
                                         <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- Mes heures -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-clock-history me-2"></i><?= __('my_hours') ?></span>
+            <a href="<?= url('/employe/feuille-temps.php') ?>" class="btn btn-outline-primary btn-sm">
+                <?= __('add_hours') ?>
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <?php if (empty($mesHeures)): ?>
+                <div class="empty-state">
+                    <i class="bi bi-clock"></i>
+                    <h4><?= __('no_entries') ?></h4>
+                    <p><?= __('no_hours_yet') ?></p>
+                    <a href="<?= url('/employe/feuille-temps.php') ?>" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        <?= __('add_hours') ?>
+                    </a>
+                </div>
+            <?php else: ?>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th><?= __('date') ?></th>
+                                <th><?= __('project') ?></th>
+                                <th class="text-end"><?= __('hours') ?></th>
+                                <th class="text-center"><?= __('status') ?></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($mesHeures as $h): ?>
+                                <tr>
+                                    <td><?= formatDate($h['date_travail']) ?></td>
+                                    <td><?= e($h['projet_nom']) ?></td>
+                                    <td class="text-end"><strong><?= number_format($h['heures'], 1) ?>h</strong></td>
+                                    <td class="text-center">
+                                        <span class="badge <?= getStatutFactureClass($h['statut']) ?>">
+                                            <?= getStatutFactureLabel($h['statut']) ?>
+                                        </span>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

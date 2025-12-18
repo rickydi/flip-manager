@@ -152,33 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Récupérer les projets actifs
 $projets = getProjets($pdo, true);
 
-// Récupérer les entrées de temps
-if ($estContremaitre) {
-    // Le contremaître voit toutes les entrées récentes
-    $stmt = $pdo->prepare("
-        SELECT h.*, p.nom as projet_nom, CONCAT(u.prenom, ' ', u.nom) as employe_nom, u.id as employe_id
-        FROM heures_travaillees h
-        JOIN projets p ON h.projet_id = p.id
-        JOIN users u ON h.user_id = u.id
-        ORDER BY h.date_travail DESC, h.date_creation DESC
-        LIMIT 100
-    ");
-    $stmt->execute();
-} else {
-    // L'employé normal voit seulement ses entrées
-    $stmt = $pdo->prepare("
-        SELECT h.*, p.nom as projet_nom
-        FROM heures_travaillees h
-        JOIN projets p ON h.projet_id = p.id
-        WHERE h.user_id = ?
-        ORDER BY h.date_travail DESC, h.date_creation DESC
-        LIMIT 50
-    ");
-    $stmt->execute([$userId]);
-}
-$mesHeures = $stmt->fetchAll();
-
-// Calculer les totaux (seulement pour ses propres heures, pas les autres)
+// Calculer les totaux (seulement pour ses propres heures)
 $stmt = $pdo->prepare("
     SELECT 
         SUM(heures) as total_heures,
@@ -255,12 +229,9 @@ include '../includes/header.php';
     <?php endif; ?>
 
     <div class="row">
-        <!-- Formulaire de saisie -->
+        <!-- Formulaire de saisie simplifié -->
         <div class="col-lg-4">
             <div class="card">
-                <div class="card-header">
-                    <i class="bi bi-plus-circle me-2"></i><?= __('add_hours') ?>
-                </div>
                 <div class="card-body">
                     <form method="POST" action="">
                         <?php csrfField(); ?>
@@ -278,7 +249,7 @@ include '../includes/header.php';
                                 </select>
                             </div>
                         <?php endif; ?>
-                        
+
                         <div class="mb-3">
                             <label class="form-label"><?= __('project') ?> *</label>
                             <select class="form-select" name="projet_id" required>
@@ -295,229 +266,34 @@ include '../includes/header.php';
                                    value="<?= date('Y-m-d') ?>" required>
                         </div>
 
-                        <!-- Saisie des heures -->
-                        <div class="mb-3 p-3 border rounded">
-                            <label class="form-label"><?= __('number_of_hours') ?> *</label>
-                            <div class="input-group mb-3">
-                                <input type="number" step="0.5" min="0.5" max="24"
-                                       class="form-control" name="heures" id="heuresDirectAdd" value="8" required>
-                                <span class="input-group-text"><?= __('hours') ?></span>
+                        <!-- Saisie arrivée/départ -->
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <label class="form-label"><?= __('arrival') ?></label>
+                                <input type="time" class="form-control" id="heureDebutAdd" value="08:00">
                             </div>
-
-                            <div class="text-center my-2">
-                                <span class="badge bg-secondary px-3"><?= __('or') ?></span>
-                            </div>
-
-                            <label class="form-label small text-muted"><?= __('calculate_from_hours') ?></label>
-                            <div class="row g-2">
-                                <div class="col-6">
-                                    <label class="form-label small text-muted mb-1"><?= __('arrival') ?></label>
-                                    <input type="time" class="form-control" id="heureDebutAdd" value="08:00">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label small text-muted mb-1"><?= __('end') ?></label>
-                                    <input type="time" class="form-control" id="heureFinAdd" value="16:00">
-                                </div>
+                            <div class="col-6">
+                                <label class="form-label"><?= __('departure') ?></label>
+                                <input type="time" class="form-control" id="heureFinAdd" value="16:00">
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label"><?= __('description') ?></label>
-                            <textarea class="form-control" name="description" rows="2"
-                                      placeholder="<?= __('work_done') ?>"></textarea>
-                        </div>
+                        <!-- Heures calculées (caché) -->
+                        <input type="hidden" name="heures" id="heuresDirectAdd" value="8">
 
-                        <?php if (!$estContremaitre && $tauxHoraire > 0): ?>
-                            <div class="alert alert-info small mb-3">
-                                <i class="bi bi-info-circle me-1"></i>
-                                8h = <?= formatMoney(8 * $tauxHoraire) ?>
-                            </div>
-                        <?php endif; ?>
-
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-check-lg me-1"></i><?= __('save') ?>
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-box-arrow-in-right me-2"></i><?= __('entry') ?>
                         </button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Liste des entrées -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>
-                        <i class="bi bi-list-ul me-2"></i>
-                        <?= $estContremaitre ? __('all_entries') : __('my_entries') ?>
-                    </span>
-                </div>
-                <div class="card-body p-0">
-                    <?php if (empty($mesHeures)): ?>
-                        <div class="empty-state py-5">
-                            <i class="bi bi-clock"></i>
-                            <h4><?= __('no_entries') ?></h4>
-                            <p><?= __('start_adding') ?></p>
-                        </div>
-                    <?php else: ?>
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead>
-                                    <tr>
-                                        <th><?= __('date') ?></th>
-                                        <?php if ($estContremaitre): ?>
-                                            <th><?= __('employee') ?></th>
-                                        <?php endif; ?>
-                                        <th><?= __('project') ?></th>
-                                        <th><?= __('hours') ?></th>
-                                        <?php if (!$estContremaitre): ?>
-                                            <th><?= __('amount') ?></th>
-                                        <?php endif; ?>
-                                        <th><?= __('status') ?></th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ($mesHeures as $h): ?>
-                                        <tr>
-                                            <td><?= formatDate($h['date_travail']) ?></td>
-                                            <?php if ($estContremaitre): ?>
-                                                <td><strong><?= e($h['employe_nom']) ?></strong></td>
-                                            <?php endif; ?>
-                                            <td>
-                                                <strong><?= e($h['projet_nom']) ?></strong>
-                                                <?php if (!empty($h['description'])): ?>
-                                                    <br><small class="text-muted"><?= e($h['description']) ?></small>
-                                                <?php endif; ?>
-                                            </td>
-                                            <td><strong><?= number_format($h['heures'], 1) ?>h</strong></td>
-                                            <?php if (!$estContremaitre): ?>
-                                                <td><?= formatMoney($h['heures'] * $h['taux_horaire']) ?></td>
-                                            <?php endif; ?>
-                                            <td>
-                                                <span class="badge <?= getStatutFactureClass($h['statut']) ?>">
-                                                    <?= getStatutFactureLabel($h['statut']) ?>
-                                                </span>
-                                            </td>
-                                            <td class="text-nowrap">
-                                                <?php if ($h['statut'] === 'en_attente'): ?>
-                                                    <?php if (!$estContremaitre || $h['user_id'] == $userId || $estContremaitre): ?>
-                                                        <button type="button" class="btn btn-outline-primary btn-sm"
-                                                                data-bs-toggle="modal" data-bs-target="#editModal<?= $h['id'] ?>">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </button>
-                                                        <form method="POST" action="" class="d-inline"
-                                                              onsubmit="return confirm('<?= __('delete_confirm') ?>');">
-                                                            <?php csrfField(); ?>
-                                                            <input type="hidden" name="action" value="supprimer">
-                                                            <input type="hidden" name="temps_id" value="<?= $h['id'] ?>">
-                                                            <button type="submit" class="btn btn-outline-danger btn-sm">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </form>
-                                                    <?php endif; ?>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
-<!-- Modals d'édition -->
-<?php foreach ($mesHeures as $h): ?>
-    <?php if ($h['statut'] === 'en_attente'): ?>
-        <div class="modal fade" id="editModal<?= $h['id'] ?>" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <form method="POST" action="">
-                        <?php csrfField(); ?>
-                        <input type="hidden" name="action" value="modifier">
-                        <input type="hidden" name="temps_id" value="<?= $h['id'] ?>">
-                        <div class="modal-header">
-                            <h5 class="modal-title"><i class="bi bi-pencil me-2"></i><?= __('edit_entry') ?></h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <?php if ($estContremaitre && isset($h['employe_nom'])): ?>
-                                <div class="mb-3">
-                                    <label class="form-label"><?= __('employee') ?></label>
-                                    <input type="text" class="form-control" value="<?= e($h['employe_nom']) ?>" disabled>
-                                </div>
-                            <?php endif; ?>
-                            <div class="mb-3">
-                                <label class="form-label"><?= __('project') ?> *</label>
-                                <select class="form-select" name="projet_id" required>
-                                    <?php foreach ($projets as $projet): ?>
-                                        <option value="<?= $projet['id'] ?>" <?= $projet['id'] == $h['projet_id'] ? 'selected' : '' ?>>
-                                            <?= e($projet['nom']) ?> - <?= e($projet['adresse']) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><?= __('date') ?> *</label>
-                                <input type="date" class="form-control" name="date_travail"
-                                       value="<?= e($h['date_travail']) ?>" required>
-                            </div>
-                            <!-- Saisie des heures -->
-                            <div class="mb-3 p-3 border rounded">
-                                <label class="form-label"><?= __('number_of_hours') ?> *</label>
-                                <div class="input-group mb-3">
-                                    <input type="number" step="0.5" min="0.5" max="24"
-                                           class="form-control" name="heures" id="heuresEdit<?= $h['id'] ?>"
-                                           value="<?= e($h['heures']) ?>" required>
-                                    <span class="input-group-text"><?= __('hours') ?></span>
-                                </div>
-
-                                <div class="text-center my-2">
-                                    <span class="badge bg-secondary px-3"><?= __('or') ?></span>
-                                </div>
-
-                                <label class="form-label small text-muted"><?= __('calculate_from_hours') ?></label>
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <label class="form-label small text-muted mb-1"><?= __('arrival') ?></label>
-                                        <input type="time" class="form-control heure-debut-edit" data-id="<?= $h['id'] ?>" value="08:00">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label small text-muted mb-1"><?= __('end') ?></label>
-                                        <input type="time" class="form-control heure-fin-edit" data-id="<?= $h['id'] ?>" value="16:00">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><?= __('description') ?></label>
-                                <textarea class="form-control" name="description" rows="2"><?= e($h['description'] ?? '') ?></textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= __('cancel') ?></button>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i><?= __('save') ?>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    <?php endif; ?>
-<?php endforeach; ?>
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-fermer le calendrier/horloge quand on sélectionne une valeur
-    document.querySelectorAll('input[type="date"], input[type="time"]').forEach(function(input) {
-        input.addEventListener('change', function() {
-            this.blur();
-        });
-    });
-
     // Fonction pour calculer les heures entre deux horaires
     function calculerHeures(debut, fin) {
         if (!debut || !fin) return 0;
@@ -543,19 +319,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     heureDebutAdd.addEventListener('change', updateHeuresAdd);
     heureFinAdd.addEventListener('change', updateHeuresAdd);
-
-    // Modals d'édition - mise à jour automatique quand on change les heures début/fin
-    document.querySelectorAll('.heure-debut-edit, .heure-fin-edit').forEach(function(input) {
-        input.addEventListener('change', function() {
-            var id = this.getAttribute('data-id');
-            var debut = document.querySelector('.heure-debut-edit[data-id="' + id + '"]').value;
-            var fin = document.querySelector('.heure-fin-edit[data-id="' + id + '"]').value;
-            var heures = calculerHeures(debut, fin);
-            if (heures > 0) {
-                document.getElementById('heuresEdit' + id).value = heures;
-            }
-        });
-    });
 });
 </script>
 
