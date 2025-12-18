@@ -230,11 +230,21 @@ include '../includes/header.php';
             <div class="row g-3 mb-4">
                 <div class="col-6">
                     <label class="form-label"><?= __('arrival') ?></label>
-                    <input type="time" class="form-control form-control-lg text-center" id="heureDebutAddMobile" value="08:00">
+                    <select class="form-select form-select-lg text-center" id="heureDebutAddMobile">
+                        <?php for ($h = 5; $h <= 12; $h++): ?>
+                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 8 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                            <option value="<?= sprintf('%02d:30', $h) ?>"><?= sprintf('%02d:30', $h) ?></option>
+                        <?php endfor; ?>
+                    </select>
                 </div>
                 <div class="col-6">
                     <label class="form-label"><?= __('departure') ?></label>
-                    <input type="time" class="form-control form-control-lg text-center" id="heureFinAddMobile" value="16:00">
+                    <select class="form-select form-select-lg text-center" id="heureFinAddMobile">
+                        <?php for ($h = 12; $h <= 22; $h++): ?>
+                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 16 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                            <option value="<?= sprintf('%02d:30', $h) ?>"><?= sprintf('%02d:30', $h) ?></option>
+                        <?php endfor; ?>
+                    </select>
                 </div>
             </div>
 
