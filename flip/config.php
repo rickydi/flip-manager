@@ -33,11 +33,6 @@ define('UPLOAD_PATH', __DIR__ . '/uploads/factures/');
 define('UPLOAD_MAX_SIZE', 5 * 1024 * 1024); // 5 MB
 define('ALLOWED_EXTENSIONS', ['jpg', 'jpeg', 'png', 'gif', 'pdf']);
 
-// Configuration Pushover (notifications push)
-// Créez un compte sur https://pushover.net et une application
-define('PUSHOVER_APP_TOKEN', ''); // Token de votre application Pushover
-define('PUSHOVER_USER_KEY', '');  // Votre clé utilisateur Pushover
-
 // Fuseau horaire
 date_default_timezone_set('America/Toronto');
 

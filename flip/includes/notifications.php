@@ -2,14 +2,43 @@
 /**
  * Système de notifications Pushover
  * Flip Manager
+ *
+ * Les clés sont stockées dans app_configurations (Admin > Configuration)
  */
 
-// Configuration Pushover (à définir dans config.php)
-if (!defined('PUSHOVER_APP_TOKEN')) {
-    define('PUSHOVER_APP_TOKEN', ''); // Token de l'application Pushover
+/**
+ * Récupère une configuration depuis la base de données
+ */
+function getNotificationConfig($pdo, $key) {
+    try {
+        $stmt = $pdo->prepare("SELECT valeur FROM app_configurations WHERE cle = ?");
+        $stmt->execute([$key]);
+        return $stmt->fetchColumn() ?: '';
+    } catch (Exception $e) {
+        return '';
+    }
 }
-if (!defined('PUSHOVER_USER_KEY')) {
-    define('PUSHOVER_USER_KEY', ''); // Clé utilisateur Pushover (admin)
+
+/**
+ * Initialise les configurations Pushover si elles n'existent pas
+ */
+function initPushoverConfig($pdo) {
+    try {
+        // Vérifier si les configs existent déjà
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM app_configurations WHERE cle = 'PUSHOVER_APP_TOKEN'");
+        $stmt->execute();
+        if ($stmt->fetchColumn() == 0) {
+            // Ajouter les configurations Pushover
+            $stmt = $pdo->prepare("
+                INSERT INTO app_configurations (cle, valeur, description, est_sensible)
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt->execute(['PUSHOVER_APP_TOKEN', '', 'Token application Pushover', 1]);
+            $stmt->execute(['PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1]);
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas encore, ignorer
+    }
 }
 
 /**
@@ -22,14 +51,23 @@ if (!defined('PUSHOVER_USER_KEY')) {
  * @return bool Succès de l'envoi
  */
 function sendPushoverNotification($title, $message, $priority = '0', $url = '') {
+    global $pdo;
+
+    // Initialiser les configs si nécessaire
+    initPushoverConfig($pdo);
+
+    // Récupérer les clés depuis la base de données
+    $appToken = getNotificationConfig($pdo, 'PUSHOVER_APP_TOKEN');
+    $userKey = getNotificationConfig($pdo, 'PUSHOVER_USER_KEY');
+
     // Vérifier que les clés sont configurées
-    if (empty(PUSHOVER_APP_TOKEN) || empty(PUSHOVER_USER_KEY)) {
+    if (empty($appToken) || empty($userKey)) {
         return false;
     }
 
     $data = [
-        'token' => PUSHOVER_APP_TOKEN,
-        'user' => PUSHOVER_USER_KEY,
+        'token' => $appToken,
+        'user' => $userKey,
         'title' => $title,
         'message' => $message,
         'priority' => $priority,
