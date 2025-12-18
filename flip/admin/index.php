@@ -64,20 +64,20 @@ try {
             'heures' as type,
             h.id,
             CONCAT(h.heures, 'h - ', IFNULL(h.description, 'Travail')) as description,
-            NULL as montant,
+            (h.heures * h.taux_horaire) as montant,
             h.statut,
             p.nom as projet_nom,
             CONCAT(u.prenom, ' ', u.nom) as user_nom,
-            h.date_travail as date_activite
-        FROM heures_travail h
+            h.date_creation as date_activite
+        FROM heures_travaillees h
         JOIN projets p ON h.projet_id = p.id
         JOIN users u ON h.user_id = u.id
-        ORDER BY h.date_travail DESC
+        ORDER BY h.date_creation DESC
         LIMIT 10
     ");
     $activites = array_merge($activites, $stmt->fetchAll());
 } catch (Exception $e) {
-    // Table heures_travail n'existe pas, ignorer
+    // Table heures_travaillees n'existe pas, ignorer
 }
 
 // Récupérer les photos uploadées
@@ -502,12 +502,15 @@ include '../includes/header.php';
                                             }
                                             break;
                                         case 'heures':
-                                            if ($activite['statut'] === 'approuve') {
+                                            if ($activite['statut'] === 'approuvee') {
                                                 $badgeClass = 'bg-success';
                                                 $badgeText = 'Approuvé';
                                             } elseif ($activite['statut'] === 'en_attente') {
                                                 $badgeClass = 'bg-warning text-dark';
                                                 $badgeText = 'En attente';
+                                            } elseif ($activite['statut'] === 'rejetee') {
+                                                $badgeClass = 'bg-danger';
+                                                $badgeText = 'Rejeté';
                                             } else {
                                                 $badgeText = ucfirst($activite['statut']);
                                             }
