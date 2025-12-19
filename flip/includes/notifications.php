@@ -53,6 +53,20 @@ function initPushoverConfig($pdo) {
 function sendPushoverNotification($title, $message, $priority = '0', $url = '') {
     global $pdo;
 
+    // Fichier de log pour débogage
+    $logFile = __DIR__ . '/../logs/pushover_debug.log';
+    $logDir = dirname($logFile);
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0755, true);
+    }
+
+    $log = function($msg) use ($logFile) {
+        @file_put_contents($logFile, date('Y-m-d H:i:s') . ' - ' . $msg . "\n", FILE_APPEND);
+    };
+
+    $log("=== Nouvelle notification ===");
+    $log("Titre: $title");
+
     // Initialiser les configs si nécessaire
     initPushoverConfig($pdo);
 
@@ -60,8 +74,12 @@ function sendPushoverNotification($title, $message, $priority = '0', $url = '') 
     $appToken = getNotificationConfig($pdo, 'PUSHOVER_APP_TOKEN');
     $userKey = getNotificationConfig($pdo, 'PUSHOVER_USER_KEY');
 
+    $log("App Token présent: " . (!empty($appToken) ? 'OUI (' . strlen($appToken) . ' chars)' : 'NON'));
+    $log("User Key présent: " . (!empty($userKey) ? 'OUI (' . strlen($userKey) . ' chars)' : 'NON'));
+
     // Vérifier que les clés sont configurées
     if (empty($appToken) || empty($userKey)) {
+        $log("ERREUR: Clés manquantes - abandon");
         return false;
     }
 
@@ -84,12 +102,21 @@ function sendPushoverNotification($title, $message, $priority = '0', $url = '') 
         CURLOPT_URL => 'https://api.pushover.net/1/messages.json',
         CURLOPT_POSTFIELDS => $data,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 10
+        CURLOPT_TIMEOUT => 10,
+        CURLOPT_SSL_VERIFYPEER => true
     ]);
 
     $response = curl_exec($ch);
+    $curlError = curl_error($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    $log("HTTP Code: $httpCode");
+    $log("Réponse: $response");
+    if ($curlError) {
+        $log("CURL Error: $curlError");
+    }
+    $log("Résultat: " . ($httpCode === 200 ? 'SUCCÈS' : 'ÉCHEC'));
 
     return $httpCode === 200;
 }
