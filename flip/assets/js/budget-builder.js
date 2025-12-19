@@ -3,6 +3,13 @@
  * Gestion du Drag & Drop, calculs, et interface arborescente.
  */
 
+// Fonction utilitaire pour échapper les caractères HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
 // Variables globales du module (pour être accessibles si besoin, mais gérées dans DOMContentLoaded)
 let bb_projetId = 0;
 let bb_tauxContingence = 0;
