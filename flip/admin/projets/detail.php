@@ -1117,21 +1117,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($jsonData['ajax_action']) && 
             $stmt->execute([$projetId]);
         }
 
-        // Supprimer les sous-catégories direct drop qui ne sont plus présentes
-        // (on garde les sous-catégories non-direct-drop car elles font partie des catégories)
+        // Supprimer les sous-catégories qui ne sont plus présentes dans le DOM
         if (!empty($presentScIds)) {
             $placeholders = implode(',', array_fill(0, count($presentScIds), '?'));
             $params = array_merge([$projetId], $presentScIds);
             $stmt = $pdo->prepare("
                 DELETE FROM projet_sous_categories
-                WHERE projet_id = ? AND is_direct_drop = 1 AND sous_categorie_id NOT IN ($placeholders)
+                WHERE projet_id = ? AND sous_categorie_id NOT IN ($placeholders)
             ");
             $stmt->execute($params);
         } else {
-            // Aucune sous-catégorie présente = supprimer tous les direct drops
+            // Aucune sous-catégorie présente = tout supprimer
             $stmt = $pdo->prepare("
                 DELETE FROM projet_sous_categories
-                WHERE projet_id = ? AND is_direct_drop = 1
+                WHERE projet_id = ?
             ");
             $stmt->execute([$projetId]);
         }
