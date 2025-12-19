@@ -4192,6 +4192,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             <th>Catégorie</th>
                             <th class="text-end">Montant</th>
                             <th>Statut</th>
+                            <th>Paiement</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -4220,6 +4221,19 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                                         <li><a class="dropdown-item change-facture-status <?= $f['statut'] === 'rejetee' ? 'active' : '' ?>" href="#" data-facture-id="<?= $f['id'] ?>" data-status="rejetee"><i class="bi bi-x-circle text-danger me-2"></i>Rejeter</a></li>
                                     </ul>
                                 </div>
+                            </td>
+                            <td>
+                                <a href="<?= url('/admin/factures/liste.php?toggle_paiement=1&id=' . $f['id']) ?>"
+                                   class="badge <?= !empty($f['est_payee']) ? 'bg-success' : 'bg-primary' ?> text-white"
+                                   style="cursor:pointer; text-decoration:none;"
+                                   title="Cliquer pour changer le statut"
+                                   onclick="event.preventDefault(); togglePaiementFacture(<?= $f['id'] ?>, this);">
+                                    <?php if (!empty($f['est_payee'])): ?>
+                                        <i class="bi bi-check-circle me-1"></i>Payé
+                                    <?php else: ?>
+                                        <i class="bi bi-clock me-1"></i>Non payé
+                                    <?php endif; ?>
+                                </a>
                             </td>
                             <td>
                                 <a href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" class="btn btn-sm btn-outline-primary" title="Modifier">
@@ -5619,6 +5633,7 @@ function resetFiltresFactures() {
     filtrerFactures();
 }
 
+// Toggle paiement facture via AJAXfunction togglePaiementFacture(factureId, element) {    fetch('<?= url('/admin/factures/liste.php') ?>?toggle_paiement=1&id=' + factureId, {        headers: { 'X-Requested-With': 'XMLHttpRequest' }    })    .then(response => response.json())    .then(data => {        if (data.est_payee) {            element.className = 'badge bg-success text-white';            element.innerHTML = '<i class="bi bi-check-circle me-1"></i>Payé';        } else {            element.className = 'badge bg-primary text-white';            element.innerHTML = '<i class="bi bi-clock me-1"></i>Non payé';        }    })    .catch(err => {        window.location.reload();    });}
 // Variable pour stocker les fichiers convertis
 let adminConvertedFiles = [];
 
