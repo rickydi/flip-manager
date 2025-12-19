@@ -2018,6 +2018,7 @@ try {
     $stmt->execute([$projetId]);
     $facturesProjet = $stmt->fetchAll();
 } catch (Exception $e) {}
+// Calculer le total des factures impayées pour ce projet$totalFacturesImpayees = array_sum(array_map(function($f) {    return empty($f['est_payee']) ? (float)$f['montant_total'] : 0;}, $facturesProjet));
 
 include '../../includes/header.php';
 ?>
@@ -3038,6 +3039,12 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 </tbody>
             </table>
         </div>
+        <?php if ($totalFacturesImpayees > 0): ?>
+        <div class="alert alert-danger m-2 mb-0 py-2">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>Attention:</strong> <?= formatMoney($totalFacturesImpayees) ?> de factures impayées
+        </div>
+        <?php endif; ?>
     </div><!-- Fin card Vente -->
     </div><!-- Fin col-xxl-3 -->
     </div><!-- Fin row xxl -->
