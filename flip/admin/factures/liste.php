@@ -106,6 +106,12 @@ $stmt->execute($params);
 $totalFactures = $stmt->fetchColumn();
 $totalPages = ceil($totalFactures / $perPage);
 
+// Calculer le total impayé (avec les mêmes filtres, mais seulement les non payées)
+$sqlImpaye = "SELECT COALESCE(SUM(f.montant_total), 0) FROM factures f $where AND f.est_payee = 0";
+$stmtImpaye = $pdo->prepare($sqlImpaye);
+$stmtImpaye->execute($params);
+$totalImpaye = $stmtImpaye->fetchColumn();
+
 // Récupérer les factures
 $sql = "
     SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom,
@@ -227,8 +233,13 @@ include '../../includes/header.php';
     
     <!-- Liste des factures -->
     <div class="card">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <span><?= $totalFactures ?> facture(s)</span>
+            <?php if ($totalImpaye > 0): ?>
+                <span class="badge bg-danger">
+                    <i class="bi bi-exclamation-circle me-1"></i>Impayé: <?= formatMoney($totalImpaye) ?>
+                </span>
+            <?php endif; ?>
         </div>
         <div class="card-body p-0">
             <?php if (empty($factures)): ?>
