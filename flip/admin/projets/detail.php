@@ -2784,30 +2784,36 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end">-</td>
                     </tr>
 
+                    <?php
+                    $diffTPS = $indicateurs['renovation']['tps'] - $indicateurs['renovation']['reel_tps'];
+                    $diffTVQ = $indicateurs['renovation']['tvq'] - $indicateurs['renovation']['reel_tvq'];
+                    ?>
                     <tr class="sub-item">
                         <td>TPS 5%</td>
                         <td class="text-end" id="detailTPS"><?= formatMoney($indicateurs['renovation']['tps']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end">-</td>
+                        <td class="text-end <?= $diffTPS >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffTPS) ?></td>
+                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['reel_tps']) ?></td>
                     </tr>
 
                     <tr class="sub-item">
                         <td>TVQ 9.975%</td>
                         <td class="text-end" id="detailTVQ"><?= formatMoney($indicateurs['renovation']['tvq']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end">-</td>
+                        <td class="text-end <?= $diffTVQ >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffTVQ) ?></td>
+                        <td class="text-end"><?= formatMoney($indicateurs['renovation']['reel_tvq']) ?></td>
                     </tr>
 
                     <?php
-                    $renoReel = $indicateurs['renovation']['reel'] + $indicateurs['main_doeuvre']['cout'];
+                    // Réel TTC = factures TTC + main d'œuvre réelle
+                    $renoReelTTC = $indicateurs['renovation']['reel_ttc'] + $indicateurs['main_doeuvre']['cout'];
+                    // Budget TTC = budget extrapolé TTC + main d'œuvre planifiée
                     $renoBudgetTTC = $indicateurs['renovation']['total_ttc'] + $indicateurs['main_doeuvre_extrapole']['cout'];
-                    $diffReno = $renoBudgetTTC - $renoReel;
+                    $diffReno = $renoBudgetTTC - $renoReelTTC;
                     ?>
                     <tr class="total-row">
                         <td>Sous-total Rénovation (avec taxes)</td>
                         <td class="text-end" id="detailRenoTotal"><?= formatMoney($renoBudgetTTC) ?></td>
                         <td class="text-end <?= $diffReno >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffReno) ?></td>
-                        <td class="text-end"><?= formatMoney($renoReel) ?></td>
+                        <td class="text-end"><?= formatMoney($renoReelTTC) ?></td>
                     </tr>
                 </tbody>
             </table>

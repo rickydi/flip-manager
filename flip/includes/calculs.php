@@ -309,6 +309,33 @@ function calculerTotalFacturesReelles($pdo, $projetId) {
 }
 
 /**
+ * Calcule les taxes réelles des factures (TPS, TVQ et montant HT)
+ * @param PDO $pdo
+ * @param int $projetId
+ * @return array ['montant_ht' => float, 'tps' => float, 'tvq' => float, 'total_ttc' => float]
+ */
+function calculerTaxesFacturesReelles($pdo, $projetId) {
+    $stmt = $pdo->prepare("
+        SELECT
+            COALESCE(SUM(montant_avant_taxes), 0) as montant_ht,
+            COALESCE(SUM(tps), 0) as tps,
+            COALESCE(SUM(tvq), 0) as tvq,
+            COALESCE(SUM(montant_total), 0) as total_ttc
+        FROM factures
+        WHERE projet_id = ? AND statut != 'rejetee'
+    ");
+    $stmt->execute([$projetId]);
+    $result = $stmt->fetch();
+
+    return [
+        'montant_ht' => (float) ($result['montant_ht'] ?? 0),
+        'tps' => (float) ($result['tps'] ?? 0),
+        'tvq' => (float) ($result['tvq'] ?? 0),
+        'total_ttc' => (float) ($result['total_ttc'] ?? 0)
+    ];
+}
+
+/**
  * Calcule le coût total de la main d'œuvre (heures travaillées approuvées ET en attente - seules les rejetées sont exclues)
  * Utilise le taux horaire actuel de l'utilisateur (JOIN users) pour toujours avoir le bon montant
  * @param PDO $pdo
@@ -645,6 +672,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Rénovation
     $totalBudgetRenovation = calculerTotalBudgetRenovation($pdo, $projet['id']);
     $totalFacturesReelles = calculerTotalFacturesReelles($pdo, $projet['id']);
+    $taxesReelles = calculerTaxesFacturesReelles($pdo, $projet['id']);
     $contingence = calculerContingence($totalBudgetRenovation, (float) $projet['taux_contingence']);
 
     // Budget avec taxes
@@ -753,6 +781,10 @@ function calculerIndicateursProjet($pdo, $projet) {
         'renovation' => [
             'budget' => $totalBudgetRenovation,
             'reel' => $totalFacturesReelles,
+            'reel_ht' => $taxesReelles['montant_ht'],
+            'reel_tps' => $taxesReelles['tps'],
+            'reel_tvq' => $taxesReelles['tvq'],
+            'reel_ttc' => $taxesReelles['total_ttc'],
             'ecart' => $totalBudgetAvecMO - $totalReelAvecMO,
             'progression' => $progressionBudget,
             'contingence' => $budgetComplet['contingence'],
