@@ -40,6 +40,185 @@ function compterMateriauxRecursif($sousCategories) {
 }
 
 /**
+ * Afficher les sous-catégories de façon récursive pour le PROJET (côté droit)
+ * $projetDirectDrops est passé pour EXCLURE les sous-catégories qui sont des direct drops (affichées séparément)
+ * MAIS seulement si on n'est PAS dans le contexte d'une catégorie parente (sinon c'est une sous-cat normale)
+ */
+function afficherSousCategoriesRecursifProjet($sousCategories, $catId, $groupe, $projetItems, $projetSousCategories, $niveau = 0, $projetDirectDrops = []) {
+    global $pdo, $projetId, $projetPostes;
+    if (empty($sousCategories)) return;
+
+    foreach ($sousCategories as $sc):
+        // Si cette sous-catégorie est un direct drop ET que sa catégorie parente N'EST PAS dans le projet,
+        // alors ne pas l'afficher ici (elle sera affichée comme entrée autonome)
+        // MAIS si la catégorie parente EST dans le projet, c'est une sous-cat normale, on l'affiche
+        if (isset($projetDirectDrops[$sc['id']]) && !isset($projetPostes[$catId])) continue;
+
+        // Vérifier si cette sous-catégorie ou ses enfants ont des items dans le projet
+        $scHasItems = false;
+        $scBaseTotal = 0;
+        $scItemCount = 0;
+        $scQte = $projetSousCategories[$sc['id']] ?? 1;
+
+        // Vérifier les matériaux directs
+        foreach ($sc['materiaux'] ?? [] as $mat) {
+            if (isset($projetItems[$catId][$mat['id']])) {
+                $scHasItems = true;
+                $item = $projetItems[$catId][$mat['id']];
+                $scBaseTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'];
+                $scItemCount++;
+            }
+        }
+
+        // Vérifier récursivement les enfants
+        $hasChildrenWithItems = false;
+        if (!empty($sc['enfants'])) {
+            foreach ($sc['enfants'] as $enfant) {
+                // Exclure les enfants qui sont des direct drops SEULEMENT si la catégorie parente n'est pas dans le projet
+                if (isset($projetDirectDrops[$enfant['id']]) && !isset($projetPostes[$catId])) continue;
+                if (sousCategorieHasItems($enfant, $catId, $projetItems, $projetSousCategories, $projetDirectDrops, $projetPostes)) {
+                    $hasChildrenWithItems = true;
+                    break;
+                }
+            }
+        }
+
+        // Vérifier si cette sous-catégorie est explicitement sauvegardée
+        // (mais pas en direct drop autonome - si catégorie parente existe, c'est OK)
+        $isExplicitlySaved = isset($projetSousCategories[$sc['id']]) &&
+                             (!isset($projetDirectDrops[$sc['id']]) || isset($projetPostes[$catId]));
+
+        // Si ni cette sc ni ses enfants n'ont d'items ET qu'elle n'est pas explicitement sauvegardée, skip
+        if (!$scHasItems && !$hasChildrenWithItems && !$isExplicitlySaved) continue;
+
+        $scTotal = $scBaseTotal * $scQte;
+        ?>
+        <!-- Sous-catégorie container (niveau <?= $niveau ?>) -->
+        <div class="tree-item mb-1 is-kit projet-item"
+             data-type="sous_categorie"
+             data-id="<?= $sc['id'] ?>"
+             data-sc-ordre="<?= $sc['ordre'] ?? 0 ?>"
+             data-cat-id="<?= $catId ?>"
+             data-unique-id="sous_categorie-<?= $sc['id'] ?>"
+             data-groupe="<?= $groupe ?>"
+             data-prix="<?= $scTotal ?>">
+            <div class="tree-content">
+                <span class="tree-connector">└►</span>
+                <i class="bi bi-grip-vertical drag-handle"></i>
+                <span class="tree-toggle" onclick="toggleTreeItem(this, 'projetSc<?= $sc['id'] ?>')">
+                    <i class="bi bi-caret-down-fill"></i>
+                </span>
+                <div class="type-icon">
+                    <i class="bi bi-folder text-warning"></i>
+                </div>
+                <strong class="flex-grow-1"><?= e($sc['nom']) ?></strong>
+
+                <span class="badge item-badge badge-count text-info me-1">
+                    <i class="bi bi-box-seam me-1"></i><span class="item-count"><?= $scItemCount ?></span>
+                </span>
+
+                <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="<?= $sc['id'] ?>">
+                    <?= formatMoney($scTotal) ?>
+                </span>
+
+                <div class="btn-group btn-group-sm me-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $sc['id'] ?>" data-action="minus">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                    <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $sc['id'] ?>"><?= $scQte ?></span>
+                    <input type="hidden" class="cat-qte-input" data-cat-id="<?= $sc['id'] ?>" value="<?= $scQte ?>">
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $sc['id'] ?>" data-action="plus">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <!-- Contenu de la sous-catégorie -->
+            <div class="collapse show tree-children" id="projetSc<?= $sc['id'] ?>">
+                <?php // Matériaux de cette sous-catégorie ?>
+                <?php foreach ($sc['materiaux'] ?? [] as $mat):
+                    if (!isset($projetItems[$catId][$mat['id']])) continue;
+                    $item = $projetItems[$catId][$mat['id']];
+                    $qteItem = (int)$item['quantite'];
+                    $prixItem = (float)$item['prix_unitaire'];
+                    $totalItem = $prixItem * $qteItem;
+                ?>
+                <div class="tree-content mat-item projet-mat-item"
+                     data-mat-id="<?= $mat['id'] ?>"
+                     data-mat-ordre="<?= $mat['ordre'] ?? 0 ?>"
+                     data-cat-id="<?= $sc['id'] ?>"
+                     data-prix="<?= $prixItem ?>"
+                     data-qte="<?= $qteItem ?>"
+                     data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
+                    <span class="tree-connector">└►</span>
+                    <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                    <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                    <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
+
+                    <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
+                    <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem) ?></span>
+
+                    <div class="btn-group btn-group-sm me-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display"><?= $qteItem ?></span>
+                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
+
+                    <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <?php endforeach; ?>
+
+                <?php // Récursion pour les sous-sous-catégories ?>
+                <?php if (!empty($sc['enfants'])): ?>
+                    <?php afficherSousCategoriesRecursifProjet($sc['enfants'], $catId, $groupe, $projetItems, $projetSousCategories, $niveau + 1, $projetDirectDrops); ?>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php
+    endforeach;
+}
+
+/**
+ * Vérifier si une sous-catégorie ou ses enfants ont des items dans le projet
+ * OU si la sous-catégorie est enregistrée dans projet_sous_categories
+ * Exclut les sous-catégories qui sont des direct drops AUTONOMES (sans catégorie parente dans le projet)
+ */
+function sousCategorieHasItems($sc, $catId, $projetItems, $projetSousCategories = [], $projetDirectDrops = [], $projetPostes = []) {
+    // Si c'est un direct drop ET que la catégorie parente n'est pas dans le projet,
+    // on retourne false (sera affiché séparément comme entrée autonome)
+    if (isset($projetDirectDrops[$sc['id']]) && !isset($projetPostes[$catId])) {
+        return false;
+    }
+    // Vérifier si cette sous-catégorie est dans projet_sous_categories
+    if (isset($projetSousCategories[$sc['id']])) {
+        return true;
+    }
+    // Vérifier les matériaux directs
+    foreach ($sc['materiaux'] ?? [] as $mat) {
+        if (isset($projetItems[$catId][$mat['id']])) {
+            return true;
+        }
+    }
+    // Vérifier récursivement les enfants
+    foreach ($sc['enfants'] ?? [] as $enfant) {
+        if (sousCategorieHasItems($enfant, $catId, $projetItems, $projetSousCategories, $projetDirectDrops, $projetPostes)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Afficher les sous-catégories de façon récursive pour le catalogue (drag & drop)
  */
 function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNom, $groupe, $catOrdre = 0, $niveau = 0) {
@@ -160,9 +339,23 @@ function afficherSousCategoriesRecursifCatalogue($sousCategories, $catId, $catNo
 }
 
 // Calculer totaux actuels du projet
+// IMPORTANT: On doit exclure les matériaux des direct drops du calcul des catégories
+// car ils sont comptés séparément
 $totalProjetHT = 0;
 $totalProjetTaxable = 0;
 $totalProjetNonTaxable = 0;
+
+// S'assurer que $projetDirectDrops existe
+if (!isset($projetDirectDrops)) $projetDirectDrops = [];
+
+// Fonction helper pour vérifier si une sous-catégorie (ou un de ses parents) est un direct drop
+function isOrHasDirectDropParent($scId, $templatesBudgets, $projetDirectDrops) {
+    // Vérifier si cette sous-catégorie est un direct drop
+    if (isset($projetDirectDrops[$scId])) {
+        return true;
+    }
+    return false;
+}
 
 foreach ($projetPostes as $catId => $poste) {
     $groupe = $templatesBudgets[$catId]['groupe'] ?? 'autre';
@@ -171,6 +364,10 @@ foreach ($projetPostes as $catId => $poste) {
 
     if (isset($templatesBudgets[$catId]['sous_categories'])) {
         foreach ($templatesBudgets[$catId]['sous_categories'] as $sc) {
+            // Les sous-catégories qui sont des direct drops AUTONOMES (sans catégorie parente)
+            // sont comptées séparément. Mais ici on a une catégorie parente ($catId est dans $projetPostes),
+            // donc on inclut TOUTES les sous-catégories de cette catégorie.
+
             foreach ($sc['materiaux'] as $mat) {
                 if (isset($projetItems[$catId][$mat['id']])) {
                     $item = $projetItems[$catId][$mat['id']];
@@ -184,6 +381,61 @@ foreach ($projetPostes as $catId => $poste) {
                     } else {
                         $totalProjetTaxable += $montant;
                     }
+                }
+            }
+        }
+    }
+}
+
+// Ajouter les totaux des direct drops AUTONOMES (ceux dont la catégorie parente N'EST PAS dans le projet)
+foreach ($projetDirectDrops as $scId => $dropInfo) {
+    $scQte = (int)$dropInfo['quantite'];
+    $scGroupe = $dropInfo['groupe'];
+    $qteGroupe = $projetGroupes[$scGroupe] ?? 1;
+
+    // Trouver la catégorie parente et les matériaux de cette sous-catégorie
+    foreach ($templatesBudgets as $cId => $cat) {
+        // Si la catégorie parente EST dans le projet, ne pas compter ici (déjà compté ci-dessus)
+        if (isset($projetPostes[$cId])) continue;
+
+        foreach ($cat['sous_categories'] ?? [] as $sc) {
+            if ($sc['id'] == $scId) {
+                foreach ($sc['materiaux'] as $mat) {
+                    if (isset($projetItems[$cId][$mat['id']])) {
+                        $item = $projetItems[$cId][$mat['id']];
+                        $prix = (float)$item['prix_unitaire'];
+                        $qte = (int)($item['quantite'] ?? 1);
+                        $sansTaxe = (int)($item['sans_taxe'] ?? 0);
+                        $montant = $prix * $qte * $scQte * $qteGroupe;
+
+                        if ($sansTaxe) {
+                            $totalProjetNonTaxable += $montant;
+                        } else {
+                            $totalProjetTaxable += $montant;
+                        }
+                    }
+                }
+                break 2;
+            }
+            // Chercher dans les enfants
+            foreach ($sc['enfants'] ?? [] as $enfant) {
+                if ($enfant['id'] == $scId) {
+                    foreach ($enfant['materiaux'] as $mat) {
+                        if (isset($projetItems[$cId][$mat['id']])) {
+                            $item = $projetItems[$cId][$mat['id']];
+                            $prix = (float)$item['prix_unitaire'];
+                            $qte = (int)($item['quantite'] ?? 1);
+                            $sansTaxe = (int)($item['sans_taxe'] ?? 0);
+                            $montant = $prix * $qte * $scQte * $qteGroupe;
+
+                            if ($sansTaxe) {
+                                $totalProjetNonTaxable += $montant;
+                            } else {
+                                $totalProjetTaxable += $montant;
+                            }
+                        }
+                    }
+                    break 3;
                 }
             }
         }
@@ -204,8 +456,11 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
 <link rel="stylesheet" href="<?= url('/assets/css/tree-style.css') ?>?v=<?= time() ?>">
 
-<!-- Barre de totaux sticky -->
-<div class="bg-primary text-white mb-3 rounded" style="font-size: 0.85rem;">
+<!-- Espace réservé pour compenser la barre fixe -->
+<div id="budgetBarPlaceholder" style="height: 42px; margin-bottom: 0.5rem;"></div>
+
+<!-- Barre de totaux fixe -->
+<div id="budgetTotalsBar" class="bg-primary text-white" style="font-size: 0.85rem; position: fixed; left: 0; right: 0; z-index: 1000;">
     <div class="px-3 py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-calculator me-2"></i><strong>Budget Rénovation</strong></span>
         <div class="d-flex gap-3 align-items-center flex-wrap">
@@ -225,6 +480,41 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
     </div>
 </div>
 
+<script>
+(function() {
+    const bar = document.getElementById('budgetTotalsBar');
+    const tabs = document.getElementById('projetTabs');
+    const spacing = 8;
+
+    function positionBar() {
+        if (!bar || !tabs) return;
+
+        const tabsRect = tabs.getBoundingClientRect();
+
+        // Positionner juste sous les onglets avec un petit espace
+        if (tabsRect.bottom > 0) {
+            bar.style.top = (tabsRect.bottom + spacing) + 'px';
+        } else {
+            bar.style.top = spacing + 'px';
+        }
+    }
+
+    // Attendre que la page soit complètement chargée
+    if (document.readyState === 'complete') {
+        positionBar();
+    } else {
+        window.addEventListener('load', positionBar);
+    }
+
+    // Aussi positionner après un court délai pour être sûr
+    setTimeout(positionBar, 100);
+    setTimeout(positionBar, 300);
+
+    window.addEventListener('scroll', positionBar);
+    window.addEventListener('resize', positionBar);
+})();
+</script>
+
 <!-- Container principal -->
 <div class="budget-builder">
 
@@ -233,8 +523,8 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
          ======================================== -->
     <div class="catalogue-panel builder-panel" id="cataloguePanel">
         <div class="panel-header">
-            <i class="bi bi-box-seam"></i>
-            Catalogue des Templates
+            <i class="bi bi-shop"></i>
+            Magasin
             <span class="badge bg-light text-dark ms-auto"><?= count($templatesBudgets) ?> catégories</span>
         </div>
         <div class="panel-content" id="catalogueContent">
@@ -328,7 +618,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
         <div class="panel-header">
             <div>
                 <i class="bi bi-cart3 me-2"></i>
-                Budget du Projet
+                Panier
             </div>
             <div class="d-flex align-items-center gap-3">
                 <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2" onclick="clearAllBudget()" title="Tout supprimer">
@@ -343,14 +633,40 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                     </button>
                 </div>
                 <div id="saveStatus" class="small">
-                    <span id="saveIdle"><i class="bi bi-cloud-check me-1"></i>Auto-save</span>
-                    <span id="saveSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Sauvegarde...</span>
-                    <span id="saveSaved" class="d-none"><i class="bi bi-check-circle me-1"></i>Sauvegardé!</span>
+                    <span id="saveIndicator" style="color: #ffffff;"><i class="bi bi-cloud-check me-1"></i><span id="saveText">Auto-save</span></span>
                 </div>
+                <style>
+                    #saveIndicator {
+                        color: #ffffff !important;
+                        padding: 2px 8px;
+                        border-radius: 4px;
+                        transition: background-color 0.5s ease;
+                    }
+                    #saveIndicator.saving {
+                        color: #ffc107 !important;
+                    }
+                    #saveIndicator.saved {
+                        background-color: rgba(255, 255, 255, 0.3);
+                        font-weight: bold;
+                    }
+
+                    /* Flash blanc sur les éléments modifiés */
+                    .flash-modified {
+                        animation: flashModified 0.5s ease-in-out 3;
+                    }
+                    @keyframes flashModified {
+                        0% { background-color: transparent; }
+                        50% { background-color: rgba(255, 255, 255, 0.3); }
+                        100% { background-color: transparent; }
+                    }
+                </style>
             </div>
         </div>
         <div class="panel-content" id="projetContent">
             <?php
+            // Assurer que $projetDirectDrops existe
+            if (!isset($projetDirectDrops)) $projetDirectDrops = [];
+
             $hasAnyItems = false;
             foreach ($groupeLabels as $groupe => $label):
                 // Trouver les items de ce groupe dans le projet
@@ -363,9 +679,18 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                         ];
                     }
                 }
-                if (!empty($groupeItems)) $hasAnyItems = true;
+
+                // Trouver les direct drops pour ce groupe
+                $directDropsForGroupe = [];
+                foreach ($projetDirectDrops as $scId => $dropInfo) {
+                    if ($dropInfo['groupe'] === $groupe) {
+                        $directDropsForGroupe[$scId] = $dropInfo;
+                    }
+                }
+
+                if (!empty($groupeItems) || !empty($directDropsForGroupe)) $hasAnyItems = true;
             ?>
-            <div class="projet-groupe mb-3" data-groupe="<?= $groupe ?>" style="<?= empty($groupeItems) ? 'display:none;' : '' ?>">
+            <div class="projet-groupe mb-3" data-groupe="<?= $groupe ?>" style="<?= (empty($groupeItems) && empty($directDropsForGroupe)) ? 'display:none;' : '' ?>">
                 <!-- Header du groupe -->
                 <div class="groupe-header">
                     <i class="bi bi-folder-fill text-warning"></i>
@@ -388,18 +713,24 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                         $qteCat = (int)$poste['quantite'];
                         $qteGroupe = $projetGroupes[$groupe] ?? 1;
 
-                        // Calculer le total
+                        // Calculer le total de la catégorie
+                        // Total = (somme des sous-catégories avec leur qté) × sa propre qté (PAS de multiplicateur groupe)
+                        // Comme cette catégorie est dans le projet, on inclut TOUTES ses sous-catégories
                         $catTotal = 0;
                         $nbItemsCat = 0;
                         foreach ($cat['sous_categories'] ?? [] as $sc) {
+                            $scQteCalc = $projetSousCategories[$sc['id']] ?? 1;
+                            $scSubTotal = 0;
                             foreach ($sc['materiaux'] ?? [] as $mat) {
                                 if (isset($projetItems[$catId][$mat['id']])) {
                                     $item = $projetItems[$catId][$mat['id']];
-                                    $catTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'] * $qteCat * $qteGroupe;
+                                    $scSubTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'];
                                     $nbItemsCat++;
                                 }
                             }
+                            $catTotal += $scSubTotal * $scQteCalc; // Multiplier par la qté de la sous-catégorie
                         }
+                        $catTotal *= $qteCat; // Multiplier par la qté de la catégorie
                     ?>
                     <div class="tree-item mb-1 is-kit projet-item"
                          data-type="categorie"
@@ -425,7 +756,7 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                             </span>
 
                             <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="<?= $catId ?>">
-                                <?= formatMoney($catTotal * 1.14975) ?>
+                                <?= formatMoney($catTotal) ?>
                             </span>
 
                             <!-- Quantité catégorie (+/-) -->
@@ -445,109 +776,155 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
                             </button>
                         </div>
 
-                        <!-- Détail des items - avec sous-catégories -->
+                        <!-- Détail des items - avec sous-catégories (récursif) -->
                         <div class="collapse show tree-children" id="projetContent<?= $catId ?>">
-                            <?php foreach ($cat['sous_categories'] ?? [] as $sc):
-                                // Vérifier si cette sous-catégorie a des items dans le projet
-                                $scHasItems = false;
-                                $scTotal = 0;
-                                $scItemCount = 0;
-                                foreach ($sc['materiaux'] ?? [] as $mat) {
-                                    if (isset($projetItems[$catId][$mat['id']])) {
-                                        $scHasItems = true;
-                                        $item = $projetItems[$catId][$mat['id']];
-                                        $scTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'];
-                                        $scItemCount++;
+                            <?php afficherSousCategoriesRecursifProjet($cat['sous_categories'] ?? [], $catId, $groupe, $projetItems, $projetSousCategories, 0, $projetDirectDrops); ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+
+                    <?php
+                    // Afficher les sous-catégories droppées directement (direct drops) comme entrées autonomes
+                    // SEULEMENT si leur catégorie parente N'EST PAS dans le projet (sinon elles sont déjà affichées dans la catégorie)
+                    foreach ($directDropsForGroupe as $scId => $dropInfo):
+                        // Récupérer les infos de la sous-catégorie depuis le catalogue
+                        $scData = null;
+                        $parentCatId = null;
+                        foreach ($templatesBudgets as $cId => $cat) {
+                            foreach ($cat['sous_categories'] ?? [] as $sc) {
+                                if ($sc['id'] == $scId) {
+                                    $scData = $sc;
+                                    $parentCatId = $cId;
+                                    break 2;
+                                }
+                                // Chercher aussi dans les enfants
+                                foreach ($sc['enfants'] ?? [] as $enfant) {
+                                    if ($enfant['id'] == $scId) {
+                                        $scData = $enfant;
+                                        $parentCatId = $cId;
+                                        break 3;
+                                    }
+                                    // Niveau 3
+                                    foreach ($enfant['enfants'] ?? [] as $enfant2) {
+                                        if ($enfant2['id'] == $scId) {
+                                            $scData = $enfant2;
+                                            $parentCatId = $cId;
+                                            break 4;
+                                        }
                                     }
                                 }
-                                if (!$scHasItems) continue;
+                            }
+                        }
+
+                        if (!$scData) continue;
+
+                        // Si la catégorie parente EST dans le projet, ne pas afficher ici (déjà dans la catégorie)
+                        if (isset($projetPostes[$parentCatId])) continue;
+
+                        $scQte = $dropInfo['quantite'];
+                        $scTotal = 0;
+                        $nbItemsSc = 0;
+
+                        // Calculer le total de cette sous-catégorie
+                        foreach ($scData['materiaux'] ?? [] as $mat) {
+                            if (isset($projetItems[$parentCatId][$mat['id']])) {
+                                $item = $projetItems[$parentCatId][$mat['id']];
+                                $scTotal += (float)$item['prix_unitaire'] * (int)$item['quantite'];
+                                $nbItemsSc++;
+                            }
+                        }
+                        $scTotal *= $scQte;
+                    ?>
+                    <div class="tree-item mb-1 is-kit projet-item"
+                         data-type="sous_categorie"
+                         data-id="<?= $scId ?>"
+                         data-cat-id="<?= $parentCatId ?>"
+                         data-sc-ordre="<?= $scData['ordre'] ?? 0 ?>"
+                         data-unique-id="sous_categorie-<?= $scId ?>"
+                         data-groupe="<?= $groupe ?>"
+                         data-prix="<?= $scTotal ?>">
+                        <div class="tree-content">
+                            <i class="bi bi-grip-vertical drag-handle"></i>
+                            <span class="tree-toggle" onclick="toggleTreeItem(this, 'projetDirectDrop<?= $scId ?>')">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </span>
+                            <div class="type-icon">
+                                <i class="bi bi-folder text-warning"></i>
+                            </div>
+                            <strong class="flex-grow-1"><?= e($scData['nom']) ?></strong>
+
+                            <span class="badge item-badge badge-count text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><span class="item-count"><?= $nbItemsSc ?></span>
+                            </span>
+
+                            <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="<?= $scId ?>">
+                                <?= formatMoney($scTotal) ?>
+                            </span>
+
+                            <div class="btn-group btn-group-sm me-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $scId ?>" data-action="minus">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $scId ?>"><?= $scQte ?></span>
+                                <input type="hidden" class="cat-qte-input" data-cat-id="<?= $scId ?>" value="<?= $scQte ?>">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $scId ?>" data-action="plus">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <!-- Contenu de la sous-catégorie direct drop -->
+                        <div class="collapse show tree-children" id="projetDirectDrop<?= $scId ?>">
+                            <?php
+                            // Afficher les matériaux de cette sous-catégorie
+                            foreach ($scData['materiaux'] ?? [] as $mat):
+                                if (!isset($projetItems[$parentCatId][$mat['id']])) continue;
+                                $item = $projetItems[$parentCatId][$mat['id']];
+                                $qteItem = (int)$item['quantite'];
+                                $prixItem = (float)$item['prix_unitaire'];
+                                $totalItem = $prixItem * $qteItem;
                             ?>
-                            <!-- Sous-catégorie container -->
-                            <div class="tree-item mb-1 is-kit projet-item"
-                                 data-type="sous_categorie"
-                                 data-id="<?= $sc['id'] ?>"
-                                 data-sc-ordre="<?= $sc['ordre'] ?? 0 ?>"
-                                 data-cat-id="<?= $catId ?>"
-                                 data-unique-id="sous_categorie-<?= $sc['id'] ?>"
-                                 data-groupe="<?= $groupe ?>"
-                                 data-prix="<?= $scTotal ?>">
-                                <div class="tree-content">
-                                    <span class="tree-connector">└►</span>
-                                    <i class="bi bi-grip-vertical drag-handle"></i>
-                                    <span class="tree-toggle" onclick="toggleTreeItem(this, 'projetSc<?= $sc['id'] ?>')">
-                                        <i class="bi bi-caret-down-fill"></i>
-                                    </span>
-                                    <div class="type-icon">
-                                        <i class="bi bi-folder text-warning"></i>
-                                    </div>
-                                    <strong class="flex-grow-1"><?= e($sc['nom']) ?></strong>
+                            <div class="tree-content mat-item projet-mat-item"
+                                 data-mat-id="<?= $mat['id'] ?>"
+                                 data-mat-ordre="<?= $mat['ordre'] ?? 0 ?>"
+                                 data-cat-id="<?= $scId ?>"
+                                 data-prix="<?= $prixItem ?>"
+                                 data-qte="<?= $qteItem ?>"
+                                 data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
+                                <span class="tree-connector">└►</span>
+                                <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                                <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                                <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
 
-                                    <span class="badge item-badge badge-count text-info me-1">
-                                        <i class="bi bi-box-seam me-1"></i><span class="item-count"><?= $scItemCount ?></span>
-                                    </span>
+                                <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
+                                <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem) ?></span>
 
-                                    <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="<?= $sc['id'] ?>">
-                                        <?= formatMoney($scTotal * $qteCat * $qteGroupe * 1.14975) ?>
-                                    </span>
-
-                                    <div class="btn-group btn-group-sm me-2">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $sc['id'] ?>" data-action="minus">
-                                            <i class="bi bi-dash"></i>
-                                        </button>
-                                        <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="<?= $sc['id'] ?>">1</span>
-                                        <input type="hidden" class="cat-qte-input" data-cat-id="<?= $sc['id'] ?>" value="1">
-                                        <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="<?= $sc['id'] ?>" data-action="plus">
-                                            <i class="bi bi-plus"></i>
-                                        </button>
-                                    </div>
-
-                                    <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
-                                        <i class="bi bi-x-lg"></i>
+                                <div class="btn-group btn-group-sm me-2">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                                        <i class="bi bi-dash"></i>
+                                    </button>
+                                    <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display"><?= $qteItem ?></span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                                        <i class="bi bi-plus"></i>
                                     </button>
                                 </div>
 
-                                <!-- Matériaux de la sous-catégorie -->
-                                <div class="collapse show tree-children" id="projetSc<?= $sc['id'] ?>">
-                                    <?php foreach ($sc['materiaux'] ?? [] as $mat):
-                                        if (!isset($projetItems[$catId][$mat['id']])) continue;
-                                        $item = $projetItems[$catId][$mat['id']];
-                                        $qteItem = (int)$item['quantite'];
-                                        $prixItem = (float)$item['prix_unitaire'];
-                                        $totalItem = $prixItem * $qteItem * $qteCat * $qteGroupe;
-                                    ?>
-                                    <div class="tree-content mat-item projet-mat-item"
-                                         data-mat-id="<?= $mat['id'] ?>"
-                                         data-mat-ordre="<?= $mat['ordre'] ?? 0 ?>"
-                                         data-cat-id="<?= $sc['id'] ?>"
-                                         data-prix="<?= $prixItem ?>"
-                                         data-qte="<?= $qteItem ?>"
-                                         data-sans-taxe="<?= !empty($item['sans_taxe']) ? 1 : 0 ?>">
-                                        <span class="tree-connector">└►</span>
-                                        <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
-                                        <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
-                                        <span class="flex-grow-1 small"><?= e($mat['nom']) ?></span>
-
-                                        <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier"><?= formatMoney($prixItem) ?></span>
-                                        <span class="badge item-badge badge-total text-success fw-bold me-1"><?= formatMoney($totalItem * 1.14975) ?></span>
-
-                                        <div class="btn-group btn-group-sm me-2">
-                                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
-                                                <i class="bi bi-dash"></i>
-                                            </button>
-                                            <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display"><?= $qteItem ?></span>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
-                                                <i class="bi bi-plus"></i>
-                                            </button>
-                                        </div>
-
-                                        <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
-                                    </div>
-                                    <?php endforeach; ?>
-                                </div>
+                                <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
                             </div>
                             <?php endforeach; ?>
+
+                            <?php
+                            // Afficher les sous-sous-catégories (enfants)
+                            if (!empty($scData['enfants'])):
+                                afficherSousCategoriesRecursifProjet($scData['enfants'], $parentCatId, $groupe, $projetItems, $projetSousCategories, 0, $projetDirectDrops);
+                            endif;
+                            ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -650,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const groupeContainer = existingMat.closest('.projet-groupe');
             const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
 
-            const total = prix * newQte * catQte * groupeQte * 1.14975;
+            const total = prix * newQte;
             const totalBadge = existingMat.querySelector('.badge-total');
             if (totalBadge) totalBadge.textContent = formatMoney(total);
 
@@ -826,9 +1203,117 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     // DRAG & DROP
     // ========================================
+
+    // Fonction pour collecter tous les descendants d'un élément du catalogue
+    function collectDescendants(element) {
+        const descendants = [];
+        const treeItem = element.closest('.tree-item');
+        if (!treeItem) return descendants;
+
+        const childrenContainer = treeItem.querySelector('.tree-children');
+        if (!childrenContainer) return descendants;
+
+        // Collecter les sous-catégories
+        childrenContainer.querySelectorAll(':scope > .tree-item').forEach(subItem => {
+            const subDraggable = subItem.querySelector(':scope > .tree-content.catalogue-draggable');
+            if (subDraggable && subDraggable.dataset.type === 'sous_categorie') {
+                const subData = {
+                    type: 'sous_categorie',
+                    id: subDraggable.dataset.id,
+                    nom: subDraggable.dataset.nom,
+                    scOrdre: parseInt(subDraggable.dataset.scOrdre) || 0,
+                    materiaux: [],
+                    enfants: []
+                };
+
+                // Collecter les matériaux de cette sous-catégorie
+                const subChildren = subItem.querySelector('.tree-children');
+                if (subChildren) {
+                    subChildren.querySelectorAll(':scope > .mat-item.catalogue-draggable').forEach(matEl => {
+                        subData.materiaux.push({
+                            type: 'materiau',
+                            id: matEl.dataset.id,
+                            nom: matEl.dataset.nom,
+                            prix: parseFloat(matEl.dataset.prix) || 0,
+                            qte: parseInt(matEl.dataset.qte) || 1,
+                            matOrdre: parseInt(matEl.dataset.matOrdre) || 0,
+                            sansTaxe: matEl.dataset.sansTaxe === '1'
+                        });
+                    });
+
+                    // Récursion pour les sous-sous-catégories
+                    subChildren.querySelectorAll(':scope > .tree-item').forEach(subSubItem => {
+                        const subSubDraggable = subSubItem.querySelector(':scope > .tree-content.catalogue-draggable');
+                        if (subSubDraggable && subSubDraggable.dataset.type === 'sous_categorie') {
+                            subData.enfants.push(collectSousCategorie(subSubItem));
+                        }
+                    });
+                }
+
+                descendants.push(subData);
+            }
+        });
+
+        // Collecter les matériaux directs (à ce niveau)
+        childrenContainer.querySelectorAll(':scope > .mat-item.catalogue-draggable').forEach(matEl => {
+            descendants.push({
+                type: 'materiau',
+                id: matEl.dataset.id,
+                nom: matEl.dataset.nom,
+                prix: parseFloat(matEl.dataset.prix) || 0,
+                qte: parseInt(matEl.dataset.qte) || 1,
+                matOrdre: parseInt(matEl.dataset.matOrdre) || 0,
+                sansTaxe: matEl.dataset.sansTaxe === '1'
+            });
+        });
+
+        return descendants;
+    }
+
+    // Fonction récursive pour collecter une sous-catégorie et ses enfants
+    function collectSousCategorie(treeItem) {
+        const draggable = treeItem.querySelector(':scope > .tree-content.catalogue-draggable');
+        if (!draggable) return null;
+
+        const data = {
+            type: 'sous_categorie',
+            id: draggable.dataset.id,
+            nom: draggable.dataset.nom,
+            scOrdre: parseInt(draggable.dataset.scOrdre) || 0,
+            materiaux: [],
+            enfants: []
+        };
+
+        const childrenContainer = treeItem.querySelector('.tree-children');
+        if (childrenContainer) {
+            // Matériaux
+            childrenContainer.querySelectorAll(':scope > .mat-item.catalogue-draggable').forEach(matEl => {
+                data.materiaux.push({
+                    type: 'materiau',
+                    id: matEl.dataset.id,
+                    nom: matEl.dataset.nom,
+                    prix: parseFloat(matEl.dataset.prix) || 0,
+                    qte: parseInt(matEl.dataset.qte) || 1,
+                    matOrdre: parseInt(matEl.dataset.matOrdre) || 0,
+                    sansTaxe: matEl.dataset.sansTaxe === '1'
+                });
+            });
+
+            // Sous-sous-catégories (récursion)
+            childrenContainer.querySelectorAll(':scope > .tree-item').forEach(subItem => {
+                const subDraggable = subItem.querySelector(':scope > .tree-content.catalogue-draggable');
+                if (subDraggable && subDraggable.dataset.type === 'sous_categorie') {
+                    data.enfants.push(collectSousCategorie(subItem));
+                }
+            });
+        }
+
+        return data;
+    }
+
     document.querySelectorAll('.catalogue-draggable').forEach(item => {
         item.addEventListener('dragstart', function(e) {
-            e.dataTransfer.setData('text/plain', JSON.stringify({
+            const dragData = {
                 type: this.dataset.type,
                 id: this.dataset.id,
                 scId: this.dataset.scId,  // ID de la sous-catégorie (pour matériaux)
@@ -842,7 +1327,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 catOrdre: parseInt(this.dataset.catOrdre) || 0,
                 scOrdre: parseInt(this.dataset.scOrdre) || 0,
                 matOrdre: parseInt(this.dataset.matOrdre) || 0
-            }));
+            };
+
+            // Si c'est une catégorie ou sous-catégorie, collecter les descendants
+            if (this.dataset.type === 'categorie' || this.dataset.type === 'sous_categorie') {
+                dragData.descendants = collectDescendants(this);
+                console.log('Collected descendants:', dragData.descendants);
+            }
+
+            console.log('Drag data:', dragData);
+            e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
             this.style.opacity = '0.5';
         });
 
@@ -929,6 +1423,127 @@ document.addEventListener('DOMContentLoaded', function() {
         const div = document.createElement('div');
         div.innerHTML = htmlString.trim();
         return div.firstChild;
+    }
+
+    // ========================================
+    // CRÉER LES DESCENDANTS RÉCURSIVEMENT
+    // ========================================
+    function createDescendantsInContainer(container, descendants, parentCatId, groupe) {
+        if (!container || !descendants || descendants.length === 0) return;
+
+        descendants.forEach(item => {
+            if (item.type === 'sous_categorie') {
+                // Créer la sous-catégorie
+                const scContentId = `projetContentSousCategorie${item.id}_${Date.now()}`;
+                const scHtml = `
+                    <div class="tree-item mb-1 is-kit projet-item"
+                         data-type="sous_categorie"
+                         data-id="${item.id}"
+                         data-cat-id="${parentCatId}"
+                         data-sc-ordre="${item.scOrdre || 0}"
+                         data-unique-id="sous_categorie-${item.id}"
+                         data-groupe="${groupe}"
+                         data-prix="0">
+                        <div class="tree-content">
+                            <span class="tree-connector">└►</span>
+                            <i class="bi bi-grip-vertical drag-handle"></i>
+                            <span class="tree-toggle" onclick="toggleTreeItem(this, '${scContentId}')">
+                                <i class="bi bi-caret-down-fill"></i>
+                            </span>
+                            <div class="type-icon">
+                                <i class="bi bi-folder text-warning"></i>
+                            </div>
+                            <strong class="flex-grow-1">${escapeHtml(item.nom)}</strong>
+
+                            <span class="badge item-badge badge-count text-info me-1">
+                                <i class="bi bi-box-seam me-1"></i><span class="item-count">0</span>
+                            </span>
+
+                            <span class="badge item-badge badge-total text-success fw-bold cat-total me-1" data-cat-id="${item.id}">
+                                ${formatMoney(0)}
+                            </span>
+
+                            <div class="btn-group btn-group-sm me-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${item.id}" data-action="minus">
+                                    <i class="bi bi-dash"></i>
+                                </button>
+                                <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 cat-qte-display" data-cat-id="${item.id}">1</span>
+                                <input type="hidden" class="cat-qte-input" data-cat-id="${item.id}" value="1">
+                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 cat-qte-btn" data-cat-id="${item.id}" data-action="plus">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                            </div>
+
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0" onclick="removeProjetItem(this)" title="Retirer">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <div class="collapse show tree-children" id="${scContentId}"></div>
+                    </div>
+                `;
+
+                const scElement = createElementFromHTML(scHtml);
+                container.appendChild(scElement);
+
+                const scChildrenContainer = scElement.querySelector('.tree-children');
+
+                // Créer les matériaux de cette sous-catégorie
+                if (item.materiaux && item.materiaux.length > 0) {
+                    item.materiaux.forEach(mat => {
+                        createMaterialElement(scChildrenContainer, mat, item.id);
+                    });
+                }
+
+                // Récursion pour les sous-sous-catégories
+                if (item.enfants && item.enfants.length > 0) {
+                    createDescendantsInContainer(scChildrenContainer, item.enfants, parentCatId, groupe);
+                }
+
+                // Mettre à jour les stats de la sous-catégorie
+                updateSousCategorieStats(scElement);
+
+            } else if (item.type === 'materiau') {
+                // Créer le matériau directement dans le container
+                createMaterialElement(container, item, parentCatId);
+            }
+        });
+    }
+
+    // Créer un élément matériau
+    function createMaterialElement(container, mat, catId) {
+        const itemTotal = (parseFloat(mat.prix) || 0) * (parseInt(mat.qte) || 1);
+        const matHtml = `
+            <div class="tree-content mat-item projet-mat-item"
+                 data-mat-id="${mat.id}"
+                 data-mat-ordre="${mat.matOrdre || 0}"
+                 data-cat-id="${catId}"
+                 data-prix="${mat.prix || 0}"
+                 data-qte="${mat.qte || 1}"
+                 data-sans-taxe="${mat.sansTaxe ? 1 : 0}">
+                <span class="tree-connector">└►</span>
+                <i class="bi bi-grip-vertical drag-handle" style="font-size: 0.85em;"></i>
+                <div class="type-icon"><i class="bi bi-box-seam text-primary small"></i></div>
+                <span class="flex-grow-1 small">${escapeHtml(mat.nom)}</span>
+
+                <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(mat.prix) || 0)}</span>
+                <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal)}</span>
+
+                <div class="btn-group btn-group-sm me-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                    <span class="badge item-badge badge-qte text-light d-flex align-items-center px-2 mat-qte-display">${mat.qte || 1}</span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="plus">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-link text-danger p-0 remove-mat-btn" title="Retirer">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', matHtml);
     }
 
     // ========================================
@@ -1129,12 +1744,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Créer la catégorie
+            // Créer la catégorie avec ses descendants
+            const hasDescendants = data.descendants && data.descendants.length > 0;
             const itemHtml = `
                 <div class="tree-item mb-1 is-kit projet-item"
                      data-type="${data.type}"
                      data-id="${data.id}"
                      data-cat-id="${containerId}"
+                     data-cat-ordre="${data.catOrdre || 0}"
                      data-unique-id="${uniqueId}"
                      data-groupe="${groupe}"
                      data-prix="${data.prix}">
@@ -1171,12 +1788,24 @@ document.addEventListener('DOMContentLoaded', function() {
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
-                    <div class="collapse show tree-children" id="${contentId}">
-                        <div class="text-muted small p-2"><i class="bi bi-hourglass-split me-1"></i>Chargement...</div>
-                    </div>
+                    <div class="collapse show tree-children" id="${contentId}"></div>
                 </div>
             `;
-            zone.insertAdjacentHTML('beforeend', itemHtml);
+
+            const catElement = createElementFromHTML(itemHtml);
+            insertInOrder(zone, catElement, 'catOrdre', data.catOrdre || 0);
+
+            // Si on a des descendants, les créer immédiatement
+            if (hasDescendants) {
+                const createdCat = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
+                const childrenContainer = createdCat.querySelector('.tree-children');
+
+                // Créer tous les descendants récursivement
+                createDescendantsInContainer(childrenContainer, data.descendants, data.id, groupe);
+
+                // Mettre à jour les stats
+                updateCategoryStats(createdCat);
+            }
         }
 
         // Pour les matériaux: ajouter dans le container de la sous-catégorie
@@ -1199,7 +1828,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <span class="flex-grow-1 small">${escapeHtml(data.nom)}</span>
 
                         <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(data.prix) || 0)}</span>
-                        <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal * 1.14975)}</span>
+                        <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal)}</span>
 
                         <div class="btn-group btn-group-sm me-2">
                             <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
@@ -1248,10 +1877,30 @@ document.addEventListener('DOMContentLoaded', function() {
         // Sauvegarder en base de données
         // TOUJOURS envoyer l'ID de la CATÉGORIE (pas sous-catégorie) pour la cohérence BD
         const saveId = data.catId || data.id;
+
+        // Préparer les données avec les descendants si présents
+        const postData = {
+            ajax_action: 'add_dropped_item',
+            type: data.type,
+            item_id: data.id,
+            cat_id: saveId,
+            groupe: groupe,
+            prix: data.prix || 0,
+            qte: data.qte || 1,
+            csrf_token: csrfToken
+        };
+
+        // Si on a des descendants, les inclure
+        if (data.descendants && data.descendants.length > 0) {
+            postData.descendants = JSON.stringify(data.descendants);
+            console.log('Sending descendants to server:', data.descendants);
+        }
+
+        console.log('POST data being sent:', postData);
         fetch(window.location.href, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `ajax_action=add_dropped_item&type=${data.type}&item_id=${data.id}&cat_id=${saveId}&groupe=${groupe}&prix=${data.prix}&qte=${data.qte || 1}&csrf_token=${csrfToken}`
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(postData)
         })
         .then(r => r.json())
         .then(result => {
@@ -1267,8 +1916,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            // Si c'est une catégorie et qu'il y a des sous-items retournés, les afficher
-            if (isCategory && result.added_items && result.added_items.length > 0) {
+            // Si on avait des descendants, ils ont déjà été créés par createDescendantsInContainer
+            // On ne doit PAS écraser le container avec les items retournés par le serveur
+            const hasDescendants = data.descendants && data.descendants.length > 0;
+
+            if (isCategory && !hasDescendants && result.added_items && result.added_items.length > 0) {
+                // PAS de descendants - utiliser la réponse du serveur pour créer les items
                 const container = document.getElementById(contentId);
                 if (container) {
                     // Vider le message de chargement
@@ -1295,7 +1948,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span class="flex-grow-1 small">${escapeHtml(item.nom)}</span>
 
                                 <span class="badge item-badge badge-prix text-info me-1 editable-prix" role="button" title="Cliquer pour modifier">${formatMoney(parseFloat(item.prix) || 0)}</span>
-                                <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal * 1.14975)}</span>
+                                <span class="badge item-badge badge-total text-success fw-bold me-1">${formatMoney(itemTotal)}</span>
 
                                 <div class="btn-group btn-group-sm me-2">
                                     <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-1 mat-qte-btn" data-action="minus">
@@ -1321,8 +1974,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         updateCategoryStats(projetItem);
                     }
 
-                    console.log(`Added ${result.added_items.length} sub-items to category`);
+                    console.log(`Added ${result.added_items.length} sub-items to category (no descendants)`);
                 }
+            } else if (isCategory && hasDescendants) {
+                // Descendants déjà créés par createDescendantsInContainer - juste mettre à jour les stats
+                const projetItem = zone.querySelector(`.projet-item[data-unique-id="${uniqueId}"]`);
+                if (projetItem) {
+                    updateCategoryStats(projetItem);
+                }
+                console.log(`Descendants already created, saved ${result.added_items.length} items to DB`);
             } else if (isCategory) {
                 // Catégorie vide - afficher un message
                 const container = document.getElementById(contentId);
@@ -1362,7 +2022,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (countSpan) countSpan.textContent = matItems.length;
 
         const totalSpan = categoryContainer.querySelector('.cat-total');
-        if (totalSpan) totalSpan.textContent = formatMoney(catTotal * 1.14975);
+        if (totalSpan) totalSpan.textContent = formatMoney(catTotal);
 
         categoryContainer.dataset.prix = catTotal;
     }
@@ -1376,43 +2036,93 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Met à jour le total affiché d'une SOUS-CATÉGORIE (avec multiplicateurs)
+    // Collecter tous les multiplicateurs de la chaîne de parents
+    function getChainMultipliers(element) {
+        let multiplier = 1;
+        let current = element.closest('.projet-item');
+
+        // Parcourir tous les parents projet-item pour collecter leurs quantités
+        while (current) {
+            const qteInput = current.querySelector(':scope > .tree-content .cat-qte-input');
+            if (qteInput) {
+                multiplier *= parseInt(qteInput.value) || 1;
+            }
+            current = current.parentElement ? current.parentElement.closest('.projet-item') : null;
+        }
+
+        return multiplier;
+    }
+
+    // Met à jour le total affiché d'un container (catégorie ou sous-catégorie)
+    // Total = (somme des enfants directs) × sa propre qté
+    // PAS de multiplicateur des parents, PAS de taxes
     function updateSousCategorieStats(scContainer) {
         if (!scContainer) return;
 
-        const matItems = scContainer.querySelectorAll('.projet-mat-item');
-        let totalTaxable = 0;
-        let totalNonTaxable = 0;
+        const directChildren = scContainer.querySelector('.tree-children');
 
-        matItems.forEach(matItem => {
+        // Somme des matériaux directs (leur prix × leur qté)
+        let childrenTotal = 0;
+        const directMatItems = directChildren ? directChildren.querySelectorAll(':scope > .projet-mat-item') : [];
+        directMatItems.forEach(matItem => {
             const prix = parseFloat(matItem.dataset.prix) || 0;
             const qte = parseInt(matItem.dataset.qte) || 1;
-            const sansTaxe = matItem.dataset.sansTaxe === '1';
-            const ht = prix * qte;
-
-            if (sansTaxe) totalNonTaxable += ht;
-            else totalTaxable += ht;
+            childrenTotal += prix * qte;
         });
 
-        const groupeContainer = scContainer.closest('.projet-groupe');
-        const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
+        // Ajouter les totaux des sous-catégories enfants (leur total affiché × leur qté)
+        const childContainers = directChildren ? directChildren.querySelectorAll(':scope > .projet-item') : [];
+        childContainers.forEach(childContainer => {
+            const childTotal = getContainerTotal(childContainer);
+            const childQteInput = childContainer.querySelector(':scope > .tree-content .cat-qte-input');
+            const childQte = childQteInput ? parseInt(childQteInput.value) || 1 : 1;
+            childrenTotal += childTotal * childQte;
+        });
 
-        // Le parent "catégorie" (poste) du projet
-        const catContainer = scContainer.closest('.projet-drop-zone')?.querySelector('.projet-item[data-type="categorie"]')
-            ? scContainer.closest('.projet-item[data-type="categorie"]')
-            : scContainer.closest('.projet-item[data-type="categorie"]');
-        const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
+        // Le total de CE container = somme des enfants × SA propre qté
+        const myQteInput = scContainer.querySelector(':scope > .tree-content .cat-qte-input');
+        const myQte = myQteInput ? parseInt(myQteInput.value) || 1 : 1;
+        const myTotal = childrenTotal * myQte;
 
-        const totalNonTaxableMult = totalNonTaxable * catQte * groupeQte;
-        const totalTaxableMult = totalTaxable * catQte * groupeQte;
+        // Compter tous les matériaux (y compris dans les sous-catégories)
+        const allMatItems = scContainer.querySelectorAll('.projet-mat-item');
+        const countSpan = scContainer.querySelector(':scope > .tree-content .item-count');
+        if (countSpan) countSpan.textContent = allMatItems.length;
 
-        const totalTTC = totalNonTaxableMult + (totalTaxableMult * 1.14975);
+        const totalSpan = scContainer.querySelector(':scope > .tree-content .cat-total');
+        if (totalSpan) totalSpan.textContent = formatMoney(myTotal);
 
-        const countSpan = scContainer.querySelector('.item-count');
-        if (countSpan) countSpan.textContent = matItems.length;
+        // Flash sur le tree-content de la catégorie/sous-catégorie
+        const treeContent = scContainer.querySelector(':scope > .tree-content');
+        if (treeContent) flashElement(treeContent);
+    }
 
-        const totalSpan = scContainer.querySelector('.cat-total');
-        if (totalSpan) totalSpan.textContent = formatMoney(totalTTC);
+    // Obtenir le total brut d'un container (somme enfants SANS multiplier par sa propre qté)
+    // Le parent est responsable de multiplier par la qté de l'enfant
+    function getContainerTotal(container) {
+        const directChildren = container.querySelector('.tree-children');
+
+        let childrenTotal = 0;
+
+        // Matériaux directs
+        const directMatItems = directChildren ? directChildren.querySelectorAll(':scope > .projet-mat-item') : [];
+        directMatItems.forEach(matItem => {
+            const prix = parseFloat(matItem.dataset.prix) || 0;
+            const qte = parseInt(matItem.dataset.qte) || 1;
+            childrenTotal += prix * qte;
+        });
+
+        // Sous-containers (on multiplie par leur qté car c'est nous le parent)
+        const childContainers = directChildren ? directChildren.querySelectorAll(':scope > .projet-item') : [];
+        childContainers.forEach(childContainer => {
+            const childRawTotal = getContainerTotal(childContainer);
+            const childQteInput = childContainer.querySelector(':scope > .tree-content .cat-qte-input');
+            const childQte = childQteInput ? parseInt(childQteInput.value) || 1 : 1;
+            childrenTotal += childRawTotal * childQte;
+        });
+
+        // NE PAS multiplier par sa propre qté ici - c'est le parent qui le fera
+        return childrenTotal;
     }
 
     function escapeHtml(text) {
@@ -1494,22 +2204,30 @@ document.addEventListener('DOMContentLoaded', function() {
         autoSave();
     };
 
-    // Helper pour mettre à jour le total d'un matériau
+    // Helper pour mettre à jour le total d'un matériau (sans multiplicateurs parents)
+    // Le matériau affiche son propre total: prix × sa qté
+    // Les parents sont responsables de multiplier par leur qté
     function updateMaterialTotal(matItem) {
         const prix = parseFloat(matItem.dataset.prix) || 0;
         const qte = parseInt(matItem.dataset.qte) || 1;
-        
-        const catContainer = matItem.closest('.projet-item[data-type="categorie"]');
-        const catQteInput = catContainer ? catContainer.querySelector('.cat-qte-input') : null;
-        const catQte = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
-        
-        const groupeContainer = matItem.closest('.projet-groupe');
-        const groupeQteInput = groupeContainer ? groupeContainer.querySelector('.groupe-qte-input') : null;
-        const groupeQte = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-        const total = prix * qte * catQte * groupeQte * 1.14975;
+        // Total = prix × qté (PAS de multiplicateur parent)
+        const total = prix * qte;
         const badge = matItem.querySelector('.badge-total');
         if (badge) badge.textContent = formatMoney(total);
+
+        // Flash sur le matériau modifié
+        flashElement(matItem);
+    }
+
+    // Fonction pour faire flasher un élément en blanc
+    function flashElement(el) {
+        if (!el) return;
+        el.classList.remove('flash-modified');
+        el.offsetHeight; // Force reflow
+        el.classList.add('flash-modified');
+        // Nettoyer après l'animation
+        setTimeout(() => el.classList.remove('flash-modified'), 1500);
     }
 
     window.clearAllBudget = function() {
@@ -1574,121 +2292,95 @@ document.addEventListener('DOMContentLoaded', function() {
     // ========================================
     // CALCULS
     // ========================================
+
+    // Calculer le total HT pour le volet Détail (avec tous les multiplicateurs de la chaîne)
+    // Cette fonction multiplie par tous les parents + groupe
+    function calculateTotalHTForDetail(container, parentMultiplier) {
+        const directChildren = container.querySelector('.tree-children');
+        let totalTaxable = 0;
+        let totalNonTaxable = 0;
+
+        const qteInput = container.querySelector(':scope > .tree-content .cat-qte-input');
+        const containerQte = qteInput ? parseInt(qteInput.value) || 1 : 1;
+        const currentMultiplier = parentMultiplier * containerQte;
+
+        if (directChildren) {
+            directChildren.querySelectorAll(':scope > .projet-mat-item').forEach(matItem => {
+                const prix = parseFloat(matItem.dataset.prix) || 0;
+                const qte = parseInt(matItem.dataset.qte) || 1;
+                const sansTaxe = matItem.dataset.sansTaxe === '1';
+                const ht = prix * qte * currentMultiplier;
+
+                if (sansTaxe) {
+                    totalNonTaxable += ht;
+                } else {
+                    totalTaxable += ht;
+                }
+            });
+
+            directChildren.querySelectorAll(':scope > .projet-item').forEach(childContainer => {
+                const childTotals = calculateTotalHTForDetail(childContainer, currentMultiplier);
+                totalTaxable += childTotals.taxable;
+                totalNonTaxable += childTotals.nonTaxable;
+            });
+        }
+
+        return { taxable: totalTaxable, nonTaxable: totalNonTaxable };
+    }
+
     function updateTotals() {
+
         let totalHT = 0;
         let totalTaxable = 0;
         let totalNonTaxable = 0;
 
-        // Parcourir SEULEMENT les catégories de premier niveau (enfants directs de drop-zone)
-        // Évite le double comptage des sous-catégories imbriquées
-        document.querySelectorAll('.projet-drop-zone > .projet-item').forEach(catItem => {
+        // Parcourir les catégories de premier niveau
+        const allCatItems = document.querySelectorAll('.projet-drop-zone > .projet-item');
+
+        allCatItems.forEach(catItem => {
             const groupe = catItem.dataset.groupe;
-            let catTotalHT = 0;
-            let catTotalTaxable = 0;
-            let catTotalNonTaxable = 0;
 
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-            // Vérifier si c'est un item avec sous-items (matériaux)
-            const matItems = catItem.querySelectorAll('.projet-mat-item');
-            if (matItems.length > 0) {
-                // Item avec sous-matériaux
-                const catQteInput = catItem.querySelector('.cat-qte-input');
-                const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
+            // Pour le volet Détail: calculer avec TOUS les multiplicateurs (groupe inclus)
+            const catTotals = calculateTotalHTForDetail(catItem, qteGroupe);
 
-                matItems.forEach(matItem => {
-                    const prix = parseFloat(matItem.dataset.prix) || 0;
-                    const qte = parseInt(matItem.dataset.qte) || 1;
-                    const sansTaxe = matItem.dataset.sansTaxe === '1';
-                    
-                    const ligneTotal = prix * qte;
-                    catTotalHT += ligneTotal;
-                    
-                    if (sansTaxe) {
-                        catTotalNonTaxable += ligneTotal;
-                    } else {
-                        catTotalTaxable += ligneTotal;
-                    }
-                });
-                
-                // Appliquer multiplicateurs
-                catTotalHT *= qteCat * qteGroupe;
-                catTotalTaxable *= qteCat * qteGroupe;
-                catTotalNonTaxable *= qteCat * qteGroupe;
+            totalTaxable += catTotals.taxable;
+            totalNonTaxable += catTotals.nonTaxable;
+            totalHT += catTotals.taxable + catTotals.nonTaxable;
 
-                // Mettre à jour affichage du total catégorie (TTC approximatif pour UI, ou HT + taxes selon préférence, ici on garde TTC pour cohérence visuelle)
-                // Note: Pour être précis, on recalcule le TTC de la catégorie
-                const catTTC = catTotalNonTaxable + (catTotalTaxable * 1.14975);
-                const totalSpan = catItem.querySelector('.cat-total');
-                if (totalSpan) {
-                    totalSpan.textContent = formatMoney(catTTC);
-                }
-
-            } else {
-                // Item simple (ajouté par drag-drop, par défaut taxable sauf si spécifié autrement)
-                const prix = parseFloat(catItem.dataset.prix) || 0;
-                const qteDisplay = catItem.querySelector('.added-item-qte-display');
-                const qte = qteDisplay ? parseInt(qteDisplay.textContent) || 1 : 1;
-                const sansTaxe = catItem.dataset.sansTaxe === '1'; // Si jamais on ajoute cette option au drop
-
-                const itemTotal = prix * qte * qteGroupe;
-                catTotalHT += itemTotal;
-                
-                if (sansTaxe) {
-                    catTotalNonTaxable += itemTotal;
-                } else {
-                    catTotalTaxable += itemTotal;
-                }
-
-                const itemTTC = sansTaxe ? itemTotal : (itemTotal * 1.14975);
-                const totalSpan = catItem.querySelector('.badge-total');
-                if (totalSpan) {
-                    totalSpan.textContent = formatMoney(itemTTC);
-                }
-            }
-            
-            totalHT += catTotalHT;
-            totalTaxable += catTotalTaxable;
-            totalNonTaxable += catTotalNonTaxable;
+            // Pour le volet Budget: afficher le total du container (somme enfants × sa qté)
+            // PAS de multiplicateur groupe, PAS de taxes
+            updateSousCategorieStats(catItem);
         });
 
+        // Calculer contingence et taxes pour le volet Détail
         const contingence = totalHT * (tauxContingence / 100);
-        // Pas de taxe sur la contingence
         const tps = totalTaxable * 0.05;
         const tvq = totalTaxable * 0.09975;
         const grandTotal = totalHT + contingence + tps + tvq;
 
-        document.getElementById('totalHT').textContent = formatMoney(totalHT);
+        const totalHTEl = document.getElementById('totalHT');
+        totalHTEl.textContent = formatMoney(totalHT);
+        // Flash le total pour montrer qu'il a été mis à jour
+        flashElement(totalHTEl);
+
         document.getElementById('totalContingence').textContent = formatMoney(contingence);
         document.getElementById('grandTotal').textContent = formatMoney(grandTotal);
 
         // Mettre à jour aussi "Détail des coûts" si présent
-        // Calculer les totaux pour les catégories dans le Budget Builder
+        // Calculer les totaux pour les catégories racines (enfants directs de drop-zone)
         const categoryTotals = {};
-        document.querySelectorAll('.projet-item[data-type="categorie"]').forEach(catItem => {
+        document.querySelectorAll('.projet-drop-zone > .projet-item[data-type="categorie"]').forEach(catItem => {
             const catId = catItem.dataset.id;
             const groupe = catItem.dataset.groupe;
             const groupeQteInput = document.querySelector(`.groupe-qte-input[data-groupe="${groupe}"]`);
             const qteGroupe = groupeQteInput ? parseInt(groupeQteInput.value) || 1 : 1;
 
-            let catTotal = 0;
-            const matItems = catItem.querySelectorAll('.projet-mat-item');
-            if (matItems.length > 0) {
-                const catQteInput = catItem.querySelector('.cat-qte-input');
-                const qteCat = catQteInput ? parseInt(catQteInput.value) || 1 : 1;
-                matItems.forEach(matItem => {
-                    const prix = parseFloat(matItem.dataset.prix) || 0;
-                    const qte = parseInt(matItem.dataset.qte) || 1;
-                    catTotal += prix * qte;
-                });
-                catTotal = catTotal * qteCat * qteGroupe;
-            } else {
-                const prix = parseFloat(catItem.dataset.prix) || 0;
-                const qteDisplay = catItem.querySelector('.added-item-qte-display');
-                const qte = qteDisplay ? parseInt(qteDisplay.textContent) || 1 : 1;
-                catTotal = prix * qte * qteGroupe;
-            }
+            // Utiliser la fonction récursive pour calculer avec tous les multiplicateurs
+            const catTotals = calculateTotalHTForDetail(catItem, qteGroupe);
+            const catTotal = catTotals.taxable + catTotals.nonTaxable;
 
             categoryTotals[catId] = (categoryTotals[catId] || 0) + catTotal;
         });
@@ -1779,15 +2471,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // AUTO-SAVE
     // ========================================
     function showSaveStatus(status) {
-        document.getElementById('saveIdle').classList.add('d-none');
-        document.getElementById('saveSaving').classList.add('d-none');
-        document.getElementById('saveSaved').classList.add('d-none');
-        document.getElementById('save' + status.charAt(0).toUpperCase() + status.slice(1)).classList.remove('d-none');
+        const indicator = document.getElementById('saveIndicator');
+        const text = document.getElementById('saveText');
+
+        // Enlever toutes les classes
+        indicator.classList.remove('saving', 'saved');
+
+        if (status === 'saving') {
+            indicator.classList.add('saving');
+            text.textContent = 'Sauvegarde...';
+        } else if (status === 'saved') {
+            indicator.classList.add('saved');
+            text.textContent = 'Sauvegardé!';
+        } else {
+            // Retour à l'état normal avec fade out du background
+            indicator.style.backgroundColor = '';
+            text.textContent = 'Auto-save';
+        }
     }
 
     function autoSave() {
         if (saveTimeout) clearTimeout(saveTimeout);
 
+        // Délai réduit à 200ms pour réponse plus rapide
         saveTimeout = setTimeout(function() {
             showSaveStatus('saving');
 
@@ -1795,7 +2501,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const groupes = {};
 
             document.querySelectorAll('.projet-item').forEach(item => {
-                const catQteInput = item.querySelector('.cat-qte-input');
+                // Utiliser :scope pour cibler l'input direct de cet item, pas celui d'un enfant
+                const catQteInput = item.querySelector(':scope > .tree-content .cat-qte-input');
                 items.push({
                     type: item.dataset.type,
                     id: item.dataset.id,
@@ -1822,7 +2529,8 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if (data.success) {
                     showSaveStatus('saved');
-                    setTimeout(() => showSaveStatus('idle'), 2000);
+                    // Flash rouge pendant 3 secondes
+                    setTimeout(() => showSaveStatus('idle'), 3000);
                 } else {
                     console.error('Save error:', data.error);
                     showSaveStatus('idle');
@@ -1832,7 +2540,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Network error:', error);
                 showSaveStatus('idle');
             });
-        }, 500);
+        }, 200);
     }
 
     // ========================================
@@ -1879,7 +2587,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const prix = parseFloat(projetItem.dataset.prix) || 0;
         const totalBadge = projetItem.querySelector('.badge-total');
         if (totalBadge) {
-            totalBadge.textContent = formatMoney(prix * currentQte * 1.14975);
+            totalBadge.textContent = formatMoney(prix * currentQte);
         }
 
         updateTotals();
@@ -1909,15 +2617,8 @@ document.addEventListener('DOMContentLoaded', function() {
         matItem.dataset.qte = currentQte;
         matQteDisplay.textContent = currentQte;
 
-        // Mettre à jour le total de la ligne
-        const prix = parseFloat(matItem.dataset.prix) || 0;
-        const catContainer = matItem.closest('.projet-item');
-        const catQte = catContainer ? parseInt(catContainer.querySelector('.cat-qte-input')?.value || 1) : 1;
-        const groupeContainer = matItem.closest('.projet-groupe');
-        const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
-
-        const total = prix * currentQte * catQte * groupeQte * 1.14975;
-        matItem.querySelector('.badge-total').textContent = formatMoney(total);
+        // Mettre à jour le total de la ligne (avec tous les multiplicateurs de la chaîne)
+        updateMaterialTotal(matItem);
 
         // Sauvegarder via AJAX
         saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, currentQte);
@@ -2020,7 +2721,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const groupeContainer = targetItem.closest('.projet-groupe');
                 const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
 
-                const total = newPrix * qte * groupeQte * 1.14975;
+                const total = newPrix * qte;
                 targetItem.querySelector('.badge-total').textContent = formatMoney(total);
 
                 // Sauvegarder via AJAX - pour items simples, on utilise data-id comme mat_id
@@ -2033,7 +2734,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const groupeContainer = targetItem.closest('.projet-groupe');
                 const groupeQte = groupeContainer ? parseInt(groupeContainer.querySelector('.groupe-qte-input')?.value || 1) : 1;
 
-                const total = newPrix * qte * catQte * groupeQte * 1.14975;
+                const total = newPrix * qte;
                 targetItem.querySelector('.badge-total').textContent = formatMoney(total);
 
                 // Sauvegarder via AJAX
@@ -2070,8 +2771,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const catId = btn.dataset.catId;
         const action = btn.dataset.action;
         const catItem = btn.closest('.projet-item');
-        const catQteInput = catItem.querySelector('.cat-qte-input');
-        const catQteDisplay = catItem.querySelector('.cat-qte-display');
+        // Trouver l'input et display DIRECTEMENT dans le tree-content de cet item (pas des enfants)
+        const catQteInput = catItem.querySelector(':scope > .tree-content .cat-qte-input');
+        const catQteDisplay = catItem.querySelector(':scope > .tree-content .cat-qte-display');
 
         let currentQte = parseInt(catQteInput.value) || 1;
 
@@ -2084,18 +2786,24 @@ document.addEventListener('DOMContentLoaded', function() {
         catQteInput.value = currentQte;
         catQteDisplay.textContent = currentQte;
 
-        // Mettre à jour les totaux de tous les matériaux
-        catItem.querySelectorAll('.projet-mat-item').forEach(matItem => {
+        // Mettre à jour les totaux de tous les matériaux (directs et dans sous-catégories)
+        const matItems = catItem.querySelectorAll('.projet-mat-item');
+        matItems.forEach(matItem => {
             updateMaterialTotal(matItem);
         });
 
-        // Mettre à jour les sous-catégories
-        catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]').forEach(sc => {
+        // Mettre à jour les sous-catégories enfants (de bas en haut pour les totaux corrects)
+        const sousCategories = Array.from(catItem.querySelectorAll('.projet-item[data-type="sous_categorie"]'));
+        // Trier par profondeur (plus profond d'abord)
+        sousCategories.reverse().forEach(sc => {
             updateSousCategorieStats(sc);
         });
-        
-        // Mettre à jour la catégorie elle-même (si elle contient des sous-catégories)
+
+        // Mettre à jour la catégorie/sous-catégorie elle-même
         updateSousCategorieStats(catItem);
+
+        // Mettre à jour les parents de cet élément (si c'est une sous-catégorie dans une catégorie)
+        updateAllParents(catItem);
 
         // Recalculer les totaux et sauvegarder
         updateTotals();
@@ -2107,8 +2815,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (prix !== null) body += `&prix=${prix}`;
         if (qte !== null) body += `&qte=${qte}`;
 
-        console.log('Saving item:', { catId, matId, prix, qte, body });
-
         fetch(window.location.href, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -2116,7 +2822,6 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(r => r.json())
         .then(data => {
-            console.log('Save response:', data);
             if (!data.success) {
                 console.error('Erreur sauvegarde:', data.error);
                 alert('Erreur: ' + (data.error || 'Sauvegarde échouée'));
@@ -2128,10 +2833,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // NOTE: On n'appelle PAS updateTotals() au chargement car:
-    // 1. PHP rend déjà "Détail des coûts" depuis la table budgets
-    // 2. La table budgets est synchronisée via syncBudgetsFromProjetItems()
-    // 3. Appeler updateTotals() ici écraserait les valeurs PHP avec 0 si le budget est vide
-    // updateTotals() est appelé seulement après les interactions utilisateur
+    // Appeler updateTotals() au chargement pour synchroniser le Total HT avec les calculs JavaScript
+    // Ceci assure que le total en haut correspond aux données affichées dans la liste
+    updateTotals();
 });
 </script>
