@@ -385,10 +385,10 @@ include '../../includes/header.php';
 
 <!-- Modal de suppression -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Supprimer la facture</h5>
+                <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Supprimer la facture</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -397,13 +397,13 @@ include '../../includes/header.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                <form action="<?= url('/admin/factures/supprimer.php') ?>" method="POST" class="d-inline">
+                <button type="button" class="btn btn-danger" onclick="supprimerFacture()">
+                    <i class="bi bi-trash me-1"></i>Oui, supprimer
+                </button>
+                <form id="deleteForm" action="<?= url('/admin/factures/supprimer.php') ?>" method="POST" style="display:none;">
                     <?php csrfField(); ?>
                     <input type="hidden" name="facture_id" id="deleteFactureId">
                     <input type="hidden" name="redirect" value="/admin/factures/liste.php">
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash me-1"></i>Supprimer
-                    </button>
                 </form>
             </div>
         </div>
@@ -412,7 +412,7 @@ include '../../includes/header.php';
 
 <!-- Modal d'approbation -->
 <div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Approuver la facture</h5>
@@ -462,11 +462,18 @@ function approuverFacture() {
     });
 }
 
+let deleteModal = null;
+
 function confirmerSuppression(id, fournisseur, montant) {
     document.getElementById('deleteFactureId').value = id;
     document.getElementById('deleteFournisseur').textContent = fournisseur;
     document.getElementById('deleteMontant').textContent = montant;
-    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+
+function supprimerFacture() {
+    document.getElementById('deleteForm').submit();
 }
 </script>
 
