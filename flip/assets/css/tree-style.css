@@ -8,12 +8,9 @@
 /* Container principal pour le layout en colonnes (Budget Builder) */
 .budget-builder {
     display: flex;
-    height: calc(100vh - 250px);
-    min-height: 500px;
     gap: 0;
     background: var(--bg-body, #f8f9fa);
     border-radius: 8px;
-    overflow: hidden;
     border: 1px solid var(--border-color, #dee2e6);
 }
 
@@ -21,7 +18,6 @@
 .builder-panel {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .catalogue-panel {
@@ -60,8 +56,6 @@
 }
 
 .panel-content {
-    flex: 1;
-    overflow-y: auto;
     padding: 12px;
 }
 
@@ -436,13 +430,11 @@ input.editable-input {
 @media (max-width: 992px) {
     .budget-builder {
         flex-direction: column;
-        height: auto;
     }
     .catalogue-panel, .projet-panel {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 100% !important;
-        min-height: 400px;
     }
     .splitter {
         width: 100%;
