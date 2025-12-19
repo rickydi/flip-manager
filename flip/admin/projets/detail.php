@@ -4122,6 +4122,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         <?php
         $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
         $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'categorie_nom')));
+        $totalImpayeProjet = array_sum(array_map(function($f) {
+            return empty($f['est_payee']) ? $f['montant_total'] : 0;
+        }, $facturesProjet));
         sort($facturesCategories);
         $facturesFournisseurs = array_unique(array_filter(array_column($facturesProjet, 'fournisseur')));
         sort($facturesFournisseurs);
@@ -4135,6 +4138,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                 <span class="text-muted me-2">Total:</span>
                 <strong class="text-danger" id="facturesTotal"><?= formatMoney($totalFacturesTab) ?></strong>
             </div>
+<?php if ($totalImpayeProjet > 0): ?>            <!-- Impayé -->            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(255,193,7,0.15);">                <i class="bi bi-exclamation-circle text-warning me-2"></i>                <span class="text-muted me-2">Impayé:</span>                <strong class="text-warning"><?= formatMoney($totalImpayeProjet) ?></strong>            </div>            <?php endif; ?>
 
             <!-- Séparateur -->
             <div class="vr mx-1 d-none d-md-block" style="height: 24px;"></div>
