@@ -106,10 +106,24 @@ $stmt->execute($params);
 $totalFactures = $stmt->fetchColumn();
 $totalPages = ceil($totalFactures / $perPage);
 
-// Calculer le total impayé (avec les mêmes filtres, mais seulement les non payées)
-$sqlImpaye = "SELECT COALESCE(SUM(f.montant_total), 0) FROM factures f $where AND f.est_payee = 0";
+// Calculer le total impayé (sans le filtre paiement pour avoir le vrai total impayé)
+$whereImpaye = "WHERE f.est_payee = 0";
+$paramsImpaye = [];
+if ($filtreProjet > 0) {
+    $whereImpaye .= " AND f.projet_id = ?";
+    $paramsImpaye[] = $filtreProjet;
+}
+if ($filtreStatut !== '') {
+    $whereImpaye .= " AND f.statut = ?";
+    $paramsImpaye[] = $filtreStatut;
+}
+if ($filtreCategorie > 0) {
+    $whereImpaye .= " AND f.categorie_id = ?";
+    $paramsImpaye[] = $filtreCategorie;
+}
+$sqlImpaye = "SELECT COALESCE(SUM(f.montant_total), 0) FROM factures f $whereImpaye";
 $stmtImpaye = $pdo->prepare($sqlImpaye);
-$stmtImpaye->execute($params);
+$stmtImpaye->execute($paramsImpaye);
 $totalImpaye = $stmtImpaye->fetchColumn();
 
 // Récupérer les factures
