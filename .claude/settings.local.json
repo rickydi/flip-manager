@@ -10,7 +10,8 @@
       "Bash(git commit:*)",
       "Bash(cat:*)",
       "Bash(php -r:*)",
-      "Bash(git revert:*)"
+      "Bash(git revert:*)",
+      "Bash(git tag -a milestone-budget-builder-v1 -m \"$(cat <<''EOF''\nMilestone: Budget Builder stable version\n\nFonctionnalités complètes:\n- Drag & drop du catalogue vers le budget\n- Modal pour ajouter quantité si matériau existe déjà\n- Boutons +/- pour catégories, sous-catégories et matériaux\n- Suppression persistée correctement (catégories et sous-catégories)\n- Scroll uniquement via fenêtre Windows (pas de scroll interne)\n- Barre de totaux sticky\n- Flash animations sur sauvegarde\n- Calculs de totaux corrects avec taxes\n\nFichiers critiques - NE PAS MODIFIER:\n- flip/admin/projets/budget-builder-content.php\n- flip/admin/projets/detail.php (section save_budget_builder)\n- flip/assets/css/tree-style.css\nEOF\n)\")"
     ]
   }
 }

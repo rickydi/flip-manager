@@ -9,12 +9,66 @@ $currentUri = $_SERVER['REQUEST_URI'];
 $isAdmin = isAdmin();
 ?>
 
+<style>
+/* Logo Flip Effect */
+.logo-flip {
+    display: inline-block;
+    position: relative;
+    text-decoration: none;
+    perspective: 1000px;
+}
+
+.logo-flip .logo-inner {
+    display: inline-block;
+    position: relative;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+}
+
+.logo-flip:hover .logo-inner {
+    transform: rotateX(180deg);
+}
+
+.logo-flip .logo-front,
+.logo-flip .logo-back {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.logo-flip .logo-front {
+    position: relative;
+}
+
+.logo-flip .logo-back {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotateX(180deg);
+    justify-content: center;
+    background: transparent;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+</style>
+
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
     <div class="container-fluid">
-        <!-- Logo/Titre à gauche -->
-        <a class="navbar-brand" href="<?= $isAdmin ? url('/admin/index.php') : url('/employe/index.php') ?>">
-            <i class="bi bi-house-door-fill"></i>
-            <span class="d-none d-sm-inline"><?= APP_NAME ?></span>
+        <!-- Logo/Titre à gauche avec effet flip -->
+        <a class="navbar-brand logo-flip" href="<?= $isAdmin ? url('/admin/index.php') : url('/employe/index.php') ?>">
+            <span class="logo-inner">
+                <span class="logo-front">
+                    <i class="bi bi-house-door-fill"></i>
+                    <span class="d-none d-sm-inline">FLIP THE</span>
+                </span>
+                <span class="logo-back">
+                    MONEY
+                </span>
+            </span>
         </a>
 
         <!-- Bouton langue mobile (à côté du menu hamburger) - seulement pour employés -->
