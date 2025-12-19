@@ -133,7 +133,7 @@ function notifyNewFacture($employeNom, $projetNom, $fournisseur, $montant) {
 
     $url = APP_URL . BASE_PATH . '/admin/factures/liste.php';
 
-    return sendPushoverNotification($title, $message, '0', $url);
+    return sendPushoverNotification($title, $message, '1', $url);
 }
 
 /**
@@ -148,7 +148,7 @@ function notifyNewHeures($employeNom, $projetNom, $heures, $date) {
 
     $url = APP_URL . BASE_PATH . '/admin/temps/liste.php';
 
-    return sendPushoverNotification($title, $message, '0', $url);
+    return sendPushoverNotification($title, $message, '1', $url);
 }
 
 /**
@@ -161,7 +161,7 @@ function notifyNewPhotos($employeNom, $projetNom, $nbPhotos) {
 
     $url = APP_URL . BASE_PATH . '/admin/photos/liste.php';
 
-    return sendPushoverNotification($title, $message, '0', $url);
+    return sendPushoverNotification($title, $message, '1', $url);
 }
 
 /**
@@ -174,7 +174,7 @@ function notifyFactureApprouvee($employeNom, $projetNom, $fournisseur, $montant)
     $message .= "Fournisseur: $fournisseur\n";
     $message .= "Montant: " . number_format($montant, 2, ',', ' ') . " $";
 
-    return sendPushoverNotification($title, $message, '0');
+    return sendPushoverNotification($title, $message, '1');
 }
 
 /**
@@ -188,7 +188,7 @@ function notifyFactureRejetee($employeNom, $projetNom, $fournisseur, $montant, $
     $message .= "Montant: " . number_format($montant, 2, ',', ' ') . " $\n";
     $message .= "Raison: $raison";
 
-    return sendPushoverNotification($title, $message, '0');
+    return sendPushoverNotification($title, $message, '1');
 }
 
 /**
@@ -205,7 +205,7 @@ function notifyGrosMontant($employeNom, $projetNom, $fournisseur, $montant, $seu
 
     $url = APP_URL . BASE_PATH . '/admin/factures/approuver.php';
 
-    return sendPushoverNotification($title, $message, '0', $url);
+    return sendPushoverNotification($title, $message, '1', $url);
 }
 
 /**
@@ -219,7 +219,7 @@ function notifyConnexion($userName, $userRole, $ip = '') {
         $message .= "\nIP: $ip";
     }
 
-    return sendPushoverNotification($title, $message, '0');
+    return sendPushoverNotification($title, $message, '1');
 }
 
 /**
@@ -233,5 +233,5 @@ function notifyHeuresEnAttente($nombre) {
 
     $url = APP_URL . BASE_PATH . '/admin/temps/liste.php';
 
-    return sendPushoverNotification($title, $message, '0', $url);
+    return sendPushoverNotification($title, $message, '1', $url);
 }
