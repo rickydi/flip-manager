@@ -39,6 +39,25 @@ if (isset($_GET['toggle_paiement']) && isset($_GET['id'])) {
     exit;
 }
 
+// Traitement de l'approbation rapide (AJAX ou GET)
+if (isset($_GET['approuver']) && isset($_GET['id'])) {
+    $factureId = (int)$_GET['id'];
+    $stmt = $pdo->prepare("UPDATE factures SET statut = 'approuvee' WHERE id = ? AND statut = 'en_attente'");
+    $stmt->execute([$factureId]);
+
+    // Si AJAX, renvoyer le nouveau statut
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true, 'statut' => 'approuvee']);
+        exit;
+    }
+
+    // Sinon rediriger
+    $redirect = $_SERVER['HTTP_REFERER'] ?? url('/admin/factures/liste.php');
+    header('Location: ' . $redirect);
+    exit;
+}
+
 // Répondre aux requêtes AJAX pour le comptage (sans vérification header)
 if (isset($_GET['check_count'])) {
     header('Content-Type: text/plain');
@@ -316,11 +335,19 @@ include '../../includes/header.php';
                                             <?= $isRemboursement ? '+' : '' ?><?= formatMoney(abs($facture['montant_total'])) ?>
                                         </strong>
                                     </td>
-                                    <td class="text-center">
-                                        <span class="badge <?= getStatutFactureClass($facture['statut']) ?>">
-                                            <?= getStatutFactureIcon($facture['statut']) ?>
-                                            <?= getStatutFactureLabel($facture['statut']) ?>
-                                        </span>
+                                    <td class="text-center" onclick="event.stopPropagation()">
+                                        <?php if ($facture['statut'] === 'en_attente'): ?>
+                                            <a href="#" class="badge <?= getStatutFactureClass($facture['statut']) ?>" style="text-decoration:none; cursor:pointer;"
+                                               onclick="event.preventDefault(); confirmerApprobation(<?= $facture['id'] ?>, '<?= e(addslashes($facture['fournisseur'])) ?>', '<?= formatMoney($facture['montant_total']) ?>')">
+                                                <?= getStatutFactureIcon($facture['statut']) ?>
+                                                <?= getStatutFactureLabel($facture['statut']) ?>
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="badge <?= getStatutFactureClass($facture['statut']) ?>">
+                                                <?= getStatutFactureIcon($facture['statut']) ?>
+                                                <?= getStatutFactureLabel($facture['statut']) ?>
+                                            </span>
+                                        <?php endif; ?>
                                     </td>
                                     <td class="text-center" onclick="event.stopPropagation()">
                                         <a href="?toggle_paiement=1&id=<?= $facture['id'] ?>"
@@ -383,7 +410,58 @@ include '../../includes/header.php';
     </div>
 </div>
 
+<!-- Modal d'approbation -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Approuver la facture</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Approuver cette facture de <strong id="approveFournisseur"></strong> ?</p>
+                <p><strong>Montant :</strong> <span id="approveMontant"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-success" onclick="approuverFacture()">
+                    <i class="bi bi-check-circle me-1"></i>Oui, approuver
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let approveFactureId = null;
+let approveModal = null;
+
+function confirmerApprobation(id, fournisseur, montant) {
+    approveFactureId = id;
+    document.getElementById('approveFournisseur').textContent = fournisseur;
+    document.getElementById('approveMontant').textContent = montant;
+    approveModal = new bootstrap.Modal(document.getElementById('approveModal'));
+    approveModal.show();
+}
+
+function approuverFacture() {
+    if (!approveFactureId) return;
+
+    fetch('?approuver=1&id=' + approveFactureId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            approveModal.hide();
+            window.location.reload();
+        }
+    })
+    .catch(err => {
+        window.location.href = '?approuver=1&id=' + approveFactureId;
+    });
+}
+
 function confirmerSuppression(id, fournisseur, montant) {
     document.getElementById('deleteFactureId').value = id;
     document.getElementById('deleteFournisseur').textContent = fournisseur;
