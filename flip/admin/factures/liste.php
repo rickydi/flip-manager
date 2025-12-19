@@ -383,9 +383,19 @@ include '../../includes/header.php';
     </div>
 </div>
 
+<!-- Style pour centrer les modals -->
+<style>
+.modal.centered-modal .modal-dialog {
+    display: flex;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0 auto;
+}
+</style>
+
 <!-- Modal de suppression -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade centered-modal" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">
                 <h5 class="modal-title"><i class="bi bi-trash me-2"></i>Supprimer la facture</h5>
@@ -411,8 +421,8 @@ include '../../includes/header.php';
 </div>
 
 <!-- Modal d'approbation -->
-<div class="modal fade" id="approveModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade centered-modal" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
                 <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Approuver la facture</h5>
