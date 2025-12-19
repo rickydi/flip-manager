@@ -676,6 +676,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // EVENT DELEGATION
     document.addEventListener('click', function(e) {
+        // +/- Catégorie/Sous-catégorie (delegated)
+        if (e.target.closest('.cat-qte-btn')) {
+            const btn = e.target.closest('.cat-qte-btn');
+            saveState();
+            const action = btn.dataset.action;
+            const catId = btn.dataset.catId;
+            const catItem = btn.closest('.projet-item');
+            const catQteInput = catItem.querySelector('.cat-qte-input');
+            const catQteDisplay = catItem.querySelector('.cat-qte-display');
+
+            let currentQte = parseInt(catQteInput.value) || 1;
+            if (action === 'plus') currentQte = Math.min(20, currentQte + 1);
+            else if (action === 'minus' && currentQte > 1) currentQte--;
+
+            catQteInput.value = currentQte;
+            catQteDisplay.textContent = currentQte;
+
+            window.updateAllParents(catItem);
+            window.updateTotals();
+            autoSave();
+        }
+
         // +/- Matériau (delegated)
         if (e.target.closest('.mat-qte-btn')) {
             const btn = e.target.closest('.mat-qte-btn');
@@ -686,17 +708,17 @@ document.addEventListener('DOMContentLoaded', function() {
             let currentQte = parseInt(matItem.dataset.qte) || 1;
             if (action === 'plus') currentQte++;
             else if (action === 'minus' && currentQte > 1) currentQte--;
-            
+
             matItem.dataset.qte = currentQte;
             matQteDisplay.textContent = currentQte;
-            
+
             window.saveItemData(matItem.dataset.catId, matItem.dataset.matId, null, currentQte);
             window.updateMaterialTotal(matItem);
             window.updateAllParents(matItem);
             window.updateTotals();
             autoSave();
         }
-        
+
         // Remove Matériau (delegated)
         if (e.target.closest('.remove-mat-btn')) {
              const btn = e.target.closest('.remove-mat-btn');
@@ -705,17 +727,17 @@ document.addEventListener('DOMContentLoaded', function() {
              const catId = matItem.dataset.catId;
              const matId = matItem.dataset.matId;
              const parent = matItem.closest('.projet-item');
-             
+
              matItem.remove();
-             
+
              if (parent) window.updateAllParents(parent.querySelector('.tree-content') || parent);
-             
+
              fetch(window.location.href, {
                  method: 'POST',
                  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                  body: `ajax_action=remove_material&cat_id=${catId}&mat_id=${matId}&csrf_token=${bb_csrfToken}`
              });
-             
+
              window.updateTotals();
              autoSave();
         }
