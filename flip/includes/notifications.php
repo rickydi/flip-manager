@@ -89,7 +89,7 @@ function sendPushoverNotification($title, $message, $priority = '0', $url = '') 
         'title' => $title,
         'message' => $message,
         'priority' => $priority,
-        'sound' => 'pushover'
+        'sound' => 'cashregister'
     ];
 
     if (!empty($url)) {
