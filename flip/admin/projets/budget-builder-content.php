@@ -631,31 +631,3 @@ $grandTotal = $totalProjetHT + $contingence + $tps + $tvq;
 </script>
 <script src="<?= url('/assets/js/budget-builder.js') ?>?v=<?= time() ?>"></script>
 
-</final_file_content>
-
-IMPORTANT: For any future changes to this file, use the final_file_content shown above as your reference. This content reflects the current state of the file, including any auto-formatting (e.g., if you used single quotes but the formatter converted them to double quotes). Always base your SEARCH/REPLACE operations on this final version to ensure accuracy.
-
-<environment_details>
-# Visual Studio Code Visible Files
-flip/assets/js/budget-builder.js
-
-# Visual Studio Code Open Tabs
-flip/admin/templates/liste.php
-flip/assets/css/tree-style.css
-flip/admin/projets/detail.php
-flip/admin/projets/budget-builder-content.php
-flip/assets/js/budget-builder.js
-
-# Recently Modified Files
-These files have been modified since you last accessed them (file was just edited so you may need to re-read it before editing):
-flip/assets/js/budget-builder.js
-
-# Current Time
-12/14/2025, 11:27:06 PM (America/Toronto, UTC-5:00)
-
-# Context Window Usage
-616,193 / 1,048.576K tokens used (59%)
-
-# Current Mode
-ACT MODE
-</environment_details>
