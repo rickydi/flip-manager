@@ -38,7 +38,7 @@ if (isset($_POST['test'])) {
     $result = sendPushoverNotification(
         'Test Flip Manager',
         'Ceci est un test de notification Pushover.',
-        '1',
+        '0',
         APP_URL . BASE_PATH . '/admin/'
     );
 
