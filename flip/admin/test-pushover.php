@@ -4,18 +4,31 @@
  * Accès: /admin/test-pushover.php
  */
 
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once '../config.php';
 require_once '../includes/auth.php';
+require_once '../includes/functions.php';
 require_once '../includes/notifications.php';
 
 // Admin seulement
 requireAdmin();
 
+// Vider le log si demandé (avant tout output)
+$logFile = __DIR__ . '/../logs/pushover_debug.log';
+if (isset($_GET['clear_log'])) {
+    if (file_exists($logFile)) {
+        unlink($logFile);
+    }
+    header('Location: test-pushover.php');
+    exit;
+}
+
 $result = null;
 $logContent = '';
 
 // Lire le log existant
-$logFile = __DIR__ . '/../logs/pushover_debug.log';
 if (file_exists($logFile)) {
     $logContent = file_get_contents($logFile);
 }
@@ -39,6 +52,7 @@ if (isset($_POST['test'])) {
 $appToken = getNotificationConfig($pdo, 'PUSHOVER_APP_TOKEN');
 $userKey = getNotificationConfig($pdo, 'PUSHOVER_USER_KEY');
 
+$pageTitle = 'Test Pushover';
 include '../includes/header.php';
 ?>
 
@@ -57,7 +71,7 @@ include '../includes/header.php';
                                 <?php if (!empty($appToken)): ?>
                                     <span class="badge bg-success">Configuré</span>
                                     <small class="text-muted">(<?= strlen($appToken) ?> caractères)</small>
-                                    <br><code><?= substr($appToken, 0, 8) ?>...<?= substr($appToken, -4) ?></code>
+                                    <br><code><?= htmlspecialchars(substr($appToken, 0, 8)) ?>...<?= htmlspecialchars(substr($appToken, -4)) ?></code>
                                 <?php else: ?>
                                     <span class="badge bg-danger">Non configuré</span>
                                 <?php endif; ?>
@@ -69,7 +83,7 @@ include '../includes/header.php';
                                 <?php if (!empty($userKey)): ?>
                                     <span class="badge bg-success">Configuré</span>
                                     <small class="text-muted">(<?= strlen($userKey) ?> caractères)</small>
-                                    <br><code><?= substr($userKey, 0, 8) ?>...<?= substr($userKey, -4) ?></code>
+                                    <br><code><?= htmlspecialchars(substr($userKey, 0, 8)) ?>...<?= htmlspecialchars(substr($userKey, -4)) ?></code>
                                 <?php else: ?>
                                     <span class="badge bg-danger">Non configuré</span>
                                 <?php endif; ?>
@@ -77,11 +91,11 @@ include '../includes/header.php';
                         </tr>
                         <tr>
                             <th>APP_URL</th>
-                            <td><code><?= APP_URL ?></code></td>
+                            <td><code><?= htmlspecialchars(APP_URL) ?></code></td>
                         </tr>
                         <tr>
                             <th>BASE_PATH</th>
-                            <td><code><?= BASE_PATH ?></code></td>
+                            <td><code><?= htmlspecialchars(BASE_PATH) ?></code></td>
                         </tr>
                         <tr>
                             <th>cURL disponible</th>
@@ -96,6 +110,7 @@ include '../includes/header.php';
                     </table>
 
                     <form method="POST">
+                        <?php csrfField(); ?>
                         <button type="submit" name="test" class="btn btn-primary">
                             <i class="bi bi-send me-1"></i>Envoyer notification test
                         </button>
@@ -134,13 +149,4 @@ include '../includes/header.php';
     </div>
 </div>
 
-<?php
-// Vider le log si demandé
-if (isset($_GET['clear_log']) && file_exists($logFile)) {
-    unlink($logFile);
-    header('Location: test-pushover.php');
-    exit;
-}
-
-include '../includes/footer.php';
-?>
+<?php include '../includes/footer.php'; ?>
