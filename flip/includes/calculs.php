@@ -427,15 +427,16 @@ function calculerCoutMainDoeuvreExtrapole($pdo, $projet) {
  * @return array
  */
 function calculerDepensesParCategorie($pdo, $projetId) {
+    // Utiliser montant_avant_taxes (HT) car les taxes sont affichées séparément
     $stmt = $pdo->prepare("
-        SELECT categorie_id, SUM(montant_total) as total 
-        FROM factures 
+        SELECT categorie_id, SUM(montant_avant_taxes) as total
+        FROM factures
         WHERE projet_id = ? AND statut != 'rejetee'
         GROUP BY categorie_id
     ");
     $stmt->execute([$projetId]);
     $results = $stmt->fetchAll();
-    
+
     $depenses = [];
     foreach ($results as $row) {
         $depenses[$row['categorie_id']] = (float) $row['total'];
