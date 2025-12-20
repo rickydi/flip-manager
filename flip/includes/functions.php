@@ -595,25 +595,32 @@ function getOffset($page, $perPage = 20) {
  */
 function generatePagination($currentPage, $totalPages, $baseUrl) {
     if ($totalPages <= 1) return '';
-    
+
+    // Préserver les paramètres de requête existants (filtres, etc.)
+    $queryParams = $_GET;
+    unset($queryParams['page']); // Retirer page, on va l'ajouter nous-mêmes
+    $queryString = http_build_query($queryParams);
+    $separator = $queryString ? '&' : '';
+    $baseWithParams = $baseUrl . '?' . $queryString . $separator;
+
     $html = '<nav><ul class="pagination justify-content-center">';
-    
+
     // Previous
     if ($currentPage > 1) {
-        $html .= '<li class="page-item"><a class="page-link" href="' . $baseUrl . '?page=' . ($currentPage - 1) . '">Précédent</a></li>';
+        $html .= '<li class="page-item"><a class="page-link" href="' . $baseWithParams . 'page=' . ($currentPage - 1) . '">Précédent</a></li>';
     }
-    
+
     // Pages
     for ($i = max(1, $currentPage - 2); $i <= min($totalPages, $currentPage + 2); $i++) {
         $active = $i === $currentPage ? 'active' : '';
-        $html .= '<li class="page-item ' . $active . '"><a class="page-link" href="' . $baseUrl . '?page=' . $i . '">' . $i . '</a></li>';
+        $html .= '<li class="page-item ' . $active . '"><a class="page-link" href="' . $baseWithParams . 'page=' . $i . '">' . $i . '</a></li>';
     }
-    
+
     // Next
     if ($currentPage < $totalPages) {
-        $html .= '<li class="page-item"><a class="page-link" href="' . $baseUrl . '?page=' . ($currentPage + 1) . '">Suivant</a></li>';
+        $html .= '<li class="page-item"><a class="page-link" href="' . $baseWithParams . 'page=' . ($currentPage + 1) . '">Suivant</a></li>';
     }
-    
+
     $html .= '</ul></nav>';
     return $html;
 }
