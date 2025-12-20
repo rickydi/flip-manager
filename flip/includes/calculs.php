@@ -554,10 +554,12 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
     $miseTotaleInvestisseurs = 0;
     
     try {
-        // Requête simplifiée - utilise seulement les colonnes qui existent
+        // Requête avec type_financement pour différencier prêteurs et investisseurs
         $stmt = $pdo->prepare("
             SELECT pi.id, pi.projet_id, pi.investisseur_id,
                    pi.montant, pi.taux_interet,
+                   COALESCE(pi.type_financement, 'preteur') as type_financement,
+                   COALESCE(pi.pourcentage_profit, 0) as pourcentage_profit,
                    i.nom, i.email, i.telephone
             FROM projet_investisseurs pi
             JOIN investisseurs i ON pi.investisseur_id = i.id
@@ -566,19 +568,21 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
         ");
         $stmt->execute([$projetId]);
         $all = $stmt->fetchAll();
-        
+
         foreach ($all as $row) {
             $montant = (float) ($row['montant'] ?? 0);
             $taux = (float) ($row['taux_interet'] ?? 0);
-            
-            // Si taux > 0, c'est un prêteur (paie des intérêts)
-            if ($taux > 0) {
+            $typeFinancement = $row['type_financement'] ?? 'preteur';
+            $pourcentageProfit = (float) ($row['pourcentage_profit'] ?? 0);
+
+            // Utiliser type_financement pour séparer (pas le taux)
+            if ($typeFinancement === 'preteur') {
                 // Prêteur : calcul des intérêts composés mensuellement
                 $tauxMensuel = $taux / 100 / 12;
                 $interetsTotal = $montant * (pow(1 + $tauxMensuel, $mois) - 1);
                 $totalDu = $montant + $interetsTotal;
                 $interetsMois = $mois > 0 ? $interetsTotal / $mois : 0;
-                
+
                 $preteurs[] = [
                     'id' => $row['id'],
                     'nom' => $row['nom'],
@@ -591,13 +595,13 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
 
                 $totalPrets += $montant;
                 $totalInterets += $interetsTotal;
-            } elseif ($montant > 0) {
-                // Investisseur sans intérêt : partage des profits
+            } else {
+                // Investisseur : partage des profits (pourcentage direct ou calculé)
                 $investisseurs[] = [
                     'id' => $row['id'],
                     'nom' => $row['nom'],
                     'mise_de_fonds' => $montant,
-                    'pourcentage' => 0, // Sera calculé après selon mise de fonds
+                    'pourcentage' => $pourcentageProfit, // Pourcentage direct si spécifié
                     'profit_estime' => 0
                 ];
 
