@@ -91,7 +91,10 @@ include '../includes/header.php';
 
         <div class="d-flex justify-content-center gap-3">
             <a href="<?= url('/employe/mes-factures.php') ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-list me-1"></i><?= __('my_invoices') ?>
+                <i class="bi bi-receipt me-1"></i><?= __('my_invoices') ?>
+            </a>
+            <a href="<?= url('/employe/mes-heures.php') ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history me-1"></i><?= __('my_hours') ?>
             </a>
         </div>
     </div>
@@ -241,12 +244,17 @@ include '../includes/header.php';
     </div>
 
     <!-- Mes heures -->
-    <div class="card">
+    <div class="card mt-4">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span><i class="bi bi-clock-history me-2"></i><?= __('my_hours') ?></span>
-            <a href="<?= url('/employe/feuille-temps.php') ?>" class="btn btn-outline-primary btn-sm">
-                <?= __('add_hours') ?>
-            </a>
+            <div>
+                <a href="<?= url('/employe/mes-heures.php') ?>" class="btn btn-outline-primary btn-sm me-1">
+                    <?= __('see_all') ?>
+                </a>
+                <a href="<?= url('/employe/feuille-temps.php') ?>" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i><?= __('add_hours') ?>
+                </a>
+            </div>
         </div>
         <div class="card-body p-0">
             <?php if (empty($mesHeures)): ?>
