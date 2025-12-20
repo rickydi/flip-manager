@@ -601,7 +601,8 @@ function generatePagination($currentPage, $totalPages, $baseUrl) {
     unset($queryParams['page']); // Retirer page, on va l'ajouter nous-mêmes
     $queryString = http_build_query($queryParams);
     $separator = $queryString ? '&' : '';
-    $baseWithParams = $baseUrl . '?' . $queryString . $separator;
+    $fullUrl = url($baseUrl); // Appliquer BASE_PATH
+    $baseWithParams = $fullUrl . '?' . $queryString . $separator;
 
     $html = '<nav><ul class="pagination justify-content-center">';
 
