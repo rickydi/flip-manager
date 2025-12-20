@@ -3061,7 +3061,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     // Cashflow nécessaire (même calcul que page principale)
     $cashFlowNecessaire = $indicateurs['cash_flow_necessaire'] ?? 0;
 
-    // Séparer les prêteurs des investisseurs (basé sur type_financement, pas le taux)
+    // Séparer les prêteurs des investisseurs (basé strictement sur type_financement)
+    // Prêteur = reçoit des intérêts (même si 0%)
+    // Investisseur = reçoit un % des profits
     $listePreteurs = [];
     $listeInvestisseurs = [];
     $totalPretsCalc = 0;
@@ -3072,7 +3074,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         $montant = (float)($p['montant'] ?? $p['mise_de_fonds'] ?? 0);
         $taux = (float)($p['taux_interet'] ?? 0);
         $pctProfit = (float)($p['pourcentage_profit'] ?? 0);
-        $type = $p['type_calc'] ?? ($taux > 0 ? 'preteur' : 'investisseur');
+        // Utiliser strictement le type_financement enregistré, défaut à 'preteur'
+        $type = $p['type_calc'] ?? 'preteur';
 
         if ($type === 'preteur') {
             $listePreteurs[] = array_merge($p, ['montant_calc' => $montant, 'taux_calc' => $taux]);
