@@ -100,7 +100,7 @@ include '../includes/header.php';
 
         <!-- Petit bonhomme qui dit allo -->
         <div class="waving-guy-container">
-            <svg class="waving-guy-svg" width="120" height="150" viewBox="0 0 120 150">
+            <svg class="waving-guy-svg" id="sombreroGuy" width="120" height="150" viewBox="0 0 120 150" style="cursor: pointer;">
                 <!-- Sombrero -->
                 <ellipse cx="60" cy="28" rx="45" ry="8" fill="#8B4513"/>
                 <ellipse cx="60" cy="26" rx="45" ry="6" fill="#A0522D"/>
@@ -403,6 +403,74 @@ include '../includes/header.php';
     0%, 100% { transform: rotate(0deg); }
     50% { transform: rotate(-20deg); }
 }
+
+/* Réaction au toucher */
+.waving-guy-svg.touched {
+    animation: jump 0.5s ease-out;
+}
+
+.waving-guy-svg.touched .waving-arm {
+    animation: wave-fast 0.15s ease-in-out 6;
+}
+
+@keyframes jump {
+    0% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(-20px) scale(1.1); }
+    50% { transform: translateY(-15px) scale(1.05); }
+    70% { transform: translateY(-5px) scale(1.02); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes wave-fast {
+    0%, 100% { transform: rotate(0deg); }
+    50% { transform: rotate(-30deg); }
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var guy = document.getElementById('sombreroGuy');
+    if (!guy) return;
+
+    // Sons "Hola!" variés
+    var sounds = [
+        'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYNBrYyAAAAAAD/+1DEAAAGAAGn9AAAIywhK/81kAAAAA0w0IAAABOQEFAQBA5CgoCAIAgOD5QEHg+XB8H/KAhyIPlAQ5EHz/lAQ5EHygf/wfB///ygIAgCAJ/4IAn//5QEP/+D4f/8oCH/lwfD/wf/B8YAAAAALW9PT09P/7UMQFgAd8SWn5rIAA8Iguf0WgAE9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09P/7UMQHgAeUYW35jIAA7Yrtvx2gAE9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09P/7UMQMAAd0PWv4DIAAqQAnPwAgAJ09PT09PQAAAAAAAAAAAAADAQBAQMD3d3d3d3d3d3d3ERERERER3d3d3d3d3d3d3d3d3d3d3d3d3d3d3REREREREREREREREREREREREREREREREREREREQ=='
+    ];
+
+    var isPlaying = false;
+
+    guy.addEventListener('click', handleTouch);
+    guy.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        handleTouch();
+    });
+
+    function handleTouch() {
+        if (isPlaying) return;
+        isPlaying = true;
+
+        // Animation de saut
+        guy.classList.add('touched');
+
+        // Jouer le son
+        try {
+            var audio = new Audio(sounds[0]);
+            audio.volume = 0.5;
+            audio.play().catch(function() {});
+        } catch(e) {}
+
+        // Faire vibrer sur mobile (si supporté)
+        if (navigator.vibrate) {
+            navigator.vibrate(100);
+        }
+
+        // Retirer la classe après l'animation
+        setTimeout(function() {
+            guy.classList.remove('touched');
+            isPlaying = false;
+        }, 900);
+    }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
