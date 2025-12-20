@@ -1367,10 +1367,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pourcentageProfit = parseNumber($_POST['pourcentage_profit'] ?? 0);
 
                 if ($investisseurId && ($montant > 0 || $pourcentageProfit > 0)) {
+                    // Permet plusieurs prêts/investissements du même prêteur sur un projet
                     $stmt = $pdo->prepare("
                         INSERT INTO projet_investisseurs (projet_id, investisseur_id, type_financement, montant, taux_interet, pourcentage_profit)
                         VALUES (?, ?, ?, ?, ?, ?)
-                        ON DUPLICATE KEY UPDATE montant = VALUES(montant), taux_interet = VALUES(taux_interet), type_financement = VALUES(type_financement), pourcentage_profit = VALUES(pourcentage_profit)
                     ");
                     $stmt->execute([$projetId, $investisseurId, $typeFinancement, $montant, $tauxInteret, $pourcentageProfit]);
                     setFlashMessage('success', $typeFinancement === 'investisseur' ? 'Investisseur ajouté!' : 'Prêteur ajouté!');
