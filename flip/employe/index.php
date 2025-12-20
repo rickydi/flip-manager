@@ -97,6 +97,14 @@ include '../includes/header.php';
                 <i class="bi bi-clock-history me-1"></i><?= __('my_hours') ?>
             </a>
         </div>
+
+        <!-- Petit bonhomme qui dit allo -->
+        <div class="text-center mt-4">
+            <div class="waving-guy">
+                <span class="guy-body">🧑‍🔧</span>
+                <span class="waving-hand">👋</span>
+            </div>
+        </div>
     </div>
     
     <!-- ========================================== -->
@@ -322,6 +330,34 @@ include '../includes/header.php';
 
 [data-theme="dark"] .mobile-action-menu .btn-lg {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Petit bonhomme qui fait allo */
+.waving-guy {
+    display: inline-block;
+    font-size: 3rem;
+    position: relative;
+}
+
+.guy-body {
+    display: inline-block;
+}
+
+.waving-hand {
+    display: inline-block;
+    position: absolute;
+    top: -10px;
+    right: -20px;
+    font-size: 1.8rem;
+    animation: wave 1s ease-in-out infinite;
+    transform-origin: 70% 70%;
+}
+
+@keyframes wave {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(20deg); }
+    50% { transform: rotate(-10deg); }
+    75% { transform: rotate(20deg); }
 }
 </style>
 
