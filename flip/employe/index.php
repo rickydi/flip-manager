@@ -432,11 +432,6 @@ document.addEventListener('DOMContentLoaded', function() {
     var guy = document.getElementById('sombreroGuy');
     if (!guy) return;
 
-    // Sons "Hola!" variés
-    var sounds = [
-        'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYNBrYyAAAAAAD/+1DEAAAGAAGn9AAAIywhK/81kAAAAA0w0IAAABOQEFAQBA5CgoCAIAgOD5QEHg+XB8H/KAhyIPlAQ5EHz/lAQ5EHygf/wfB///ygIAgCAJ/4IAn//5QEP/+D4f/8oCH/lwfD/wf/B8YAAAAALW9PT09P/7UMQFgAd8SWn5rIAA8Iguf0WgAE9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09P/7UMQHgAeUYW35jIAA7Yrtvx2gAE9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09P/7UMQMAAd0PWv4DIAAqQAnPwAgAJ09PT09PQAAAAAAAAAAAAADAQBAQMD3d3d3d3d3d3d3ERERERER3d3d3d3d3d3d3d3d3d3d3d3d3d3d3REREREREREREREREREREREREREREREREREREREQ=='
-    ];
-
     var isPlaying = false;
 
     guy.addEventListener('click', handleTouch);
@@ -452,12 +447,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Animation de saut
         guy.classList.add('touched');
 
-        // Jouer le son
-        try {
-            var audio = new Audio(sounds[0]);
-            audio.volume = 0.5;
-            audio.play().catch(function() {});
-        } catch(e) {}
+        // Dire "Allo Jason!" avec synthèse vocale
+        if ('speechSynthesis' in window) {
+            var msg = new SpeechSynthesisUtterance('Allo Jason!');
+            msg.lang = 'fr-CA';
+            msg.rate = 1.1;
+            msg.pitch = 1.2;
+            window.speechSynthesis.speak(msg);
+        }
 
         // Faire vibrer sur mobile (si supporté)
         if (navigator.vibrate) {
@@ -468,7 +465,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
             guy.classList.remove('touched');
             isPlaying = false;
-        }, 900);
+        }, 1200);
     }
 });
 </script>
