@@ -99,46 +99,59 @@ include '../includes/header.php';
         </div>
 
         <!-- Petit bonhomme qui dit allo -->
-        <div class="text-center mt-4">
-            <svg class="waving-guy-svg" width="80" height="100" viewBox="0 0 80 100">
+        <div class="waving-guy-container">
+            <svg class="waving-guy-svg" width="120" height="150" viewBox="0 0 120 150">
+                <!-- Sombrero -->
+                <ellipse cx="60" cy="28" rx="45" ry="8" fill="#8B4513"/>
+                <ellipse cx="60" cy="26" rx="45" ry="6" fill="#A0522D"/>
+                <path d="M 35 28 Q 60 -5 85 28" fill="#CD853F"/>
+                <path d="M 38 26 Q 60 0 82 26" fill="#DEB887"/>
+                <!-- Décoration sombrero -->
+                <path d="M 40 22 Q 60 8 80 22" stroke="#e74c3c" stroke-width="3" fill="none"/>
+                <circle cx="60" cy="12" r="3" fill="#e74c3c"/>
+
                 <!-- Tête -->
-                <circle cx="40" cy="18" r="14" fill="#f4c675" stroke="#d4a655" stroke-width="2"/>
+                <circle cx="60" cy="45" r="16" fill="#f4c675" stroke="#d4a655" stroke-width="2"/>
                 <!-- Yeux -->
-                <circle cx="35" cy="16" r="2" fill="#333"/>
-                <circle cx="45" cy="16" r="2" fill="#333"/>
+                <circle cx="54" cy="43" r="2.5" fill="#333"/>
+                <circle cx="66" cy="43" r="2.5" fill="#333"/>
+                <!-- Moustache -->
+                <path d="M 50 52 Q 55 56 60 52 Q 65 56 70 52" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
                 <!-- Sourire -->
-                <path d="M 34 24 Q 40 30 46 24" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
-                <!-- Casque de construction -->
-                <ellipse cx="40" cy="8" rx="16" ry="6" fill="#f1c40f"/>
-                <rect x="24" y="4" width="32" height="6" rx="2" fill="#f1c40f"/>
-                <rect x="36" y="0" width="8" height="6" rx="2" fill="#e67e22"/>
-                <!-- Corps (gilet) -->
-                <rect x="28" y="32" width="24" height="30" rx="4" fill="#e67e22"/>
-                <rect x="32" y="32" width="4" height="30" fill="#f1c40f"/>
-                <rect x="44" y="32" width="4" height="30" fill="#f1c40f"/>
+                <path d="M 52 56 Q 60 63 68 56" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+                <!-- Corps (poncho) -->
+                <path d="M 30 65 L 60 62 L 90 65 L 85 100 L 35 100 Z" fill="#e74c3c"/>
+                <path d="M 35 70 L 60 67 L 85 70" stroke="#f1c40f" stroke-width="3" fill="none"/>
+                <path d="M 37 80 L 60 77 L 83 80" stroke="#2ecc71" stroke-width="3" fill="none"/>
+                <path d="M 38 90 L 60 87 L 82 90" stroke="#f1c40f" stroke-width="3" fill="none"/>
+
                 <!-- Bras gauche (fixe) -->
-                <rect x="12" y="36" width="16" height="8" rx="4" fill="#f4c675"/>
+                <rect x="15" y="72" width="20" height="10" rx="5" fill="#f4c675"/>
                 <!-- Main gauche -->
-                <circle cx="12" cy="40" r="5" fill="#f4c675"/>
+                <circle cx="15" cy="77" r="7" fill="#f4c675"/>
+
                 <!-- Bras droit (qui fait allo) -->
                 <g class="waving-arm">
-                    <rect x="52" y="32" width="20" height="8" rx="4" fill="#f4c675" transform="rotate(-45, 52, 36)"/>
+                    <rect x="85" y="65" width="22" height="10" rx="5" fill="#f4c675" transform="rotate(-50, 85, 70)"/>
                     <!-- Main droite qui salue -->
                     <g class="waving-hand-svg">
-                        <circle cx="68" cy="20" r="6" fill="#f4c675"/>
+                        <circle cx="100" cy="42" r="8" fill="#f4c675"/>
                         <!-- Doigts -->
-                        <rect x="66" y="10" width="3" height="8" rx="1" fill="#f4c675"/>
-                        <rect x="70" y="9" width="3" height="9" rx="1" fill="#f4c675"/>
-                        <rect x="74" y="11" width="3" height="7" rx="1" fill="#f4c675"/>
-                        <rect x="62" y="12" width="3" height="6" rx="1" fill="#f4c675"/>
+                        <rect x="97" y="28" width="4" height="12" rx="2" fill="#f4c675"/>
+                        <rect x="102" y="26" width="4" height="14" rx="2" fill="#f4c675"/>
+                        <rect x="107" y="29" width="4" height="10" rx="2" fill="#f4c675"/>
+                        <rect x="92" y="31" width="4" height="9" rx="2" fill="#f4c675"/>
                     </g>
                 </g>
+
                 <!-- Jambes -->
-                <rect x="30" y="62" width="8" height="25" rx="3" fill="#3498db"/>
-                <rect x="42" y="62" width="8" height="25" rx="3" fill="#3498db"/>
-                <!-- Bottes -->
-                <ellipse cx="34" cy="90" rx="7" ry="4" fill="#333"/>
-                <ellipse cx="46" cy="90" rx="7" ry="4" fill="#333"/>
+                <rect x="45" y="100" width="10" height="32" rx="4" fill="#fff"/>
+                <rect x="65" y="100" width="10" height="32" rx="4" fill="#fff"/>
+
+                <!-- Sandales -->
+                <ellipse cx="50" cy="135" rx="9" ry="5" fill="#8B4513"/>
+                <ellipse cx="70" cy="135" rx="9" ry="5" fill="#8B4513"/>
             </svg>
         </div>
     </div>
@@ -369,18 +382,26 @@ include '../includes/header.php';
 }
 
 /* Petit bonhomme SVG qui fait allo */
+.waving-guy-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+}
+
 .waving-guy-svg {
     display: inline-block;
 }
 
 .waving-guy-svg .waving-arm {
-    transform-origin: 52px 36px;
-    animation: wave-arm 0.8s ease-in-out infinite;
+    transform-origin: 85px 70px;
+    animation: wave-arm 0.6s ease-in-out infinite;
 }
 
 @keyframes wave-arm {
     0%, 100% { transform: rotate(0deg); }
-    50% { transform: rotate(-15deg); }
+    50% { transform: rotate(-20deg); }
 }
 </style>
 
