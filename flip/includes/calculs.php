@@ -645,20 +645,27 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
 function calculerIndicateursProjet($pdo, $projet) {
     // Coûts d'acquisition
     $coutsAcquisition = calculerCoutsAcquisition($projet);
-    
-    // Calculer la durée réelle si dates disponibles
-    $mois = (int) $projet['temps_assume_mois'];
-    if (!empty($projet['date_vente']) && !empty($projet['date_acquisition'])) {
+
+    // Durée PRÉVUE (extrapolée)
+    $moisPrevu = (int) $projet['temps_assume_mois'];
+
+    // Durée RÉELLE (de date_acquisition jusqu'à date_vente OU aujourd'hui)
+    $moisReel = $moisPrevu; // Par défaut
+    if (!empty($projet['date_acquisition'])) {
         $dateAchat = new DateTime($projet['date_acquisition']);
-        $dateVente = new DateTime($projet['date_vente']);
-        $diff = $dateAchat->diff($dateVente);
-        $mois = ($diff->y * 12) + $diff->m;
+        // Si vendu, utiliser date_vente, sinon utiliser aujourd'hui
+        $dateFin = !empty($projet['date_vente']) ? new DateTime($projet['date_vente']) : new DateTime();
+        $diff = $dateAchat->diff($dateFin);
+        $moisReel = ($diff->y * 12) + $diff->m;
         // Ajouter 1 mois si on a des jours supplémentaires (mois entamé = mois complet pour les intérêts)
         if ($diff->d > 0) {
-            $mois++;
+            $moisReel++;
         }
-        $mois = max(1, $mois);
+        $moisReel = max(1, $moisReel);
     }
+
+    // Utiliser $moisPrevu pour le budget extrapolé
+    $mois = $moisPrevu;
     
     // Modifier temp_assume_mois pour le calcul des récurrents
     $projetModifie = $projet;
@@ -683,13 +690,20 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Budget avec taxes
     $budgetComplet = calculerBudgetRenovationComplet($pdo, $projet['id'], (float) $projet['taux_contingence']);
     
-    // D'abord récupérer les prêteurs pour avoir les intérêts réels (avec durée réelle)
-    $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], 0, $mois);
-    
+    // Récupérer les prêteurs pour avoir les intérêts PRÉVUS (avec durée prévue)
+    $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], 0, $moisPrevu);
+
+    // Récupérer les intérêts RÉELS (avec durée réelle écoulée)
+    $dataFinancementReel = getInvestisseursProjet($pdo, $projet['id'], 0, $moisReel);
+    $interetsReels = $dataFinancementReel['total_interets'];
+
     // Remplacer les intérêts de vente par les intérêts des prêteurs si disponibles
     if ($dataFinancement['total_interets'] > 0) {
         $coutsVente['interets'] = $dataFinancement['total_interets'];
+        $coutsVente['interets_reel'] = $interetsReels;
         $coutsVente['total'] = $coutsVente['commission_ttc'] + $coutsVente['interets'] + $coutsVente['quittance'] + ($coutsVente['taxe_mutation'] ?? 0) - ($coutsVente['solde_acheteur'] ?? 0);
+    } else {
+        $coutsVente['interets_reel'] = $coutsVente['interets']; // Même valeur si pas de prêteurs
     }
     
     // Coûts fixes totaux (maintenant avec les bons intérêts)
@@ -828,7 +842,10 @@ function calculerIndicateursProjet($pdo, $projet) {
         'investisseurs' => $dataFinancement['investisseurs'],
         'total_prets' => $dataFinancement['total_prets'],
         'total_interets' => $dataFinancement['total_interets'],
-        'mise_fonds_totale' => $dataFinancement['mise_totale']
+        'total_interets_reel' => $interetsReels,
+        'mise_fonds_totale' => $dataFinancement['mise_totale'],
+        'mois_prevu' => $moisPrevu,
+        'mois_reel' => $moisReel
     ];
 }
 

@@ -2956,6 +2956,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <tr class="section-header" data-section="vente">
                         <td colspan="4"><i class="bi bi-shop me-1"></i> Vente <i class="bi bi-chevron-down toggle-icon"></i></td>
                     </tr>
+                    <?php
+                    $interetsPrevu = $indicateurs['couts_vente']['interets'];
+                    $interetsReel = $indicateurs['couts_vente']['interets_reel'] ?? $interetsPrevu;
+                    $ecartInterets = $interetsPrevu - $interetsReel;
+                    ?>
                     <tr class="sub-item">
                         <td>Intérêts (<?php
                             if (!empty($indicateurs['preteurs'])) {
@@ -2967,10 +2972,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                             } else {
                                 echo $projet['taux_interet'] . '%';
                             }
-                        ?> sur <?= $dureeReelle ?> mois)</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['interets']) ?></td>
+                        ?>)
+                        <small class="d-block opacity-75">
+                            Prévu: <?= $indicateurs['mois_prevu'] ?> mois | Réel: <?= $indicateurs['mois_reel'] ?> mois
+                        </small>
+                        </td>
+                        <td class="text-end"><?= formatMoney($interetsPrevu) ?></td>
+                        <td class="text-end <?= $ecartInterets >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartInterets) ?></td>
+                        <td class="text-end"><?= formatMoney($interetsReel) ?></td>
                     </tr>
                     <tr class="sub-item">
                         <td>Commission courtier <?= $projet['taux_commission'] ?>% + taxes</td>
