@@ -5502,12 +5502,17 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
     const originalTd = header.querySelector('td');
     const originalHTML = originalTd.innerHTML;
     const originalColspan = originalTd.getAttribute('colspan');
-    
+
     // Trouver la ligne total-row associée et stocker les montants
     let row = header.nextElementSibling;
     let totalRow = null;
     while (row && !row.classList.contains('section-header')) {
-        if (row.classList.contains('total-row')) {
+        // Prendre la PREMIÈRE total-row trouvée (pas la dernière)
+        // Ou s'arrêter si on atteint grand-total
+        if (row.classList.contains('grand-total')) {
+            break;
+        }
+        if (row.classList.contains('total-row') && !totalRow) {
             totalRow = row;
         }
         row = row.nextElementSibling;
