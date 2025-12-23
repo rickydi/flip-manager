@@ -524,12 +524,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Sauvegarder le projet sélectionné lors de la soumission
-    document.querySelectorAll('form').forEach(function(form) {
-        form.addEventListener('submit', function() {
-            var projetSelect = form.querySelector('select[name="projet_id"]');
-            if (projetSelect && projetSelect.value) {
-                localStorage.setItem('lastProjectId', projetSelect.value);
+    // Sauvegarder le projet dès qu'on le sélectionne
+    document.querySelectorAll('select[name="projet_id"]').forEach(function(select) {
+        select.addEventListener('change', function() {
+            if (this.value) {
+                localStorage.setItem('lastProjectId', this.value);
             }
         });
     });
