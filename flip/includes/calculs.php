@@ -788,12 +788,25 @@ function calculerIndicateursProjet($pdo, $projet) {
     $progressionBudget = $totalBudgetAvecMO > 0 ? ($totalReelAvecMO / $totalBudgetAvecMO) * 100 : 0;
 
     // ÉQUITÉ RÉELLE basée sur les dépenses réelles
+    // Calculer les coûts récurrents RÉELS (basés sur le temps écoulé)
+    $coutsRecurrentsReels = calculerCoutsRecurrentsDynamiques($pdo, $projet['id'], $moisReel);
+    if ($coutsRecurrentsReels['total'] == 0) {
+        $coutsRecurrentsReels = calculerCoutsRecurrentsReels($projet);
+    }
+
+    // Calculer les coûts de vente RÉELS (avec intérêts réels)
+    $coutsVenteReel = $coutsVente['commission_ttc']
+        + ($coutsVente['interets_reel'] ?? $coutsVente['interets'])
+        + $coutsVente['quittance']
+        + ($coutsVente['taxe_mutation'] ?? 0)
+        - ($coutsVente['solde_acheteur'] ?? 0);
+
     $coutTotalReel = (float) $projet['prix_achat']
         + $coutsAcquisition['total']
-        + $coutsRecurrents['total']
-        + $coutsVente['total']
-        + $totalFacturesReelles       // Factures réelles
-        + $mainDoeuvreReelle['cout']; // Main d'œuvre réelle
+        + $coutsRecurrentsReels['total']  // Récurrents RÉELS
+        + $coutsVenteReel                 // Vente avec intérêts RÉELS
+        + $totalFacturesReelles           // Factures réelles
+        + $mainDoeuvreReelle['cout'];     // Main d'œuvre réelle
     $equiteReelle = $valeurPotentielle - $coutTotalReel;
 
     // ROI réels
