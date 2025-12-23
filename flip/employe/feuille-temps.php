@@ -19,7 +19,7 @@ $stmt = $pdo->prepare("SELECT taux_horaire, est_contremaitre FROM users WHERE id
 $stmt->execute([$userId]);
 $currentUser = $stmt->fetch();
 $tauxHoraire = (float)$currentUser['taux_horaire'];
-$estContremaitre = !empty($currentUser['est_contremaitre']);
+$estContremaitre = !empty($currentUser['est_contremaitre']) || isAdmin();
 
 // Si contremaître, récupérer la liste des employés
 $employes = [];
