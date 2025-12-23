@@ -1,6 +1,6 @@
 <?php
 /**
- * Ma paye - Historique des paiements et avances
+ * Ma paye - Historique des semaines et avances (sans montants)
  * Flip Manager
  */
 
@@ -12,11 +12,6 @@ requireLogin();
 
 $pageTitle = 'Ma paye';
 $userId = getCurrentUserId();
-
-// Récupérer l'utilisateur
-$stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->execute([$userId]);
-$user = $stmt->fetch();
 
 // Créer la table avances si elle n'existe pas
 try {
@@ -49,14 +44,14 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $avances = $stmt->fetchAll();
 
-// Calculer totaux avances
-$totalAvancesActives = 0;
-$totalAvancesDeduites = 0;
+// Compter les avances par statut
+$nbAvancesActives = 0;
+$nbAvancesDeduites = 0;
 foreach ($avances as $av) {
     if ($av['statut'] === 'active') {
-        $totalAvancesActives += $av['montant'];
+        $nbAvancesActives++;
     } elseif ($av['statut'] === 'deduite') {
-        $totalAvancesDeduites += $av['montant'];
+        $nbAvancesDeduites++;
     }
 }
 
@@ -64,8 +59,7 @@ foreach ($avances as $av) {
 $stmt = $pdo->prepare("
     SELECT
         DATE(date_travail - INTERVAL (DAYOFWEEK(date_travail) - 2) DAY) as semaine_lundi,
-        SUM(heures) as total_heures,
-        SUM(heures * taux_horaire) as total_montant
+        SUM(heures) as total_heures
     FROM heures_travaillees
     WHERE user_id = ?
     AND statut = 'approuvee'
@@ -112,34 +106,28 @@ include '../includes/header.php';
         <h1><i class="bi bi-wallet2 me-2"></i>Ma paye</h1>
     </div>
 
-    <!-- Résumé -->
+    <!-- Résumé simple -->
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card text-center h-100">
                 <div class="card-body">
-                    <h6 class="text-muted">Mon taux horaire</h6>
-                    <h2 class="text-primary"><?= formatMoney($user['taux_horaire']) ?>/h</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card text-center h-100">
-                <div class="card-body">
-                    <h6 class="text-muted">Avances à rembourser</h6>
-                    <h2 class="<?= $totalAvancesActives > 0 ? 'text-danger' : 'text-success' ?>">
-                        <?= formatMoney($totalAvancesActives) ?>
+                    <h6 class="text-muted">Avances en cours</h6>
+                    <h2 class="<?= $nbAvancesActives > 0 ? 'text-warning' : 'text-success' ?>">
+                        <?= $nbAvancesActives ?>
                     </h2>
-                    <?php if ($totalAvancesActives > 0): ?>
-                        <small class="text-muted">Sera déduit de la prochaine paye</small>
+                    <?php if ($nbAvancesActives > 0): ?>
+                        <small class="text-muted">À déduire de la prochaine paye</small>
+                    <?php else: ?>
+                        <small class="text-success">Aucune avance à rembourser</small>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card text-center h-100">
                 <div class="card-body">
-                    <h6 class="text-muted">Total avances remboursées</h6>
-                    <h2 class="text-secondary"><?= formatMoney($totalAvancesDeduites) ?></h2>
+                    <h6 class="text-muted">Avances remboursées</h6>
+                    <h2 class="text-secondary"><?= $nbAvancesDeduites ?></h2>
                 </div>
             </div>
         </div>
@@ -164,7 +152,6 @@ include '../includes/header.php';
                                 <tr>
                                     <th>Semaine du</th>
                                     <th class="text-end">Heures</th>
-                                    <th class="text-end">Montant</th>
                                     <th class="text-center">Statut</th>
                                 </tr>
                             </thead>
@@ -178,8 +165,7 @@ include '../includes/header.php';
                                         <?= formatDate($sem['semaine_lundi']) ?>
                                         <small class="text-muted">au <?= formatDate($dimanche) ?></small>
                                     </td>
-                                    <td class="text-end"><?= number_format($sem['total_heures'], 1) ?>h</td>
-                                    <td class="text-end fw-bold"><?= formatMoney($sem['total_montant']) ?></td>
+                                    <td class="text-end fw-bold"><?= number_format($sem['total_heures'], 1) ?>h</td>
                                     <td class="text-center">
                                         <?php if ($estPayee): ?>
                                             <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Payée</span>
@@ -214,15 +200,14 @@ include '../includes/header.php';
                             <div class="list-group-item paye-card <?= $av['statut'] ?>">
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
-                                        <strong><?= formatMoney($av['montant']) ?></strong>
-                                        <small class="text-muted d-block"><?= formatDate($av['date_avance']) ?></small>
+                                        <strong><?= formatDate($av['date_avance']) ?></strong>
                                         <?php if ($av['raison']): ?>
-                                            <small class="text-muted"><?= e($av['raison']) ?></small>
+                                            <small class="text-muted d-block"><?= e($av['raison']) ?></small>
                                         <?php endif; ?>
                                     </div>
                                     <div>
                                         <?php if ($av['statut'] === 'active'): ?>
-                                            <span class="badge bg-warning text-dark">Active</span>
+                                            <span class="badge bg-warning text-dark">À rembourser</span>
                                         <?php elseif ($av['statut'] === 'deduite'): ?>
                                             <span class="badge bg-success">Remboursée</span>
                                         <?php else: ?>
