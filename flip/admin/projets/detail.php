@@ -2832,6 +2832,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
+                    $contingenceUtilisee = 0; // Somme des dépassements
                     foreach ($categories as $cat):
                         $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
@@ -2848,6 +2849,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         $ecart = $budgetAffiche - $depense;
                         $totalBudgetReno += $budgetHT;
                         $totalReelReno += $depense;
+                        // Accumuler les dépassements pour la contingence
+                        if ($ecart < 0) {
+                            $contingenceUtilisee += abs($ecart);
+                        }
                     ?>
                     <tr class="sub-item detail-cat-row" data-cat-id="<?= $cat['id'] ?>">
                         <td>
@@ -2863,9 +2868,13 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php endforeach; ?>
                     
                     <!-- MAIN D'ŒUVRE -->
-                    <?php 
+                    <?php
                     $diffMO = $moExtrapole['cout'] - $moReel['cout'];
-                    if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0): 
+                    // Ajouter dépassement MO à la contingence utilisée
+                    if ($diffMO < 0) {
+                        $contingenceUtilisee += abs($diffMO);
+                    }
+                    if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0):
                     ?>
                     <tr class="sub-item labor-row">
                         <td>
@@ -2881,11 +2890,14 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </tr>
                     <?php endif; ?>
                     
+                    <?php
+                    $ecartContingence = $indicateurs['contingence'] - $contingenceUtilisee;
+                    ?>
                     <tr class="sub-item">
                         <td>Contingence <?= $projet['taux_contingence'] ?>%</td>
                         <td class="text-end" id="detailContingence"><?= formatMoney($indicateurs['contingence']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end">-</td>
+                        <td class="text-end <?= $ecartContingence >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartContingence) ?></td>
+                        <td class="text-end"><?= formatMoney($contingenceUtilisee) ?></td>
                     </tr>
 
                     <?php
