@@ -2832,7 +2832,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <?php
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
-                    $contingenceUtilisee = 0; // Somme des dépassements
+                    $totalEcartReno = 0; // Somme de tous les écarts (positifs compensent négatifs)
                     foreach ($categories as $cat):
                         $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
@@ -2849,10 +2849,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         $ecart = $budgetAffiche - $depense;
                         $totalBudgetReno += $budgetHT;
                         $totalReelReno += $depense;
-                        // Accumuler les dépassements pour la contingence
-                        if ($ecart < 0) {
-                            $contingenceUtilisee += abs($ecart);
-                        }
+                        // Accumuler tous les écarts (positifs et négatifs)
+                        $totalEcartReno += $ecart;
                     ?>
                     <tr class="sub-item detail-cat-row" data-cat-id="<?= $cat['id'] ?>">
                         <td>
@@ -2870,10 +2868,10 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <!-- MAIN D'ŒUVRE -->
                     <?php
                     $diffMO = $moExtrapole['cout'] - $moReel['cout'];
-                    // Ajouter dépassement MO à la contingence utilisée
-                    if ($diffMO < 0) {
-                        $contingenceUtilisee += abs($diffMO);
-                    }
+                    // Ajouter l'écart MO au total (positif ou négatif)
+                    $totalEcartReno += $diffMO;
+                    // Contingence utilisée = dépassement net, minimum 0
+                    $contingenceUtilisee = $totalEcartReno < 0 ? abs($totalEcartReno) : 0;
                     if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0):
                     ?>
                     <tr class="sub-item labor-row">
