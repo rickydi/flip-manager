@@ -96,9 +96,6 @@ include '../includes/header.php';
             <a href="<?= url('/employe/mes-heures.php') ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-clock-history me-1"></i><?= __('my_hours') ?>
             </a>
-            <a href="<?= url('/employe/ma-paye.php') ?>" class="btn btn-outline-success">
-                <i class="bi bi-wallet2 me-1"></i>Ma paye
-            </a>
         </div>
 
         <!-- Petit bonhomme qui dit allo -->
