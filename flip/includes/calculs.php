@@ -703,7 +703,11 @@ function calculerIndicateursProjet($pdo, $projet) {
         $coutsVente['interets_reel'] = $interetsReels;
         $coutsVente['total'] = $coutsVente['commission_ttc'] + $coutsVente['interets'] + $coutsVente['quittance'] + ($coutsVente['taxe_mutation'] ?? 0) - ($coutsVente['solde_acheteur'] ?? 0);
     } else {
-        $coutsVente['interets_reel'] = $coutsVente['interets']; // Même valeur si pas de prêteurs
+        // Calculer intérêts réels basés sur la durée réelle (sans prêteurs individuels)
+        $tauxInteret = (float) $projet['taux_interet'];
+        $montantPret = (float) $projet['montant_pret'];
+        $tauxMensuel = $tauxInteret / 100 / 12;
+        $coutsVente['interets_reel'] = $montantPret * (pow(1 + $tauxMensuel, $moisReel) - 1);
     }
     
     // Coûts fixes totaux (maintenant avec les bons intérêts)
@@ -842,7 +846,7 @@ function calculerIndicateursProjet($pdo, $projet) {
         'investisseurs' => $dataFinancement['investisseurs'],
         'total_prets' => $dataFinancement['total_prets'],
         'total_interets' => $dataFinancement['total_interets'],
-        'total_interets_reel' => $interetsReels,
+        'total_interets_reel' => $coutsVente['interets_reel'],
         'mise_fonds_totale' => $dataFinancement['mise_totale'],
         'mois_prevu' => $moisPrevu,
         'mois_reel' => $moisReel
