@@ -653,15 +653,29 @@ function calculerIndicateursProjet($pdo, $projet) {
     $moisReel = $moisPrevu; // Par défaut
     if (!empty($projet['date_acquisition'])) {
         $dateAchat = new DateTime($projet['date_acquisition']);
-        // Si vendu, utiliser date_vente, sinon utiliser aujourd'hui
-        $dateFin = !empty($projet['date_vente']) ? new DateTime($projet['date_vente']) : new DateTime();
-        $diff = $dateAchat->diff($dateFin);
-        $moisReel = ($diff->y * 12) + $diff->m;
-        // Ajouter 1 mois si on a des jours supplémentaires (mois entamé = mois complet pour les intérêts)
-        if ($diff->d > 0) {
-            $moisReel++;
+        $aujourdhui = new DateTime();
+
+        // Utiliser date_vente SEULEMENT si elle est dans le passé (projet vendu)
+        // Sinon utiliser aujourd'hui pour le calcul réel
+        if (!empty($projet['date_vente'])) {
+            $dateVente = new DateTime($projet['date_vente']);
+            $dateFin = ($dateVente <= $aujourdhui) ? $dateVente : $aujourdhui;
+        } else {
+            $dateFin = $aujourdhui;
         }
-        $moisReel = max(1, $moisReel);
+
+        // Si date_acquisition est dans le futur, pas encore d'intérêts réels
+        if ($dateAchat > $dateFin) {
+            $moisReel = 0;
+        } else {
+            $diff = $dateAchat->diff($dateFin);
+            $moisReel = ($diff->y * 12) + $diff->m;
+            // Ajouter 1 mois si on a des jours supplémentaires (mois entamé = mois complet pour les intérêts)
+            if ($diff->d > 0) {
+                $moisReel++;
+            }
+            $moisReel = max(1, $moisReel);
+        }
     }
 
     // Utiliser $moisPrevu pour le budget extrapolé
