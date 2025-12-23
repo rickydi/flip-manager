@@ -3009,11 +3009,21 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['solde_acheteur']) ?></td>
                     </tr>
                     <?php endif; ?>
+                    <?php
+                    // Calculer le sous-total vente réel (avec intérêts réels)
+                    $totalVentePrevu = $indicateurs['couts_vente']['total'];
+                    $totalVenteReel = $indicateurs['couts_vente']['commission_ttc']
+                        + ($indicateurs['couts_vente']['interets_reel'] ?? $indicateurs['couts_vente']['interets'])
+                        + $indicateurs['couts_vente']['quittance']
+                        + ($indicateurs['couts_vente']['taxe_mutation'] ?? 0)
+                        - ($indicateurs['couts_vente']['solde_acheteur'] ?? 0);
+                    $ecartVente = $totalVentePrevu - $totalVenteReel;
+                    ?>
                     <tr class="total-row">
                         <td>Sous-total Vente</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_vente']['total']) ?></td>
+                        <td class="text-end"><?= formatMoney($totalVentePrevu) ?></td>
+                        <td class="text-end <?= $ecartVente >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartVente) ?></td>
+                        <td class="text-end"><?= formatMoney($totalVenteReel) ?></td>
                     </tr>
                     
                     <!-- GRAND TOTAL -->
