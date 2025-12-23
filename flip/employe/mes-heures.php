@@ -115,10 +115,6 @@ include '../includes/header.php';
             <div class="stat-label"><?= __('approved') ?></div>
             <div class="stat-value"><?= number_format($totaux['heures_approuvees'] ?? 0, 1) ?>h</div>
         </div>
-        <div class="stat-card primary">
-            <div class="stat-label"><?= __('total_value') ?></div>
-            <div class="stat-value"><?= formatMoney($totaux['total_montant'] ?? 0) ?></div>
-        </div>
     </div>
 
     <!-- Filtres -->
@@ -178,24 +174,16 @@ include '../includes/header.php';
                                 <th><?= __('date') ?></th>
                                 <th><?= __('project') ?></th>
                                 <th class="text-center"><?= __('hours') ?></th>
-                                <th class="text-end"><?= __('rate') ?></th>
-                                <th class="text-end"><?= __('amount') ?></th>
                                 <th class="text-center"><?= __('status') ?></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($heures as $heure):
-                                $montant = $heure['heures'] * $heure['taux_horaire'];
-                            ?>
+                            <?php foreach ($heures as $heure): ?>
                                 <tr>
                                     <td><?= formatDate($heure['date_travail']) ?></td>
                                     <td><?= e($heure['projet_nom']) ?></td>
                                     <td class="text-center">
                                         <strong><?= number_format($heure['heures'], 1) ?>h</strong>
-                                    </td>
-                                    <td class="text-end"><?= formatMoney($heure['taux_horaire']) ?>/h</td>
-                                    <td class="text-end">
-                                        <strong><?= formatMoney($montant) ?></strong>
                                     </td>
                                     <td class="text-center">
                                         <?php if ($heure['statut'] === 'approuvee'): ?>
