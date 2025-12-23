@@ -1909,6 +1909,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
+// TABLE AVANCES EMPLOYES (auto-création)
+// ========================================
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS avances_employes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            montant DECIMAL(10,2) NOT NULL,
+            date_avance DATE NOT NULL,
+            raison TEXT NULL,
+            statut ENUM('active', 'deduite', 'annulee') DEFAULT 'active',
+            cree_par INT NULL,
+            deduite_semaine DATE NULL,
+            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+            date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_user (user_id),
+            INDEX idx_statut (statut)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+} catch (Exception $e) {}
+
+// ========================================
+// ACTIONS AVANCES (POST)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajouter_avance') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $avUserId = (int)($_POST['avance_user_id'] ?? 0);
+        $avMontant = parseNumber($_POST['avance_montant'] ?? 0);
+        $avDate = $_POST['avance_date'] ?? date('Y-m-d');
+        $avRaison = trim($_POST['avance_raison'] ?? '');
+
+        if ($avUserId > 0 && $avMontant > 0) {
+            $stmt = $pdo->prepare("INSERT INTO avances_employes (user_id, montant, date_avance, raison, cree_par) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$avUserId, $avMontant, $avDate, $avRaison, getCurrentUserId()]);
+            setFlashMessage('success', 'Avance de ' . formatMoney($avMontant) . ' ajoutée!');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'annuler_avance') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $avId = (int)($_POST['avance_id'] ?? 0);
+        if ($avId > 0) {
+            $stmt = $pdo->prepare("UPDATE avances_employes SET statut = 'annulee' WHERE id = ? AND statut = 'active'");
+            $stmt->execute([$avId]);
+            setFlashMessage('warning', 'Avance annulée.');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+// ========================================
 // DONNÉES POUR ONGLET TEMPS
 // ========================================
 $heuresProjet = [];
@@ -1923,6 +1976,57 @@ try {
     $stmt->execute([$projetId]);
     $heuresProjet = $stmt->fetchAll();
 } catch (Exception $e) {}
+
+// Récupérer le résumé par employé pour ce projet
+$resumeEmployes = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT
+            h.user_id,
+            CONCAT(u.prenom, ' ', u.nom) as nom_complet,
+            u.taux_horaire,
+            SUM(CASE WHEN h.statut = 'approuvee' THEN h.heures ELSE 0 END) as heures_approuvees,
+            SUM(CASE WHEN h.statut = 'en_attente' THEN h.heures ELSE 0 END) as heures_attente,
+            SUM(CASE WHEN h.statut = 'approuvee' THEN h.heures * COALESCE(h.taux_horaire, u.taux_horaire) ELSE 0 END) as montant_approuve
+        FROM heures_travaillees h
+        JOIN users u ON h.user_id = u.id
+        WHERE h.projet_id = ?
+        GROUP BY h.user_id, u.prenom, u.nom, u.taux_horaire
+        ORDER BY u.prenom, u.nom
+    ");
+    $stmt->execute([$projetId]);
+    $resumeEmployes = $stmt->fetchAll();
+} catch (Exception $e) {}
+
+// Récupérer les avances actives par employé
+$avancesParEmploye = [];
+$avancesListe = [];
+try {
+    // Avances groupées par employé
+    $stmt = $pdo->query("
+        SELECT user_id, SUM(montant) as total_avances, COUNT(*) as nb_avances
+        FROM avances_employes WHERE statut = 'active' GROUP BY user_id
+    ");
+    while ($row = $stmt->fetch()) {
+        $avancesParEmploye[$row['user_id']] = ['total' => $row['total_avances'], 'nb' => $row['nb_avances']];
+    }
+
+    // Liste des avances actives (toutes)
+    $avancesListe = $pdo->query("
+        SELECT a.*, CONCAT(u.prenom, ' ', u.nom) as employe_nom
+        FROM avances_employes a
+        JOIN users u ON a.user_id = u.id
+        WHERE a.statut = 'active'
+        ORDER BY a.date_avance DESC
+    ")->fetchAll();
+} catch (Exception $e) {}
+
+// Liste des employés actifs pour le formulaire
+$employesActifs = $pdo->query("
+    SELECT id, CONCAT(prenom, ' ', nom) as nom_complet
+    FROM users WHERE actif = 1 AND role IN ('employe', 'admin')
+    ORDER BY prenom, nom
+")->fetchAll();
 
 // ========================================
 // DONNÉES POUR ONGLET PHOTOS
@@ -3748,82 +3852,256 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
             $totalCoutTab += $h['heures'] * $taux;
         }
+        $totalAvancesActives = array_sum(array_column($avancesListe, 'montant'));
         ?>
 
         <!-- Barre compacte : Stats -->
         <div class="d-flex flex-wrap align-items-center gap-2 mb-3 p-2 rounded" style="background: rgba(255,255,255,0.03);">
-            <!-- Total heures -->
             <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,110,253,0.15);">
                 <i class="bi bi-clock text-primary me-2"></i>
                 <span class="text-muted me-1">Heures:</span>
                 <strong class="text-primary"><?= number_format($totalHeuresTab, 1) ?> h</strong>
             </div>
-
-            <!-- Coût total -->
             <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(25,135,84,0.15);">
                 <i class="bi bi-cash text-success me-2"></i>
                 <span class="text-muted me-1">Coût:</span>
                 <strong class="text-success"><?= formatMoney($totalCoutTab) ?></strong>
             </div>
-
-            <!-- Spacer + Badge à droite -->
-            <div class="ms-auto">
-                <span class="badge bg-secondary"><?= count($heuresProjet) ?> entrées</span>
+            <?php if ($totalAvancesActives > 0): ?>
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(220,53,69,0.15);">
+                <i class="bi bi-wallet2 text-danger me-2"></i>
+                <span class="text-muted me-1">Avances:</span>
+                <strong class="text-danger"><?= formatMoney($totalAvancesActives) ?></strong>
+            </div>
+            <?php endif; ?>
+            <div class="ms-auto d-flex gap-2">
+                <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAvance">
+                    <i class="bi bi-plus-circle me-1"></i>Nouvelle avance
+                </button>
+                <span class="badge bg-secondary align-self-center"><?= count($heuresProjet) ?> entrées</span>
             </div>
         </div>
 
-        <?php if (empty($heuresProjet)): ?>
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>Aucune heure enregistrée pour ce projet.
-            </div>
-        <?php else: ?>
-            <div class="table-responsive">
-                <table class="table table-sm table-hover">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Date</th>
-                            <th>Employé</th>
-                            <th class="text-end">Heures</th>
-                            <th class="text-end">Taux</th>
-                            <th class="text-end">Montant</th>
-                            <th>Statut</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach ($heuresProjet as $h):
-                            $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
-                            $montant = $h['heures'] * $taux;
-                        ?>
-                        <tr>
-                            <td><?= formatDate($h['date_travail']) ?></td>
-                            <td><?= e($h['employe_nom']) ?></td>
-                            <td class="text-end"><?= number_format($h['heures'], 1) ?></td>
-                            <td class="text-end"><?= formatMoney($taux) ?>/h</td>
-                            <td class="text-end fw-bold"><?= formatMoney($montant) ?></td>
-                            <td>
-                                <?php
-                                $statusClass = match($h['statut']) {
-                                    'approuvee' => 'bg-success',
-                                    'rejetee' => 'bg-danger',
-                                    default => 'bg-warning'
-                                };
-                                $statusLabel = match($h['statut']) {
-                                    'approuvee' => 'Approuvée',
-                                    'rejetee' => 'Rejetée',
-                                    default => 'En attente'
-                                };
+        <div class="row">
+            <!-- Résumé par employé -->
+            <div class="col-lg-7 mb-3">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <i class="bi bi-people me-2"></i>Résumé par employé
+                    </div>
+                    <div class="card-body p-0">
+                        <?php if (empty($resumeEmployes)): ?>
+                            <div class="text-center py-3 text-muted">Aucune heure enregistrée</div>
+                        <?php else: ?>
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Employé</th>
+                                    <th class="text-end">Heures</th>
+                                    <th class="text-end">Brut</th>
+                                    <th class="text-end text-danger">Avances</th>
+                                    <th class="text-end" style="background: rgba(25,135,84,0.1);">Net</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($resumeEmployes as $emp):
+                                    $avEmp = $avancesParEmploye[$emp['user_id']] ?? ['total' => 0, 'nb' => 0];
+                                    $netEmp = $emp['montant_approuve'] - $avEmp['total'];
                                 ?>
-                                <span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span>
-                            </td>
-                            <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+                                <tr>
+                                    <td>
+                                        <?= e($emp['nom_complet']) ?>
+                                        <?php if ($emp['heures_attente'] > 0): ?>
+                                            <small class="text-warning">(+<?= number_format($emp['heures_attente'], 1) ?>h en attente)</small>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end"><?= number_format($emp['heures_approuvees'], 1) ?>h</td>
+                                    <td class="text-end"><?= formatMoney($emp['montant_approuve']) ?></td>
+                                    <td class="text-end">
+                                        <?php if ($avEmp['total'] > 0): ?>
+                                            <span class="text-danger">-<?= formatMoney($avEmp['total']) ?></span>
+                                            <small class="text-muted">(<?= $avEmp['nb'] ?>)</small>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end fw-bold" style="background: rgba(25,135,84,0.1);">
+                                        <?= formatMoney($netEmp) ?>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
-        <?php endif; ?>
+
+            <!-- Avances actives -->
+            <div class="col-lg-5 mb-3">
+                <div class="card">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-wallet2 me-2"></i>Avances actives</span>
+                        <?php if ($totalAvancesActives > 0): ?>
+                            <span class="badge bg-danger"><?= formatMoney($totalAvancesActives) ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="card-body p-0" style="max-height: 250px; overflow-y: auto;">
+                        <?php if (empty($avancesListe)): ?>
+                            <div class="text-center py-3 text-muted">
+                                <i class="bi bi-check-circle"></i> Aucune avance
+                            </div>
+                        <?php else: ?>
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Employé</th>
+                                    <th class="text-end">Montant</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($avancesListe as $av): ?>
+                                <tr>
+                                    <td><small><?= formatDate($av['date_avance']) ?></small></td>
+                                    <td><?= e($av['employe_nom']) ?></td>
+                                    <td class="text-end text-danger fw-bold"><?= formatMoney($av['montant']) ?></td>
+                                    <td>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Annuler cette avance?');">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="annuler_avance">
+                                            <input type="hidden" name="avance_id" value="<?= $av['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Annuler">
+                                                <i class="bi bi-x"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php if ($av['raison']): ?>
+                                <tr>
+                                    <td colspan="4" class="py-0 ps-4 border-0">
+                                        <small class="text-muted"><?= e($av['raison']) ?></small>
+                                    </td>
+                                </tr>
+                                <?php endif; ?>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tableau détaillé des heures -->
+        <div class="card">
+            <div class="card-header py-2">
+                <i class="bi bi-clock-history me-2"></i>Détail des heures
+            </div>
+            <div class="card-body p-0">
+                <?php if (empty($heuresProjet)): ?>
+                    <div class="text-center py-3 text-muted">
+                        <i class="bi bi-info-circle me-2"></i>Aucune heure enregistrée pour ce projet.
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Employé</th>
+                                    <th class="text-end">Heures</th>
+                                    <th class="text-end">Taux</th>
+                                    <th class="text-end">Montant</th>
+                                    <th>Statut</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($heuresProjet as $h):
+                                    $taux = $h['taux_horaire'] > 0 ? $h['taux_horaire'] : $h['taux_actuel'];
+                                    $montant = $h['heures'] * $taux;
+                                ?>
+                                <tr>
+                                    <td><?= formatDate($h['date_travail']) ?></td>
+                                    <td><?= e($h['employe_nom']) ?></td>
+                                    <td class="text-end"><?= number_format($h['heures'], 1) ?></td>
+                                    <td class="text-end"><?= formatMoney($taux) ?>/h</td>
+                                    <td class="text-end fw-bold"><?= formatMoney($montant) ?></td>
+                                    <td>
+                                        <?php
+                                        $statusClass = match($h['statut']) {
+                                            'approuvee' => 'bg-success',
+                                            'rejetee' => 'bg-danger',
+                                            default => 'bg-warning'
+                                        };
+                                        $statusLabel = match($h['statut']) {
+                                            'approuvee' => 'Approuvée',
+                                            'rejetee' => 'Rejetée',
+                                            default => 'En attente'
+                                        };
+                                        ?>
+                                        <span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span>
+                                    </td>
+                                    <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
     </div><!-- Fin TAB TEMPS -->
+
+    <!-- Modal Nouvelle Avance -->
+    <div class="modal fade" id="modalAvance" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="ajouter_avance">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-wallet2 me-2"></i>Nouvelle avance</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Employé *</label>
+                            <select class="form-select" name="avance_user_id" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($employesActifs as $emp): ?>
+                                <option value="<?= $emp['id'] ?>"><?= e($emp['nom_complet']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Montant *</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" name="avance_montant" placeholder="0.00" required>
+                                <span class="input-group-text">$</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-control" name="avance_date" value="<?= date('Y-m-d') ?>">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Raison / Note</label>
+                            <textarea class="form-control" name="avance_raison" rows="2" placeholder="Optionnel..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check me-1"></i>Ajouter l'avance
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <!-- TAB PHOTOS -->
     <div class="tab-pane fade <?= $tab === 'photos' ? 'show active' : '' ?>" id="photos" role="tabpanel">
