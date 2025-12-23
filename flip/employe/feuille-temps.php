@@ -506,6 +506,33 @@ document.addEventListener('DOMContentLoaded', function() {
         heureDebutMobile.addEventListener('change', updateHeuresMobile);
         heureFinMobile.addEventListener('change', updateHeuresMobile);
     }
+
+    // Restaurer le dernier projet utilisé depuis localStorage
+    var lastProjectId = localStorage.getItem('lastProjectId');
+    if (lastProjectId) {
+        // Desktop
+        var projetSelectDesktop = document.querySelector('.d-none.d-md-block select[name="projet_id"]');
+        if (projetSelectDesktop) {
+            var optionDesktop = projetSelectDesktop.querySelector('option[value="' + lastProjectId + '"]');
+            if (optionDesktop) projetSelectDesktop.value = lastProjectId;
+        }
+        // Mobile
+        var projetSelectMobile = document.querySelector('.mobile-timesheet select[name="projet_id"]');
+        if (projetSelectMobile) {
+            var optionMobile = projetSelectMobile.querySelector('option[value="' + lastProjectId + '"]');
+            if (optionMobile) projetSelectMobile.value = lastProjectId;
+        }
+    }
+
+    // Sauvegarder le projet sélectionné lors de la soumission
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            var projetSelect = form.querySelector('select[name="projet_id"]');
+            if (projetSelect && projetSelect.value) {
+                localStorage.setItem('lastProjectId', projetSelect.value);
+            }
+        });
+    });
 });
 </script>
 
