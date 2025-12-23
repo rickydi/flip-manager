@@ -224,14 +224,24 @@ include '../includes/header.php';
 
             <?php if ($estContremaitre): ?>
                 <div class="mb-3">
-                    <label class="form-label"><?= __('employee') ?></label>
-                    <select class="form-select form-select-lg" name="employe_id" required>
+                    <label class="form-label d-flex justify-content-between align-items-center">
+                        <span><?= __('employee') ?></span>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiEmployes">
+                            <i class="bi bi-people me-1"></i>Plusieurs
+                        </button>
+                    </label>
+                    <select class="form-select form-select-lg" name="employe_id" id="selectEmployeUniqueMobile">
                         <?php foreach ($employes as $emp): ?>
                             <option value="<?= $emp['id'] ?>" <?= $emp['id'] == $userId ? 'selected' : '' ?>>
                                 <?= e($emp['nom_complet']) ?>
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <!-- Hidden inputs pour les employés multiples (mobile) -->
+                    <div id="multiEmployesHiddenMobile"></div>
+                    <div id="multiEmployesPreviewMobile" class="mt-2 d-none">
+                        <small class="text-primary"><i class="bi bi-people-fill me-1"></i><span id="multiEmployesCountMobile"></span> employés sélectionnés</small>
+                    </div>
                 </div>
             <?php endif; ?>
 
@@ -568,42 +578,89 @@ function deselectAllEmployes() {
 
 function confirmerMultiEmployes() {
     var checkboxes = document.querySelectorAll('.employe-checkbox:checked');
+
+    // Éléments desktop
     var hiddenDiv = document.getElementById('multiEmployesHidden');
     var previewDiv = document.getElementById('multiEmployesPreview');
     var countSpan = document.getElementById('multiEmployesCount');
     var selectUnique = document.getElementById('selectEmployeUnique');
 
-    // Vider les hidden inputs précédents
-    hiddenDiv.innerHTML = '';
+    // Éléments mobile
+    var hiddenDivMobile = document.getElementById('multiEmployesHiddenMobile');
+    var previewDivMobile = document.getElementById('multiEmployesPreviewMobile');
+    var countSpanMobile = document.getElementById('multiEmployesCountMobile');
+    var selectUniqueMobile = document.getElementById('selectEmployeUniqueMobile');
+
+    // Vider les hidden inputs précédents (desktop et mobile)
+    if (hiddenDiv) hiddenDiv.innerHTML = '';
+    if (hiddenDivMobile) hiddenDivMobile.innerHTML = '';
     selectedEmployes = [];
 
     if (checkboxes.length > 1) {
         // Mode multi-employés
         checkboxes.forEach(function(cb) {
-            var input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'employes_ids[]';
-            input.value = cb.value;
-            hiddenDiv.appendChild(input);
+            // Desktop
+            if (hiddenDiv) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'employes_ids[]';
+                input.value = cb.value;
+                hiddenDiv.appendChild(input);
+            }
+            // Mobile
+            if (hiddenDivMobile) {
+                var inputMobile = document.createElement('input');
+                inputMobile.type = 'hidden';
+                inputMobile.name = 'employes_ids[]';
+                inputMobile.value = cb.value;
+                hiddenDivMobile.appendChild(inputMobile);
+            }
             selectedEmployes.push(cb.dataset.nom);
         });
 
-        // Désactiver le select unique et afficher le preview
-        selectUnique.disabled = true;
-        selectUnique.name = ''; // Retirer le name pour ne pas l'envoyer
-        previewDiv.classList.remove('d-none');
-        countSpan.textContent = checkboxes.length;
+        // Désactiver les selects uniques et afficher les previews
+        if (selectUnique) {
+            selectUnique.disabled = true;
+            selectUnique.name = '';
+        }
+        if (selectUniqueMobile) {
+            selectUniqueMobile.disabled = true;
+            selectUniqueMobile.name = '';
+        }
+        if (previewDiv) {
+            previewDiv.classList.remove('d-none');
+            countSpan.textContent = checkboxes.length;
+        }
+        if (previewDivMobile) {
+            previewDivMobile.classList.remove('d-none');
+            countSpanMobile.textContent = checkboxes.length;
+        }
     } else if (checkboxes.length === 1) {
         // Un seul sélectionné - utiliser le mode normal
-        selectUnique.disabled = false;
-        selectUnique.name = 'employe_id';
-        selectUnique.value = checkboxes[0].value;
-        previewDiv.classList.add('d-none');
+        if (selectUnique) {
+            selectUnique.disabled = false;
+            selectUnique.name = 'employe_id';
+            selectUnique.value = checkboxes[0].value;
+        }
+        if (selectUniqueMobile) {
+            selectUniqueMobile.disabled = false;
+            selectUniqueMobile.name = 'employe_id';
+            selectUniqueMobile.value = checkboxes[0].value;
+        }
+        if (previewDiv) previewDiv.classList.add('d-none');
+        if (previewDivMobile) previewDivMobile.classList.add('d-none');
     } else {
-        // Aucun sélectionné - réactiver le select
-        selectUnique.disabled = false;
-        selectUnique.name = 'employe_id';
-        previewDiv.classList.add('d-none');
+        // Aucun sélectionné - réactiver les selects
+        if (selectUnique) {
+            selectUnique.disabled = false;
+            selectUnique.name = 'employe_id';
+        }
+        if (selectUniqueMobile) {
+            selectUniqueMobile.disabled = false;
+            selectUniqueMobile.name = 'employe_id';
+        }
+        if (previewDiv) previewDiv.classList.add('d-none');
+        if (previewDivMobile) previewDivMobile.classList.add('d-none');
     }
 
     // Fermer le modal
