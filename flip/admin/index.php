@@ -404,80 +404,190 @@ include '../includes/header.php';
     font-size: 0.75rem;
 }
 
-/* Section Fiscalité */
-.fiscal-card {
-    background: linear-gradient(135deg, var(--bg-card) 0%, rgba(37, 99, 235, 0.05) 100%);
+/* Section Fiscalité - Design épuré */
+.fiscal-section {
+    background: var(--bg-card);
     border-radius: 1rem;
-    padding: 1.5rem;
-    box-shadow: 0 4px 6px var(--shadow-color);
-}
-
-.fiscal-progress {
-    height: 24px;
-    border-radius: 12px;
-    background: rgba(100, 116, 139, 0.2);
     overflow: hidden;
-    position: relative;
+    box-shadow: 0 2px 8px var(--shadow-color);
 }
 
-.fiscal-progress-bar {
-    height: 100%;
-    border-radius: 12px;
-    transition: width 1s ease-out;
+.fiscal-header {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+    color: white;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fiscal-header h5 {
+    margin: 0;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 600;
+    gap: 0.5rem;
+}
+
+.fiscal-header select {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.fiscal-header select option {
+    background: #1e3a5f;
     color: white;
 }
 
-.fiscal-progress-bar.low { background: linear-gradient(90deg, #22c55e, #4ade80); }
-.fiscal-progress-bar.medium { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
-.fiscal-progress-bar.high { background: linear-gradient(90deg, #ef4444, #f87171); }
+.fiscal-body {
+    padding: 1.5rem;
+}
 
-.fiscal-stat {
+.fiscal-gauge {
+    position: relative;
+    height: 12px;
+    background: rgba(100, 116, 139, 0.15);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.fiscal-gauge-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fiscal-gauge-fill.safe { background: linear-gradient(90deg, #10b981, #34d399); }
+.fiscal-gauge-fill.warning { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.fiscal-gauge-fill.danger { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+.fiscal-numbers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.fiscal-number {
     text-align: center;
     padding: 1rem;
     background: var(--bg-table-hover);
     border-radius: 0.75rem;
+    border-left: 3px solid transparent;
 }
 
-.fiscal-stat .value {
-    font-size: 1.5rem;
+.fiscal-number.highlight-green { border-left-color: #10b981; }
+.fiscal-number.highlight-red { border-left-color: #ef4444; }
+.fiscal-number.highlight-blue { border-left-color: #3b82f6; }
+
+.fiscal-number .num {
+    font-size: 1.4rem;
     font-weight: 700;
     color: var(--text-primary);
 }
 
-.fiscal-stat .label {
-    font-size: 0.75rem;
+.fiscal-number .lbl {
+    font-size: 0.7rem;
     color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     margin-top: 0.25rem;
 }
 
-.fiscal-table {
-    width: 100%;
+.fiscal-projects {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .fiscal-numbers { grid-template-columns: repeat(2, 1fr); }
+    .fiscal-projects { grid-template-columns: 1fr; }
+}
+
+.fiscal-project-list h6 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.fiscal-project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.fiscal-project-item:last-child { border-bottom: none; }
+
+.fiscal-project-item .name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.fiscal-project-item .name a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.fiscal-project-item .name a:hover {
+    color: var(--primary-color);
+}
+
+.fiscal-project-item .date {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.fiscal-project-item .amount {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.fiscal-project-item .amount.positive { color: #10b981; }
+.fiscal-project-item .amount.negative { color: #ef4444; }
+
+.fiscal-project-item .tax-rate {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.25rem;
+    background: rgba(100, 116, 139, 0.1);
+    color: var(--text-secondary);
+}
+
+.fiscal-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+.fiscal-summary {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 0.75rem;
+    border: 1px dashed rgba(59, 130, 246, 0.3);
+}
+
+.fiscal-summary-row {
+    display: flex;
+    justify-content: space-between;
     font-size: 0.85rem;
 }
 
-.fiscal-table th {
-    color: var(--text-secondary);
-    font-weight: 500;
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.fiscal-table td {
-    padding: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.fiscal-table tr:last-child td {
-    border-bottom: none;
-}
-
-.fiscal-table .profit-positive { color: #22c55e; }
-.fiscal-table .profit-negative { color: #ef4444; }
+.fiscal-summary-row .label { color: var(--text-secondary); }
+.fiscal-summary-row .value { font-weight: 600; color: var(--text-primary); }
 </style>
 
 <div class="container-fluid">
@@ -534,175 +644,136 @@ include '../includes/header.php';
     <!-- Section Fiscalité -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="fiscal-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0">
-                        <i class="bi bi-bank me-2"></i>Année fiscale
-                        <select class="form-select form-select-sm d-inline-block ms-2" style="width: auto;" onchange="window.location.href='?annee='+this.value">
+            <div class="fiscal-section">
+                <!-- Header avec gradient -->
+                <div class="fiscal-header">
+                    <h5>
+                        <i class="bi bi-graph-up-arrow"></i>
+                        Fiscalité
+                        <select onchange="window.location.href='?annee='+this.value">
                             <?php foreach ($anneesDisponibles as $annee): ?>
                             <option value="<?= $annee ?>" <?= $annee == $anneeFiscale ? 'selected' : '' ?>><?= $annee ?></option>
                             <?php endforeach; ?>
                         </select>
                     </h5>
-                    <span class="badge bg-<?= $resumeFiscal['pourcentage_utilise'] >= 100 ? 'danger' : ($resumeFiscal['pourcentage_utilise'] >= 75 ? 'warning' : 'success') ?>">
-                        Seuil DPE: <?= number_format($resumeFiscal['pourcentage_utilise'], 1) ?>% utilisé
-                    </span>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.75rem; opacity: 0.8;">Seuil DPE utilisé</div>
+                        <div style="font-size: 1.5rem; font-weight: 700;"><?= number_format($resumeFiscal['pourcentage_utilise'], 0) ?>%</div>
+                    </div>
                 </div>
 
-                <!-- Barre de progression DPE -->
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <small class="text-muted">Profit cumulatif: <?= formatMoney($resumeFiscal['profit_realise']) ?></small>
-                        <small class="text-muted">Seuil DPE: <?= formatMoney($resumeFiscal['seuil_dpe']) ?></small>
+                <div class="fiscal-body">
+                    <!-- Jauge de progression -->
+                    <?php
+                    $gaugeClass = 'safe';
+                    if ($resumeFiscal['pourcentage_utilise'] >= 75) $gaugeClass = 'warning';
+                    if ($resumeFiscal['pourcentage_utilise'] >= 100) $gaugeClass = 'danger';
+                    ?>
+                    <div class="fiscal-gauge">
+                        <div class="fiscal-gauge-fill <?= $gaugeClass ?>" style="width: <?= min(100, $resumeFiscal['pourcentage_utilise']) ?>%"></div>
                     </div>
-                    <div class="fiscal-progress">
-                        <?php
-                        $progressClass = 'low';
-                        if ($resumeFiscal['pourcentage_utilise'] >= 75) $progressClass = 'medium';
-                        if ($resumeFiscal['pourcentage_utilise'] >= 100) $progressClass = 'high';
-                        ?>
-                        <div class="fiscal-progress-bar <?= $progressClass ?>" style="width: <?= min(100, $resumeFiscal['pourcentage_utilise']) ?>%">
-                            <?php if ($resumeFiscal['pourcentage_utilise'] >= 20): ?>
-                                <?= formatMoney($resumeFiscal['profit_realise']) ?>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
+                        <span>0 $</span>
+                        <span><?= $resumeFiscal['seuil_restant'] > 0 ? 'Reste ' . formatMoney($resumeFiscal['seuil_restant']) . ' à 12,2%' : 'Seuil atteint - 26,5%' ?></span>
+                        <span><?= formatMoney($resumeFiscal['seuil_dpe']) ?></span>
+                    </div>
+
+                    <!-- Chiffres clés -->
+                    <div class="fiscal-numbers">
+                        <div class="fiscal-number">
+                            <div class="num"><?= count($resumeFiscal['projets_vendus']) ?></div>
+                            <div class="lbl">Flips vendus</div>
+                        </div>
+                        <div class="fiscal-number highlight-green">
+                            <div class="num"><?= formatMoney($resumeFiscal['profit_realise']) ?></div>
+                            <div class="lbl">Profit brut</div>
+                        </div>
+                        <div class="fiscal-number highlight-red">
+                            <div class="num"><?= formatMoney($resumeFiscal['impot_realise']) ?></div>
+                            <div class="lbl">Impôts</div>
+                        </div>
+                        <div class="fiscal-number highlight-blue">
+                            <div class="num"><?= formatMoney($resumeFiscal['profit_net_realise']) ?></div>
+                            <div class="lbl">Profit net</div>
+                        </div>
+                    </div>
+
+                    <?php if (!empty($resumeFiscal['projets_vendus']) || !empty($resumeFiscal['projets_en_cours'])): ?>
+                    <div class="fiscal-projects">
+                        <!-- Projets vendus -->
+                        <?php if (!empty($resumeFiscal['projets_vendus'])): ?>
+                        <div class="fiscal-project-list">
+                            <h6><i class="bi bi-check2-circle me-1" style="color: #10b981;"></i> Vendus</h6>
+                            <?php
+                            $profitCumul = 0;
+                            foreach ($resumeFiscal['projets_vendus'] as $pv):
+                                $impotProjet = calculerImpotAvecCumulatif($pv['profit'], $profitCumul);
+                                $profitCumul = $pv['profit_cumulatif'];
+                            ?>
+                            <div class="fiscal-project-item">
+                                <div class="name">
+                                    <a href="<?= url('/admin/projets/detail.php?id=' . $pv['id']) ?>"><?= e($pv['nom']) ?></a>
+                                    <div class="date"><?= date('d M', strtotime($pv['date_vente'])) ?></div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div class="amount <?= $pv['profit'] >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($pv['profit']) ?></div>
+                                    <div class="tax-rate"><?= $impotProjet['taux_affiche'] ?></div>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- Projets en cours -->
+                        <?php if (!empty($resumeFiscal['projets_en_cours'])): ?>
+                        <div class="fiscal-project-list">
+                            <h6><i class="bi bi-hourglass-split me-1" style="color: #f59e0b;"></i> En cours</h6>
+                            <?php
+                            $profitCumulProjection = $resumeFiscal['profit_realise'];
+                            $hasProjects = false;
+                            foreach ($resumeFiscal['projets_en_cours'] as $pc):
+                                if ($pc['profit_estime'] <= 0) continue;
+                                $hasProjects = true;
+                                $impotProjection = calculerImpotAvecCumulatif($pc['profit_estime'], $profitCumulProjection);
+                            ?>
+                            <div class="fiscal-project-item">
+                                <div class="name">
+                                    <a href="<?= url('/admin/projets/detail.php?id=' . $pc['id']) ?>"><?= e($pc['nom']) ?></a>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div class="amount positive"><?= formatMoney($pc['profit_estime']) ?></div>
+                                    <div class="tax-rate"><?= $impotProjection['taux_affiche'] ?></div>
+                                </div>
+                            </div>
+                            <?php
+                                $profitCumulProjection += $pc['profit_estime'];
+                            endforeach;
+                            if (!$hasProjects): ?>
+                            <div class="fiscal-empty" style="padding: 1rem;">Aucun projet rentable en cours</div>
                             <?php endif; ?>
-                        </div>
-                    </div>
-                    <?php if ($resumeFiscal['seuil_restant'] > 0): ?>
-                    <small class="text-success"><i class="bi bi-check-circle me-1"></i>Reste <?= formatMoney($resumeFiscal['seuil_restant']) ?> au taux de 12,2%</small>
-                    <?php else: ?>
-                    <small class="text-danger"><i class="bi bi-exclamation-triangle me-1"></i>Taux de 26,5% applicable sur les prochains profits</small>
-                    <?php endif; ?>
-                </div>
 
-                <!-- Stats rapides -->
-                <div class="row g-3 mb-3">
-                    <div class="col-md-3 col-6">
-                        <div class="fiscal-stat">
-                            <div class="value"><?= count($resumeFiscal['projets_vendus']) ?></div>
-                            <div class="label">Projets vendus</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="fiscal-stat">
-                            <div class="value text-success"><?= formatMoney($resumeFiscal['profit_realise']) ?></div>
-                            <div class="label">Profit réalisé</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="fiscal-stat">
-                            <div class="value text-danger"><?= formatMoney($resumeFiscal['impot_realise']) ?></div>
-                            <div class="label">Impôt à payer</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 col-6">
-                        <div class="fiscal-stat">
-                            <div class="value"><?= formatMoney($resumeFiscal['profit_net_realise']) ?></div>
-                            <div class="label">Profit net</div>
-                        </div>
-                    </div>
-                </div>
-
-                <?php if (!empty($resumeFiscal['projets_vendus']) || !empty($resumeFiscal['projets_en_cours'])): ?>
-                <div class="row g-3">
-                    <!-- Projets vendus -->
-                    <?php if (!empty($resumeFiscal['projets_vendus'])): ?>
-                    <div class="col-md-6">
-                        <h6 class="mb-2"><i class="bi bi-check-circle text-success me-1"></i>Projets vendus en <?= $anneeFiscale ?></h6>
-                        <table class="fiscal-table">
-                            <thead>
-                                <tr>
-                                    <th>Projet</th>
-                                    <th class="text-end">Profit</th>
-                                    <th class="text-end">Cumulatif</th>
-                                    <th class="text-end">Impôt</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php
-                                $profitCumul = 0;
-                                foreach ($resumeFiscal['projets_vendus'] as $pv):
-                                    $impotProjet = calculerImpotAvecCumulatif($pv['profit'], $profitCumul);
-                                    $profitCumul = $pv['profit_cumulatif'];
-                                ?>
-                                <tr>
-                                    <td>
-                                        <a href="<?= url('/admin/projets/detail.php?id=' . $pv['id']) ?>" class="text-decoration-none">
-                                            <?= e($pv['nom']) ?>
-                                        </a>
-                                        <small class="text-muted d-block"><?= date('d/m', strtotime($pv['date_vente'])) ?></small>
-                                    </td>
-                                    <td class="text-end <?= $pv['profit'] >= 0 ? 'profit-positive' : 'profit-negative' ?>">
-                                        <?= formatMoney($pv['profit']) ?>
-                                    </td>
-                                    <td class="text-end"><?= formatMoney($pv['profit_cumulatif']) ?></td>
-                                    <td class="text-end text-danger">
-                                        <?= formatMoney($impotProjet['impot']) ?>
-                                        <small class="text-muted d-block"><?= $impotProjet['taux_affiche'] ?></small>
-                                    </td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php endif; ?>
-
-                    <!-- Projets en cours (projections) -->
-                    <?php if (!empty($resumeFiscal['projets_en_cours'])): ?>
-                    <div class="col-md-6">
-                        <h6 class="mb-2"><i class="bi bi-clock text-warning me-1"></i>Projections (projets en cours)</h6>
-                        <table class="fiscal-table">
-                            <thead>
-                                <tr>
-                                    <th>Projet</th>
-                                    <th class="text-end">Profit estimé</th>
-                                    <th class="text-end">Taux si vendu</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php
-                                $profitCumulProjection = $resumeFiscal['profit_realise'];
-                                foreach ($resumeFiscal['projets_en_cours'] as $pc):
-                                    if ($pc['profit_estime'] <= 0) continue;
-                                    $impotProjection = calculerImpotAvecCumulatif($pc['profit_estime'], $profitCumulProjection);
-                                ?>
-                                <tr>
-                                    <td>
-                                        <a href="<?= url('/admin/projets/detail.php?id=' . $pc['id']) ?>" class="text-decoration-none">
-                                            <?= e($pc['nom']) ?>
-                                        </a>
-                                    </td>
-                                    <td class="text-end profit-positive"><?= formatMoney($pc['profit_estime']) ?></td>
-                                    <td class="text-end">
-                                        <span class="badge bg-<?= strpos($impotProjection['taux_affiche'], '26,5') !== false ? 'danger' : 'success' ?>">
-                                            <?= $impotProjection['taux_affiche'] ?>
-                                        </span>
-                                    </td>
-                                </tr>
-                                <?php
-                                    $profitCumulProjection += $pc['profit_estime'];
-                                endforeach;
-                                ?>
-                            </tbody>
-                        </table>
-                        <?php if ($resumeFiscal['profit_projete'] > 0): ?>
-                        <div class="mt-2 p-2 bg-warning bg-opacity-10 rounded">
-                            <small>
-                                <strong>Si tous vendus en <?= $anneeFiscale ?>:</strong><br>
-                                Profit total: <?= formatMoney($resumeFiscal['profit_total_projection']) ?> |
-                                Impôt: <?= formatMoney($resumeFiscal['impot_projection']) ?> |
-                                Taux effectif: <?= number_format($resumeFiscal['taux_effectif_projection'] * 100, 1) ?>%
-                            </small>
+                            <?php if ($resumeFiscal['profit_projete'] > 0): ?>
+                            <div class="fiscal-summary">
+                                <div class="fiscal-summary-row">
+                                    <span class="label">Si tous vendus en <?= $anneeFiscale ?></span>
+                                    <span class="value"><?= formatMoney($resumeFiscal['profit_total_projection']) ?></span>
+                                </div>
+                                <div class="fiscal-summary-row">
+                                    <span class="label">Impôts estimés</span>
+                                    <span class="value" style="color: #ef4444;"><?= formatMoney($resumeFiscal['impot_projection']) ?></span>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                         <?php endif; ?>
                     </div>
+                    <?php else: ?>
+                    <div class="fiscal-empty">
+                        <i class="bi bi-calendar-x" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+                        <div>Aucun projet vendu en <?= $anneeFiscale ?></div>
+                    </div>
                     <?php endif; ?>
                 </div>
-                <?php else: ?>
-                <div class="text-center py-3">
-                    <i class="bi bi-clipboard-data text-muted" style="font-size: 2rem;"></i>
-                    <p class="text-muted mt-2 mb-0">Aucun projet vendu en <?= $anneeFiscale ?></p>
-                </div>
-                <?php endif; ?>
             </div>
         </div>
     </div>
