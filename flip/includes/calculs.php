@@ -91,7 +91,21 @@ function calculerMoisEcoules($projet) {
     }
 
     $dateAchat = new DateTime($projet['date_acquisition']);
-    $dateFin = !empty($projet['date_vente']) ? new DateTime($projet['date_vente']) : new DateTime();
+    $aujourdhui = new DateTime();
+
+    // Utiliser date_vente SEULEMENT si elle est dans le passé (projet vendu)
+    // Sinon utiliser aujourd'hui pour le calcul réel
+    if (!empty($projet['date_vente'])) {
+        $dateVente = new DateTime($projet['date_vente']);
+        $dateFin = ($dateVente <= $aujourdhui) ? $dateVente : $aujourdhui;
+    } else {
+        $dateFin = $aujourdhui;
+    }
+
+    // Si date_acquisition est dans le futur, pas encore de mois écoulés
+    if ($dateAchat > $dateFin) {
+        return 0;
+    }
 
     $diff = $dateAchat->diff($dateFin);
     $mois = ($diff->y * 12) + $diff->m;
