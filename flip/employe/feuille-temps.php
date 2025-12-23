@@ -224,12 +224,7 @@ include '../includes/header.php';
 
             <?php if ($estContremaitre): ?>
                 <div class="mb-3">
-                    <label class="form-label d-flex justify-content-between align-items-center">
-                        <span><?= __('employee') ?></span>
-                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiEmployes">
-                            <i class="bi bi-people me-1"></i>Plusieurs
-                        </button>
-                    </label>
+                    <label class="form-label"><?= __('employee') ?></label>
                     <select class="form-select form-select-lg" name="employe_id" id="selectEmployeUniqueMobile">
                         <?php foreach ($employes as $emp): ?>
                             <option value="<?= $emp['id'] ?>" <?= $emp['id'] == $userId ? 'selected' : '' ?>>
@@ -237,6 +232,11 @@ include '../includes/header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiEmployes">
+                            <i class="bi bi-people me-1"></i>Plusieurs
+                        </button>
+                    </div>
                     <!-- Hidden inputs pour les employés multiples (mobile) -->
                     <div id="multiEmployesHiddenMobile"></div>
                     <div id="multiEmployesPreviewMobile" class="mt-2 d-none">
