@@ -116,6 +116,7 @@ try {
 
     foreach ($employes as $employe) {
         $employeData = [
+            'id' => $employe['id'],
             'nom' => $employe['nom_complet'],
             'jours' => [],
             'total_heures' => 0,
@@ -168,6 +169,54 @@ try {
 } catch (Exception $e) {
     // Table n'existe pas encore
 }
+
+// Récupérer les avances actives par employé
+$avancesParEmploye = [];
+try {
+    // Créer la table si elle n'existe pas
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS avances_employes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            montant DECIMAL(10,2) NOT NULL,
+            date_avance DATE NOT NULL,
+            raison TEXT NULL,
+            statut ENUM('active', 'deduite', 'annulee') DEFAULT 'active',
+            cree_par INT NULL,
+            deduite_semaine DATE NULL,
+            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+            date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_user (user_id),
+            INDEX idx_statut (statut)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+    $stmt = $pdo->query("
+        SELECT user_id, SUM(montant) as total_avances, COUNT(*) as nb_avances
+        FROM avances_employes
+        WHERE statut = 'active'
+        GROUP BY user_id
+    ");
+    while ($row = $stmt->fetch()) {
+        $avancesParEmploye[$row['user_id']] = [
+            'total' => $row['total_avances'],
+            'nb' => $row['nb_avances']
+        ];
+    }
+} catch (Exception $e) {
+    // Ignorer
+}
+
+// Ajouter les avances aux données employés
+foreach ($rapportEmployes as &$emp) {
+    $emp['avances'] = $avancesParEmploye[$emp['id']] ?? ['total' => 0, 'nb' => 0];
+    $emp['montant_net'] = $emp['total_montant'] - $emp['avances']['total'];
+}
+unset($emp);
+
+// Calculer le total des avances
+$totalAvances = array_sum(array_column(array_column($rapportEmployes, 'avances'), 'total'));
+$totalNet = $totalGeneral['montant'] - $totalAvances;
 
 // Récupérer la liste des semaines payées
 $semainesPayees = [];
@@ -412,6 +461,11 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" href="<?= url('/admin/paye/liste.php') ?>">
+                <i class="bi bi-wallet2 me-1"></i>Paye
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/configuration/index.php') ?>">
                 <i class="bi bi-gear-wide-connected me-1"></i>Configuration
             </a>
@@ -577,8 +631,11 @@ include '../../includes/header.php';
 
         <!-- Résumé final -->
         <div class="card">
-            <div class="card-header py-2">
+            <div class="card-header py-2 d-flex justify-content-between align-items-center">
                 <strong><i class="bi bi-list-check me-2"></i>Résumé de la semaine</strong>
+                <a href="<?= url('/admin/paye/liste.php') ?>" class="btn btn-sm btn-outline-primary no-print">
+                    <i class="bi bi-wallet2 me-1"></i>Gérer avances
+                </a>
             </div>
             <div class="card-body p-0">
                 <table class="table table-bordered table-paie mb-0">
@@ -586,7 +643,9 @@ include '../../includes/header.php';
                         <tr>
                             <th>Employé</th>
                             <th class="text-end">Heures</th>
-                            <th class="text-end">Montant</th>
+                            <th class="text-end">Brut</th>
+                            <th class="text-end text-danger">Avances</th>
+                            <th class="text-end" style="background:#198754;color:white;">Net à payer</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -595,6 +654,17 @@ include '../../includes/header.php';
                             <td><?= e($employe['nom']) ?></td>
                             <td class="text-end"><?= number_format($employe['total_heures'], 1) ?>h</td>
                             <td class="text-end"><?= formatMoney($employe['total_montant']) ?></td>
+                            <td class="text-end">
+                                <?php if ($employe['avances']['total'] > 0): ?>
+                                    <span class="text-danger">-<?= formatMoney($employe['avances']['total']) ?></span>
+                                    <small class="text-muted">(<?= $employe['avances']['nb'] ?>)</small>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-end fw-bold" style="background:#e8f5e9;">
+                                <?= formatMoney($employe['montant_net']) ?>
+                            </td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -603,6 +673,8 @@ include '../../includes/header.php';
                             <th>TOTAL</th>
                             <th class="text-end"><?= number_format($totalGeneral['heures'], 1) ?>h</th>
                             <th class="text-end"><?= formatMoney($totalGeneral['montant']) ?></th>
+                            <th class="text-end"><?= $totalAvances > 0 ? '-' . formatMoney($totalAvances) : '-' ?></th>
+                            <th class="text-end"><?= formatMoney($totalNet) ?></th>
                         </tr>
                     </tfoot>
                 </table>
