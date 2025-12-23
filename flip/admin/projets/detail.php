@@ -3090,20 +3090,30 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <!-- Prêteurs (capital + intérêts à rembourser) -->
                     <?php if (!empty($indicateurs['preteurs'])): ?>
                     <?php foreach ($indicateurs['preteurs'] as $preteur):
-                        $totalDu = $preteur['montant'] + $preteur['interets_total'];
+                        // Intérêts PRÉVUS (basés sur mois_prevu)
+                        $interetsPrevu = $preteur['interets_total'];
+                        $totalDuPrevu = $preteur['montant'] + $interetsPrevu;
+
+                        // Intérêts RÉELS (basés sur mois_reel)
+                        $tauxMensuel = $preteur['taux'] / 100 / 12;
+                        $moisReel = $indicateurs['mois_reel'];
+                        $interetsReel = $preteur['montant'] * (pow(1 + $tauxMensuel, $moisReel) - 1);
+                        $totalDuReel = $preteur['montant'] + $interetsReel;
+
+                        $ecartPreteur = $totalDuPrevu - $totalDuReel;
                     ?>
                     <tr class="sub-item">
                         <td>
                             <i class="bi bi-bank text-warning me-1"></i><?= e($preteur['nom']) ?>
                             <?php if ($preteur['taux'] > 0): ?>
-                                <small class="text-muted">(<?= $preteur['taux'] ?>% = <?= formatMoney($preteur['interets_total']) ?> int.)</small>
+                                <small class="text-muted">(<?= $preteur['taux'] ?>%)</small>
                             <?php else: ?>
                                 <small class="text-muted">(prêt 0%)</small>
                             <?php endif; ?>
                         </td>
-                        <td class="text-end" style="color: #e74c3c;">-<?= formatMoney($totalDu) ?></td>
-                        <td class="text-end">-</td>
-                        <td class="text-end" style="color: #e74c3c;">-<?= formatMoney($totalDu) ?></td>
+                        <td class="text-end" style="color: #e74c3c;">-<?= formatMoney($totalDuPrevu) ?></td>
+                        <td class="text-end <?= $ecartPreteur >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartPreteur) ?></td>
+                        <td class="text-end" style="color: #e74c3c;">-<?= formatMoney($totalDuReel) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php endif; ?>
