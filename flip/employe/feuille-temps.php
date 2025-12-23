@@ -42,56 +42,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dateTravail = $_POST['date_travail'] ?? '';
             $heures = parseNumber($_POST['heures'] ?? 0);
             $description = trim($_POST['description'] ?? '');
-            
-            // Déterminer pour quel employé on saisit
-            $targetUserId = $userId;
-            $targetTauxHoraire = $tauxHoraire;
-            
-            if ($estContremaitre && !empty($_POST['employe_id'])) {
-                $targetUserId = (int)$_POST['employe_id'];
-                // Récupérer le taux horaire de l'employé cible
-                $stmt = $pdo->prepare("SELECT taux_horaire FROM users WHERE id = ? AND actif = 1");
-                $stmt->execute([$targetUserId]);
-                $targetTauxHoraire = (float)$stmt->fetchColumn();
-            }
-            
-            // Validations
+
+            // Validations communes
             if ($projetId <= 0) $errors[] = 'Veuillez sélectionner un projet.';
             if (empty($dateTravail)) $errors[] = 'La date est requise.';
             if ($heures <= 0) $errors[] = 'Le nombre d\'heures doit être supérieur à 0.';
             if ($heures > 24) $errors[] = 'Le nombre d\'heures ne peut pas dépasser 24.';
-            
+
             // Vérifier que le projet existe
             if ($projetId > 0) {
-                $stmt = $pdo->prepare("SELECT id FROM projets WHERE id = ? AND statut != 'archive'");
+                $stmt = $pdo->prepare("SELECT id, nom FROM projets WHERE id = ? AND statut != 'archive'");
                 $stmt->execute([$projetId]);
-                if (!$stmt->fetch()) {
+                $projetData = $stmt->fetch();
+                if (!$projetData) {
                     $errors[] = 'Projet invalide.';
                 }
             }
-            
-            if (empty($errors)) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO heures_travaillees (projet_id, user_id, date_travail, heures, taux_horaire, description)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                ");
-                $stmt->execute([$projetId, $targetUserId, $dateTravail, $heures, $targetTauxHoraire, $description]);
-                
-                // Envoyer notification Pushover
-                $stmt = $pdo->prepare("SELECT nom FROM projets WHERE id = ?");
-                $stmt->execute([$projetId]);
-                $projetNom = $stmt->fetchColumn();
 
-                if ($targetUserId === $userId) {
-                    notifyNewHeures(getCurrentUserName(), $projetNom, $heures, $dateTravail);
-                    setFlashMessage('success', 'Heures enregistrées avec succès (' . $heures . 'h)');
+            if (empty($errors)) {
+                // Gérer la sélection multiple d'employés (contremaître seulement)
+                $targetUserIds = [];
+
+                if ($estContremaitre && !empty($_POST['employes_ids']) && is_array($_POST['employes_ids'])) {
+                    // Mode multi-employés
+                    $targetUserIds = array_map('intval', $_POST['employes_ids']);
+                } elseif ($estContremaitre && !empty($_POST['employe_id'])) {
+                    // Mode employé unique
+                    $targetUserIds = [(int)$_POST['employe_id']];
                 } else {
-                    // Récupérer le nom de l'employé pour le message
-                    $stmt = $pdo->prepare("SELECT CONCAT(prenom, ' ', nom) FROM users WHERE id = ?");
+                    // Employé normal - seulement lui-même
+                    $targetUserIds = [$userId];
+                }
+
+                $nbAjoutes = 0;
+                $nomsAjoutes = [];
+
+                foreach ($targetUserIds as $targetUserId) {
+                    // Récupérer le taux horaire de l'employé cible
+                    $stmt = $pdo->prepare("SELECT taux_horaire, CONCAT(prenom, ' ', nom) as nom_complet FROM users WHERE id = ? AND actif = 1");
                     $stmt->execute([$targetUserId]);
-                    $nomEmploye = $stmt->fetchColumn();
-                    notifyNewHeures($nomEmploye, $projetNom, $heures, $dateTravail);
-                    setFlashMessage('success', 'Heures enregistrées pour ' . $nomEmploye . ' (' . $heures . 'h)');
+                    $targetUser = $stmt->fetch();
+
+                    if ($targetUser) {
+                        $targetTauxHoraire = (float)$targetUser['taux_horaire'];
+
+                        $stmt = $pdo->prepare("
+                            INSERT INTO heures_travaillees (projet_id, user_id, date_travail, heures, taux_horaire, description)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        ");
+                        $stmt->execute([$projetId, $targetUserId, $dateTravail, $heures, $targetTauxHoraire, $description]);
+
+                        // Notification
+                        notifyNewHeures($targetUser['nom_complet'], $projetData['nom'], $heures, $dateTravail);
+
+                        $nbAjoutes++;
+                        $nomsAjoutes[] = $targetUser['nom_complet'];
+                    }
+                }
+
+                if ($nbAjoutes === 1) {
+                    if ($targetUserIds[0] === $userId) {
+                        setFlashMessage('success', 'Heures enregistrées avec succès (' . $heures . 'h)');
+                    } else {
+                        setFlashMessage('success', 'Heures enregistrées pour ' . $nomsAjoutes[0] . ' (' . $heures . 'h)');
+                    }
+                } else {
+                    setFlashMessage('success', 'Heures enregistrées pour ' . $nbAjoutes . ' employés (' . $heures . 'h chacun)');
                 }
                 redirect('/employe/feuille-temps.php');
             }
@@ -333,14 +349,24 @@ include '../includes/header.php';
 
                             <?php if ($estContremaitre): ?>
                                 <div class="mb-3">
-                                    <label class="form-label"><?= __('employee') ?> *</label>
-                                    <select class="form-select" name="employe_id" required>
+                                    <label class="form-label d-flex justify-content-between align-items-center">
+                                        <span><?= __('employee') ?> *</span>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiEmployes">
+                                            <i class="bi bi-people me-1"></i>Plusieurs
+                                        </button>
+                                    </label>
+                                    <select class="form-select" name="employe_id" id="selectEmployeUnique">
                                         <?php foreach ($employes as $emp): ?>
                                             <option value="<?= $emp['id'] ?>" <?= $emp['id'] == $userId ? 'selected' : '' ?>>
                                                 <?= e($emp['nom_complet']) ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
+                                    <!-- Hidden inputs pour les employés multiples -->
+                                    <div id="multiEmployesHidden"></div>
+                                    <div id="multiEmployesPreview" class="mt-2 d-none">
+                                        <small class="text-primary"><i class="bi bi-people-fill me-1"></i><span id="multiEmployesCount"></span> employés sélectionnés</small>
+                                    </div>
                                 </div>
                             <?php endif; ?>
 
@@ -472,5 +498,127 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<?php if ($estContremaitre): ?>
+<!-- Modal Sélection Multiple Employés -->
+<div class="modal fade" id="modalMultiEmployes" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-people me-2"></i>Sélectionner les employés</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllEmployes()">
+                        <i class="bi bi-check-all me-1"></i>Tout sélectionner
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllEmployes()">
+                        <i class="bi bi-x-lg me-1"></i>Tout désélectionner
+                    </button>
+                </div>
+                <div class="list-group">
+                    <?php foreach ($employes as $emp): ?>
+                    <label class="list-group-item d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-3 employe-checkbox"
+                               value="<?= $emp['id'] ?>"
+                               data-nom="<?= e($emp['nom_complet']) ?>">
+                        <span><?= e($emp['nom_complet']) ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span class="me-auto text-muted"><span id="modalEmployeCount">0</span> sélectionné(s)</span>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="confirmerMultiEmployes()">
+                    <i class="bi bi-check me-1"></i>Confirmer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Gestion de la sélection multiple d'employés
+var selectedEmployes = [];
+
+document.querySelectorAll('.employe-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', updateModalCount);
+});
+
+function updateModalCount() {
+    var count = document.querySelectorAll('.employe-checkbox:checked').length;
+    document.getElementById('modalEmployeCount').textContent = count;
+}
+
+function selectAllEmployes() {
+    document.querySelectorAll('.employe-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+    updateModalCount();
+}
+
+function deselectAllEmployes() {
+    document.querySelectorAll('.employe-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+    updateModalCount();
+}
+
+function confirmerMultiEmployes() {
+    var checkboxes = document.querySelectorAll('.employe-checkbox:checked');
+    var hiddenDiv = document.getElementById('multiEmployesHidden');
+    var previewDiv = document.getElementById('multiEmployesPreview');
+    var countSpan = document.getElementById('multiEmployesCount');
+    var selectUnique = document.getElementById('selectEmployeUnique');
+
+    // Vider les hidden inputs précédents
+    hiddenDiv.innerHTML = '';
+    selectedEmployes = [];
+
+    if (checkboxes.length > 1) {
+        // Mode multi-employés
+        checkboxes.forEach(function(cb) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'employes_ids[]';
+            input.value = cb.value;
+            hiddenDiv.appendChild(input);
+            selectedEmployes.push(cb.dataset.nom);
+        });
+
+        // Désactiver le select unique et afficher le preview
+        selectUnique.disabled = true;
+        selectUnique.name = ''; // Retirer le name pour ne pas l'envoyer
+        previewDiv.classList.remove('d-none');
+        countSpan.textContent = checkboxes.length;
+    } else if (checkboxes.length === 1) {
+        // Un seul sélectionné - utiliser le mode normal
+        selectUnique.disabled = false;
+        selectUnique.name = 'employe_id';
+        selectUnique.value = checkboxes[0].value;
+        previewDiv.classList.add('d-none');
+    } else {
+        // Aucun sélectionné - réactiver le select
+        selectUnique.disabled = false;
+        selectUnique.name = 'employe_id';
+        previewDiv.classList.add('d-none');
+    }
+
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('modalMultiEmployes')).hide();
+}
+
+// Réinitialiser quand on ouvre le modal
+document.getElementById('modalMultiEmployes').addEventListener('show.bs.modal', function() {
+    // Si on a des employés déjà sélectionnés, les cocher
+    document.querySelectorAll('.employe-checkbox').forEach(function(cb) {
+        cb.checked = selectedEmployes.includes(cb.dataset.nom);
+    });
+    updateModalCount();
+});
+</script>
+<?php endif; ?>
 
 <?php include '../includes/footer.php'; ?>
