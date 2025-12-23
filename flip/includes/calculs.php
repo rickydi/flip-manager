@@ -1051,3 +1051,204 @@ function calculerTaxabiliteParCategorie($pdo, $projetId) {
 
     return $result;
 }
+
+/**
+ * Calcule le profit cumulatif de l'année fiscale (projets vendus)
+ * @param PDO $pdo
+ * @param int $annee Année fiscale (ex: 2024)
+ * @param int|null $exclureProjetId ID du projet à exclure du calcul (pour voir le cumulatif AVANT ce projet)
+ * @return array ['total' => float, 'projets' => array]
+ */
+function calculerProfitCumulatifAnneeFiscale($pdo, $annee, $exclureProjetId = null) {
+    $dateDebut = $annee . '-01-01';
+    $dateFin = $annee . '-12-31';
+
+    $projetsVendus = [];
+    $profitCumulatif = 0;
+
+    // Récupérer tous les projets vendus dans l'année fiscale
+    $sql = "SELECT * FROM projets
+            WHERE date_vente IS NOT NULL
+            AND date_vente BETWEEN ? AND ?
+            AND statut != 'archive'";
+    $params = [$dateDebut, $dateFin];
+
+    if ($exclureProjetId) {
+        $sql .= " AND id != ?";
+        $params[] = $exclureProjetId;
+    }
+
+    $sql .= " ORDER BY date_vente ASC";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+
+    foreach ($stmt->fetchAll() as $projet) {
+        // Calculer les indicateurs pour chaque projet
+        $indicateurs = calculerIndicateursProjet($pdo, $projet);
+        $profit = $indicateurs['equite_reelle'] ?? 0;
+
+        // Seulement compter les profits positifs pour le calcul fiscal
+        if ($profit > 0) {
+            $profitCumulatif += $profit;
+        }
+
+        $projetsVendus[] = [
+            'id' => $projet['id'],
+            'nom' => $projet['nom'],
+            'date_vente' => $projet['date_vente'],
+            'profit' => $profit,
+            'profit_cumulatif' => $profitCumulatif
+        ];
+    }
+
+    return [
+        'annee' => $annee,
+        'total' => $profitCumulatif,
+        'projets' => $projetsVendus
+    ];
+}
+
+/**
+ * Calcule l'impôt en tenant compte du profit cumulatif de l'année
+ * @param float $profitProjet Profit du projet courant
+ * @param float $profitCumulatifAvant Profit cumulatif de l'année AVANT ce projet
+ * @return array ['impot' => float, 'taux_effectif' => float, 'detail' => array]
+ */
+function calculerImpotAvecCumulatif($profitProjet, $profitCumulatifAvant = 0) {
+    $seuilDPE = 500000;
+    $tauxBase = 0.122; // 12,2%
+    $tauxEleve = 0.265; // 26,5%
+
+    if ($profitProjet <= 0) {
+        return [
+            'impot' => 0,
+            'taux_effectif' => 0,
+            'taux_affiche' => '0%',
+            'detail' => [
+                'portion_12_2' => 0,
+                'portion_26_5' => 0,
+                'impot_12_2' => 0,
+                'impot_26_5' => 0
+            ]
+        ];
+    }
+
+    // Où on commence dans la tranche (basé sur le cumulatif avant)
+    $positionDebut = max(0, $profitCumulatifAvant);
+    $positionFin = $positionDebut + $profitProjet;
+
+    // Calculer combien du profit est dans chaque tranche
+    $portion122 = 0;
+    $portion265 = 0;
+
+    if ($positionDebut < $seuilDPE) {
+        // Une partie ou tout est dans la tranche 12.2%
+        $portion122 = min($profitProjet, $seuilDPE - $positionDebut);
+        $portion265 = max(0, $profitProjet - $portion122);
+    } else {
+        // Tout est dans la tranche 26.5%
+        $portion265 = $profitProjet;
+    }
+
+    $impot122 = $portion122 * $tauxBase;
+    $impot265 = $portion265 * $tauxEleve;
+    $impotTotal = $impot122 + $impot265;
+
+    // Taux effectif
+    $tauxEffectif = $profitProjet > 0 ? ($impotTotal / $profitProjet) : 0;
+
+    // Taux à afficher
+    if ($portion265 > 0 && $portion122 > 0) {
+        $tauxAffiche = '12,2% + 26,5%';
+    } elseif ($portion265 > 0) {
+        $tauxAffiche = '26,5%';
+    } else {
+        $tauxAffiche = '12,2%';
+    }
+
+    return [
+        'impot' => $impotTotal,
+        'taux_effectif' => $tauxEffectif,
+        'taux_affiche' => $tauxAffiche,
+        'detail' => [
+            'portion_12_2' => $portion122,
+            'portion_26_5' => $portion265,
+            'impot_12_2' => $impot122,
+            'impot_26_5' => $impot265,
+            'position_debut' => $positionDebut,
+            'position_fin' => $positionFin,
+            'seuil_restant' => max(0, $seuilDPE - $positionDebut)
+        ]
+    ];
+}
+
+/**
+ * Obtient le résumé fiscal de l'année avec projections
+ * @param PDO $pdo
+ * @param int $annee
+ * @return array
+ */
+function obtenirResumeAnneeFiscale($pdo, $annee) {
+    $seuilDPE = 500000;
+    $tauxBase = 0.122;
+    $tauxEleve = 0.265;
+
+    // Projets vendus
+    $cumulatif = calculerProfitCumulatifAnneeFiscale($pdo, $annee);
+
+    // Projets en cours (non vendus) pour projections
+    $stmt = $pdo->prepare("
+        SELECT * FROM projets
+        WHERE (date_vente IS NULL OR date_vente > CURDATE())
+        AND statut NOT IN ('archive', 'termine')
+    ");
+    $stmt->execute();
+    $projetsEnCours = [];
+    $profitProjete = 0;
+
+    foreach ($stmt->fetchAll() as $projet) {
+        $indicateurs = calculerIndicateursProjet($pdo, $projet);
+        $profitEstime = $indicateurs['equite_potentielle'] ?? 0;
+
+        if ($profitEstime > 0) {
+            $profitProjete += $profitEstime;
+        }
+
+        $projetsEnCours[] = [
+            'id' => $projet['id'],
+            'nom' => $projet['nom'],
+            'statut' => $projet['statut'],
+            'profit_estime' => $profitEstime
+        ];
+    }
+
+    // Calcul des impôts sur profits réalisés
+    $profitRealise = $cumulatif['total'];
+    $impotRealise = calculerImpotAvecCumulatif($profitRealise, 0);
+
+    // Projection si tous les projets en cours sont vendus cette année
+    $profitTotalProjection = $profitRealise + $profitProjete;
+    $impotProjection = calculerImpotAvecCumulatif($profitTotalProjection, 0);
+
+    // Seuil DPE restant
+    $seuilRestant = max(0, $seuilDPE - $profitRealise);
+    $pourcentageUtilise = min(100, ($profitRealise / $seuilDPE) * 100);
+
+    return [
+        'annee' => $annee,
+        'profit_realise' => $profitRealise,
+        'impot_realise' => $impotRealise['impot'],
+        'taux_effectif_realise' => $impotRealise['taux_effectif'],
+        'profit_net_realise' => $profitRealise - $impotRealise['impot'],
+        'projets_vendus' => $cumulatif['projets'],
+        'projets_en_cours' => $projetsEnCours,
+        'profit_projete' => $profitProjete,
+        'profit_total_projection' => $profitTotalProjection,
+        'impot_projection' => $impotProjection['impot'],
+        'taux_effectif_projection' => $impotProjection['taux_effectif'],
+        'seuil_dpe' => $seuilDPE,
+        'seuil_restant' => $seuilRestant,
+        'pourcentage_utilise' => $pourcentageUtilise
+    ];
+}

@@ -3062,29 +3062,29 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     // Calcul du profit net RÉEL (avant partage) = équité réelle
                     $profitNetAvantPartageReel = $indicateurs['equite_reelle'];
 
-                    // Calcul impôt sur le profit EXTRAPOLÉ
-                    $seuilImpot = 500000;
-                    $tauxBase = 0.122; // 12,2%
-                    $tauxEleve = 0.265; // 26,5%
+                    // Déterminer l'année fiscale (basée sur date_vente ou année courante)
+                    $anneeFiscale = !empty($projet['date_vente'])
+                        ? (int) date('Y', strtotime($projet['date_vente']))
+                        : (int) date('Y');
 
-                    if ($profitNetAvantPartage <= 0) {
-                        $impotAPayer = 0;
-                    } elseif ($profitNetAvantPartage <= $seuilImpot) {
-                        $impotAPayer = $profitNetAvantPartage * $tauxBase;
-                    } else {
-                        $impotAPayer = ($seuilImpot * $tauxBase) + (($profitNetAvantPartage - $seuilImpot) * $tauxEleve);
-                    }
+                    // Calculer le profit cumulatif AVANT ce projet (autres projets vendus cette année)
+                    $cumulatifAvant = calculerProfitCumulatifAnneeFiscale($pdo, $anneeFiscale, $projet['id']);
+                    $profitCumulatifAvant = $cumulatifAvant['total'];
+
+                    // Calcul impôt EXTRAPOLÉ avec taux dynamique selon cumulatif
+                    $impotExtrapole = calculerImpotAvecCumulatif($profitNetAvantPartage, $profitCumulatifAvant);
+                    $impotAPayer = $impotExtrapole['impot'];
+                    $tauxAfficheExtrapole = $impotExtrapole['taux_affiche'];
                     $profitApresImpot = $profitNetAvantPartage - $impotAPayer;
 
-                    // Calcul impôt sur le profit RÉEL
-                    if ($profitNetAvantPartageReel <= 0) {
-                        $impotAPayerReel = 0;
-                    } elseif ($profitNetAvantPartageReel <= $seuilImpot) {
-                        $impotAPayerReel = $profitNetAvantPartageReel * $tauxBase;
-                    } else {
-                        $impotAPayerReel = ($seuilImpot * $tauxBase) + (($profitNetAvantPartageReel - $seuilImpot) * $tauxEleve);
-                    }
+                    // Calcul impôt RÉEL avec taux dynamique selon cumulatif
+                    $impotReel = calculerImpotAvecCumulatif($profitNetAvantPartageReel, $profitCumulatifAvant);
+                    $impotAPayerReel = $impotReel['impot'];
+                    $tauxAfficheReel = $impotReel['taux_affiche'];
                     $profitApresImpotReel = $profitNetAvantPartageReel - $impotAPayerReel;
+
+                    // Info supplémentaire pour tooltip
+                    $seuilRestant = $impotExtrapole['detail']['seuil_restant'];
                     ?>
 
                     <!-- Prêteurs (capital + intérêts à rembourser) -->
@@ -3132,7 +3132,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <tr class="sub-item text-danger">
                         <td>
                             <i class="bi bi-bank2 me-1"></i>Impôt à payer
-                            <small class="text-muted">(<?= $profitNetAvantPartage <= $seuilImpot ? '12,2%' : '12,2% + 26,5%' ?>)</small>
+                            <small class="text-muted">(<?= $tauxAfficheExtrapole ?>)</small>
+                            <?php if ($profitCumulatifAvant > 0): ?>
+                            <i class="bi bi-info-circle ms-1" data-bs-toggle="tooltip" data-bs-placement="right"
+                               title="Profit cumulatif <?= $anneeFiscale ?>: <?= formatMoney($profitCumulatifAvant) ?> | Seuil DPE restant: <?= formatMoney($seuilRestant) ?>"></i>
+                            <?php endif; ?>
                         </td>
                         <td class="text-end">-<?= formatMoney($impotAPayer) ?></td>
                         <td class="text-end" style="color:<?= $diffImpot <= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffImpot >= 0 ? '+' : '' ?><?= formatMoney($diffImpot) ?></td>
