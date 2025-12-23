@@ -656,9 +656,17 @@ include '../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </h5>
-                    <div style="text-align: right;">
-                        <div style="font-size: 0.75rem; opacity: 0.8;">Seuil DPE utilisé</div>
-                        <div style="font-size: 1.5rem; font-weight: 700;"><?= number_format($resumeFiscal['pourcentage_utilise'], 0) ?>%</div>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <a href="<?= url('/admin/rapports/fiscal-pdf.php?annee=' . $anneeFiscale) ?>"
+                           class="btn btn-sm"
+                           style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white;"
+                           title="Télécharger le rapport PDF">
+                            <i class="bi bi-file-pdf"></i> PDF
+                        </a>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.75rem; opacity: 0.8;">Seuil DPE utilisé</div>
+                            <div style="font-size: 1.5rem; font-weight: 700;"><?= number_format($resumeFiscal['pourcentage_utilise'], 0) ?>%</div>
+                        </div>
                     </div>
                 </div>
 

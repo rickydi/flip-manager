@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= e($pageTitle ?? 'Flip Manager') ?> - <?= APP_NAME ?></title>
 
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#1e3a5f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flip Manager">
+    <link rel="manifest" href="<?= BASE_PATH ?>/manifest.json">
+    <link rel="apple-touch-icon" href="<?= BASE_PATH ?>/assets/images/icon-192.png">
+
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     

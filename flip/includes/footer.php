@@ -37,5 +37,16 @@
         <?= $extraJs ?>
     <?php endif; ?>
 
+    <!-- Service Worker PWA -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('<?= BASE_PATH ?>/sw.js')
+                    .then(reg => console.log('SW enregistré:', reg.scope))
+                    .catch(err => console.log('SW erreur:', err));
+            });
+        }
+    </script>
+
 </body>
 </html>
