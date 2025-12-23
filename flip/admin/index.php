@@ -145,8 +145,28 @@ $stmt = $pdo->query("
 ");
 $facturesAttente = $stmt->fetchAll();
 
-// Données fiscales de l'année courante
-$anneeFiscale = (int) date('Y');
+// Données fiscales - années disponibles basées sur les dates de vente
+$anneesDisponibles = [];
+$stmtAnnees = $pdo->query("
+    SELECT DISTINCT YEAR(date_vente) as annee
+    FROM projets
+    WHERE date_vente IS NOT NULL
+    ORDER BY annee DESC
+");
+foreach ($stmtAnnees->fetchAll() as $row) {
+    $anneesDisponibles[] = (int) $row['annee'];
+}
+// Ajouter l'année courante si pas déjà présente
+$anneeActuelle = (int) date('Y');
+if (!in_array($anneeActuelle, $anneesDisponibles)) {
+    array_unshift($anneesDisponibles, $anneeActuelle);
+}
+
+// Année sélectionnée (par défaut: année courante ou dernière année avec ventes)
+$anneeFiscale = isset($_GET['annee']) ? (int) $_GET['annee'] : $anneeActuelle;
+if (!in_array($anneeFiscale, $anneesDisponibles)) {
+    $anneeFiscale = $anneeActuelle;
+}
 $resumeFiscal = obtenirResumeAnneeFiscale($pdo, $anneeFiscale);
 
 include '../includes/header.php';
@@ -516,7 +536,14 @@ include '../includes/header.php';
         <div class="col-12">
             <div class="fiscal-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0"><i class="bi bi-bank me-2"></i>Année fiscale <?= $anneeFiscale ?></h5>
+                    <h5 class="mb-0">
+                        <i class="bi bi-bank me-2"></i>Année fiscale
+                        <select class="form-select form-select-sm d-inline-block ms-2" style="width: auto;" onchange="window.location.href='?annee='+this.value">
+                            <?php foreach ($anneesDisponibles as $annee): ?>
+                            <option value="<?= $annee ?>" <?= $annee == $anneeFiscale ? 'selected' : '' ?>><?= $annee ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </h5>
                     <span class="badge bg-<?= $resumeFiscal['pourcentage_utilise'] >= 100 ? 'danger' : ($resumeFiscal['pourcentage_utilise'] >= 75 ? 'warning' : 'success') ?>">
                         Seuil DPE: <?= number_format($resumeFiscal['pourcentage_utilise'], 1) ?>% utilisé
                     </span>
