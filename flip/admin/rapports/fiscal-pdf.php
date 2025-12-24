@@ -4,6 +4,12 @@
  * Flip Manager
  */
 
+// Debug temporaire
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+try {
+
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/functions.php';
@@ -358,3 +364,9 @@ $dompdf->render();
 // Télécharger le PDF
 $filename = 'Rapport_Fiscal_' . $anneeFiscale . '_' . date('Ymd') . '.pdf';
 $dompdf->stream($filename, ['Attachment' => true]);
+
+} catch (Exception $e) {
+    echo "ERREUR: " . $e->getMessage() . "\n";
+    echo "Fichier: " . $e->getFile() . " ligne " . $e->getLine() . "\n";
+    echo "Trace: " . $e->getTraceAsString();
+}
