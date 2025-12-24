@@ -37,14 +37,65 @@
         <?= $extraJs ?>
     <?php endif; ?>
 
-    <!-- Service Worker PWA -->
+    <!-- Service Worker PWA + Install Prompt -->
     <script>
+        // Enregistrer le Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('<?= BASE_PATH ?>/sw.js')
                     .then(reg => console.log('SW enregistré:', reg.scope))
                     .catch(err => console.log('SW erreur:', err));
             });
+        }
+
+        // Gestion du prompt d'installation PWA
+        let deferredPrompt;
+        const installContainer = document.getElementById('pwa-install-container');
+        const installBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Empêcher Chrome d'afficher son prompt automatique
+            e.preventDefault();
+            // Sauvegarder l'événement pour plus tard
+            deferredPrompt = e;
+            // Afficher notre bouton d'installation
+            if (installContainer) {
+                installContainer.style.display = 'block';
+            }
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (!deferredPrompt) return;
+
+                // Afficher le prompt d'installation
+                deferredPrompt.prompt();
+
+                // Attendre la réponse
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log('Installation:', outcome);
+
+                // Réinitialiser
+                deferredPrompt = null;
+                installContainer.style.display = 'none';
+            });
+        }
+
+        // Cacher le bouton si déjà installé
+        window.addEventListener('appinstalled', () => {
+            console.log('PWA installée!');
+            if (installContainer) {
+                installContainer.style.display = 'none';
+            }
+            deferredPrompt = null;
+        });
+
+        // Détecter si on est en mode standalone (déjà installé)
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            console.log('App lancée en mode standalone');
+            if (installContainer) {
+                installContainer.style.display = 'none';
+            }
         }
     </script>
 

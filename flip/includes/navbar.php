@@ -233,6 +233,14 @@ $isAdmin = isAdmin();
 
             <!-- Contrôles à droite -->
             <ul class="navbar-nav ms-auto">
+                <!-- Bouton installer PWA (caché par défaut) -->
+                <li class="nav-item" id="pwa-install-container" style="display: none;">
+                    <button class="btn btn-success btn-sm my-1 me-2" id="pwa-install-btn" title="Installer l'application">
+                        <i class="bi bi-download"></i>
+                        <span class="d-none d-md-inline"> Installer</span>
+                    </button>
+                </li>
+
                 <!-- User menu -->
                 <li class="nav-item dropdown">
                     <?php
