@@ -365,8 +365,10 @@ $dompdf->render();
 $filename = 'Rapport_Fiscal_' . $anneeFiscale . '_' . date('Ymd') . '.pdf';
 $dompdf->stream($filename, ['Attachment' => true]);
 
-} catch (Exception $e) {
-    echo "ERREUR: " . $e->getMessage() . "\n";
-    echo "Fichier: " . $e->getFile() . " ligne " . $e->getLine() . "\n";
-    echo "Trace: " . $e->getTraceAsString();
+} catch (Throwable $e) {
+    header('Content-Type: text/html; charset=utf-8');
+    echo "<h2 style='color:red'>ERREUR PDF</h2>";
+    echo "<p><strong>Message:</strong> " . htmlspecialchars($e->getMessage()) . "</p>";
+    echo "<p><strong>Fichier:</strong> " . $e->getFile() . " ligne " . $e->getLine() . "</p>";
+    echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
 }
