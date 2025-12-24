@@ -49,7 +49,7 @@ $html = '<!DOCTYPE html>
     <meta charset="UTF-8">
     <style>
         @page {
-            margin: 40px;
+            margin: 50px 60px;
         }
         * {
             margin: 0;
@@ -61,6 +61,7 @@ $html = '<!DOCTYPE html>
             font-size: 10pt;
             color: #1f2937;
             line-height: 1.4;
+            padding: 0 10px;
         }
 
         /* En-tête */
