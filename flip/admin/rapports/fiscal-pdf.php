@@ -49,7 +49,7 @@ $html = '<!DOCTYPE html>
     <meta charset="UTF-8">
     <style>
         @page {
-            margin: 0.5in;
+            margin: 40px;
         }
         * {
             margin: 0;
@@ -67,9 +67,8 @@ $html = '<!DOCTYPE html>
         .header {
             background-color: #0f172a;
             color: white;
-            padding: 25px 30px;
-            margin: -0.5in -0.5in 20px -0.5in;
-            width: calc(100% + 1in);
+            padding: 20px;
+            margin-bottom: 20px;
         }
         .header-content {
             display: table;
@@ -282,15 +281,11 @@ $html = '<!DOCTYPE html>
 
         /* Pied de page */
         .footer {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 10px 0.5in;
+            margin-top: 30px;
+            padding-top: 10px;
             font-size: 7pt;
             color: #9ca3af;
             border-top: 1px solid #e5e7eb;
-            background-color: white;
         }
         .footer-content {
             width: 100%;
