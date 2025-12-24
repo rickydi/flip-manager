@@ -4,11 +4,11 @@
  * Flip Manager
  */
 
-require_once '../../config.php';
-require_once '../../includes/auth.php';
-require_once '../../includes/functions.php';
-require_once '../../includes/calculs.php';
-require_once '../../../vendor/autoload.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/functions.php';
+require_once __DIR__ . '/../../includes/calculs.php';
+require_once __DIR__ . '/../../../vendor/autoload.php';
 
 use Dompdf\Dompdf;
 use Dompdf\Options;
