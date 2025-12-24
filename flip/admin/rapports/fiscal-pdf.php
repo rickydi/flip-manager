@@ -4,7 +4,6 @@
  * Flip Manager
  */
 
-// Debug temporaire
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -28,232 +27,212 @@ $resumeFiscal = obtenirResumeAnneeFiscale($pdo, $anneeFiscale);
 // Configuration Dompdf
 $options = new Options();
 $options->set('isHtml5ParserEnabled', true);
-$options->set('isRemoteEnabled', true);
 $options->set('defaultFont', 'DejaVu Sans');
 
 $dompdf = new Dompdf($options);
 
-// Générer le HTML du rapport
+// Générer le HTML du rapport - CSS simplifié pour Dompdf
 $html = '
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
         body {
             font-family: DejaVu Sans, Arial, sans-serif;
             font-size: 11pt;
             color: #333;
-            line-height: 1.4;
+            margin: 20px;
         }
         .header {
-            background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+            background-color: #1e3a5f;
             color: white;
-            padding: 25px;
+            padding: 20px;
             margin-bottom: 20px;
         }
         .header h1 {
-            font-size: 24pt;
-            margin-bottom: 5px;
+            font-size: 22pt;
+            margin: 0 0 5px 0;
         }
         .header .subtitle {
-            font-size: 12pt;
-            opacity: 0.9;
+            font-size: 11pt;
+            color: #ccc;
         }
         .header .date {
-            font-size: 10pt;
-            opacity: 0.7;
-            margin-top: 10px;
+            font-size: 9pt;
+            color: #aaa;
+            margin-top: 8px;
         }
         .section {
-            margin-bottom: 25px;
-            page-break-inside: avoid;
+            margin-bottom: 20px;
         }
         .section-title {
-            background: #f1f5f9;
-            padding: 10px 15px;
-            font-size: 13pt;
+            background-color: #f1f5f9;
+            padding: 8px 12px;
+            font-size: 12pt;
             font-weight: bold;
             color: #1e3a5f;
             border-left: 4px solid #1e3a5f;
+            margin-bottom: 12px;
+        }
+        table.summary {
+            width: 100%;
             margin-bottom: 15px;
         }
-        .summary-grid {
-            display: table;
-            width: 100%;
-            margin-bottom: 20px;
-        }
-        .summary-item {
-            display: table-cell;
+        table.summary td {
             width: 25%;
             text-align: center;
-            padding: 15px;
-            background: #f8fafc;
+            padding: 12px;
+            background-color: #f8fafc;
             border: 1px solid #e2e8f0;
         }
-        .summary-item .value {
-            font-size: 18pt;
+        .value {
+            font-size: 16pt;
             font-weight: bold;
             color: #1e3a5f;
         }
-        .summary-item .label {
-            font-size: 9pt;
+        .value-green { color: #10b981; }
+        .value-red { color: #ef4444; }
+        .value-blue { color: #3b82f6; }
+        .label {
+            font-size: 8pt;
             color: #64748b;
             text-transform: uppercase;
-            margin-top: 5px;
+            margin-top: 4px;
         }
-        .summary-item.green .value { color: #10b981; }
-        .summary-item.red .value { color: #ef4444; }
-        .summary-item.blue .value { color: #3b82f6; }
-
+        .progress-container {
+            background-color: #e2e8f0;
+            height: 18px;
+            margin: 8px 0;
+        }
         .progress-bar {
-            background: #e2e8f0;
-            height: 20px;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
+            height: 18px;
+            background-color: #10b981;
         }
-        .progress-fill {
-            height: 100%;
-            border-radius: 10px;
-        }
-        .progress-fill.safe { background: #10b981; }
-        .progress-fill.warning { background: #f59e0b; }
-        .progress-fill.danger { background: #ef4444; }
-
-        .progress-labels {
-            display: table;
+        .progress-bar.warning { background-color: #f59e0b; }
+        .progress-bar.danger { background-color: #ef4444; }
+        table.progress-labels {
             width: 100%;
             font-size: 9pt;
             color: #64748b;
         }
-        .progress-labels span {
-            display: table-cell;
-        }
-        .progress-labels .center { text-align: center; }
-        .progress-labels .right { text-align: right; }
-
-        table.projects {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        table.projects th {
-            background: #1e3a5f;
-            color: white;
-            padding: 10px;
-            text-align: left;
-            font-size: 10pt;
-        }
-        table.projects th.right { text-align: right; }
-        table.projects td {
-            padding: 10px;
-            border-bottom: 1px solid #e2e8f0;
-            font-size: 10pt;
-        }
-        table.projects td.right { text-align: right; }
-        table.projects tr:nth-child(even) {
-            background: #f8fafc;
-        }
-        table.projects .positive { color: #10b981; font-weight: bold; }
-        table.projects .negative { color: #ef4444; font-weight: bold; }
-
-        .total-row {
-            background: #1e3a5f !important;
-            color: white;
-            font-weight: bold;
-        }
-        .total-row td { color: white !important; }
-
+        table.progress-labels td.center { text-align: center; }
+        table.progress-labels td.right { text-align: right; }
         .tax-info {
-            background: #fef3c7;
+            background-color: #fef3c7;
             border: 1px solid #f59e0b;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 20px;
+            padding: 12px;
+            margin-top: 15px;
         }
         .tax-info h4 {
             color: #92400e;
-            margin-bottom: 10px;
+            margin: 0 0 8px 0;
+            font-size: 11pt;
         }
         .tax-info p {
             font-size: 10pt;
             color: #78350f;
+            margin: 0;
         }
-
-        .footer {
-            position: fixed;
-            bottom: 20px;
-            left: 0;
-            right: 0;
-            text-align: center;
+        .tax-info-blue {
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
+        }
+        .tax-info-blue h4 { color: #1e40af; }
+        .tax-info-blue p { color: #1e3a8a; }
+        table.projects {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        table.projects th {
+            background-color: #1e3a5f;
+            color: white;
+            padding: 8px;
+            text-align: left;
             font-size: 9pt;
-            color: #94a3b8;
         }
-        .page-break {
-            page-break-before: always;
+        table.projects th.right { text-align: right; }
+        table.projects td {
+            padding: 8px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 9pt;
+        }
+        table.projects td.right { text-align: right; }
+        .positive { color: #10b981; font-weight: bold; }
+        .negative { color: #ef4444; font-weight: bold; }
+        .total-row {
+            background-color: #1e3a5f;
+        }
+        .total-row td {
+            color: white;
+            font-weight: bold;
+        }
+        .footer {
+            text-align: center;
+            font-size: 8pt;
+            color: #94a3b8;
+            margin-top: 30px;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>RAPPORT FISCAL ' . $anneeFiscale . '</h1>
-        <div class="subtitle">Flip Manager - Suivi des profits et impôts</div>
-        <div class="date">Généré le ' . date('d/m/Y à H:i') . '</div>
+        <div class="subtitle">Flip Manager - Suivi des profits et impots</div>
+        <div class="date">Genere le ' . date('d/m/Y') . ' a ' . date('H:i') . '</div>
     </div>
 
     <div class="section">
-        <div class="section-title">RÉSUMÉ DE L\'ANNÉE</div>
+        <div class="section-title">RESUME DE L\'ANNEE</div>
 
-        <div class="summary-grid">
-            <div class="summary-item">
-                <div class="value">' . count($resumeFiscal['projets_vendus']) . '</div>
-                <div class="label">Flips vendus</div>
-            </div>
-            <div class="summary-item green">
-                <div class="value">' . number_format($resumeFiscal['profit_realise'], 0, ',', ' ') . ' $</div>
-                <div class="label">Profit brut</div>
-            </div>
-            <div class="summary-item red">
-                <div class="value">' . number_format($resumeFiscal['impot_realise'], 0, ',', ' ') . ' $</div>
-                <div class="label">Impôts</div>
-            </div>
-            <div class="summary-item blue">
-                <div class="value">' . number_format($resumeFiscal['profit_net_realise'], 0, ',', ' ') . ' $</div>
-                <div class="label">Profit net</div>
-            </div>
-        </div>
+        <table class="summary">
+            <tr>
+                <td>
+                    <div class="value">' . count($resumeFiscal['projets_vendus']) . '</div>
+                    <div class="label">Flips vendus</div>
+                </td>
+                <td>
+                    <div class="value value-green">' . number_format($resumeFiscal['profit_realise'], 0, ',', ' ') . ' $</div>
+                    <div class="label">Profit brut</div>
+                </td>
+                <td>
+                    <div class="value value-red">' . number_format($resumeFiscal['impot_realise'], 0, ',', ' ') . ' $</div>
+                    <div class="label">Impots</div>
+                </td>
+                <td>
+                    <div class="value value-blue">' . number_format($resumeFiscal['profit_net_realise'], 0, ',', ' ') . ' $</div>
+                    <div class="label">Profit net</div>
+                </td>
+            </tr>
+        </table>
     </div>
 
     <div class="section">
-        <div class="section-title">UTILISATION DU SEUIL DPE (500 000 $)</div>
+        <div class="section-title">UTILISATION DU SEUIL DPE (500 000 $)</div>';
 
-        <div class="progress-bar">';
-
-$gaugeClass = 'safe';
+$gaugeClass = '';
 if ($resumeFiscal['pourcentage_utilise'] >= 75) $gaugeClass = 'warning';
 if ($resumeFiscal['pourcentage_utilise'] >= 100) $gaugeClass = 'danger';
 $width = min(100, $resumeFiscal['pourcentage_utilise']);
 
 $html .= '
-            <div class="progress-fill ' . $gaugeClass . '" style="width: ' . $width . '%;"></div>
+        <div class="progress-container">
+            <div class="progress-bar ' . $gaugeClass . '" style="width: ' . $width . '%;"></div>
         </div>
-        <div class="progress-labels">
-            <span>0 $</span>
-            <span class="center">' . number_format($resumeFiscal['pourcentage_utilise'], 1) . '% utilisé</span>
-            <span class="right">500 000 $</span>
-        </div>
+        <table class="progress-labels">
+            <tr>
+                <td>0 $</td>
+                <td class="center">' . number_format($resumeFiscal['pourcentage_utilise'], 1) . '% utilise</td>
+                <td class="right">500 000 $</td>
+            </tr>
+        </table>
 
         <div class="tax-info">
             <h4>Information fiscale</h4>
             <p>
-                <strong>Seuil DPE utilisé:</strong> ' . number_format($resumeFiscal['profit_realise'], 0, ',', ' ') . ' $ sur 500 000 $<br>
-                <strong>Seuil restant à 12,2%:</strong> ' . number_format($resumeFiscal['seuil_restant'], 0, ',', ' ') . ' $<br>
+                <strong>Seuil DPE utilise:</strong> ' . number_format($resumeFiscal['profit_realise'], 0, ',', ' ') . ' $ sur 500 000 $<br>
+                <strong>Seuil restant a 12,2%:</strong> ' . number_format($resumeFiscal['seuil_restant'], 0, ',', ' ') . ' $<br>
                 <strong>Taux effectif:</strong> ' . number_format($resumeFiscal['taux_effectif_realise'] * 100, 2) . ' %
             </p>
         </div>
@@ -262,7 +241,7 @@ $html .= '
 if (!empty($resumeFiscal['projets_vendus'])) {
     $html .= '
     <div class="section">
-        <div class="section-title">DÉTAIL DES PROJETS VENDUS</div>
+        <div class="section-title">DETAIL DES PROJETS VENDUS</div>
 
         <table class="projects">
             <tr>
@@ -271,7 +250,7 @@ if (!empty($resumeFiscal['projets_vendus'])) {
                 <th class="right">Profit</th>
                 <th class="right">Cumulatif</th>
                 <th class="right">Taux</th>
-                <th class="right">Impôt</th>
+                <th class="right">Impot</th>
             </tr>';
 
     $profitCumul = 0;
@@ -304,7 +283,12 @@ if (!empty($resumeFiscal['projets_vendus'])) {
 }
 
 if (!empty($resumeFiscal['projets_en_cours'])) {
-    $projetsRentables = array_filter($resumeFiscal['projets_en_cours'], fn($p) => $p['profit_estime'] > 0);
+    $projetsRentables = [];
+    foreach ($resumeFiscal['projets_en_cours'] as $p) {
+        if ($p['profit_estime'] > 0) {
+            $projetsRentables[] = $p;
+        }
+    }
 
     if (!empty($projetsRentables)) {
         $html .= '
@@ -315,7 +299,7 @@ if (!empty($resumeFiscal['projets_en_cours'])) {
             <tr>
                 <th>Projet</th>
                 <th>Statut</th>
-                <th class="right">Profit estimé</th>
+                <th class="right">Profit estime</th>
                 <th class="right">Taux si vendu</th>
             </tr>';
 
@@ -337,11 +321,11 @@ if (!empty($resumeFiscal['projets_en_cours'])) {
         $html .= '
         </table>
 
-        <div class="tax-info" style="margin-top: 15px; background: #dbeafe; border-color: #3b82f6;">
-            <h4 style="color: #1e40af;">Projection si tous vendus en ' . $anneeFiscale . '</h4>
-            <p style="color: #1e3a8a;">
+        <div class="tax-info tax-info-blue">
+            <h4>Projection si tous vendus en ' . $anneeFiscale . '</h4>
+            <p>
                 <strong>Profit total:</strong> ' . number_format($resumeFiscal['profit_total_projection'], 0, ',', ' ') . ' $<br>
-                <strong>Impôts estimés:</strong> ' . number_format($resumeFiscal['impot_projection'], 0, ',', ' ') . ' $<br>
+                <strong>Impots estimes:</strong> ' . number_format($resumeFiscal['impot_projection'], 0, ',', ' ') . ' $<br>
                 <strong>Taux effectif:</strong> ' . number_format($resumeFiscal['taux_effectif_projection'] * 100, 2) . ' %
             </p>
         </div>
@@ -351,7 +335,7 @@ if (!empty($resumeFiscal['projets_en_cours'])) {
 
 $html .= '
     <div class="footer">
-        Flip Manager - Rapport fiscal ' . $anneeFiscale . ' - Page 1
+        Flip Manager - Rapport fiscal ' . $anneeFiscale . '
     </div>
 </body>
 </html>';
