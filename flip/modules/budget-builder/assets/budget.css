@@ -119,24 +119,27 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 
 .panier-items {
     min-height: 200px;
+    padding: 8px;
+    background-color: #fafafa;
+    border-radius: 4px;
 }
 
 .panier-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 12px;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 1px solid #dee2e6;
-    border-left: 4px solid #0d6efd;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    gap: 10px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex !important;
+    align-items: center !important;
+    padding: 10px 12px !important;
+    background: #e3f2fd !important;
+    border: 1px solid #90caf9 !important;
+    border-left: 4px solid #1976d2 !important;
+    border-radius: 6px !important;
+    margin-bottom: 8px !important;
+    gap: 10px !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1) !important;
 }
 
 .panier-item:hover {
-    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-    border-left-color: #0a58ca;
+    background: #bbdefb !important;
+    border-left-color: #1565c0 !important;
 }
 
 .panier-item .drag-handle {
