@@ -8,6 +8,9 @@
 if (!isset($pdo)) {
     require_once __DIR__ . '/../../config.php';
 }
+if (!function_exists('e')) {
+    require_once __DIR__ . '/../../includes/functions.php';
+}
 
 // ============================================
 // AUTO-MIGRATION: Table catalogue simplifiée

@@ -8,11 +8,19 @@ const BudgetBuilder = {
 
     init: function(projetId) {
         this.projetId = projetId;
-        this.ajaxUrl = window.location.pathname.replace(/\/[^\/]*$/, '') + '/modules/budget-builder/ajax.php';
 
-        // Si on est dans un sous-dossier, ajuster l'URL
-        if (window.location.pathname.includes('/admin/projets/')) {
-            this.ajaxUrl = window.location.pathname.replace(/\/admin\/projets\/.*$/, '') + '/modules/budget-builder/ajax.php';
+        // Détecter l'URL de base pour l'AJAX
+        const path = window.location.pathname;
+
+        if (path.includes('/modules/budget-builder/')) {
+            // On est dans le module standalone
+            this.ajaxUrl = path.replace(/\/[^\/]*$/, '/') + 'ajax.php';
+        } else if (path.includes('/admin/projets/')) {
+            // On est dans admin/projets
+            this.ajaxUrl = path.replace(/\/admin\/projets\/.*$/, '/modules/budget-builder/ajax.php');
+        } else {
+            // Fallback
+            this.ajaxUrl = '/flip/modules/budget-builder/ajax.php';
         }
 
         this.initDragDrop();

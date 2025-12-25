@@ -3,8 +3,8 @@
  * Budget Builder - API AJAX
  */
 
-require_once '../../config.php';
-require_once '../../includes/auth.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../includes/auth.php';
 
 header('Content-Type: application/json');
 
@@ -12,6 +12,48 @@ header('Content-Type: application/json');
 if (!isLoggedIn()) {
     echo json_encode(['success' => false, 'message' => 'Non authentifié']);
     exit;
+}
+
+// S'assurer que les tables existent
+try {
+    $pdo->query("SELECT 1 FROM catalogue_items LIMIT 1");
+} catch (Exception $e) {
+    // Créer la table catalogue_items
+    $pdo->exec("
+        CREATE TABLE catalogue_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            parent_id INT NULL,
+            type ENUM('folder', 'item') NOT NULL DEFAULT 'folder',
+            nom VARCHAR(255) NOT NULL,
+            prix DECIMAL(10,2) DEFAULT 0,
+            quantite_defaut INT DEFAULT 1,
+            ordre INT DEFAULT 0,
+            actif TINYINT(1) DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_parent (parent_id),
+            INDEX idx_type (type)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+try {
+    $pdo->query("SELECT 1 FROM budget_items LIMIT 1");
+} catch (Exception $e) {
+    // Créer la table budget_items
+    $pdo->exec("
+        CREATE TABLE budget_items (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL,
+            catalogue_item_id INT NULL,
+            nom VARCHAR(255) NOT NULL,
+            prix DECIMAL(10,2) DEFAULT 0,
+            quantite INT DEFAULT 1,
+            ordre INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_projet (projet_id),
+            INDEX idx_catalogue (catalogue_item_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
 }
 
 // Lire les données JSON
