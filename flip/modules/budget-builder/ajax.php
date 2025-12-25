@@ -38,42 +38,81 @@ try {
 
 try {
     $pdo->query("SELECT 1 FROM budget_items LIMIT 1");
+    // Vérifier si les nouvelles colonnes existent
+    try {
+        $pdo->query("SELECT type FROM budget_items LIMIT 1");
+    } catch (Exception $e) {
+        $pdo->exec("ALTER TABLE budget_items ADD COLUMN type ENUM('folder','item') DEFAULT 'item'");
+        $pdo->exec("ALTER TABLE budget_items ADD COLUMN parent_budget_id INT NULL");
+    }
 } catch (Exception $e) {
-    // Créer la table budget_items
+    // Créer la table budget_items avec structure complète
     $pdo->exec("
         CREATE TABLE budget_items (
             id INT AUTO_INCREMENT PRIMARY KEY,
             projet_id INT NOT NULL,
             catalogue_item_id INT NULL,
+            parent_budget_id INT NULL,
+            type ENUM('folder','item') DEFAULT 'item',
             nom VARCHAR(255) NOT NULL,
             prix DECIMAL(10,2) DEFAULT 0,
             quantite INT DEFAULT 1,
             ordre INT DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_projet (projet_id),
-            INDEX idx_catalogue (catalogue_item_id)
+            INDEX idx_catalogue (catalogue_item_id),
+            INDEX idx_parent (parent_budget_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
 }
 
-// Fonction helper pour récupérer tous les items d'un dossier récursivement
-function getAllItemsInFolder($pdo, $folderId) {
-    $items = [];
+// Fonction helper pour ajouter récursivement un dossier et son contenu au panier
+function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentBudgetId = null) {
+    $addedCount = 0;
 
-    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1");
-    $stmt->execute([$folderId]);
+    // Récupérer les enfants de ce dossier
+    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre");
+    $stmt->execute([$catalogueFolderId]);
     $children = $stmt->fetchAll();
 
     foreach ($children as $child) {
-        if ($child['type'] === 'item') {
-            $items[] = $child;
+        // Obtenir le prochain ordre
+        $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
+        $stmt->execute([$projetId]);
+        $ordre = $stmt->fetchColumn();
+
+        if ($child['type'] === 'folder') {
+            // Ajouter le sous-dossier
+            $stmt = $pdo->prepare("
+                INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
+                VALUES (?, ?, ?, 'folder', ?, 0, 1, ?)
+            ");
+            $stmt->execute([$projetId, $child['id'], $parentBudgetId, $child['nom'], $ordre]);
+            $newFolderId = $pdo->lastInsertId();
+            $addedCount++;
+
+            // Récursion pour le contenu du sous-dossier
+            $addedCount += addFolderContentsToPanier($pdo, $projetId, $child['id'], $newFolderId);
         } else {
-            // Récursion pour les sous-dossiers
-            $items = array_merge($items, getAllItemsInFolder($pdo, $child['id']));
+            // Ajouter l'item
+            $stmt = $pdo->prepare("
+                INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
+                VALUES (?, ?, ?, 'item', ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $projetId,
+                $child['id'],
+                $parentBudgetId,
+                $child['nom'],
+                $child['prix'],
+                $child['quantite_defaut'] ?? 1,
+                $ordre
+            ]);
+            $addedCount++;
         }
     }
 
-    return $items;
+    return $addedCount;
 }
 
 // Lire les données JSON
@@ -268,45 +307,30 @@ try {
                 throw new Exception('Projet et dossier requis');
             }
 
-            // Utilise la fonction helper définie en haut du fichier
-            $items = getAllItemsInFolder($pdo, $folderId);
+            // Récupérer le dossier du catalogue
+            $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ? AND type = 'folder'");
+            $stmt->execute([$folderId]);
+            $folder = $stmt->fetch();
 
-            if (empty($items)) {
-                throw new Exception('Aucun item dans ce dossier');
+            if (!$folder) {
+                throw new Exception('Dossier non trouvé');
             }
 
-            $addedCount = 0;
-            foreach ($items as $catalogueItem) {
-                // Vérifier si l'item existe déjà dans le panier
-                $stmt = $pdo->prepare("SELECT id, quantite FROM budget_items WHERE projet_id = ? AND catalogue_item_id = ?");
-                $stmt->execute([$projetId, $catalogueItem['id']]);
-                $existing = $stmt->fetch();
+            // Obtenir le prochain ordre
+            $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
+            $stmt->execute([$projetId]);
+            $ordre = $stmt->fetchColumn();
 
-                if ($existing) {
-                    // Incrémenter la quantité
-                    $stmt = $pdo->prepare("UPDATE budget_items SET quantite = quantite + 1 WHERE id = ?");
-                    $stmt->execute([$existing['id']]);
-                } else {
-                    // Ajouter nouveau
-                    $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
-                    $stmt->execute([$projetId]);
-                    $ordre = $stmt->fetchColumn();
+            // Ajouter le dossier principal au panier
+            $stmt = $pdo->prepare("
+                INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
+                VALUES (?, ?, NULL, 'folder', ?, 0, 1, ?)
+            ");
+            $stmt->execute([$projetId, $folderId, $folder['nom'], $ordre]);
+            $mainFolderId = $pdo->lastInsertId();
 
-                    $stmt = $pdo->prepare("
-                        INSERT INTO budget_items (projet_id, catalogue_item_id, nom, prix, quantite, ordre)
-                        VALUES (?, ?, ?, ?, ?, ?)
-                    ");
-                    $stmt->execute([
-                        $projetId,
-                        $catalogueItem['id'],
-                        $catalogueItem['nom'],
-                        $catalogueItem['prix'],
-                        $catalogueItem['quantite_defaut'] ?? 1,
-                        $ordre
-                    ]);
-                }
-                $addedCount++;
-            }
+            // Ajouter récursivement le contenu du dossier
+            $addedCount = 1 + addFolderContentsToPanier($pdo, $projetId, $folderId, $mainFolderId);
 
             echo json_encode(['success' => true, 'count' => $addedCount]);
             break;

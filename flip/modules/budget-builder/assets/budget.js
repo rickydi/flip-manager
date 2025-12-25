@@ -426,3 +426,12 @@ function addToPanier(id) {
 function removeFromPanier(id) {
     BudgetBuilder.removeFromPanier(id);
 }
+
+function togglePanierFolder(el) {
+    el.classList.toggle('collapsed');
+    const parent = el.closest('.panier-item');
+    const children = parent.nextElementSibling;
+    if (children && children.classList.contains('panier-folder-children')) {
+        children.classList.toggle('collapsed');
+    }
+}

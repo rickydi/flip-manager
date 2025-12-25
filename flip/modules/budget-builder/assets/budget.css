@@ -143,6 +143,37 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     text-align: center;
 }
 
+.panier-item.is-folder {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.panier-item .folder-toggle {
+    width: 20px;
+    text-align: center;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.panier-item .folder-toggle:hover {
+    color: #0d6efd;
+}
+
+.panier-item .folder-toggle.collapsed i {
+    transform: rotate(-90deg);
+}
+
+.panier-item .folder-toggle i {
+    transition: transform 0.15s ease;
+}
+
+.panier-folder-children {
+    /* Contenu des dossiers du panier */
+}
+
+.panier-folder-children.collapsed {
+    display: none;
+}
+
 /* Drop zone */
 .panier-items.drag-over {
     background-color: rgba(25, 135, 84, 0.1);

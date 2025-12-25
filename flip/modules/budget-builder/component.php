@@ -168,7 +168,7 @@ function getCatalogueTree($pdo, $parentId = null) {
 }
 
 /**
- * Récupérer le panier (items du projet)
+ * Récupérer le panier en arbre (items du projet)
  */
 function getPanier($pdo, $projetId) {
     if (!$projetId) return [];
@@ -181,7 +181,25 @@ function getPanier($pdo, $projetId) {
         ORDER BY bi.ordre, bi.id
     ");
     $stmt->execute([$projetId]);
-    return $stmt->fetchAll();
+    $allItems = $stmt->fetchAll();
+
+    // Construire l'arbre
+    return buildPanierTree($allItems);
+}
+
+function buildPanierTree($items, $parentId = null) {
+    $tree = [];
+    foreach ($items as $item) {
+        $itemParentId = $item['parent_budget_id'] ?? null;
+        if ($itemParentId == $parentId) {
+            $itemType = $item['type'] ?? 'item';
+            if ($itemType === 'folder') {
+                $item['children'] = buildPanierTree($items, $item['id']);
+            }
+            $tree[] = $item;
+        }
+    }
+    return $tree;
 }
 
 // ============================================
@@ -251,19 +269,7 @@ foreach ($panier as $item) {
                                 <small>Glissez des items depuis le Magasin</small>
                             </div>
                         <?php else: ?>
-                            <?php foreach ($panier as $item): ?>
-                                <div class="panier-item" data-id="<?= $item['id'] ?>">
-                                    <i class="bi bi-box-seam text-primary me-1"></i>
-                                    <span class="item-nom flex-grow-1"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
-                                    <input type="number" class="form-control form-control-sm item-qte"
-                                           value="<?= $item['quantite'] ?? 1 ?>" min="1" style="width: 50px;">
-                                    <span class="badge bg-secondary item-prix"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
-                                    <span class="badge bg-success item-total"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
-                                    <button type="button" class="btn btn-sm btn-link p-0 text-danger" onclick="removeFromPanier(<?= $item['id'] ?>)">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </div>
-                            <?php endforeach; ?>
+                            <?php renderPanierTree($panier); ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -335,6 +341,52 @@ function renderCatalogueTree($items, $level = 0) {
         <?php if ($isFolder && $hasChildren): ?>
             <div class="folder-children" data-parent="<?= $item['id'] ?>">
                 <?php renderCatalogueTree($item['children'], $level + 1); ?>
+            </div>
+        <?php endif; ?>
+    <?php
+    endforeach;
+}
+
+/**
+ * Afficher l'arbre du panier récursivement
+ */
+function renderPanierTree($items, $level = 0) {
+    if (empty($items)) return;
+
+    foreach ($items as $item):
+        $isFolder = ($item['type'] ?? 'item') === 'folder';
+        $hasChildren = !empty($item['children']);
+        $indent = $level * 20;
+    ?>
+        <div class="panier-item <?= $isFolder ? 'is-folder' : 'is-item' ?>"
+             data-id="<?= $item['id'] ?>"
+             data-type="<?= $item['type'] ?? 'item' ?>"
+             style="padding-left: <?= $indent + 8 ?>px;">
+
+            <?php if ($isFolder): ?>
+                <span class="folder-toggle <?= $hasChildren ? '' : 'invisible' ?>" onclick="togglePanierFolder(this)">
+                    <i class="bi bi-caret-down-fill"></i>
+                </span>
+                <i class="bi bi-folder-fill text-warning me-1"></i>
+                <span class="item-nom flex-grow-1 fw-bold"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
+            <?php else: ?>
+                <span class="folder-toggle invisible"></span>
+                <i class="bi bi-box-seam text-primary me-1"></i>
+                <span class="item-nom flex-grow-1"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
+                <input type="number" class="form-control form-control-sm item-qte"
+                       value="<?= $item['quantite'] ?? 1 ?>" min="1" style="width: 50px;">
+                <span class="badge bg-secondary item-prix"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
+                <span class="badge bg-success item-total"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
+            <?php endif; ?>
+
+            <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="removeFromPanier(<?= $item['id'] ?>)" title="Supprimer">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+
+        <?php if ($isFolder && $hasChildren): ?>
+            <div class="panier-folder-children" data-parent="<?= $item['id'] ?>">
+                <?php renderPanierTree($item['children'], $level + 1); ?>
             </div>
         <?php endif; ?>
     <?php
