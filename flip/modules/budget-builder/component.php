@@ -237,9 +237,9 @@ $totalPanier = calculatePanierTotal($panier);
 <div class="budget-builder-container">
     <div class="row g-3">
         <!-- MAGASIN (gauche) -->
-        <div class="col-md-5">
+        <div class="col-md-6">
             <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
                     <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-success btn-sm" onclick="addItem(null, 'folder')" title="Nouveau dossier">
@@ -266,13 +266,13 @@ $totalPanier = calculatePanierTotal($panier);
         </div>
 
         <!-- PANIER (droite) -->
-        <div class="col-md-7">
+        <div class="col-md-6">
             <div class="card h-100" id="panier-card">
-                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
                     <span>
                         <i class="bi bi-cart3 me-2"></i><strong>Panier</strong>
                         <?php if (isset($projet)): ?>
-                            <span class="text-muted">- <?= e($projet['nom'] ?? 'Projet') ?></span>
+                            <span class="text-muted ms-1">- <?= e($projet['nom'] ?? 'Projet') ?></span>
                         <?php endif; ?>
                     </span>
                     <span class="badge bg-primary fs-6" id="panier-total"><?= formatMoney($totalPanier) ?></span>
