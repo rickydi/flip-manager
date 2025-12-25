@@ -7,21 +7,10 @@
     font-size: 0.9rem;
 }
 
-/* ================================
-   LIGNES DE CONNEXION ARBRE (simple)
-   ================================ */
-
-/* Conteneur des enfants - simple indentation avec bordure */
+/* Conteneur des enfants - simple indentation */
 .folder-children,
 .panier-folder-children {
-    margin-left: 28px;
-    border-left: 2px solid var(--border-color, #dee2e6);
-    padding-left: 12px;
-}
-
-/* Pas besoin des spans tree-line */
-.tree-line {
-    display: none;
+    margin-left: 24px;
 }
 
 /* ================================
