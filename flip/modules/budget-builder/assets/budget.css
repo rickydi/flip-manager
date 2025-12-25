@@ -11,70 +11,17 @@
    LIGNES DE CONNEXION ARBRE
    ================================ */
 
+/* Conteneur des enfants avec ligne verticale */
+.folder-children,
+.panier-folder-children {
+    margin-left: 12px;
+    padding-left: 16px;
+    border-left: 2px solid var(--border-color, #dee2e6);
+}
+
+/* Pas besoin des spans tree-line */
 .tree-line {
-    display: inline-block;
-    width: 20px;
-    height: 100%;
-    position: relative;
-    flex-shrink: 0;
-}
-
-/* Ligne verticale continue */
-.tree-line.tree-vertical::before {
-    content: '';
-    position: absolute;
-    left: 9px;
-    top: -8px;
-    bottom: -8px;
-    width: 1px;
-    background-color: var(--border-color, #dee2e6);
-}
-
-/* Espace vide (après dernier élément) */
-.tree-line.tree-spacer {
-    /* Pas de ligne */
-}
-
-/* Branche (├─) */
-.tree-line.tree-branch::before {
-    content: '';
-    position: absolute;
-    left: 9px;
-    top: -8px;
-    bottom: -8px;
-    width: 1px;
-    background-color: var(--border-color, #dee2e6);
-}
-
-.tree-line.tree-branch::after {
-    content: '';
-    position: absolute;
-    left: 9px;
-    top: 50%;
-    width: 10px;
-    height: 1px;
-    background-color: var(--border-color, #dee2e6);
-}
-
-/* Coin (└─) */
-.tree-line.tree-corner::before {
-    content: '';
-    position: absolute;
-    left: 9px;
-    top: -8px;
-    height: calc(50% + 8px);
-    width: 1px;
-    background-color: var(--border-color, #dee2e6);
-}
-
-.tree-line.tree-corner::after {
-    content: '';
-    position: absolute;
-    left: 9px;
-    top: 50%;
-    width: 10px;
-    height: 1px;
-    background-color: var(--border-color, #dee2e6);
+    display: none;
 }
 
 /* ================================

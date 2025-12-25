@@ -305,37 +305,17 @@ $totalPanier = calculatePanierTotal($panier);
 /**
  * Afficher l'arbre du catalogue récursivement
  */
-function renderCatalogueTree($items, $level = 0, $isLast = []) {
+function renderCatalogueTree($items, $level = 0) {
     if (empty($items)) return;
-
-    $count = count($items);
-    $index = 0;
 
     foreach ($items as $item):
         $isFolder = $item['type'] === 'folder';
         $hasChildren = !empty($item['children']);
-        $index++;
-        $isLastItem = ($index === $count);
-
-        // Construire les connecteurs
-        $connectors = '';
-        for ($i = 0; $i < $level; $i++) {
-            if (isset($isLast[$i]) && $isLast[$i]) {
-                $connectors .= '<span class="tree-line tree-spacer"></span>';
-            } else {
-                $connectors .= '<span class="tree-line tree-vertical"></span>';
-            }
-        }
-        if ($level > 0) {
-            $connectors .= $isLastItem ? '<span class="tree-line tree-corner"></span>' : '<span class="tree-line tree-branch"></span>';
-        }
     ?>
         <div class="catalogue-item <?= $isFolder ? 'is-folder' : 'is-item' ?>"
              data-id="<?= $item['id'] ?>"
              data-type="<?= $item['type'] ?>"
              data-prix="<?= $item['prix'] ?>">
-
-            <?= $connectors ?>
 
             <?php if ($isFolder): ?>
                 <span class="folder-toggle <?= $hasChildren ? '' : 'invisible' ?>" onclick="toggleFolder(this)">
@@ -375,11 +355,7 @@ function renderCatalogueTree($items, $level = 0, $isLast = []) {
 
         <?php if ($isFolder && $hasChildren): ?>
             <div class="folder-children" data-parent="<?= $item['id'] ?>">
-                <?php
-                $newIsLast = $isLast;
-                $newIsLast[$level] = $isLastItem;
-                renderCatalogueTree($item['children'], $level + 1, $newIsLast);
-                ?>
+                <?php renderCatalogueTree($item['children'], $level + 1); ?>
             </div>
         <?php endif; ?>
     <?php
@@ -389,36 +365,16 @@ function renderCatalogueTree($items, $level = 0, $isLast = []) {
 /**
  * Afficher l'arbre du panier récursivement
  */
-function renderPanierTree($items, $level = 0, $isLast = []) {
+function renderPanierTree($items, $level = 0) {
     if (empty($items)) return;
-
-    $count = count($items);
-    $index = 0;
 
     foreach ($items as $item):
         $isFolder = ($item['type'] ?? 'item') === 'folder';
         $hasChildren = !empty($item['children']);
-        $index++;
-        $isLastItem = ($index === $count);
-
-        // Construire les connecteurs
-        $connectors = '';
-        for ($i = 0; $i < $level; $i++) {
-            if (isset($isLast[$i]) && $isLast[$i]) {
-                $connectors .= '<span class="tree-line tree-spacer"></span>';
-            } else {
-                $connectors .= '<span class="tree-line tree-vertical"></span>';
-            }
-        }
-        if ($level > 0) {
-            $connectors .= $isLastItem ? '<span class="tree-line tree-corner"></span>' : '<span class="tree-line tree-branch"></span>';
-        }
     ?>
         <div class="panier-item <?= $isFolder ? 'is-folder' : 'is-item' ?>"
              data-id="<?= $item['id'] ?>"
              data-type="<?= $item['type'] ?? 'item' ?>">
-
-            <?= $connectors ?>
 
             <?php if ($isFolder): ?>
                 <span class="folder-toggle <?= $hasChildren ? '' : 'invisible' ?>" onclick="togglePanierFolder(this)">
@@ -443,11 +399,7 @@ function renderPanierTree($items, $level = 0, $isLast = []) {
 
         <?php if ($isFolder && $hasChildren): ?>
             <div class="panier-folder-children" data-parent="<?= $item['id'] ?>">
-                <?php
-                $newIsLast = $isLast;
-                $newIsLast[$level] = $isLastItem;
-                renderPanierTree($item['children'], $level + 1, $newIsLast);
-                ?>
+                <?php renderPanierTree($item['children'], $level + 1); ?>
             </div>
         <?php endif; ?>
     <?php
