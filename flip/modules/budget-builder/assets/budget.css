@@ -8,61 +8,15 @@
 }
 
 /* ================================
-   LIGNES DE CONNEXION ARBRE
+   LIGNES DE CONNEXION ARBRE (simple)
    ================================ */
 
-/* Conteneur des enfants avec ligne verticale */
+/* Conteneur des enfants - simple indentation avec bordure */
 .folder-children,
 .panier-folder-children {
-    margin-left: 8px;
-    padding-left: 18px;
-    position: relative;
-}
-
-/* Ligne verticale à gauche du conteneur */
-.folder-children::before,
-.panier-folder-children::before {
-    content: '';
-    position: absolute;
-    left: 8px;
-    top: 0;
-    bottom: 15px;
-    width: 2px;
-    background-color: var(--border-color, #dee2e6);
-}
-
-/* Connecteur horizontal pour chaque enfant (items ET sous-dossiers) */
-.folder-children > .catalogue-item,
-.panier-folder-children > .panier-item {
-    position: relative;
-}
-
-.folder-children > .catalogue-item::before,
-.panier-folder-children > .panier-item::before {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 50%;
-    width: 10px;
-    height: 2px;
-    background-color: var(--border-color, #dee2e6);
-}
-
-/* Connecteur pour les sous-dossiers imbriqués */
-.folder-children > .folder-children,
-.panier-folder-children > .panier-folder-children {
-    margin-top: -2px;
-}
-
-.folder-children > .folder-children::after,
-.panier-folder-children > .panier-folder-children::after {
-    content: '';
-    position: absolute;
-    left: -10px;
-    top: 15px;
-    width: 10px;
-    height: 2px;
-    background-color: var(--border-color, #dee2e6);
+    margin-left: 28px;
+    border-left: 2px solid var(--border-color, #dee2e6);
+    padding-left: 12px;
 }
 
 /* Pas besoin des spans tree-line */
