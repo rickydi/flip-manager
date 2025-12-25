@@ -666,7 +666,7 @@ function renderPanierTree($items, $level = 0) {
                         <i class="bi bi-arrow-down"></i>
                     </button>
                 </div>
-                <span class="flex-grow-1">${escapeHtml(etape.nom)}</span>
+                <span class="flex-grow-1 etape-nom" style="cursor: pointer;" ondblclick="editEtapeName(this, ${etape.id})" title="Double-clic pour modifier">${escapeHtml(etape.nom)}</span>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteEtape(${etape.id})">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -705,6 +705,45 @@ function renderPanierTree($items, $level = 0) {
         BudgetBuilder.ajax('reorder_etape', { id: id, direction: direction }).then(response => {
             if (response.success) {
                 loadEtapes();
+            }
+        });
+    }
+
+    function editEtapeName(element, etapeId) {
+        const currentName = element.textContent.trim();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm';
+        input.value = currentName;
+
+        element.innerHTML = '';
+        element.appendChild(input);
+        input.focus();
+        input.select();
+
+        const save = () => {
+            const newName = input.value.trim();
+            if (newName && newName !== currentName) {
+                BudgetBuilder.ajax('update_etape', { id: etapeId, nom: newName }).then(response => {
+                    if (response.success) {
+                        element.textContent = newName;
+                    } else {
+                        element.textContent = currentName;
+                        alert('Erreur: ' + (response.message || 'Échec'));
+                    }
+                });
+            } else {
+                element.textContent = currentName;
+            }
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            } else if (e.key === 'Escape') {
+                element.textContent = currentName;
             }
         });
     }

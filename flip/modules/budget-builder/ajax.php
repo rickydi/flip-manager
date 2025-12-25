@@ -517,6 +517,18 @@ try {
             echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
             break;
 
+        case 'update_etape':
+            $id = (int)($input['id'] ?? 0);
+            $nom = trim($input['nom'] ?? '');
+            if (!$id) throw new Exception('ID requis');
+            if (empty($nom)) throw new Exception('Le nom est requis');
+
+            $stmt = $pdo->prepare("UPDATE budget_etapes SET nom = ? WHERE id = ?");
+            $stmt->execute([$nom, $id]);
+
+            echo json_encode(['success' => true]);
+            break;
+
         case 'delete_etape':
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');
