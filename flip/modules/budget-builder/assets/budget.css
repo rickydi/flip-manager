@@ -343,3 +343,19 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 .etape-drag-item:active .bi-grip-vertical {
     cursor: grabbing;
 }
+
+/* ================================
+   MODAL ITEM - SELECT ÉTAPE
+   ================================ */
+
+#itemModal .modal-body {
+    overflow: visible;
+}
+
+#itemModal .modal-content {
+    overflow: visible;
+}
+
+#item-modal-etape {
+    max-height: none;
+}
