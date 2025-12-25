@@ -523,8 +523,10 @@ try {
 
             $grouped = [];
 
-            // Pour chaque étape, récupérer les items
+            // Pour chaque étape, récupérer les items (garder le numéro d'ordre même si vide)
+            $etapeNum = 0;
             foreach ($etapes as $etape) {
+                $etapeNum++;
                 $stmt = $pdo->prepare("
                     SELECT * FROM catalogue_items
                     WHERE etape_id = ? AND actif = 1
@@ -537,6 +539,7 @@ try {
                     $grouped[] = [
                         'etape_id' => $etape['id'],
                         'etape_nom' => $etape['nom'],
+                        'etape_num' => $etapeNum,
                         'items' => $items
                     ];
                 }

@@ -427,16 +427,14 @@ const BudgetBuilder = {
         const container = document.getElementById('catalogue-tree');
         let html = '';
 
-        // Compter les étapes avec des items pour le N.X
-        let etapeIndex = 0;
         grouped.forEach((group) => {
             // Compter seulement les items (pas les dossiers)
             const itemCount = group.items.filter(i => i.type === 'item').length;
             let etapeLabel;
 
-            if (group.etape_id) {
-                etapeIndex++;
-                etapeLabel = `N.${etapeIndex} ${this.escapeHtml(group.etape_nom)}`;
+            // Utiliser le numéro d'étape réel retourné par le serveur
+            if (group.etape_id && group.etape_num) {
+                etapeLabel = `N.${group.etape_num} ${this.escapeHtml(group.etape_nom)}`;
             } else {
                 etapeLabel = this.escapeHtml(group.etape_nom);
             }
