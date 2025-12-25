@@ -543,34 +543,13 @@ try {
             echo json_encode(['success' => true]);
             break;
 
-        case 'reorder_etape':
-            $id = (int)($input['id'] ?? 0);
-            $direction = $input['direction'] ?? ''; // 'up' or 'down'
+        case 'reorder_etapes':
+            $ordre = $input['ordre'] ?? [];
+            if (empty($ordre) || !is_array($ordre)) throw new Exception('Ordre requis');
 
-            if (!$id) throw new Exception('ID requis');
-            if (!in_array($direction, ['up', 'down'])) throw new Exception('Direction invalide');
-
-            // Récupérer l'étape actuelle
-            $stmt = $pdo->prepare("SELECT * FROM budget_etapes WHERE id = ?");
-            $stmt->execute([$id]);
-            $etape = $stmt->fetch();
-
-            if (!$etape) throw new Exception('Étape non trouvée');
-
-            // Trouver l'étape voisine
-            if ($direction === 'up') {
-                $stmt = $pdo->prepare("SELECT * FROM budget_etapes WHERE ordre < ? ORDER BY ordre DESC LIMIT 1");
-            } else {
-                $stmt = $pdo->prepare("SELECT * FROM budget_etapes WHERE ordre > ? ORDER BY ordre ASC LIMIT 1");
-            }
-            $stmt->execute([$etape['ordre']]);
-            $neighbor = $stmt->fetch();
-
-            if ($neighbor) {
-                // Échanger les ordres
-                $stmt = $pdo->prepare("UPDATE budget_etapes SET ordre = ? WHERE id = ?");
-                $stmt->execute([$neighbor['ordre'], $etape['id']]);
-                $stmt->execute([$etape['ordre'], $neighbor['id']]);
+            $stmt = $pdo->prepare("UPDATE budget_etapes SET ordre = ? WHERE id = ?");
+            foreach ($ordre as $position => $id) {
+                $stmt->execute([$position, (int)$id]);
             }
 
             echo json_encode(['success' => true]);

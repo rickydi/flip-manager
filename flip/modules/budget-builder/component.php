@@ -657,22 +657,19 @@ function renderPanierTree($items, $level = 0) {
         }
 
         container.innerHTML = etapes.map((etape, index) => `
-            <div class="list-group-item d-flex align-items-center gap-2" data-id="${etape.id}">
-                <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-outline-secondary" onclick="reorderEtape(${etape.id}, 'up')" ${index === 0 ? 'disabled' : ''}>
-                        <i class="bi bi-arrow-up"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="reorderEtape(${etape.id}, 'down')" ${index === etapes.length - 1 ? 'disabled' : ''}>
-                        <i class="bi bi-arrow-down"></i>
-                    </button>
-                </div>
-                <span class="badge bg-secondary">N.${index + 1}</span>
+            <div class="list-group-item d-flex align-items-center gap-2 etape-drag-item"
+                 data-id="${etape.id}" draggable="true" style="cursor: grab;">
+                <i class="bi bi-grip-vertical text-muted"></i>
+                <span class="badge bg-secondary etape-numero">N.${index + 1}</span>
                 <span class="flex-grow-1 etape-nom" style="cursor: pointer;" ondblclick="editEtapeName(this, ${etape.id})" title="Double-clic pour modifier">${escapeHtml(etape.nom)}</span>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteEtape(${etape.id})">
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
         `).join('');
+
+        // Initialiser le drag & drop
+        initEtapesDragDrop();
     }
 
     function addEtape() {
@@ -702,9 +699,77 @@ function renderPanierTree($items, $level = 0) {
         });
     }
 
-    function reorderEtape(id, direction) {
-        BudgetBuilder.ajax('reorder_etape', { id: id, direction: direction }).then(response => {
-            if (response.success) {
+    let draggedEtape = null;
+
+    function initEtapesDragDrop() {
+        const items = document.querySelectorAll('.etape-drag-item');
+
+        items.forEach(item => {
+            item.addEventListener('dragstart', function(e) {
+                draggedEtape = this;
+                this.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', function() {
+                this.style.opacity = '1';
+                draggedEtape = null;
+                document.querySelectorAll('.etape-drag-item').forEach(el => {
+                    el.classList.remove('drag-over');
+                });
+            });
+
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (this !== draggedEtape) {
+                    this.classList.add('drag-over');
+                }
+            });
+
+            item.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+
+                if (draggedEtape && this !== draggedEtape) {
+                    const container = document.getElementById('etapes-list');
+                    const allItems = [...container.querySelectorAll('.etape-drag-item')];
+                    const draggedIndex = allItems.indexOf(draggedEtape);
+                    const targetIndex = allItems.indexOf(this);
+
+                    if (draggedIndex < targetIndex) {
+                        this.parentNode.insertBefore(draggedEtape, this.nextSibling);
+                    } else {
+                        this.parentNode.insertBefore(draggedEtape, this);
+                    }
+
+                    // Mettre à jour les numéros et sauvegarder
+                    updateEtapeNumbers();
+                    saveEtapesOrder();
+                }
+            });
+        });
+    }
+
+    function updateEtapeNumbers() {
+        const items = document.querySelectorAll('.etape-drag-item');
+        items.forEach((item, index) => {
+            const badge = item.querySelector('.etape-numero');
+            if (badge) badge.textContent = `N.${index + 1}`;
+        });
+    }
+
+    function saveEtapesOrder() {
+        const items = document.querySelectorAll('.etape-drag-item');
+        const ordre = [...items].map(item => parseInt(item.dataset.id));
+
+        BudgetBuilder.ajax('reorder_etapes', { ordre: ordre }).then(response => {
+            if (!response.success) {
+                alert('Erreur lors de la sauvegarde');
                 loadEtapes();
             }
         });
