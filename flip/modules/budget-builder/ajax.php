@@ -161,9 +161,20 @@ try {
             $type = $input['type'] === 'item' ? 'item' : 'folder';
             $nom = trim($input['nom'] ?? '');
             $prix = (float)($input['prix'] ?? 0);
+            $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
 
             if (empty($nom)) {
                 throw new Exception('Le nom est requis');
+            }
+
+            // Si on a un parent, hériter de son étape si pas spécifié
+            if ($parentId && !$etapeId) {
+                $stmt = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
+                $stmt->execute([$parentId]);
+                $parentEtape = $stmt->fetchColumn();
+                if ($parentEtape) {
+                    $etapeId = (int)$parentEtape;
+                }
             }
 
             // Récupérer le prochain ordre
@@ -175,8 +186,8 @@ try {
             }
             $ordre = $stmt->fetchColumn();
 
-            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre) VALUES (?, ?, ?, ?, ?)");
-            $stmt->execute([$parentId, $type, $nom, $prix, $ordre]);
+            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$parentId, $type, $nom, $prix, $ordre, $etapeId]);
 
             echo json_encode([
                 'success' => true,

@@ -5,8 +5,6 @@
 const BudgetBuilder = {
     projetId: null,
     ajaxUrl: null,
-    originalCatalogueHtml: null,
-    currentCatalogueView: 'normal',
 
     init: function(projetId) {
         this.projetId = projetId;
@@ -27,10 +25,6 @@ const BudgetBuilder = {
 
         this.initDragDrop();
         this.initQuantityChange();
-        this.initCatalogueViewToggle();
-
-        // Sauvegarder le HTML original du catalogue
-        this.originalCatalogueHtml = document.getElementById('catalogue-tree').innerHTML;
 
         console.log('Budget Builder initialized', { projetId: this.projetId });
     },
@@ -258,6 +252,31 @@ const BudgetBuilder = {
             type: type,
             nom: nom.trim(),
             prix: prix
+        }).then(response => {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    },
+
+    addItemToSection: function(etapeId, type) {
+        const nom = prompt(type === 'folder' ? 'Nom du dossier:' : 'Nom de l\'item:');
+        if (!nom || !nom.trim()) return;
+
+        let prix = 0;
+        if (type === 'item') {
+            const prixStr = prompt('Prix:', '0');
+            prix = parseFloat(prixStr) || 0;
+        }
+
+        this.ajax('add_catalogue_item', {
+            parent_id: null,
+            type: type,
+            nom: nom.trim(),
+            prix: prix,
+            etape_id: etapeId
         }).then(response => {
             if (response.success) {
                 location.reload();
@@ -625,4 +644,17 @@ function toggleEtapeGroup(el) {
     if (children && children.classList.contains('etape-group-children')) {
         children.classList.toggle('collapsed');
     }
+}
+
+function toggleSection(el) {
+    el.classList.toggle('collapsed');
+    const parent = el.closest('.catalogue-item');
+    const children = parent.nextElementSibling;
+    if (children && children.classList.contains('section-children')) {
+        children.classList.toggle('collapsed');
+    }
+}
+
+function addItemToSection(etapeId, type) {
+    BudgetBuilder.addItemToSection(etapeId, type);
 }

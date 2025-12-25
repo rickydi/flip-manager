@@ -153,7 +153,88 @@ function migrateMaterials($pdo, $oldScId, $newParentId) {
 // ============================================
 
 /**
- * Récupérer l'arbre du catalogue
+ * Récupérer les enfants d'un élément (récursif)
+ */
+function getChildren($pdo, $parentId) {
+    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
+    $stmt->execute([$parentId]);
+    $items = $stmt->fetchAll();
+
+    foreach ($items as &$item) {
+        if ($item['type'] === 'folder') {
+            $item['children'] = getChildren($pdo, $item['id']);
+        }
+    }
+
+    return $items;
+}
+
+/**
+ * Récupérer le catalogue organisé par sections (étapes)
+ */
+function getCatalogueBySection($pdo) {
+    // Récupérer toutes les étapes
+    $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, id");
+    $etapes = $stmt->fetchAll();
+
+    $sections = [];
+    $etapeNum = 0;
+
+    foreach ($etapes as $etape) {
+        $etapeNum++;
+
+        // Récupérer les éléments de premier niveau avec cette étape
+        $stmt = $pdo->prepare("
+            SELECT * FROM catalogue_items
+            WHERE etape_id = ? AND actif = 1 AND (parent_id IS NULL OR parent_id IN (SELECT id FROM catalogue_items WHERE etape_id != ? OR etape_id IS NULL))
+            ORDER BY type DESC, ordre, nom
+        ");
+        $stmt->execute([$etape['id'], $etape['id']]);
+        $items = $stmt->fetchAll();
+
+        // Récupérer les enfants pour chaque dossier
+        foreach ($items as &$item) {
+            if ($item['type'] === 'folder') {
+                $item['children'] = getChildren($pdo, $item['id']);
+            }
+        }
+
+        $sections[] = [
+            'etape_id' => $etape['id'],
+            'etape_nom' => $etape['nom'],
+            'etape_num' => $etapeNum,
+            'items' => $items
+        ];
+    }
+
+    // Section "Non spécifié" pour les éléments sans étape
+    $stmt = $pdo->query("
+        SELECT * FROM catalogue_items
+        WHERE (etape_id IS NULL OR etape_id = 0) AND parent_id IS NULL AND actif = 1
+        ORDER BY type DESC, ordre, nom
+    ");
+    $noEtapeItems = $stmt->fetchAll();
+
+    foreach ($noEtapeItems as &$item) {
+        if ($item['type'] === 'folder') {
+            $item['children'] = getChildren($pdo, $item['id']);
+        }
+    }
+
+    if (!empty($noEtapeItems)) {
+        $sections[] = [
+            'etape_id' => null,
+            'etape_nom' => 'Non spécifié',
+            'etape_num' => null,
+            'items' => $noEtapeItems
+        ];
+    }
+
+    return $sections;
+}
+
+/**
+ * Récupérer l'arbre du catalogue (ancienne méthode, gardée pour compatibilité)
  */
 function getCatalogueTree($pdo, $parentId = null) {
     if ($parentId === null) {
@@ -233,7 +314,7 @@ function calculatePanierTotal($items) {
 // ============================================
 // Charger les données
 // ============================================
-$catalogue = getCatalogueTree($pdo);
+$catalogueSections = getCatalogueBySection($pdo);
 $panier = isset($projetId) ? getPanier($pdo, $projetId) : [];
 
 // Calculer le total du panier (récursif)
@@ -248,33 +329,16 @@ $totalPanier = calculatePanierTotal($panier);
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
-                    <div class="d-flex align-items-center gap-2">
-                        <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <input type="radio" class="btn-check" name="catalogueView" id="viewNormal" value="normal" checked>
-                            <label class="btn btn-outline-secondary btn-sm" for="viewNormal" title="Vue normale">
-                                <i class="bi bi-list"></i>
-                            </label>
-                            <input type="radio" class="btn-check" name="catalogueView" id="viewByEtape" value="etape">
-                            <label class="btn btn-outline-secondary btn-sm" for="viewByEtape" title="Par étape">
-                                <i class="bi bi-list-ol"></i>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="btn-group btn-group-sm">
-                        <button type="button" class="btn btn-success btn-sm" onclick="addItem(null, 'folder')" title="Nouveau dossier">
-                            <i class="bi bi-folder-plus"></i>
-                        </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="addItem(null, 'item')" title="Nouvel item">
-                            <i class="bi bi-plus-circle"></i>
-                        </button>
-                    </div>
+                    <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="openEtapesModal()" title="Gérer les sections/étapes">
+                        <i class="bi bi-list-ol me-1"></i>Sections
+                    </button>
                 </div>
                 <div class="card-body p-2">
                     <div id="catalogue-tree" class="catalogue-tree">
-                        <?php renderCatalogueTree($catalogue); ?>
+                        <?php renderCatalogueSections($catalogueSections); ?>
                     </div>
-                    <?php if (empty($catalogue)): ?>
+                    <?php if (empty($catalogueSections)): ?>
                         <div class="text-center text-muted py-4">
                             <i class="bi bi-inbox" style="font-size: 2rem;"></i>
                             <p class="mt-2 mb-0">Catalogue vide</p>
@@ -330,7 +394,107 @@ $totalPanier = calculatePanierTotal($panier);
 
 <?php
 /**
- * Afficher l'arbre du catalogue récursivement
+ * Afficher le catalogue par sections (étapes)
+ */
+function renderCatalogueSections($sections) {
+    if (empty($sections)) return;
+
+    foreach ($sections as $section):
+        $etapeLabel = $section['etape_num'] ? "N.{$section['etape_num']} " . e($section['etape_nom']) : e($section['etape_nom']);
+        $etapeId = $section['etape_id'] ?? 'null';
+        $itemCount = count($section['items']);
+    ?>
+        <div class="etape-section mb-3" data-etape-id="<?= $etapeId ?>">
+            <div class="catalogue-item is-section-header" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--bs-primary, #0d6efd);">
+                <span class="folder-toggle" onclick="toggleSection(this)">
+                    <i class="bi bi-caret-down-fill"></i>
+                </span>
+                <i class="bi bi-list-ol text-primary me-1"></i>
+                <span class="item-nom fw-bold"><?= $etapeLabel ?></span>
+                <span class="badge bg-primary ms-2"><?= $itemCount ?></span>
+                <div class="btn-group btn-group-sm ms-auto">
+                    <button type="button" class="btn btn-link p-0 text-success" onclick="addItemToSection(<?= $etapeId ?>, 'folder')" title="Ajouter dossier">
+                        <i class="bi bi-folder-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-link p-0 text-primary" onclick="addItemToSection(<?= $etapeId ?>, 'item')" title="Ajouter item">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="section-children folder-children" data-etape="<?= $etapeId ?>">
+                <?php renderSectionItems($section['items']); ?>
+            </div>
+        </div>
+    <?php
+    endforeach;
+}
+
+/**
+ * Afficher les items d'une section
+ */
+function renderSectionItems($items, $level = 0) {
+    if (empty($items)) return;
+
+    foreach ($items as $item):
+        $isFolder = $item['type'] === 'folder';
+        $hasChildren = !empty($item['children']);
+    ?>
+        <div class="catalogue-item <?= $isFolder ? 'is-folder' : 'is-item' ?>"
+             data-id="<?= $item['id'] ?>"
+             data-type="<?= $item['type'] ?>"
+             data-prix="<?= $item['prix'] ?? 0 ?>">
+
+            <?php if ($isFolder): ?>
+                <span class="folder-toggle <?= $hasChildren ? '' : 'invisible' ?>" onclick="toggleFolder(this)">
+                    <i class="bi bi-caret-down-fill"></i>
+                </span>
+                <i class="bi bi-folder-fill text-warning me-1"></i>
+            <?php else: ?>
+                <span class="folder-toggle invisible"></span>
+                <i class="bi bi-box-seam text-primary me-1"></i>
+            <?php endif; ?>
+
+            <span class="item-nom" ondblclick="editItemName(this, <?= $item['id'] ?>)">
+                <?= e($item['nom']) ?>
+            </span>
+
+            <?php if (!$isFolder): ?>
+                <span class="badge bg-secondary me-1"><?= formatMoney($item['prix'] ?? 0) ?></span>
+                <button type="button" class="btn btn-sm btn-link p-0 text-info me-1"
+                        onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
+                    <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
+                        onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
+                    <i class="bi bi-plus-circle-fill"></i>
+                </button>
+            <?php else: ?>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
+                        <i class="bi bi-folder-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                </div>
+            <?php endif; ?>
+
+            <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="deleteItem(<?= $item['id'] ?>)" title="Supprimer">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+
+        <?php if ($isFolder && $hasChildren): ?>
+            <div class="folder-children" data-parent="<?= $item['id'] ?>">
+                <?php renderSectionItems($item['children'], $level + 1); ?>
+            </div>
+        <?php endif; ?>
+    <?php
+    endforeach;
+}
+
+/**
+ * Afficher l'arbre du catalogue récursivement (ancienne méthode)
  */
 function renderCatalogueTree($items, $level = 0) {
     if (empty($items)) return;
