@@ -65,6 +65,11 @@
 /* Zone actions à droite - largeur fixe */
 .catalogue-item .btn-group {
     flex-shrink: 0;
+    gap: 8px;
+}
+
+.catalogue-item .btn-group .btn {
+    margin: 0 2px;
 }
 
 .catalogue-item .add-to-panier {
