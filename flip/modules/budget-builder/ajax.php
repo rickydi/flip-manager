@@ -435,6 +435,22 @@ try {
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');
 
+            // Supprimer récursivement les enfants d'abord
+            $deleteChildren = function($pdo, $parentId) use (&$deleteChildren) {
+                $stmt = $pdo->prepare("SELECT id FROM budget_items WHERE parent_budget_id = ?");
+                $stmt->execute([$parentId]);
+                $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+                foreach ($children as $childId) {
+                    $deleteChildren($pdo, $childId);
+                    $stmt = $pdo->prepare("DELETE FROM budget_items WHERE id = ?");
+                    $stmt->execute([$childId]);
+                }
+            };
+
+            $deleteChildren($pdo, $id);
+
+            // Supprimer l'élément lui-même
             $stmt = $pdo->prepare("DELETE FROM budget_items WHERE id = ?");
             $stmt->execute([$id]);
 
