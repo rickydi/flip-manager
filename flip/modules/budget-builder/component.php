@@ -822,6 +822,16 @@ function renderPanierTree($items, $level = 0) {
         }
     });
 
+    // Enter pour enregistrer l'item
+    document.querySelectorAll('#itemModal input, #itemModal select').forEach(el => {
+        el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveItemModal();
+            }
+        });
+    });
+
     // Ouvrir le lien dans un nouvel onglet
     document.getElementById('item-modal-open-link').addEventListener('click', function() {
         const lien = document.getElementById('item-modal-lien').value;
