@@ -56,6 +56,26 @@ try {
     ");
 }
 
+// Fonction helper pour récupérer tous les items d'un dossier récursivement
+function getAllItemsInFolder($pdo, $folderId) {
+    $items = [];
+
+    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1");
+    $stmt->execute([$folderId]);
+    $children = $stmt->fetchAll();
+
+    foreach ($children as $child) {
+        if ($child['type'] === 'item') {
+            $items[] = $child;
+        } else {
+            // Récursion pour les sous-dossiers
+            $items = array_merge($items, getAllItemsInFolder($pdo, $child['id']));
+        }
+    }
+
+    return $items;
+}
+
 // Lire les données JSON
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
@@ -248,26 +268,7 @@ try {
                 throw new Exception('Projet et dossier requis');
             }
 
-            // Fonction récursive pour récupérer tous les items d'un dossier
-            function getAllItemsInFolder($pdo, $folderId) {
-                $items = [];
-
-                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1");
-                $stmt->execute([$folderId]);
-                $children = $stmt->fetchAll();
-
-                foreach ($children as $child) {
-                    if ($child['type'] === 'item') {
-                        $items[] = $child;
-                    } else {
-                        // Récursion pour les sous-dossiers
-                        $items = array_merge($items, getAllItemsInFolder($pdo, $child['id']));
-                    }
-                }
-
-                return $items;
-            }
-
+            // Utilise la fonction helper définie en haut du fichier
             $items = getAllItemsInFolder($pdo, $folderId);
 
             if (empty($items)) {
