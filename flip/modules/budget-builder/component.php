@@ -652,16 +652,16 @@ function renderPanierTree($items, $level = 0) {
                 supplierTotal += total;
 
                 const linkHtml = item.lien_achat
-                    ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="ms-2" title="${escapeHtml(item.lien_achat)}"><i class="bi bi-box-arrow-up-right"></i></a>`
+                    ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary" title="${escapeHtml(item.lien_achat)}"><i class="bi bi-box-arrow-up-right"></i></a>`
                     : '';
 
                 html += `<tr class="${isChecked ? 'table-success' : ''}">
-                    <td class="text-center">
-                        <input type="checkbox" class="form-check-input order-check"
+                    <td class="text-center text-nowrap">
+                        <input type="checkbox" class="form-check-input order-check me-1"
                                data-id="${item.id}" ${isChecked ? 'checked' : ''}
-                               onchange="toggleOrderItem(${item.id}, this.checked)">
+                               onchange="toggleOrderItem(${item.id}, this.checked)">${linkHtml}
                     </td>
-                    <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}${linkHtml}</td>
+                    <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
                     <td class="text-center">${item.quantite}</td>
                     <td class="text-end">${formatMoney(item.prix)}</td>
                     <td class="text-end fw-bold">${formatMoney(total)}</td>
