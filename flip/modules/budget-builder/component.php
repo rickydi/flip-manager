@@ -651,29 +651,21 @@ function renderPanierTree($items, $level = 0) {
                 const total = (parseFloat(item.prix) || 0) * (parseInt(item.quantite) || 1);
                 supplierTotal += total;
 
+                const linkHtml = item.lien_achat
+                    ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="ms-2" title="${escapeHtml(item.lien_achat)}"><i class="bi bi-box-arrow-up-right"></i></a>`
+                    : '';
+
                 html += `<tr class="${isChecked ? 'table-success' : ''}">
                     <td class="text-center">
                         <input type="checkbox" class="form-check-input order-check"
                                data-id="${item.id}" ${isChecked ? 'checked' : ''}
                                onchange="toggleOrderItem(${item.id}, this.checked)">
                     </td>
-                    <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
+                    <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}${linkHtml}</td>
                     <td class="text-center">${item.quantite}</td>
                     <td class="text-end">${formatMoney(item.prix)}</td>
                     <td class="text-end fw-bold">${formatMoney(total)}</td>
                 </tr>`;
-
-                // Ajouter ligne avec lien si disponible
-                if (item.lien_achat) {
-                    html += `<tr class="${isChecked ? 'table-success' : ''} order-link-row">
-                        <td></td>
-                        <td colspan="4" class="py-0 pb-1">
-                            <a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary small text-truncate d-block" style="max-width: 400px;">
-                                <i class="bi bi-link-45deg"></i>${escapeHtml(item.lien_achat)}
-                            </a>
-                        </td>
-                    </tr>`;
-                }
             }
 
             html += `</tbody>
