@@ -39,6 +39,14 @@ try {
     migrateOldData($pdo);
 }
 
+// Ajouter colonnes fournisseur et lien_achat si manquantes
+try {
+    $pdo->query("SELECT fournisseur FROM catalogue_items LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN fournisseur VARCHAR(255) DEFAULT NULL");
+    $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN lien_achat VARCHAR(500) DEFAULT NULL");
+}
+
 // ============================================
 // AUTO-MIGRATION: Table budget_items (panier)
 // ============================================
@@ -333,6 +341,10 @@ function renderCatalogueTree($items, $level = 0) {
 
             <?php if (!$isFolder): ?>
                 <span class="badge bg-secondary me-1"><?= formatMoney($item['prix']) ?></span>
+                <button type="button" class="btn btn-sm btn-link p-0 text-info me-1"
+                        onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
+                    <i class="bi bi-pencil"></i>
+                </button>
                 <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
                         onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
                     <i class="bi bi-plus-circle-fill"></i>
@@ -412,10 +424,105 @@ function renderPanierTree($items, $level = 0) {
     <i class="bi bi-arrow-up"></i>
 </button>
 
+<!-- Modal édition item -->
+<div class="modal fade" id="itemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i>Modifier l'item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="item-modal-id">
+                <div class="mb-3">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" id="item-modal-nom">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Prix</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="item-modal-prix" step="0.01" min="0">
+                        <span class="input-group-text">$</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Fournisseur</label>
+                    <input type="text" class="form-control" id="item-modal-fournisseur" placeholder="Ex: Home Depot, Rona...">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Lien d'achat</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                        <input type="url" class="form-control" id="item-modal-lien" placeholder="https://...">
+                        <button type="button" class="btn btn-outline-secondary" id="item-modal-open-link" title="Ouvrir le lien">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveItemModal()">
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
     // Initialiser avec l'ID du projet
     BudgetBuilder.init(<?= $projetId ?? 'null' ?>);
+
+    // Modal item
+    let itemModal = null;
+
+    function openItemModal(itemId) {
+        if (!itemModal) {
+            itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
+        }
+
+        // Charger les données de l'item
+        BudgetBuilder.ajax('get_item', { id: itemId }).then(response => {
+            if (response.success && response.item) {
+                document.getElementById('item-modal-id').value = response.item.id;
+                document.getElementById('item-modal-nom').value = response.item.nom || '';
+                document.getElementById('item-modal-prix').value = response.item.prix || 0;
+                document.getElementById('item-modal-fournisseur').value = response.item.fournisseur || '';
+                document.getElementById('item-modal-lien').value = response.item.lien_achat || '';
+                itemModal.show();
+            }
+        });
+    }
+
+    function saveItemModal() {
+        const id = document.getElementById('item-modal-id').value;
+        const data = {
+            id: id,
+            nom: document.getElementById('item-modal-nom').value,
+            prix: document.getElementById('item-modal-prix').value,
+            fournisseur: document.getElementById('item-modal-fournisseur').value,
+            lien_achat: document.getElementById('item-modal-lien').value
+        };
+
+        BudgetBuilder.ajax('update_item', data).then(response => {
+            if (response.success) {
+                itemModal.hide();
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    // Ouvrir le lien dans un nouvel onglet
+    document.getElementById('item-modal-open-link').addEventListener('click', function() {
+        const lien = document.getElementById('item-modal-lien').value;
+        if (lien) {
+            window.open(lien, '_blank');
+        }
+    });
 
     // Bouton scroll to top
     (function() {

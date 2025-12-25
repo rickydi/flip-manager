@@ -17,6 +17,13 @@ if (!isLoggedIn()) {
 // S'assurer que les tables existent
 try {
     $pdo->query("SELECT 1 FROM catalogue_items LIMIT 1");
+    // Ajouter colonnes fournisseur et lien_achat si manquantes
+    try {
+        $pdo->query("SELECT fournisseur FROM catalogue_items LIMIT 1");
+    } catch (Exception $e) {
+        $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN fournisseur VARCHAR(255) DEFAULT NULL");
+        $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN lien_achat VARCHAR(500) DEFAULT NULL");
+    }
 } catch (Exception $e) {
     // Créer la table catalogue_items
     $pdo->exec("
@@ -27,6 +34,8 @@ try {
             nom VARCHAR(255) NOT NULL,
             prix DECIMAL(10,2) DEFAULT 0,
             quantite_defaut INT DEFAULT 1,
+            fournisseur VARCHAR(255) DEFAULT NULL,
+            lien_achat VARCHAR(500) DEFAULT NULL,
             ordre INT DEFAULT 0,
             actif TINYINT(1) DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -196,6 +205,34 @@ try {
             }
 
             echo json_encode(['success' => true]);
+            break;
+
+        case 'get_item':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ?");
+            $stmt->execute([$id]);
+            $item = $stmt->fetch();
+
+            if (!$item) throw new Exception('Item non trouvé');
+
+            echo json_encode(['success' => true, 'item' => $item]);
+            break;
+
+        case 'update_item':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            $nom = trim($input['nom'] ?? '');
+            $prix = (float)($input['prix'] ?? 0);
+            $fournisseur = trim($input['fournisseur'] ?? '');
+            $lienAchat = trim($input['lien_achat'] ?? '');
+
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ? WHERE id = ?");
+            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $id]);
+
+            echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;
 
         case 'move_catalogue_item':
