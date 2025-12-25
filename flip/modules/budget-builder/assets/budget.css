@@ -1,0 +1,209 @@
+/**
+ * Budget Builder - Styles
+ */
+
+.budget-builder-container {
+    font-size: 0.9rem;
+}
+
+/* ================================
+   CATALOGUE / MAGASIN
+   ================================ */
+
+.catalogue-tree {
+    user-select: none;
+}
+
+.catalogue-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: default;
+    gap: 4px;
+}
+
+.catalogue-item:hover {
+    background-color: rgba(30, 58, 95, 0.1);
+}
+
+.catalogue-item.is-item {
+    cursor: grab;
+}
+
+.catalogue-item.is-item:active {
+    cursor: grabbing;
+}
+
+.catalogue-item .folder-toggle {
+    width: 20px;
+    text-align: center;
+    cursor: pointer;
+    color: #6c757d;
+}
+
+.catalogue-item .folder-toggle:hover {
+    color: #0d6efd;
+}
+
+.catalogue-item .folder-toggle.collapsed i {
+    transform: rotate(-90deg);
+}
+
+.catalogue-item .folder-toggle i {
+    transition: transform 0.15s ease;
+}
+
+.catalogue-item .item-nom {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.catalogue-item .item-nom:hover {
+    text-decoration: underline;
+    cursor: text;
+}
+
+.catalogue-item .add-to-panier {
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.catalogue-item:hover .add-to-panier {
+    opacity: 1;
+}
+
+.folder-children {
+    /* Contenu des dossiers */
+}
+
+.folder-children.collapsed {
+    display: none;
+}
+
+/* Drag & Drop */
+.catalogue-item.dragging {
+    opacity: 0.5;
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.catalogue-item.drag-over {
+    background-color: rgba(25, 135, 84, 0.2);
+    border: 1px dashed #198754;
+}
+
+/* ================================
+   PANIER
+   ================================ */
+
+.panier-items {
+    min-height: 200px;
+}
+
+.panier-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    gap: 8px;
+}
+
+.panier-item:hover {
+    background-color: #e9ecef;
+}
+
+.panier-item .drag-handle {
+    color: #adb5bd;
+    cursor: grab;
+}
+
+.panier-item .drag-handle:active {
+    cursor: grabbing;
+}
+
+.panier-item .item-nom {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.panier-item .item-qte {
+    text-align: center;
+}
+
+.panier-item .item-prix {
+    color: #6c757d;
+    min-width: 80px;
+    text-align: right;
+}
+
+.panier-item .item-total {
+    color: #198754;
+    min-width: 90px;
+    text-align: right;
+}
+
+/* Drop zone */
+.panier-items.drag-over {
+    background-color: rgba(25, 135, 84, 0.1);
+    border: 2px dashed #198754;
+    border-radius: 8px;
+}
+
+/* ================================
+   EDITION INLINE
+   ================================ */
+
+.inline-edit-input {
+    border: 1px solid #0d6efd;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: inherit;
+    width: 100%;
+    max-width: 200px;
+}
+
+.inline-edit-input:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+/* ================================
+   MODAL AJOUT
+   ================================ */
+
+.modal-add-item .form-label {
+    font-weight: 500;
+}
+
+/* ================================
+   RESPONSIVE
+   ================================ */
+
+@media (max-width: 768px) {
+    .budget-builder-container .row {
+        flex-direction: column;
+    }
+
+    .budget-builder-container .col-md-5,
+    .budget-builder-container .col-md-7 {
+        width: 100%;
+    }
+
+    .catalogue-item {
+        padding: 8px 6px;
+    }
+
+    .panier-item {
+        flex-wrap: wrap;
+    }
+
+    .panier-item .item-nom {
+        width: 100%;
+        margin-bottom: 4px;
+    }
+}
