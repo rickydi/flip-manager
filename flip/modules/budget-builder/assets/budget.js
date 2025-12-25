@@ -5,6 +5,8 @@
 const BudgetBuilder = {
     projetId: null,
     ajaxUrl: null,
+    originalCatalogueHtml: null,
+    currentCatalogueView: 'normal',
 
     init: function(projetId) {
         this.projetId = projetId;
@@ -25,6 +27,10 @@ const BudgetBuilder = {
 
         this.initDragDrop();
         this.initQuantityChange();
+        this.initCatalogueViewToggle();
+
+        // Sauvegarder le HTML original du catalogue
+        this.originalCatalogueHtml = document.getElementById('catalogue-tree').innerHTML;
 
         console.log('Budget Builder initialized', { projetId: this.projetId });
     },
@@ -386,6 +392,135 @@ const BudgetBuilder = {
     },
 
     // ================================
+    // VUE CATALOGUE PAR ÉTAPE
+    // ================================
+
+    initCatalogueViewToggle: function() {
+        const self = this;
+        document.querySelectorAll('input[name="catalogueView"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'etape') {
+                    self.loadCatalogueByEtape();
+                } else {
+                    self.restoreNormalCatalogue();
+                }
+            });
+        });
+    },
+
+    loadCatalogueByEtape: function() {
+        const self = this;
+        const container = document.getElementById('catalogue-tree');
+
+        // Afficher un loader
+        container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
+
+        this.ajax('get_catalogue_by_etape', {}).then(response => {
+            if (response.success && response.grouped) {
+                self.renderCatalogueByEtape(response.grouped);
+                self.currentCatalogueView = 'etape';
+            }
+        });
+    },
+
+    renderCatalogueByEtape: function(grouped) {
+        const container = document.getElementById('catalogue-tree');
+        let html = '';
+
+        // Compter les étapes avec des items pour le N.X
+        let etapeIndex = 0;
+        grouped.forEach((group) => {
+            // Compter seulement les items (pas les dossiers)
+            const itemCount = group.items.filter(i => i.type === 'item').length;
+            let etapeLabel;
+
+            if (group.etape_id) {
+                etapeIndex++;
+                etapeLabel = `N.${etapeIndex} ${this.escapeHtml(group.etape_nom)}`;
+            } else {
+                etapeLabel = this.escapeHtml(group.etape_nom);
+            }
+
+            html += `
+                <div class="etape-group mb-3">
+                    <div class="catalogue-item is-etape-header" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--primary-color);">
+                        <span class="folder-toggle" onclick="toggleEtapeGroup(this)">
+                            <i class="bi bi-caret-down-fill"></i>
+                        </span>
+                        <i class="bi bi-list-ol text-primary me-1"></i>
+                        <span class="item-nom fw-bold">${etapeLabel}</span>
+                        <span class="badge bg-primary ms-auto">${itemCount} item(s)</span>
+                    </div>
+                    <div class="etape-group-children folder-children" style="margin-left: 16px;">
+                        ${this.renderEtapeItems(group.items)}
+                    </div>
+                </div>
+            `;
+        });
+
+        if (grouped.length === 0) {
+            html = '<div class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-2">Aucun item avec étape définie</p></div>';
+        }
+
+        container.innerHTML = html;
+        this.reinitDragDropForItems();
+    },
+
+    renderEtapeItems: function(items) {
+        let html = '';
+
+        // Filtrer pour ne montrer que les items (pas les dossiers) dans la vue par étape
+        items.filter(item => item.type === 'item').forEach(item => {
+            html += `
+                <div class="catalogue-item is-item"
+                     data-id="${item.id}"
+                     data-type="item"
+                     data-prix="${item.prix || 0}">
+                    <span class="folder-toggle invisible"></span>
+                    <i class="bi bi-box-seam text-primary me-1"></i>
+                    <span class="item-nom" ondblclick="editItemName(this, ${item.id})">${this.escapeHtml(item.nom)}</span>
+                    <span class="badge bg-secondary me-1">${this.formatMoney(item.prix || 0)}</span>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-info me-1"
+                            onclick="openItemModal(${item.id})" title="Modifier">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
+                            onclick="addToPanier(${item.id})" title="Ajouter au panier">
+                        <i class="bi bi-plus-circle-fill"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="deleteItem(${item.id})" title="Supprimer">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+        });
+
+        if (html === '') {
+            html = '<div class="text-muted py-2 ps-3"><em>Aucun item</em></div>';
+        }
+
+        return html;
+    },
+
+    restoreNormalCatalogue: function() {
+        const container = document.getElementById('catalogue-tree');
+        container.innerHTML = this.originalCatalogueHtml;
+        this.currentCatalogueView = 'normal';
+        this.reinitDragDropForItems();
+    },
+
+    reinitDragDropForItems: function() {
+        // Réinitialiser le drag & drop sur les nouveaux éléments
+        this.initDragDrop();
+    },
+
+    escapeHtml: function(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    },
+
+    // ================================
     // AJAX
     // ================================
 
@@ -442,6 +577,15 @@ function togglePanierFolder(el) {
     const parent = el.closest('.panier-item');
     const children = parent.nextElementSibling;
     if (children && children.classList.contains('panier-folder-children')) {
+        children.classList.toggle('collapsed');
+    }
+}
+
+function toggleEtapeGroup(el) {
+    el.classList.toggle('collapsed');
+    const parent = el.closest('.catalogue-item');
+    const children = parent.nextElementSibling;
+    if (children && children.classList.contains('etape-group-children')) {
         children.classList.toggle('collapsed');
     }
 }

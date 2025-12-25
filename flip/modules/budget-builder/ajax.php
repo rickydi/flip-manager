@@ -516,6 +516,51 @@ try {
             echo json_encode(['success' => true, 'etapes' => $etapes]);
             break;
 
+        case 'get_catalogue_by_etape':
+            // Récupérer toutes les étapes
+            $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, id");
+            $etapes = $stmt->fetchAll();
+
+            $grouped = [];
+
+            // Pour chaque étape, récupérer les items
+            foreach ($etapes as $etape) {
+                $stmt = $pdo->prepare("
+                    SELECT * FROM catalogue_items
+                    WHERE etape_id = ? AND actif = 1
+                    ORDER BY type DESC, ordre, nom
+                ");
+                $stmt->execute([$etape['id']]);
+                $items = $stmt->fetchAll();
+
+                if (!empty($items)) {
+                    $grouped[] = [
+                        'etape_id' => $etape['id'],
+                        'etape_nom' => $etape['nom'],
+                        'items' => $items
+                    ];
+                }
+            }
+
+            // Items sans étape
+            $stmt = $pdo->query("
+                SELECT * FROM catalogue_items
+                WHERE (etape_id IS NULL OR etape_id = 0) AND actif = 1
+                ORDER BY type DESC, ordre, nom
+            ");
+            $noEtapeItems = $stmt->fetchAll();
+
+            if (!empty($noEtapeItems)) {
+                $grouped[] = [
+                    'etape_id' => null,
+                    'etape_nom' => 'Non spécifié',
+                    'items' => $noEtapeItems
+                ];
+            }
+
+            echo json_encode(['success' => true, 'grouped' => $grouped]);
+            break;
+
         case 'add_etape':
             $nom = trim($input['nom'] ?? '');
             if (empty($nom)) throw new Exception('Le nom est requis');

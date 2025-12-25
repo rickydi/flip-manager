@@ -248,7 +248,19 @@ $totalPanier = calculatePanierTotal($panier);
         <div class="col-md-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
-                    <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <input type="radio" class="btn-check" name="catalogueView" id="viewNormal" value="normal" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="viewNormal" title="Vue normale">
+                                <i class="bi bi-list"></i>
+                            </label>
+                            <input type="radio" class="btn-check" name="catalogueView" id="viewByEtape" value="etape">
+                            <label class="btn btn-outline-secondary btn-sm" for="viewByEtape" title="Par étape">
+                                <i class="bi bi-list-ol"></i>
+                            </label>
+                        </div>
+                    </div>
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-success btn-sm" onclick="addItem(null, 'folder')" title="Nouveau dossier">
                             <i class="bi bi-folder-plus"></i>
