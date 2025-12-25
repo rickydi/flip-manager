@@ -151,16 +151,20 @@ const BudgetBuilder = {
 
                 try {
                     const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    console.log('Drop data:', data);
+
                     if (data.id) {
                         if (data.type === 'folder') {
-                            // Ajouter tous les items du dossier
+                            console.log('Adding folder to panier:', data.id);
                             self.addFolderToPanier(parseInt(data.id));
                         } else {
+                            console.log('Adding item to panier:', data.id);
                             self.addToPanier(parseInt(data.id));
                         }
                     }
                 } catch (err) {
                     console.error('Drop error:', err);
+                    alert('Erreur: ' + err.message);
                 }
             });
         }
@@ -182,8 +186,10 @@ const BudgetBuilder = {
     },
 
     addFolderToPanier: function(folderId) {
+        console.log('addFolderToPanier called with folderId:', folderId, 'projetId:', this.projetId);
+
         if (!this.projetId) {
-            alert('Sélectionnez d\'abord un projet');
+            alert('Sélectionnez d\'abord un projet (projet_id manquant)');
             return;
         }
 
@@ -191,7 +197,9 @@ const BudgetBuilder = {
             projet_id: this.projetId,
             folder_id: folderId
         }).then(response => {
+            console.log('add_folder_to_panier response:', response);
             if (response.success) {
+                alert('Ajouté: ' + (response.count || 0) + ' item(s) du dossier');
                 location.reload();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
