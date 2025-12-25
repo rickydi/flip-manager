@@ -469,6 +469,9 @@ const BudgetBuilder = {
 
         // Filtrer pour ne montrer que les items (pas les dossiers) dans la vue par étape
         items.filter(item => item.type === 'item').forEach(item => {
+            // Afficher le chemin du dossier si présent
+            const folderPath = item.folder_path ? `<span class="text-muted small me-1"><i class="bi bi-folder text-warning"></i> ${this.escapeHtml(item.folder_path)} /</span>` : '';
+
             html += `
                 <div class="catalogue-item is-item"
                      data-id="${item.id}"
@@ -476,6 +479,7 @@ const BudgetBuilder = {
                      data-prix="${item.prix || 0}">
                     <span class="folder-toggle invisible"></span>
                     <i class="bi bi-box-seam text-primary me-1"></i>
+                    ${folderPath}
                     <span class="item-nom" ondblclick="editItemName(this, ${item.id})">${this.escapeHtml(item.nom)}</span>
                     <span class="badge bg-secondary me-1">${this.formatMoney(item.prix || 0)}</span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info me-1"

@@ -517,6 +517,23 @@ try {
             break;
 
         case 'get_catalogue_by_etape':
+            // Fonction pour récupérer le chemin du dossier parent
+            $getParentPath = function($pdo, $parentId) {
+                $path = [];
+                while ($parentId) {
+                    $stmt = $pdo->prepare("SELECT id, nom, parent_id FROM catalogue_items WHERE id = ?");
+                    $stmt->execute([$parentId]);
+                    $parent = $stmt->fetch();
+                    if ($parent) {
+                        array_unshift($path, $parent['nom']);
+                        $parentId = $parent['parent_id'];
+                    } else {
+                        break;
+                    }
+                }
+                return implode(' / ', $path);
+            };
+
             // Récupérer toutes les étapes
             $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, id");
             $etapes = $stmt->fetchAll();
@@ -535,6 +552,11 @@ try {
                 $stmt->execute([$etape['id']]);
                 $items = $stmt->fetchAll();
 
+                // Ajouter le chemin du dossier parent pour chaque item
+                foreach ($items as &$item) {
+                    $item['folder_path'] = $getParentPath($pdo, $item['parent_id']);
+                }
+
                 if (!empty($items)) {
                     $grouped[] = [
                         'etape_id' => $etape['id'],
@@ -552,6 +574,11 @@ try {
                 ORDER BY type DESC, ordre, nom
             ");
             $noEtapeItems = $stmt->fetchAll();
+
+            // Ajouter le chemin du dossier parent pour chaque item sans étape
+            foreach ($noEtapeItems as &$item) {
+                $item['folder_path'] = $getParentPath($pdo, $item['parent_id']);
+            }
 
             if (!empty($noEtapeItems)) {
                 $grouped[] = [
