@@ -590,7 +590,7 @@ function renderPanierTree($items, $level = 0) {
             if (etapesResp.success && etapesResp.etapes) {
                 const select = document.getElementById('item-modal-etape');
                 select.innerHTML = '<option value="">-- Aucune étape --</option>' +
-                    etapesResp.etapes.map(e => `<option value="${e.id}">${escapeHtml(e.nom)}</option>`).join('');
+                    etapesResp.etapes.map((e, i) => `<option value="${e.id}">N.${i + 1} ${escapeHtml(e.nom)}</option>`).join('');
             }
 
             // Remplir les champs de l'item
@@ -666,6 +666,7 @@ function renderPanierTree($items, $level = 0) {
                         <i class="bi bi-arrow-down"></i>
                     </button>
                 </div>
+                <span class="badge bg-secondary">N.${index + 1}</span>
                 <span class="flex-grow-1 etape-nom" style="cursor: pointer;" ondblclick="editEtapeName(this, ${etape.id})" title="Double-clic pour modifier">${escapeHtml(etape.nom)}</span>
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteEtape(${etape.id})">
                     <i class="bi bi-trash"></i>
