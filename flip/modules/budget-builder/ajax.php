@@ -289,12 +289,27 @@ try {
 
             if (!$id || !$targetId) throw new Exception('IDs requis');
 
-            // Récupérer les infos de la cible (incluant etape_id)
+            // Fonction pour trouver l'étape en remontant la chaîne des parents
+            $findEtapeId = function($pdo, $itemId) use (&$findEtapeId) {
+                $stmt = $pdo->prepare("SELECT parent_id, etape_id FROM catalogue_items WHERE id = ?");
+                $stmt->execute([$itemId]);
+                $item = $stmt->fetch();
+
+                if (!$item) return null;
+                if ($item['etape_id']) return $item['etape_id'];
+                if ($item['parent_id']) return $findEtapeId($pdo, $item['parent_id']);
+                return null;
+            };
+
+            // Récupérer les infos de la cible
             $stmt = $pdo->prepare("SELECT parent_id, ordre, etape_id FROM catalogue_items WHERE id = ?");
             $stmt->execute([$targetId]);
             $target = $stmt->fetch();
 
             if (!$target) throw new Exception('Cible non trouvée');
+
+            // Trouver l'étape (de la cible ou en remontant ses parents)
+            $etapeId = $target['etape_id'] ?: $findEtapeId($pdo, $target['parent_id']);
 
             if ($position === 'into') {
                 // Déplacer dans le dossier cible - hériter de son étape
@@ -303,9 +318,9 @@ try {
                 $newOrdre = $stmt->fetchColumn();
 
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET parent_id = ?, ordre = ?, etape_id = ? WHERE id = ?");
-                $stmt->execute([$targetId, $newOrdre, $target['etape_id'], $id]);
+                $stmt->execute([$targetId, $newOrdre, $etapeId, $id]);
             } else {
-                // Déplacer avant ou après la cible (même parent) - hériter de l'étape de la cible
+                // Déplacer avant ou après la cible (même parent)
                 $parentId = $target['parent_id'];
                 $targetOrdre = $target['ordre'];
 
@@ -321,7 +336,7 @@ try {
                 }
 
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET parent_id = ?, ordre = ?, etape_id = ? WHERE id = ?");
-                $stmt->execute([$parentId, $newOrdre, $target['etape_id'], $id]);
+                $stmt->execute([$parentId, $newOrdre, $etapeId, $id]);
             }
 
             echo json_encode(['success' => true]);
