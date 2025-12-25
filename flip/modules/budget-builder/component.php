@@ -283,7 +283,14 @@ $totalPanier = calculatePanierTotal($panier);
                             <span class="text-muted ms-1">- <?= e($projet['nom'] ?? 'Projet') ?></span>
                         <?php endif; ?>
                     </span>
-                    <span class="badge bg-primary fs-6" id="panier-total"><?= formatMoney($totalPanier) ?></span>
+                    <div class="d-flex align-items-center gap-2">
+                        <?php if (!empty($panier)): ?>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openOrderModal()">
+                            <i class="bi bi-file-earmark-text me-1"></i>Commande
+                        </button>
+                        <?php endif; ?>
+                        <span class="badge bg-primary fs-6" id="panier-total"><?= formatMoney($totalPanier) ?></span>
+                    </div>
                 </div>
                 <div class="card-body p-2">
                     <div id="panier-items" class="panier-items">
@@ -303,13 +310,6 @@ $totalPanier = calculatePanierTotal($panier);
                         <span class="text-muted">Total estimé</span>
                         <span class="fs-5 fw-bold text-success" id="panier-total-footer"><?= formatMoney($totalPanier) ?></span>
                     </div>
-                    <?php if (!empty($panier)): ?>
-                    <div class="mt-2 text-center">
-                        <button type="button" class="btn btn-primary" onclick="openOrderModal()">
-                            <i class="bi bi-file-earmark-text me-1"></i>Générer commande
-                        </button>
-                    </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
