@@ -257,6 +257,19 @@ try {
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;
 
+        case 'update_folder':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            $nom = trim($input['nom'] ?? '');
+            $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
+
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ? WHERE id = ?");
+            $stmt->execute([$nom, $etapeId, $id]);
+
+            echo json_encode(['success' => true, 'message' => 'Dossier mis à jour']);
+            break;
+
         case 'move_catalogue_item':
             $id = (int)($input['id'] ?? 0);
             $targetId = (int)($input['target_id'] ?? 0);
@@ -517,7 +530,25 @@ try {
             break;
 
         case 'get_catalogue_by_etape':
-            // Fonction pour récupérer le chemin du dossier parent
+            // Fonction récursive pour récupérer les enfants d'un dossier
+            $getChildren = function($pdo, $parentId) use (&$getChildren) {
+                $stmt = $pdo->prepare("
+                    SELECT * FROM catalogue_items
+                    WHERE parent_id = ? AND actif = 1
+                    ORDER BY type DESC, ordre, nom
+                ");
+                $stmt->execute([$parentId]);
+                $children = $stmt->fetchAll();
+
+                foreach ($children as &$child) {
+                    if ($child['type'] === 'folder') {
+                        $child['children'] = $getChildren($pdo, $child['id']);
+                    }
+                }
+                return $children;
+            };
+
+            // Fonction pour récupérer le chemin du dossier parent (pour items sans dossier parent avec étape)
             $getParentPath = function($pdo, $parentId) {
                 $path = [];
                 while ($parentId) {
@@ -540,10 +571,12 @@ try {
 
             $grouped = [];
 
-            // Pour chaque étape, récupérer les items (garder le numéro d'ordre même si vide)
+            // Pour chaque étape, récupérer les dossiers ET items avec cette étape
             $etapeNum = 0;
             foreach ($etapes as $etape) {
                 $etapeNum++;
+
+                // Récupérer tous les éléments (dossiers ET items) qui ont cette étape
                 $stmt = $pdo->prepare("
                     SELECT * FROM catalogue_items
                     WHERE etape_id = ? AND actif = 1
@@ -552,9 +585,13 @@ try {
                 $stmt->execute([$etape['id']]);
                 $items = $stmt->fetchAll();
 
-                // Ajouter le chemin du dossier parent pour chaque item
+                // Pour chaque élément, ajouter les enfants si c'est un dossier, ou le chemin si c'est un item
                 foreach ($items as &$item) {
-                    $item['folder_path'] = $getParentPath($pdo, $item['parent_id']);
+                    if ($item['type'] === 'folder') {
+                        $item['children'] = $getChildren($pdo, $item['id']);
+                    } else {
+                        $item['folder_path'] = $getParentPath($pdo, $item['parent_id']);
+                    }
                 }
 
                 if (!empty($items)) {
@@ -567,17 +604,19 @@ try {
                 }
             }
 
-            // Items sans étape
+            // Éléments sans étape (qui n'ont pas de parent avec étape non plus)
             $stmt = $pdo->query("
                 SELECT * FROM catalogue_items
-                WHERE (etape_id IS NULL OR etape_id = 0) AND actif = 1
+                WHERE (etape_id IS NULL OR etape_id = 0) AND actif = 1 AND parent_id IS NULL
                 ORDER BY type DESC, ordre, nom
             ");
             $noEtapeItems = $stmt->fetchAll();
 
-            // Ajouter le chemin du dossier parent pour chaque item sans étape
+            // Pour chaque élément sans étape, ajouter les enfants si c'est un dossier
             foreach ($noEtapeItems as &$item) {
-                $item['folder_path'] = $getParentPath($pdo, $item['parent_id']);
+                if ($item['type'] === 'folder') {
+                    $item['children'] = $getChildren($pdo, $item['id']);
+                }
             }
 
             if (!empty($noEtapeItems)) {

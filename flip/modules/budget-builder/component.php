@@ -370,6 +370,9 @@ function renderCatalogueTree($items, $level = 0) {
                 </button>
             <?php else: ?>
                 <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-link p-0 text-info" onclick="openFolderModal(<?= $item['id'] ?>)" title="Modifier étape">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button type="button" class="btn btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
@@ -576,6 +579,42 @@ function renderPanierTree($items, $level = 0) {
     </div>
 </div>
 
+<!-- Modal édition dossier -->
+<div class="modal fade" id="folderModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-folder-fill text-warning me-2"></i>Modifier le dossier</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="folder-modal-id">
+                <div class="mb-3">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" id="folder-modal-nom">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between align-items-center">
+                        <span>Étape</span>
+                        <button type="button" class="btn btn-link btn-sm p-0" onclick="openEtapesModal()">
+                            <i class="bi bi-gear"></i> Gérer
+                        </button>
+                    </label>
+                    <select class="form-select" id="folder-modal-etape">
+                        <option value="">-- Aucune étape --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveFolderModal()">
+                    <i class="bi bi-check-lg me-1"></i>Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
     // Initialiser avec l'ID du projet
@@ -643,6 +682,67 @@ function renderPanierTree($items, $level = 0) {
             }
         });
     }
+
+    // ================================
+    // MODAL DOSSIER
+    // ================================
+
+    let folderModal = null;
+
+    function openFolderModal(folderId) {
+        if (!folderModal) {
+            folderModal = new bootstrap.Modal(document.getElementById('folderModal'));
+        }
+
+        // Charger les étapes et les données du dossier
+        Promise.all([
+            BudgetBuilder.ajax('get_etapes', {}),
+            BudgetBuilder.ajax('get_item', { id: folderId })
+        ]).then(([etapesResp, folderResp]) => {
+            // Remplir le select des étapes
+            if (etapesResp.success && etapesResp.etapes) {
+                const select = document.getElementById('folder-modal-etape');
+                select.innerHTML = '<option value="">-- Aucune étape --</option>' +
+                    etapesResp.etapes.map((e, i) => `<option value="${e.id}">N.${i + 1} ${escapeHtml(e.nom)}</option>`).join('');
+            }
+
+            // Remplir les champs du dossier
+            if (folderResp.success && folderResp.item) {
+                document.getElementById('folder-modal-id').value = folderResp.item.id;
+                document.getElementById('folder-modal-nom').value = folderResp.item.nom || '';
+                document.getElementById('folder-modal-etape').value = folderResp.item.etape_id || '';
+                folderModal.show();
+            }
+        });
+    }
+
+    function saveFolderModal() {
+        const id = document.getElementById('folder-modal-id').value;
+        const data = {
+            id: id,
+            nom: document.getElementById('folder-modal-nom').value,
+            etape_id: document.getElementById('folder-modal-etape').value
+        };
+
+        BudgetBuilder.ajax('update_folder', data).then(response => {
+            if (response.success) {
+                folderModal.hide();
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    // Enter pour enregistrer le dossier
+    document.querySelectorAll('#folderModal input, #folderModal select').forEach(el => {
+        el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveFolderModal();
+            }
+        });
+    });
 
     // ================================
     // ÉTAPES
