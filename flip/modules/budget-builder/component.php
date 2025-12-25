@@ -253,14 +253,14 @@ foreach ($panier as $item) {
                         <?php else: ?>
                             <?php foreach ($panier as $item): ?>
                                 <div class="panier-item" data-id="<?= $item['id'] ?>">
-                                    <i class="bi bi-grip-vertical drag-handle"></i>
-                                    <span class="item-nom"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
+                                    <i class="bi bi-box-seam text-primary me-1"></i>
+                                    <span class="item-nom flex-grow-1"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
                                     <input type="number" class="form-control form-control-sm item-qte"
-                                           value="<?= $item['quantite'] ?? 1 ?>" min="1" style="width: 60px;">
-                                    <span class="item-prix"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
-                                    <span class="item-total fw-bold"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
-                                    <button type="button" class="btn btn-link text-danger p-0" onclick="removeFromPanier(<?= $item['id'] ?>)">
-                                        <i class="bi bi-x-lg"></i>
+                                           value="<?= $item['quantite'] ?? 1 ?>" min="1" style="width: 50px;">
+                                    <span class="badge bg-secondary item-prix"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
+                                    <span class="badge bg-success item-total"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
+                                    <button type="button" class="btn btn-sm btn-link p-0 text-danger" onclick="removeFromPanier(<?= $item['id'] ?>)">
+                                        <i class="bi bi-trash"></i>
                                     </button>
                                 </div>
                             <?php endforeach; ?>
