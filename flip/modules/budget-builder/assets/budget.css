@@ -21,7 +21,7 @@
     padding: 6px 8px;
     border-radius: 4px;
     cursor: grab;
-    gap: 4px;
+    gap: 6px;
     color: var(--text-primary);
 }
 
@@ -31,6 +31,7 @@
 
 .catalogue-item .folder-toggle {
     width: 20px;
+    min-width: 20px;
     text-align: center;
     cursor: pointer;
     color: var(--text-muted);
@@ -49,7 +50,8 @@
 }
 
 .catalogue-item .item-nom {
-    flex-grow: 1;
+    flex: 1;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -58,6 +60,11 @@
 .catalogue-item .item-nom:hover {
     text-decoration: underline;
     cursor: text;
+}
+
+/* Zone actions à droite - largeur fixe */
+.catalogue-item .btn-group {
+    flex-shrink: 0;
 }
 
 .catalogue-item .add-to-panier {
@@ -126,7 +133,7 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     align-items: center;
     padding: 6px 8px;
     border-radius: 4px;
-    gap: 4px;
+    gap: 6px;
     color: var(--text-primary);
 }
 
@@ -134,27 +141,9 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     background-color: var(--bg-table-hover);
 }
 
-.panier-item .item-nom {
-    flex-grow: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.panier-item .item-qte {
-    text-align: center;
-}
-
-.panier-item.is-folder {
-    background-color: rgba(255, 193, 7, 0.1);
-}
-
-[data-theme="dark"] .panier-item.is-folder {
-    background-color: rgba(255, 193, 7, 0.15);
-}
-
 .panier-item .folder-toggle {
     width: 20px;
+    min-width: 20px;
     text-align: center;
     cursor: pointer;
     color: var(--text-muted);
@@ -170,6 +159,38 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 
 .panier-item .folder-toggle i {
     transition: transform 0.15s ease;
+}
+
+.panier-item .item-nom {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.panier-item .item-qte {
+    width: 55px;
+    min-width: 55px;
+    text-align: center;
+}
+
+.panier-item .item-prix {
+    min-width: 70px;
+    text-align: right;
+}
+
+.panier-item .item-total {
+    min-width: 80px;
+    text-align: right;
+}
+
+.panier-item.is-folder {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+[data-theme="dark"] .panier-item.is-folder {
+    background-color: rgba(255, 193, 7, 0.15);
 }
 
 .panier-folder-children {
@@ -230,8 +251,7 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
         flex-direction: column;
     }
 
-    .budget-builder-container .col-md-5,
-    .budget-builder-container .col-md-7 {
+    .budget-builder-container .col-md-6 {
         width: 100%;
     }
 
