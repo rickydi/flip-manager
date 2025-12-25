@@ -455,8 +455,30 @@ function renderPanierTree($items, $level = 0, $isLast = []) {
 }
 ?>
 
+<!-- Bouton retour en haut -->
+<button type="button" id="scroll-to-top" class="scroll-to-top" title="Retour en haut">
+    <i class="bi bi-arrow-up"></i>
+</button>
+
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
     // Initialiser avec l'ID du projet
     BudgetBuilder.init(<?= $projetId ?? 'null' ?>);
+
+    // Bouton scroll to top
+    (function() {
+        const btn = document.getElementById('scroll-to-top');
+
+        window.addEventListener('scroll', function() {
+            if (window.scrollY > 300) {
+                btn.classList.add('visible');
+            } else {
+                btn.classList.remove('visible');
+            }
+        });
+
+        btn.addEventListener('click', function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    })();
 </script>
