@@ -278,9 +278,21 @@ function getPanier($pdo, $projetId) {
 
 function buildPanierTree($items, $parentId = null) {
     $tree = [];
+
+    // Collecter tous les IDs valides pour détecter les orphelins
+    $validIds = [];
+    foreach ($items as $item) {
+        $validIds[$item['id']] = true;
+    }
+
     foreach ($items as $item) {
         $itemParentId = $item['parent_budget_id'] ?? null;
-        if ($itemParentId == $parentId) {
+
+        // Ajouter si: pas de parent (root) OU parent correspond OU orphelin (parent n'existe pas)
+        $isRoot = ($itemParentId == $parentId);
+        $isOrphan = ($parentId === null && $itemParentId !== null && !isset($validIds[$itemParentId]));
+
+        if ($isRoot || $isOrphan) {
             $itemType = $item['type'] ?? 'item';
             if ($itemType === 'folder') {
                 $item['children'] = buildPanierTree($items, $item['id']);
