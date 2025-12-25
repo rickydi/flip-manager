@@ -373,6 +373,9 @@ $totalPanier = calculatePanierTotal($panier);
                     </span>
                     <div class="d-flex align-items-center gap-2">
                         <?php if (!empty($panier)): ?>
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearPanier()" title="Vider le panier">
+                            <i class="bi bi-trash"></i>
+                        </button>
                         <button type="button" class="btn btn-primary btn-sm" onclick="openOrderModal()">
                             <i class="bi bi-file-earmark-text me-1"></i>Commande
                         </button>
@@ -1200,6 +1203,19 @@ function renderPanierTree($items, $level = 0) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     })();
+
+    // Vider le panier
+    function clearPanier() {
+        if (!confirm('Vider complètement le panier?')) return;
+
+        BudgetBuilder.ajax('clear_panier', { projet_id: BudgetBuilder.projetId }).then(response => {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
 
     // Modal commande
     let orderModal = null;
