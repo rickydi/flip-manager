@@ -437,6 +437,18 @@ function renderPanierTree($items, $level = 0) {
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Document de commande</h5>
+                <div class="ms-auto me-3">
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="groupBy" id="groupByFournisseur" value="fournisseur" checked>
+                        <label class="btn btn-outline-light" for="groupByFournisseur">
+                            <i class="bi bi-shop me-1"></i>Fournisseur
+                        </label>
+                        <input type="radio" class="btn-check" name="groupBy" id="groupByEtape" value="etape">
+                        <label class="btn btn-outline-light" for="groupByEtape">
+                            <i class="bi bi-list-ol me-1"></i>Étape
+                        </label>
+                    </div>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body" id="order-content">
@@ -488,6 +500,17 @@ function renderPanierTree($items, $level = 0) {
                     <datalist id="fournisseurs-list"></datalist>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label d-flex justify-content-between align-items-center">
+                        <span>Étape</span>
+                        <button type="button" class="btn btn-link btn-sm p-0" onclick="openEtapesModal()">
+                            <i class="bi bi-gear"></i> Gérer
+                        </button>
+                    </label>
+                    <select class="form-select" id="item-modal-etape">
+                        <option value="">-- Aucune étape --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Lien d'achat</label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
@@ -508,6 +531,34 @@ function renderPanierTree($items, $level = 0) {
     </div>
 </div>
 
+<!-- Modal gestion des étapes -->
+<div class="modal fade" id="etapesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-list-ol me-2"></i>Gérer les étapes</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="new-etape-nom" placeholder="Nouvelle étape...">
+                        <button type="button" class="btn btn-success" onclick="addEtape()">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="etapes-list" class="list-group">
+                    <!-- Liste des étapes -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
     // Initialiser avec l'ID du projet
@@ -521,11 +572,12 @@ function renderPanierTree($items, $level = 0) {
             itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
         }
 
-        // Charger les fournisseurs et les données de l'item en parallèle
+        // Charger les fournisseurs, étapes et les données de l'item en parallèle
         Promise.all([
             BudgetBuilder.ajax('get_fournisseurs', {}),
+            BudgetBuilder.ajax('get_etapes', {}),
             BudgetBuilder.ajax('get_item', { id: itemId })
-        ]).then(([fournisseursResp, itemResp]) => {
+        ]).then(([fournisseursResp, etapesResp, itemResp]) => {
             // Remplir la datalist des fournisseurs
             if (fournisseursResp.success && fournisseursResp.fournisseurs) {
                 const datalist = document.getElementById('fournisseurs-list');
@@ -534,12 +586,20 @@ function renderPanierTree($items, $level = 0) {
                     .join('');
             }
 
+            // Remplir le select des étapes
+            if (etapesResp.success && etapesResp.etapes) {
+                const select = document.getElementById('item-modal-etape');
+                select.innerHTML = '<option value="">-- Aucune étape --</option>' +
+                    etapesResp.etapes.map(e => `<option value="${e.id}">${escapeHtml(e.nom)}</option>`).join('');
+            }
+
             // Remplir les champs de l'item
             if (itemResp.success && itemResp.item) {
                 document.getElementById('item-modal-id').value = itemResp.item.id;
                 document.getElementById('item-modal-nom').value = itemResp.item.nom || '';
                 document.getElementById('item-modal-prix').value = itemResp.item.prix || 0;
                 document.getElementById('item-modal-fournisseur').value = itemResp.item.fournisseur || '';
+                document.getElementById('item-modal-etape').value = itemResp.item.etape_id || '';
                 document.getElementById('item-modal-lien').value = itemResp.item.lien_achat || '';
                 itemModal.show();
             }
@@ -553,6 +613,7 @@ function renderPanierTree($items, $level = 0) {
             nom: document.getElementById('item-modal-nom').value,
             prix: document.getElementById('item-modal-prix').value,
             fournisseur: document.getElementById('item-modal-fournisseur').value,
+            etape_id: document.getElementById('item-modal-etape').value,
             lien_achat: document.getElementById('item-modal-lien').value
         };
 
@@ -565,6 +626,96 @@ function renderPanierTree($items, $level = 0) {
             }
         });
     }
+
+    // ================================
+    // ÉTAPES
+    // ================================
+
+    let etapesModal = null;
+
+    function openEtapesModal() {
+        if (!etapesModal) {
+            etapesModal = new bootstrap.Modal(document.getElementById('etapesModal'));
+        }
+        loadEtapes();
+        etapesModal.show();
+    }
+
+    function loadEtapes() {
+        BudgetBuilder.ajax('get_etapes', {}).then(response => {
+            if (response.success && response.etapes) {
+                renderEtapesList(response.etapes);
+            }
+        });
+    }
+
+    function renderEtapesList(etapes) {
+        const container = document.getElementById('etapes-list');
+        if (etapes.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted py-3">Aucune étape définie</div>';
+            return;
+        }
+
+        container.innerHTML = etapes.map((etape, index) => `
+            <div class="list-group-item d-flex align-items-center gap-2" data-id="${etape.id}">
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="reorderEtape(${etape.id}, 'up')" ${index === 0 ? 'disabled' : ''}>
+                        <i class="bi bi-arrow-up"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="reorderEtape(${etape.id}, 'down')" ${index === etapes.length - 1 ? 'disabled' : ''}>
+                        <i class="bi bi-arrow-down"></i>
+                    </button>
+                </div>
+                <span class="flex-grow-1">${escapeHtml(etape.nom)}</span>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteEtape(${etape.id})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        `).join('');
+    }
+
+    function addEtape() {
+        const input = document.getElementById('new-etape-nom');
+        const nom = input.value.trim();
+        if (!nom) return;
+
+        BudgetBuilder.ajax('add_etape', { nom: nom }).then(response => {
+            if (response.success) {
+                input.value = '';
+                loadEtapes();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    function deleteEtape(id) {
+        if (!confirm('Supprimer cette étape?')) return;
+
+        BudgetBuilder.ajax('delete_etape', { id: id }).then(response => {
+            if (response.success) {
+                loadEtapes();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    function reorderEtape(id, direction) {
+        BudgetBuilder.ajax('reorder_etape', { id: id, direction: direction }).then(response => {
+            if (response.success) {
+                loadEtapes();
+            }
+        });
+    }
+
+    // Enter pour ajouter étape
+    document.getElementById('new-etape-nom').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addEtape();
+        }
+    });
 
     // Ouvrir le lien dans un nouvel onglet
     document.getElementById('item-modal-open-link').addEventListener('click', function() {
@@ -593,22 +744,35 @@ function renderPanierTree($items, $level = 0) {
 
     // Modal commande
     let orderModal = null;
+    let currentGroupBy = 'fournisseur';
 
     function openOrderModal() {
         if (!orderModal) {
             orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
+
+            // Écouter les changements de groupement
+            document.querySelectorAll('input[name="groupBy"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    currentGroupBy = this.value;
+                    loadOrderItems();
+                });
+            });
         }
 
-        // Charger les items groupés par fournisseur
-        BudgetBuilder.ajax('get_order_items', { projet_id: BudgetBuilder.projetId }).then(response => {
+        loadOrderItems();
+        orderModal.show();
+    }
+
+    function loadOrderItems() {
+        const action = currentGroupBy === 'etape' ? 'get_order_items_by_etape' : 'get_order_items';
+        BudgetBuilder.ajax(action, { projet_id: BudgetBuilder.projetId }).then(response => {
             if (response.success && response.grouped) {
-                renderOrderContent(response.grouped);
-                orderModal.show();
+                renderOrderContent(response.grouped, currentGroupBy);
             }
         });
     }
 
-    function renderOrderContent(grouped) {
+    function renderOrderContent(grouped, groupByType = 'fournisseur') {
         const container = document.getElementById('order-content');
         let html = '';
         let totalItems = 0;
@@ -621,13 +785,15 @@ function renderPanierTree($items, $level = 0) {
             return a.localeCompare(b);
         });
 
-        for (const fournisseur of suppliers) {
-            const items = grouped[fournisseur];
+        const icon = groupByType === 'etape' ? 'bi-list-ol' : 'bi-shop';
+
+        for (const groupName of suppliers) {
+            const items = grouped[groupName];
             let supplierTotal = 0;
 
             html += `<div class="order-supplier mb-4">
                 <h5 class="border-bottom pb-2 mb-3">
-                    <i class="bi bi-shop me-2"></i>${escapeHtml(fournisseur)}
+                    <i class="bi ${icon} me-2"></i>${escapeHtml(groupName)}
                     <span class="badge bg-secondary float-end">${items.length} item(s)</span>
                 </h5>
                 <div class="table-responsive">
@@ -671,7 +837,7 @@ function renderPanierTree($items, $level = 0) {
             html += `</tbody>
                     <tfoot class="table-light">
                         <tr>
-                            <td colspan="4" class="text-end fw-bold">Sous-total ${escapeHtml(fournisseur)}:</td>
+                            <td colspan="4" class="text-end fw-bold">Sous-total ${escapeHtml(groupName)}:</td>
                             <td class="text-end fw-bold text-success">${formatMoney(supplierTotal)}</td>
                         </tr>
                     </tfoot>

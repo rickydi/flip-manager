@@ -24,6 +24,12 @@ try {
         $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN fournisseur VARCHAR(255) DEFAULT NULL");
         $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN lien_achat VARCHAR(500) DEFAULT NULL");
     }
+    // Ajouter colonne etape_id si manquante
+    try {
+        $pdo->query("SELECT etape_id FROM catalogue_items LIMIT 1");
+    } catch (Exception $e) {
+        $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN etape_id INT DEFAULT NULL");
+    }
 } catch (Exception $e) {
     // Créer la table catalogue_items
     $pdo->exec("
@@ -36,6 +42,7 @@ try {
             quantite_defaut INT DEFAULT 1,
             fournisseur VARCHAR(255) DEFAULT NULL,
             lien_achat VARCHAR(500) DEFAULT NULL,
+            etape_id INT DEFAULT NULL,
             ordre INT DEFAULT 0,
             actif TINYINT(1) DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -71,6 +78,20 @@ try {
             INDEX idx_projet (projet_id),
             INDEX idx_catalogue (catalogue_item_id),
             INDEX idx_parent (parent_budget_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// Table des étapes
+try {
+    $pdo->query("SELECT 1 FROM budget_etapes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE budget_etapes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(255) NOT NULL,
+            ordre INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
 }
@@ -228,9 +249,10 @@ try {
             $prix = (float)($input['prix'] ?? 0);
             $fournisseur = trim($input['fournisseur'] ?? '');
             $lienAchat = trim($input['lien_achat'] ?? '');
+            $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
 
-            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ? WHERE id = ?");
-            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $id]);
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ? WHERE id = ?");
+            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $id]);
 
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;
@@ -470,6 +492,115 @@ try {
             $fournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
             echo json_encode(['success' => true, 'fournisseurs' => $fournisseurs]);
+            break;
+
+        // ================================
+        // ÉTAPES
+        // ================================
+
+        case 'get_etapes':
+            $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, id");
+            $etapes = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'etapes' => $etapes]);
+            break;
+
+        case 'add_etape':
+            $nom = trim($input['nom'] ?? '');
+            if (empty($nom)) throw new Exception('Le nom est requis');
+
+            $stmt = $pdo->query("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_etapes");
+            $ordre = $stmt->fetchColumn();
+
+            $stmt = $pdo->prepare("INSERT INTO budget_etapes (nom, ordre) VALUES (?, ?)");
+            $stmt->execute([$nom, $ordre]);
+
+            echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
+            break;
+
+        case 'delete_etape':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            // Retirer l'étape des items
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET etape_id = NULL WHERE etape_id = ?");
+            $stmt->execute([$id]);
+
+            $stmt = $pdo->prepare("DELETE FROM budget_etapes WHERE id = ?");
+            $stmt->execute([$id]);
+
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'reorder_etape':
+            $id = (int)($input['id'] ?? 0);
+            $direction = $input['direction'] ?? ''; // 'up' or 'down'
+
+            if (!$id) throw new Exception('ID requis');
+            if (!in_array($direction, ['up', 'down'])) throw new Exception('Direction invalide');
+
+            // Récupérer l'étape actuelle
+            $stmt = $pdo->prepare("SELECT * FROM budget_etapes WHERE id = ?");
+            $stmt->execute([$id]);
+            $etape = $stmt->fetch();
+
+            if (!$etape) throw new Exception('Étape non trouvée');
+
+            // Trouver l'étape voisine
+            if ($direction === 'up') {
+                $stmt = $pdo->prepare("SELECT * FROM budget_etapes WHERE ordre < ? ORDER BY ordre DESC LIMIT 1");
+            } else {
+                $stmt = $pdo->prepare("SELECT * FROM budget_etapes WHERE ordre > ? ORDER BY ordre ASC LIMIT 1");
+            }
+            $stmt->execute([$etape['ordre']]);
+            $neighbor = $stmt->fetch();
+
+            if ($neighbor) {
+                // Échanger les ordres
+                $stmt = $pdo->prepare("UPDATE budget_etapes SET ordre = ? WHERE id = ?");
+                $stmt->execute([$neighbor['ordre'], $etape['id']]);
+                $stmt->execute([$etape['ordre'], $neighbor['id']]);
+            }
+
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'get_order_items_by_etape':
+            $projetId = (int)($input['projet_id'] ?? 0);
+            if (!$projetId) throw new Exception('Projet requis');
+
+            // Ajouter colonne commande si manquante
+            try {
+                $pdo->query("SELECT commande FROM budget_items LIMIT 1");
+            } catch (Exception $e) {
+                $pdo->exec("ALTER TABLE budget_items ADD COLUMN commande TINYINT(1) DEFAULT 0");
+            }
+
+            // Récupérer tous les items du panier avec les infos du catalogue et l'étape
+            $stmt = $pdo->prepare("
+                SELECT
+                    bi.id, bi.nom, bi.prix, bi.quantite, bi.commande,
+                    ci.fournisseur, ci.lien_achat, ci.etape_id,
+                    e.nom as etape_nom
+                FROM budget_items bi
+                LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+                LEFT JOIN budget_etapes e ON ci.etape_id = e.id
+                WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
+                ORDER BY e.ordre, e.nom, bi.nom
+            ");
+            $stmt->execute([$projetId]);
+            $items = $stmt->fetchAll();
+
+            // Grouper par étape
+            $grouped = [];
+            foreach ($items as $item) {
+                $etape = $item['etape_nom'] ?: 'Non spécifié';
+                if (!isset($grouped[$etape])) {
+                    $grouped[$etape] = [];
+                }
+                $grouped[$etape][] = $item;
+            }
+
+            echo json_encode(['success' => true, 'grouped' => $grouped]);
             break;
 
         default:
