@@ -305,19 +305,37 @@ $totalPanier = calculatePanierTotal($panier);
 /**
  * Afficher l'arbre du catalogue récursivement
  */
-function renderCatalogueTree($items, $level = 0) {
+function renderCatalogueTree($items, $level = 0, $isLast = []) {
     if (empty($items)) return;
+
+    $count = count($items);
+    $index = 0;
 
     foreach ($items as $item):
         $isFolder = $item['type'] === 'folder';
         $hasChildren = !empty($item['children']);
-        $indent = $level * 20;
+        $index++;
+        $isLastItem = ($index === $count);
+
+        // Construire les connecteurs
+        $connectors = '';
+        for ($i = 0; $i < $level; $i++) {
+            if (isset($isLast[$i]) && $isLast[$i]) {
+                $connectors .= '<span class="tree-line tree-spacer"></span>';
+            } else {
+                $connectors .= '<span class="tree-line tree-vertical"></span>';
+            }
+        }
+        if ($level > 0) {
+            $connectors .= $isLastItem ? '<span class="tree-line tree-corner"></span>' : '<span class="tree-line tree-branch"></span>';
+        }
     ?>
         <div class="catalogue-item <?= $isFolder ? 'is-folder' : 'is-item' ?>"
              data-id="<?= $item['id'] ?>"
              data-type="<?= $item['type'] ?>"
-             data-prix="<?= $item['prix'] ?>"
-             style="padding-left: <?= $indent + 8 ?>px;">
+             data-prix="<?= $item['prix'] ?>">
+
+            <?= $connectors ?>
 
             <?php if ($isFolder): ?>
                 <span class="folder-toggle <?= $hasChildren ? '' : 'invisible' ?>" onclick="toggleFolder(this)">
@@ -329,7 +347,7 @@ function renderCatalogueTree($items, $level = 0) {
                 <i class="bi bi-box-seam text-primary me-1"></i>
             <?php endif; ?>
 
-            <span class="item-nom flex-grow-1" ondblclick="editItemName(this, <?= $item['id'] ?>)">
+            <span class="item-nom" ondblclick="editItemName(this, <?= $item['id'] ?>)">
                 <?= e($item['nom']) ?>
             </span>
 
@@ -357,7 +375,11 @@ function renderCatalogueTree($items, $level = 0) {
 
         <?php if ($isFolder && $hasChildren): ?>
             <div class="folder-children" data-parent="<?= $item['id'] ?>">
-                <?php renderCatalogueTree($item['children'], $level + 1); ?>
+                <?php
+                $newIsLast = $isLast;
+                $newIsLast[$level] = $isLastItem;
+                renderCatalogueTree($item['children'], $level + 1, $newIsLast);
+                ?>
             </div>
         <?php endif; ?>
     <?php
@@ -367,31 +389,49 @@ function renderCatalogueTree($items, $level = 0) {
 /**
  * Afficher l'arbre du panier récursivement
  */
-function renderPanierTree($items, $level = 0) {
+function renderPanierTree($items, $level = 0, $isLast = []) {
     if (empty($items)) return;
+
+    $count = count($items);
+    $index = 0;
 
     foreach ($items as $item):
         $isFolder = ($item['type'] ?? 'item') === 'folder';
         $hasChildren = !empty($item['children']);
-        $indent = $level * 20;
+        $index++;
+        $isLastItem = ($index === $count);
+
+        // Construire les connecteurs
+        $connectors = '';
+        for ($i = 0; $i < $level; $i++) {
+            if (isset($isLast[$i]) && $isLast[$i]) {
+                $connectors .= '<span class="tree-line tree-spacer"></span>';
+            } else {
+                $connectors .= '<span class="tree-line tree-vertical"></span>';
+            }
+        }
+        if ($level > 0) {
+            $connectors .= $isLastItem ? '<span class="tree-line tree-corner"></span>' : '<span class="tree-line tree-branch"></span>';
+        }
     ?>
         <div class="panier-item <?= $isFolder ? 'is-folder' : 'is-item' ?>"
              data-id="<?= $item['id'] ?>"
-             data-type="<?= $item['type'] ?? 'item' ?>"
-             style="padding-left: <?= $indent + 8 ?>px;">
+             data-type="<?= $item['type'] ?? 'item' ?>">
+
+            <?= $connectors ?>
 
             <?php if ($isFolder): ?>
                 <span class="folder-toggle <?= $hasChildren ? '' : 'invisible' ?>" onclick="togglePanierFolder(this)">
                     <i class="bi bi-caret-down-fill"></i>
                 </span>
                 <i class="bi bi-folder-fill text-warning me-1"></i>
-                <span class="item-nom flex-grow-1 fw-bold"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
+                <span class="item-nom fw-bold"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
             <?php else: ?>
                 <span class="folder-toggle invisible"></span>
                 <i class="bi bi-box-seam text-primary me-1"></i>
-                <span class="item-nom flex-grow-1"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
+                <span class="item-nom"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
                 <input type="number" class="form-control form-control-sm item-qte"
-                       value="<?= $item['quantite'] ?? 1 ?>" min="1" style="width: 50px;">
+                       value="<?= $item['quantite'] ?? 1 ?>" min="1">
                 <span class="badge bg-secondary item-prix"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
                 <span class="badge bg-success item-total"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
             <?php endif; ?>
@@ -403,7 +443,11 @@ function renderPanierTree($items, $level = 0) {
 
         <?php if ($isFolder && $hasChildren): ?>
             <div class="panier-folder-children" data-parent="<?= $item['id'] ?>">
-                <?php renderPanierTree($item['children'], $level + 1); ?>
+                <?php
+                $newIsLast = $isLast;
+                $newIsLast[$level] = $isLastItem;
+                renderPanierTree($item['children'], $level + 1, $newIsLast);
+                ?>
             </div>
         <?php endif; ?>
     <?php
