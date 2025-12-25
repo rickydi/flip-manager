@@ -506,7 +506,7 @@ function renderPanierTree($items, $level = 0) {
                             <i class="bi bi-gear"></i> Gérer
                         </button>
                     </label>
-                    <select class="form-select" id="item-modal-etape">
+                    <select class="form-select" id="item-modal-etape" size="6" style="height: auto;">
                         <option value="">-- Aucune étape --</option>
                     </select>
                 </div>
