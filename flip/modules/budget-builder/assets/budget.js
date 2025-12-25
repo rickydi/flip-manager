@@ -41,6 +41,16 @@ const BudgetBuilder = {
             item.draggable = true;
 
             item.addEventListener('dragstart', function(e) {
+                // Ne pas permettre le drag depuis un bouton ou le nom (pour permettre édition)
+                const target = e.target;
+                if (target.tagName === 'BUTTON' || target.tagName === 'I' ||
+                    target.classList.contains('item-nom') ||
+                    target.classList.contains('btn') ||
+                    target.closest('button')) {
+                    e.preventDefault();
+                    return;
+                }
+
                 e.stopPropagation();
                 e.dataTransfer.setData('text/plain', JSON.stringify({
                     id: this.dataset.id,
