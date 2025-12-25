@@ -78,6 +78,9 @@ const BudgetBuilder = {
                 e.preventDefault();
                 e.stopPropagation();
 
+                // Ignorer les section headers - ils ont leur propre handler
+                if (this.classList.contains('is-section-header')) return;
+
                 const dragging = document.querySelector('.catalogue-item.dragging');
                 if (!dragging || dragging === this) return;
 
@@ -108,6 +111,7 @@ const BudgetBuilder = {
             });
 
             item.addEventListener('dragleave', function(e) {
+                if (this.classList.contains('is-section-header')) return;
                 this.classList.remove('drag-above', 'drag-below', 'drag-into');
             });
 
@@ -115,11 +119,14 @@ const BudgetBuilder = {
                 e.preventDefault();
                 e.stopPropagation();
 
+                // Ignorer les section headers - ils ont leur propre handler
+                if (this.classList.contains('is-section-header')) return;
+
                 const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                 const draggedId = parseInt(data.id);
                 const targetId = parseInt(this.dataset.id);
 
-                if (draggedId === targetId) return;
+                if (draggedId === targetId || !targetId) return;
 
                 let position = 'after';
                 let newParentId = null;
