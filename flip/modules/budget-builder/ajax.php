@@ -464,6 +464,14 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'get_fournisseurs':
+            // Récupérer la liste unique des fournisseurs
+            $stmt = $pdo->query("SELECT DISTINCT fournisseur FROM catalogue_items WHERE fournisseur IS NOT NULL AND fournisseur != '' ORDER BY fournisseur");
+            $fournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            echo json_encode(['success' => true, 'fournisseurs' => $fournisseurs]);
+            break;
+
         default:
             throw new Exception('Action non reconnue: ' . $action);
     }

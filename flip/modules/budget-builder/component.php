@@ -484,7 +484,8 @@ function renderPanierTree($items, $level = 0) {
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Fournisseur</label>
-                    <input type="text" class="form-control" id="item-modal-fournisseur" placeholder="Ex: Home Depot, Rona...">
+                    <input type="text" class="form-control" id="item-modal-fournisseur" list="fournisseurs-list" placeholder="Choisir ou saisir...">
+                    <datalist id="fournisseurs-list"></datalist>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Lien d'achat</label>
@@ -520,14 +521,26 @@ function renderPanierTree($items, $level = 0) {
             itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
         }
 
-        // Charger les données de l'item
-        BudgetBuilder.ajax('get_item', { id: itemId }).then(response => {
-            if (response.success && response.item) {
-                document.getElementById('item-modal-id').value = response.item.id;
-                document.getElementById('item-modal-nom').value = response.item.nom || '';
-                document.getElementById('item-modal-prix').value = response.item.prix || 0;
-                document.getElementById('item-modal-fournisseur').value = response.item.fournisseur || '';
-                document.getElementById('item-modal-lien').value = response.item.lien_achat || '';
+        // Charger les fournisseurs et les données de l'item en parallèle
+        Promise.all([
+            BudgetBuilder.ajax('get_fournisseurs', {}),
+            BudgetBuilder.ajax('get_item', { id: itemId })
+        ]).then(([fournisseursResp, itemResp]) => {
+            // Remplir la datalist des fournisseurs
+            if (fournisseursResp.success && fournisseursResp.fournisseurs) {
+                const datalist = document.getElementById('fournisseurs-list');
+                datalist.innerHTML = fournisseursResp.fournisseurs
+                    .map(f => `<option value="${f}">`)
+                    .join('');
+            }
+
+            // Remplir les champs de l'item
+            if (itemResp.success && itemResp.item) {
+                document.getElementById('item-modal-id').value = itemResp.item.id;
+                document.getElementById('item-modal-nom').value = itemResp.item.nom || '';
+                document.getElementById('item-modal-prix').value = itemResp.item.prix || 0;
+                document.getElementById('item-modal-fournisseur').value = itemResp.item.fournisseur || '';
+                document.getElementById('item-modal-lien').value = itemResp.item.lien_achat || '';
                 itemModal.show();
             }
         });
@@ -626,7 +639,6 @@ function renderPanierTree($items, $level = 0) {
                                 <th class="text-center" style="width: 60px;">Qté</th>
                                 <th class="text-end" style="width: 80px;">Prix</th>
                                 <th class="text-end" style="width: 90px;">Total</th>
-                                <th style="width: 50px;"></th>
                             </tr>
                         </thead>
                         <tbody>`;
@@ -649,16 +661,19 @@ function renderPanierTree($items, $level = 0) {
                     <td class="text-center">${item.quantite}</td>
                     <td class="text-end">${formatMoney(item.prix)}</td>
                     <td class="text-end fw-bold">${formatMoney(total)}</td>
-                    <td>`;
-
-                if (item.lien_achat) {
-                    html += `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="btn btn-sm btn-link p-0" title="Ouvrir le lien">
-                        <i class="bi bi-box-arrow-up-right"></i>
-                    </a>`;
-                }
-
-                html += `</td>
                 </tr>`;
+
+                // Ajouter ligne avec lien si disponible
+                if (item.lien_achat) {
+                    html += `<tr class="${isChecked ? 'table-success' : ''} order-link-row">
+                        <td></td>
+                        <td colspan="4" class="py-0 pb-1">
+                            <a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary small text-truncate d-block" style="max-width: 400px;">
+                                <i class="bi bi-link-45deg"></i>${escapeHtml(item.lien_achat)}
+                            </a>
+                        </td>
+                    </tr>`;
+                }
             }
 
             html += `</tbody>
@@ -666,7 +681,6 @@ function renderPanierTree($items, $level = 0) {
                         <tr>
                             <td colspan="4" class="text-end fw-bold">Sous-total ${escapeHtml(fournisseur)}:</td>
                             <td class="text-end fw-bold text-success">${formatMoney(supplierTotal)}</td>
-                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
