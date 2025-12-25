@@ -404,6 +404,66 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        // ================================
+        // COMMANDE
+        // ================================
+
+        case 'get_order_items':
+            $projetId = (int)($input['projet_id'] ?? 0);
+            if (!$projetId) throw new Exception('Projet requis');
+
+            // Ajouter colonne commande si manquante
+            try {
+                $pdo->query("SELECT commande FROM budget_items LIMIT 1");
+            } catch (Exception $e) {
+                $pdo->exec("ALTER TABLE budget_items ADD COLUMN commande TINYINT(1) DEFAULT 0");
+            }
+
+            // Récupérer tous les items du panier avec les infos du catalogue
+            $stmt = $pdo->prepare("
+                SELECT
+                    bi.id, bi.nom, bi.prix, bi.quantite, bi.commande,
+                    ci.fournisseur, ci.lien_achat
+                FROM budget_items bi
+                LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+                WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
+                ORDER BY ci.fournisseur, bi.nom
+            ");
+            $stmt->execute([$projetId]);
+            $items = $stmt->fetchAll();
+
+            // Grouper par fournisseur
+            $grouped = [];
+            foreach ($items as $item) {
+                $fournisseur = $item['fournisseur'] ?: 'Non spécifié';
+                if (!isset($grouped[$fournisseur])) {
+                    $grouped[$fournisseur] = [];
+                }
+                $grouped[$fournisseur][] = $item;
+            }
+
+            echo json_encode(['success' => true, 'grouped' => $grouped]);
+            break;
+
+        case 'toggle_order_item':
+            $itemId = (int)($input['item_id'] ?? 0);
+            $checked = (bool)($input['checked'] ?? false);
+
+            if (!$itemId) throw new Exception('Item requis');
+
+            // Ajouter colonne commande si manquante
+            try {
+                $pdo->query("SELECT commande FROM budget_items LIMIT 1");
+            } catch (Exception $e) {
+                $pdo->exec("ALTER TABLE budget_items ADD COLUMN commande TINYINT(1) DEFAULT 0");
+            }
+
+            $stmt = $pdo->prepare("UPDATE budget_items SET commande = ? WHERE id = ?");
+            $stmt->execute([$checked ? 1 : 0, $itemId]);
+
+            echo json_encode(['success' => true]);
+            break;
+
         default:
             throw new Exception('Action non reconnue: ' . $action);
     }

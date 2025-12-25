@@ -303,6 +303,13 @@ $totalPanier = calculatePanierTotal($panier);
                         <span class="text-muted">Total estimé</span>
                         <span class="fs-5 fw-bold text-success" id="panier-total-footer"><?= formatMoney($totalPanier) ?></span>
                     </div>
+                    <?php if (!empty($panier)): ?>
+                    <div class="mt-2 text-center">
+                        <button type="button" class="btn btn-primary" onclick="openOrderModal()">
+                            <i class="bi bi-file-earmark-text me-1"></i>Générer commande
+                        </button>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -424,6 +431,36 @@ function renderPanierTree($items, $level = 0) {
     <i class="bi bi-arrow-up"></i>
 </button>
 
+<!-- Modal commande groupée par fournisseur -->
+<div class="modal fade" id="orderModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Document de commande</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="order-content">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-between">
+                <div>
+                    <span class="text-muted" id="order-checked-count">0 / 0 commandés</span>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-secondary" onclick="printOrder()">
+                        <i class="bi bi-printer me-1"></i>Imprimer
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal édition item -->
 <div class="modal fade" id="itemModal" tabindex="-1">
     <div class="modal-dialog">
@@ -540,4 +577,173 @@ function renderPanierTree($items, $level = 0) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     })();
+
+    // Modal commande
+    let orderModal = null;
+
+    function openOrderModal() {
+        if (!orderModal) {
+            orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
+        }
+
+        // Charger les items groupés par fournisseur
+        BudgetBuilder.ajax('get_order_items', { projet_id: BudgetBuilder.projetId }).then(response => {
+            if (response.success && response.grouped) {
+                renderOrderContent(response.grouped);
+                orderModal.show();
+            }
+        });
+    }
+
+    function renderOrderContent(grouped) {
+        const container = document.getElementById('order-content');
+        let html = '';
+        let totalItems = 0;
+        let checkedItems = 0;
+
+        // Trier les fournisseurs (Non spécifié en dernier)
+        const suppliers = Object.keys(grouped).sort((a, b) => {
+            if (a === 'Non spécifié') return 1;
+            if (b === 'Non spécifié') return -1;
+            return a.localeCompare(b);
+        });
+
+        for (const fournisseur of suppliers) {
+            const items = grouped[fournisseur];
+            let supplierTotal = 0;
+
+            html += `<div class="order-supplier mb-4">
+                <h5 class="border-bottom pb-2 mb-3">
+                    <i class="bi bi-shop me-2"></i>${escapeHtml(fournisseur)}
+                    <span class="badge bg-secondary float-end">${items.length} item(s)</span>
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 40px;"></th>
+                                <th>Article</th>
+                                <th class="text-center" style="width: 60px;">Qté</th>
+                                <th class="text-end" style="width: 80px;">Prix</th>
+                                <th class="text-end" style="width: 90px;">Total</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            for (const item of items) {
+                totalItems++;
+                const isChecked = item.commande == 1;
+                if (isChecked) checkedItems++;
+
+                const total = (parseFloat(item.prix) || 0) * (parseInt(item.quantite) || 1);
+                supplierTotal += total;
+
+                html += `<tr class="${isChecked ? 'table-success' : ''}">
+                    <td class="text-center">
+                        <input type="checkbox" class="form-check-input order-check"
+                               data-id="${item.id}" ${isChecked ? 'checked' : ''}
+                               onchange="toggleOrderItem(${item.id}, this.checked)">
+                    </td>
+                    <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
+                    <td class="text-center">${item.quantite}</td>
+                    <td class="text-end">${formatMoney(item.prix)}</td>
+                    <td class="text-end fw-bold">${formatMoney(total)}</td>
+                    <td>`;
+
+                if (item.lien_achat) {
+                    html += `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="btn btn-sm btn-link p-0" title="Ouvrir le lien">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>`;
+                }
+
+                html += `</td>
+                </tr>`;
+            }
+
+            html += `</tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Sous-total ${escapeHtml(fournisseur)}:</td>
+                            <td class="text-end fw-bold text-success">${formatMoney(supplierTotal)}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+                </div>
+            </div>`;
+        }
+
+        if (Object.keys(grouped).length === 0) {
+            html = '<div class="text-center text-muted py-4"><i class="bi bi-inbox" style="font-size: 2rem;"></i><p class="mt-2">Aucun item dans le panier</p></div>';
+        }
+
+        container.innerHTML = html;
+        updateOrderCount(checkedItems, totalItems);
+    }
+
+    function toggleOrderItem(itemId, checked) {
+        BudgetBuilder.ajax('toggle_order_item', { item_id: itemId, checked: checked }).then(response => {
+            if (response.success) {
+                // Mettre à jour l'affichage
+                const row = document.querySelector(`input[data-id="${itemId}"]`).closest('tr');
+                const nameCell = row.querySelector('td:nth-child(2)');
+
+                if (checked) {
+                    row.classList.add('table-success');
+                    nameCell.classList.add('text-decoration-line-through', 'text-muted');
+                } else {
+                    row.classList.remove('table-success');
+                    nameCell.classList.remove('text-decoration-line-through', 'text-muted');
+                }
+
+                // Recalculer le compteur
+                const allChecks = document.querySelectorAll('.order-check');
+                const checked_count = document.querySelectorAll('.order-check:checked').length;
+                updateOrderCount(checked_count, allChecks.length);
+            }
+        });
+    }
+
+    function updateOrderCount(checked, total) {
+        document.getElementById('order-checked-count').textContent = `${checked} / ${total} commandés`;
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text || '';
+        return div.innerHTML;
+    }
+
+    function formatMoney(amount) {
+        return new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
+    }
+
+    function printOrder() {
+        const content = document.getElementById('order-content').innerHTML;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Document de commande</title>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+                <style>
+                    body { padding: 20px; }
+                    @media print {
+                        .btn { display: none !important; }
+                        a { text-decoration: none !important; color: inherit !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h3 class="mb-4"><i class="bi bi-file-earmark-text me-2"></i>Document de commande</h3>
+                ${content}
+                <script>setTimeout(() => window.print(), 500);</script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    }
 </script>
