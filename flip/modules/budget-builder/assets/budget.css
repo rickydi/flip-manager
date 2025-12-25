@@ -180,11 +180,17 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     display: none;
 }
 
-/* Drop zone */
-.panier-items.drag-over {
-    background-color: rgba(25, 135, 84, 0.1);
-    border: 2px dashed var(--success-color);
-    border-radius: 8px;
+/* Drop zone - toute la carte panier */
+#panier-card.drag-over {
+    border: 2px dashed var(--success-color) !important;
+    background-color: rgba(25, 135, 84, 0.05);
+    box-shadow: 0 0 20px rgba(25, 135, 84, 0.2);
+}
+
+#panier-card.drag-over .card-header,
+#panier-card.drag-over .card-body,
+#panier-card.drag-over .card-footer {
+    background-color: rgba(25, 135, 84, 0.05);
 }
 
 /* ================================

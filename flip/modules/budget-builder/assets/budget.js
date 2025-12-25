@@ -129,23 +129,23 @@ const BudgetBuilder = {
             });
         });
 
-        // Zone de drop (panier) - accepte items ET dossiers
-        const panierZone = document.getElementById('panier-items');
-        if (panierZone) {
-            panierZone.addEventListener('dragover', function(e) {
+        // Zone de drop (toute la carte panier) - accepte items ET dossiers
+        const panierCard = document.getElementById('panier-card');
+        if (panierCard) {
+            panierCard.addEventListener('dragover', function(e) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'copy';
                 this.classList.add('drag-over');
             });
 
-            panierZone.addEventListener('dragleave', function(e) {
+            panierCard.addEventListener('dragleave', function(e) {
                 // Vérifier qu'on quitte vraiment la zone
                 if (!this.contains(e.relatedTarget)) {
                     this.classList.remove('drag-over');
                 }
             });
 
-            panierZone.addEventListener('drop', function(e) {
+            panierCard.addEventListener('drop', function(e) {
                 e.preventDefault();
                 this.classList.remove('drag-over');
 
@@ -164,7 +164,6 @@ const BudgetBuilder = {
                     }
                 } catch (err) {
                     console.error('Drop error:', err);
-                    alert('Erreur: ' + err.message);
                 }
             });
         }

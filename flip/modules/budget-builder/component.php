@@ -267,7 +267,7 @@ $totalPanier = calculatePanierTotal($panier);
 
         <!-- PANIER (droite) -->
         <div class="col-md-7">
-            <div class="card h-100">
+            <div class="card h-100" id="panier-card">
                 <div class="card-header d-flex justify-content-between align-items-center py-2">
                     <span>
                         <i class="bi bi-cart3 me-2"></i><strong>Panier</strong>
