@@ -775,6 +775,77 @@ try {
             echo json_encode(['success' => true, 'grouped' => $grouped]);
             break;
 
+        case 'get_order_items_combined':
+            $projetId = (int)($input['projet_id'] ?? 0);
+            $groupEtape = (bool)($input['group_etape'] ?? false);
+            $groupFournisseur = (bool)($input['group_fournisseur'] ?? false);
+
+            if (!$projetId) throw new Exception('Projet requis');
+
+            // Ajouter colonne commande si manquante
+            try {
+                $pdo->query("SELECT commande FROM budget_items LIMIT 1");
+            } catch (Exception $e) {
+                $pdo->exec("ALTER TABLE budget_items ADD COLUMN commande TINYINT(1) DEFAULT 0");
+            }
+
+            // Récupérer tous les items du panier avec les infos du catalogue et l'étape
+            $stmt = $pdo->prepare("
+                SELECT
+                    bi.id, bi.nom, bi.prix, bi.quantite, bi.commande,
+                    ci.fournisseur, ci.lien_achat, ci.etape_id,
+                    e.nom as etape_nom, e.ordre as etape_ordre
+                FROM budget_items bi
+                LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+                LEFT JOIN budget_etapes e ON ci.etape_id = e.id
+                WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
+                ORDER BY e.ordre, e.nom, ci.fournisseur, bi.nom
+            ");
+            $stmt->execute([$projetId]);
+            $items = $stmt->fetchAll();
+
+            $grouped = [];
+
+            if ($groupEtape && $groupFournisseur) {
+                // Grouper par étape puis par fournisseur
+                foreach ($items as $item) {
+                    $etape = $item['etape_nom'] ?: 'Non spécifié';
+                    $fournisseur = $item['fournisseur'] ?: 'Non spécifié';
+
+                    if (!isset($grouped[$etape])) {
+                        $grouped[$etape] = ['subgroups' => []];
+                    }
+                    if (!isset($grouped[$etape]['subgroups'][$fournisseur])) {
+                        $grouped[$etape]['subgroups'][$fournisseur] = [];
+                    }
+                    $grouped[$etape]['subgroups'][$fournisseur][] = $item;
+                }
+            } elseif ($groupEtape) {
+                // Grouper par étape seulement
+                foreach ($items as $item) {
+                    $etape = $item['etape_nom'] ?: 'Non spécifié';
+                    if (!isset($grouped[$etape])) {
+                        $grouped[$etape] = ['items' => []];
+                    }
+                    $grouped[$etape]['items'][] = $item;
+                }
+            } elseif ($groupFournisseur) {
+                // Grouper par fournisseur seulement
+                foreach ($items as $item) {
+                    $fournisseur = $item['fournisseur'] ?: 'Non spécifié';
+                    if (!isset($grouped[$fournisseur])) {
+                        $grouped[$fournisseur] = ['items' => []];
+                    }
+                    $grouped[$fournisseur]['items'][] = $item;
+                }
+            } else {
+                // Pas de groupement - liste simple
+                $grouped['Tous les items'] = ['items' => $items];
+            }
+
+            echo json_encode(['success' => true, 'grouped' => $grouped]);
+            break;
+
         default:
             throw new Exception('Action non reconnue: ' . $action);
     }

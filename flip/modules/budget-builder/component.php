@@ -636,15 +636,17 @@ function renderPanierTree($items, $level = 0) {
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Document de commande</h5>
-                <div class="ms-auto me-3">
-                    <div class="btn-group btn-group-sm" role="group">
-                        <input type="radio" class="btn-check" name="groupBy" id="groupByFournisseur" value="fournisseur" checked>
-                        <label class="btn btn-outline-light" for="groupByFournisseur">
-                            <i class="bi bi-shop me-1"></i>Fournisseur
-                        </label>
-                        <input type="radio" class="btn-check" name="groupBy" id="groupByEtape" value="etape">
-                        <label class="btn btn-outline-light" for="groupByEtape">
+                <div class="ms-auto me-3 d-flex gap-2">
+                    <div class="form-check form-check-inline mb-0">
+                        <input type="checkbox" class="form-check-input" id="groupByEtape" value="etape" checked>
+                        <label class="form-check-label text-white" for="groupByEtape">
                             <i class="bi bi-list-ol me-1"></i>Étape
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline mb-0">
+                        <input type="checkbox" class="form-check-input" id="groupByFournisseur" value="fournisseur">
+                        <label class="form-check-label text-white" for="groupByFournisseur">
+                            <i class="bi bi-shop me-1"></i>Fournisseur
                         </label>
                     </div>
                 </div>
@@ -1219,19 +1221,21 @@ function renderPanierTree($items, $level = 0) {
 
     // Modal commande
     let orderModal = null;
-    let currentGroupBy = 'fournisseur';
+
+    function getGroupByOptions() {
+        return {
+            etape: document.getElementById('groupByEtape').checked,
+            fournisseur: document.getElementById('groupByFournisseur').checked
+        };
+    }
 
     function openOrderModal() {
         if (!orderModal) {
             orderModal = new bootstrap.Modal(document.getElementById('orderModal'));
 
             // Écouter les changements de groupement
-            document.querySelectorAll('input[name="groupBy"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    currentGroupBy = this.value;
-                    loadOrderItems();
-                });
-            });
+            document.getElementById('groupByEtape').addEventListener('change', loadOrderItems);
+            document.getElementById('groupByFournisseur').addEventListener('change', loadOrderItems);
         }
 
         loadOrderItems();
@@ -1239,86 +1243,132 @@ function renderPanierTree($items, $level = 0) {
     }
 
     function loadOrderItems() {
-        const action = currentGroupBy === 'etape' ? 'get_order_items_by_etape' : 'get_order_items';
-        BudgetBuilder.ajax(action, { projet_id: BudgetBuilder.projetId }).then(response => {
+        const options = getGroupByOptions();
+
+        // Déterminer quelle action appeler
+        let action = 'get_order_items_combined';
+
+        BudgetBuilder.ajax(action, {
+            projet_id: BudgetBuilder.projetId,
+            group_etape: options.etape,
+            group_fournisseur: options.fournisseur
+        }).then(response => {
             if (response.success && response.grouped) {
-                renderOrderContent(response.grouped, currentGroupBy);
+                renderOrderContent(response.grouped, options);
             }
         });
     }
 
-    function renderOrderContent(grouped, groupByType = 'fournisseur') {
+    function renderOrderContent(grouped, options = {}) {
         const container = document.getElementById('order-content');
         let html = '';
         let totalItems = 0;
         let checkedItems = 0;
 
-        // Trier les fournisseurs (Non spécifié en dernier)
-        const suppliers = Object.keys(grouped).sort((a, b) => {
+        // Trier les groupes (Non spécifié en dernier)
+        const groups = Object.keys(grouped).sort((a, b) => {
             if (a === 'Non spécifié') return 1;
             if (b === 'Non spécifié') return -1;
             return a.localeCompare(b);
         });
 
-        const icon = groupByType === 'etape' ? 'bi-list-ol' : 'bi-shop';
+        // Déterminer l'icône principale
+        const primaryIcon = options.etape ? 'bi-list-ol' : 'bi-shop';
 
-        for (const groupName of suppliers) {
-            const items = grouped[groupName];
-            let supplierTotal = 0;
+        for (const groupName of groups) {
+            const groupData = grouped[groupName];
+            let groupTotal = 0;
 
-            html += `<div class="order-supplier mb-4">
-                <h5 class="border-bottom pb-2 mb-3">
-                    <i class="bi ${icon} me-2"></i>${escapeHtml(groupName)}
-                    <span class="badge bg-secondary float-end">${items.length} item(s)</span>
-                </h5>
-                <div class="table-responsive">
+            // Vérifier si c'est une structure hiérarchique (sous-groupes) ou une liste d'items
+            const hasSubgroups = groupData.subgroups !== undefined;
+
+            html += `<div class="order-group mb-4">
+                <h5 class="border-bottom pb-2 mb-3" style="background: #f8f9fa; margin: -0.5rem -0.5rem 1rem; padding: 0.75rem;">
+                    <i class="bi ${primaryIcon} me-2"></i>${escapeHtml(groupName)}
+                </h5>`;
+
+            if (hasSubgroups) {
+                // Structure hiérarchique: étape > fournisseur
+                const subgroupNames = Object.keys(groupData.subgroups).sort((a, b) => {
+                    if (a === 'Non spécifié') return 1;
+                    if (b === 'Non spécifié') return -1;
+                    return a.localeCompare(b);
+                });
+
+                for (const subName of subgroupNames) {
+                    const items = groupData.subgroups[subName];
+                    let subTotal = 0;
+
+                    html += `<div class="ms-3 mb-3">
+                        <h6 class="text-muted mb-2"><i class="bi bi-shop me-1"></i>${escapeHtml(subName)} <span class="badge bg-secondary">${items.length}</span></h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <tbody>`;
+
+                    for (const item of items) {
+                        totalItems++;
+                        const isChecked = item.commande == 1;
+                        if (isChecked) checkedItems++;
+
+                        const total = (parseFloat(item.prix) || 0) * (parseInt(item.quantite) || 1);
+                        subTotal += total;
+                        groupTotal += total;
+
+                        const linkHtml = item.lien_achat
+                            ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary"><i class="bi bi-box-arrow-up-right"></i></a>`
+                            : '';
+
+                        html += `<tr class="${isChecked ? 'table-success' : ''}">
+                            <td style="width:40px;" class="text-center text-nowrap">
+                                <input type="checkbox" class="form-check-input order-check me-1"
+                                       data-id="${item.id}" ${isChecked ? 'checked' : ''}
+                                       onchange="toggleOrderItem(${item.id}, this.checked)">${linkHtml}
+                            </td>
+                            <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
+                            <td style="width:60px;" class="text-center">${item.quantite}</td>
+                            <td style="width:80px;" class="text-end">${formatMoney(item.prix)}</td>
+                            <td style="width:90px;" class="text-end fw-bold">${formatMoney(total)}</td>
+                        </tr>`;
+                    }
+
+                    html += `</tbody></table></div></div>`;
+                }
+            } else {
+                // Liste simple d'items
+                const items = groupData.items || groupData;
+                html += `<div class="table-responsive">
                     <table class="table table-sm table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 40px;"></th>
-                                <th>Article</th>
-                                <th class="text-center" style="width: 60px;">Qté</th>
-                                <th class="text-end" style="width: 80px;">Prix</th>
-                                <th class="text-end" style="width: 90px;">Total</th>
-                            </tr>
-                        </thead>
                         <tbody>`;
 
-            for (const item of items) {
-                totalItems++;
-                const isChecked = item.commande == 1;
-                if (isChecked) checkedItems++;
+                for (const item of items) {
+                    totalItems++;
+                    const isChecked = item.commande == 1;
+                    if (isChecked) checkedItems++;
 
-                const total = (parseFloat(item.prix) || 0) * (parseInt(item.quantite) || 1);
-                supplierTotal += total;
+                    const total = (parseFloat(item.prix) || 0) * (parseInt(item.quantite) || 1);
+                    groupTotal += total;
 
-                const linkHtml = item.lien_achat
-                    ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary" title="${escapeHtml(item.lien_achat)}"><i class="bi bi-box-arrow-up-right"></i></a>`
-                    : '';
+                    const linkHtml = item.lien_achat
+                        ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary"><i class="bi bi-box-arrow-up-right"></i></a>`
+                        : '';
 
-                html += `<tr class="${isChecked ? 'table-success' : ''}">
-                    <td class="text-center text-nowrap">
-                        <input type="checkbox" class="form-check-input order-check me-1"
-                               data-id="${item.id}" ${isChecked ? 'checked' : ''}
-                               onchange="toggleOrderItem(${item.id}, this.checked)">${linkHtml}
-                    </td>
-                    <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
-                    <td class="text-center">${item.quantite}</td>
-                    <td class="text-end">${formatMoney(item.prix)}</td>
-                    <td class="text-end fw-bold">${formatMoney(total)}</td>
-                </tr>`;
+                    html += `<tr class="${isChecked ? 'table-success' : ''}">
+                        <td style="width:40px;" class="text-center text-nowrap">
+                            <input type="checkbox" class="form-check-input order-check me-1"
+                                   data-id="${item.id}" ${isChecked ? 'checked' : ''}
+                                   onchange="toggleOrderItem(${item.id}, this.checked)">${linkHtml}
+                        </td>
+                        <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
+                        <td style="width:60px;" class="text-center">${item.quantite}</td>
+                        <td style="width:80px;" class="text-end">${formatMoney(item.prix)}</td>
+                        <td style="width:90px;" class="text-end fw-bold">${formatMoney(total)}</td>
+                    </tr>`;
+                }
+
+                html += `</tbody></table></div>`;
             }
 
-            html += `</tbody>
-                    <tfoot class="table-light">
-                        <tr>
-                            <td colspan="4" class="text-end fw-bold">Sous-total ${escapeHtml(groupName)}:</td>
-                            <td class="text-end fw-bold text-success">${formatMoney(supplierTotal)}</td>
-                        </tr>
-                    </tfoot>
-                </table>
-                </div>
-            </div>`;
+            html += `<div class="text-end mt-2 fw-bold text-success">Sous-total: ${formatMoney(groupTotal)}</div></div>`;
         }
 
         if (Object.keys(grouped).length === 0) {
