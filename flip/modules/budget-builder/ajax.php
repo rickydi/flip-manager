@@ -327,6 +327,19 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'move_to_section':
+            $id = (int)($input['id'] ?? 0);
+            $etapeId = isset($input['etape_id']) ? ($input['etape_id'] ? (int)$input['etape_id'] : null) : null;
+
+            if (!$id) throw new Exception('ID requis');
+
+            // Déplacer l'élément vers la section (étape) - le mettre à la racine de la section
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET etape_id = ?, parent_id = NULL WHERE id = ?");
+            $stmt->execute([$etapeId, $id]);
+
+            echo json_encode(['success' => true]);
+            break;
+
         // ================================
         // PANIER
         // ================================

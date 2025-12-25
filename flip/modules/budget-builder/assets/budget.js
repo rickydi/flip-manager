@@ -177,6 +177,82 @@ const BudgetBuilder = {
                 }
             });
         }
+
+        // Drop sur les en-têtes de section (pour changer l'étape)
+        document.querySelectorAll('.is-section-header').forEach(sectionHeader => {
+            sectionHeader.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const dragging = document.querySelector('.catalogue-item.dragging');
+                if (!dragging) return;
+
+                // Ne pas permettre de drag une section sur elle-même
+                if (dragging.classList.contains('is-section-header')) return;
+
+                this.classList.add('drag-over');
+                e.dataTransfer.dropEffect = 'move';
+            });
+
+            sectionHeader.addEventListener('dragleave', function(e) {
+                this.classList.remove('drag-over');
+            });
+
+            sectionHeader.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('drag-over');
+
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    if (!data.id) return;
+
+                    // Récupérer l'étape de la section cible
+                    const section = this.closest('.etape-section');
+                    const targetEtapeId = section ? section.dataset.etapeId : null;
+
+                    // Déplacer l'item vers cette section
+                    self.moveToSection(parseInt(data.id), targetEtapeId === 'null' ? null : parseInt(targetEtapeId));
+                } catch (err) {
+                    console.error('Drop error:', err);
+                }
+            });
+        });
+
+        // Drop sur les zones de contenu des sections
+        document.querySelectorAll('.section-children').forEach(sectionContent => {
+            sectionContent.addEventListener('dragover', function(e) {
+                // Seulement si on survole directement la zone (pas un enfant)
+                if (e.target === this) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                }
+            });
+
+            sectionContent.addEventListener('dragleave', function(e) {
+                if (e.target === this) {
+                    this.classList.remove('drag-over');
+                }
+            });
+
+            sectionContent.addEventListener('drop', function(e) {
+                if (e.target !== this) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('drag-over');
+
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    if (!data.id) return;
+
+                    const targetEtapeId = this.dataset.etape;
+                    self.moveToSection(parseInt(data.id), targetEtapeId === 'null' ? null : parseInt(targetEtapeId));
+                } catch (err) {
+                    console.error('Drop error:', err);
+                }
+            });
+        });
     },
 
     moveItem: function(itemId, targetId, position, newParentId) {
@@ -185,6 +261,19 @@ const BudgetBuilder = {
             target_id: targetId,
             position: position,
             new_parent_id: newParentId
+        }).then(response => {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec du déplacement'));
+            }
+        });
+    },
+
+    moveToSection: function(itemId, etapeId) {
+        this.ajax('move_to_section', {
+            id: itemId,
+            etape_id: etapeId
         }).then(response => {
             if (response.success) {
                 location.reload();
