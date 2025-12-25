@@ -407,7 +407,12 @@ function renderPanierTree($items, $level = 0) {
                 <span class="item-nom"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
                 <input type="number" class="form-control form-control-sm item-qte"
                        value="<?= $item['quantite'] ?? 1 ?>" min="1">
-                <span class="badge bg-secondary item-prix"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
+                <span class="badge bg-secondary item-prix"
+                      data-id="<?= $item['id'] ?>"
+                      data-prix="<?= $item['prix'] ?? $item['catalogue_prix'] ?? 0 ?>"
+                      ondblclick="editPanierPrice(this)"
+                      style="cursor: pointer;"
+                      title="Double-clic pour modifier"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
                 <span class="badge bg-success item-total"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
             <?php endif; ?>
 
@@ -831,6 +836,57 @@ function renderPanierTree($items, $level = 0) {
             }
         });
     });
+
+    // Édition du prix dans le panier
+    function editPanierPrice(element) {
+        const itemId = element.dataset.id;
+        const currentPrice = parseFloat(element.dataset.prix) || 0;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'form-control form-control-sm';
+        input.style.width = '80px';
+        input.value = currentPrice;
+        input.step = '0.01';
+        input.min = '0';
+
+        const originalHtml = element.innerHTML;
+        element.innerHTML = '';
+        element.appendChild(input);
+        input.focus();
+        input.select();
+
+        const save = () => {
+            const newPrice = parseFloat(input.value) || 0;
+            BudgetBuilder.ajax('update_panier_price', { id: itemId, prix: newPrice }).then(response => {
+                if (response.success) {
+                    element.dataset.prix = newPrice;
+                    element.innerHTML = formatMoney(newPrice);
+                    // Mettre à jour le total
+                    const row = element.closest('.panier-item');
+                    const qte = parseInt(row.querySelector('.item-qte').value) || 1;
+                    const totalBadge = row.querySelector('.item-total');
+                    if (totalBadge) {
+                        totalBadge.innerHTML = formatMoney(newPrice * qte);
+                    }
+                    BudgetBuilder.updateTotals();
+                } else {
+                    element.innerHTML = originalHtml;
+                    alert('Erreur: ' + (response.message || 'Échec'));
+                }
+            });
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            } else if (e.key === 'Escape') {
+                element.innerHTML = originalHtml;
+            }
+        });
+    }
 
     // Ouvrir le lien dans un nouvel onglet
     document.getElementById('item-modal-open-link').addEventListener('click', function() {

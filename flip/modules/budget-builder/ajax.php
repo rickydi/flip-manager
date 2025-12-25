@@ -416,6 +416,18 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'update_panier_price':
+            $id = (int)($input['id'] ?? 0);
+            $prix = (float)($input['prix'] ?? 0);
+
+            if (!$id) throw new Exception('ID requis');
+
+            $stmt = $pdo->prepare("UPDATE budget_items SET prix = ? WHERE id = ?");
+            $stmt->execute([$prix, $id]);
+
+            echo json_encode(['success' => true]);
+            break;
+
         case 'clear_panier':
             $projetId = (int)($input['projet_id'] ?? 0);
             if (!$projetId) throw new Exception('Projet requis');
