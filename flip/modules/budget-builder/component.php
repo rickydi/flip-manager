@@ -740,7 +740,7 @@ function renderPanierTree($items, $level = 0) {
             <body>
                 <h3 class="mb-4"><i class="bi bi-file-earmark-text me-2"></i>Document de commande</h3>
                 ${content}
-                <script>setTimeout(() => window.print(), 500);</script>
+                <script>setTimeout(() => window.print(), 500);<\/script>
             </body>
             </html>
         `);
