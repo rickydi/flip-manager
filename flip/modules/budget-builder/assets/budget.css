@@ -14,9 +14,41 @@
 /* Conteneur des enfants avec ligne verticale */
 .folder-children,
 .panier-folder-children {
-    margin-left: 12px;
-    padding-left: 16px;
-    border-left: 2px solid var(--border-color, #dee2e6);
+    margin-left: 20px;
+    padding-left: 0;
+    position: relative;
+}
+
+/* Ligne verticale à gauche du conteneur */
+.folder-children::before,
+.panier-folder-children::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 12px;
+    width: 2px;
+    background-color: var(--border-color, #dee2e6);
+}
+
+/* Connecteur horizontal pour chaque enfant */
+.folder-children > .catalogue-item,
+.folder-children > .folder-children,
+.panier-folder-children > .panier-item,
+.panier-folder-children > .panier-folder-children {
+    position: relative;
+    margin-left: 20px;
+}
+
+.folder-children > .catalogue-item::before,
+.panier-folder-children > .panier-item::before {
+    content: '';
+    position: absolute;
+    left: -20px;
+    top: 50%;
+    width: 18px;
+    height: 2px;
+    background-color: var(--border-color, #dee2e6);
 }
 
 /* Pas besoin des spans tree-line */
