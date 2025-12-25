@@ -357,8 +357,10 @@ const BudgetBuilder = {
 
     updateTotals: function() {
         let total = 0;
-        document.querySelectorAll('.panier-item').forEach(item => {
-            const prix = parseFloat(item.querySelector('.item-prix')?.textContent.replace(/[^0-9.-]/g, '')) || 0;
+        document.querySelectorAll('.panier-item.is-item').forEach(item => {
+            const prixEl = item.querySelector('.item-prix');
+            // Utiliser data-prix pour le prix brut (évite les problèmes de parsing du format monétaire)
+            const prix = parseFloat(prixEl?.dataset?.prix) || 0;
             const qte = parseInt(item.querySelector('.item-qte')?.value) || 1;
             const itemTotal = prix * qte;
             total += itemTotal;
