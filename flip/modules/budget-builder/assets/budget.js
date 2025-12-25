@@ -36,22 +36,100 @@ const BudgetBuilder = {
     initDragDrop: function() {
         const self = this;
 
-        // Items draggables dans le catalogue
-        document.querySelectorAll('.catalogue-item.is-item').forEach(item => {
+        // Tous les éléments du catalogue sont draggables (items ET dossiers)
+        document.querySelectorAll('.catalogue-item').forEach(item => {
             item.draggable = true;
 
             item.addEventListener('dragstart', function(e) {
-                e.dataTransfer.setData('text/plain', this.dataset.id);
-                e.dataTransfer.effectAllowed = 'copy';
+                e.stopPropagation();
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    id: this.dataset.id,
+                    type: this.dataset.type
+                }));
+                e.dataTransfer.effectAllowed = 'copyMove';
                 this.classList.add('dragging');
+
+                // Marquer globalement qu'on drag
+                document.body.classList.add('is-dragging');
             });
 
             item.addEventListener('dragend', function() {
                 this.classList.remove('dragging');
+                document.body.classList.remove('is-dragging');
+
+                // Nettoyer tous les indicateurs
+                document.querySelectorAll('.drag-over, .drag-above, .drag-below, .drag-into').forEach(el => {
+                    el.classList.remove('drag-over', 'drag-above', 'drag-below', 'drag-into');
+                });
+            });
+
+            // Drop sur un élément du catalogue (pour réorganiser)
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const dragging = document.querySelector('.catalogue-item.dragging');
+                if (!dragging || dragging === this) return;
+
+                const rect = this.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                const height = rect.height;
+
+                // Nettoyer les classes
+                this.classList.remove('drag-above', 'drag-below', 'drag-into');
+
+                if (this.dataset.type === 'folder') {
+                    // Sur un dossier: au-dessus, dedans, ou en-dessous
+                    if (y < height * 0.25) {
+                        this.classList.add('drag-above');
+                    } else if (y > height * 0.75) {
+                        this.classList.add('drag-below');
+                    } else {
+                        this.classList.add('drag-into');
+                    }
+                } else {
+                    // Sur un item: au-dessus ou en-dessous
+                    if (y < height / 2) {
+                        this.classList.add('drag-above');
+                    } else {
+                        this.classList.add('drag-below');
+                    }
+                }
+            });
+
+            item.addEventListener('dragleave', function(e) {
+                this.classList.remove('drag-above', 'drag-below', 'drag-into');
+            });
+
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const draggedId = parseInt(data.id);
+                const targetId = parseInt(this.dataset.id);
+
+                if (draggedId === targetId) return;
+
+                let position = 'after';
+                let newParentId = null;
+
+                if (this.classList.contains('drag-above')) {
+                    position = 'before';
+                } else if (this.classList.contains('drag-into') && this.dataset.type === 'folder') {
+                    position = 'into';
+                    newParentId = targetId;
+                }
+
+                // Nettoyer
+                this.classList.remove('drag-above', 'drag-below', 'drag-into');
+
+                // Appeler l'API pour déplacer
+                self.moveItem(draggedId, targetId, position, newParentId);
             });
         });
 
-        // Zone de drop (panier)
+        // Zone de drop (panier) - accepte items ET dossiers
         const panierZone = document.getElementById('panier-items');
         if (panierZone) {
             panierZone.addEventListener('dragover', function(e) {
@@ -60,20 +138,65 @@ const BudgetBuilder = {
                 this.classList.add('drag-over');
             });
 
-            panierZone.addEventListener('dragleave', function() {
-                this.classList.remove('drag-over');
+            panierZone.addEventListener('dragleave', function(e) {
+                // Vérifier qu'on quitte vraiment la zone
+                if (!this.contains(e.relatedTarget)) {
+                    this.classList.remove('drag-over');
+                }
             });
 
             panierZone.addEventListener('drop', function(e) {
                 e.preventDefault();
                 this.classList.remove('drag-over');
 
-                const itemId = e.dataTransfer.getData('text/plain');
-                if (itemId) {
-                    self.addToPanier(parseInt(itemId));
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    if (data.id) {
+                        if (data.type === 'folder') {
+                            // Ajouter tous les items du dossier
+                            self.addFolderToPanier(parseInt(data.id));
+                        } else {
+                            self.addToPanier(parseInt(data.id));
+                        }
+                    }
+                } catch (err) {
+                    console.error('Drop error:', err);
                 }
             });
         }
+    },
+
+    moveItem: function(itemId, targetId, position, newParentId) {
+        this.ajax('move_catalogue_item', {
+            id: itemId,
+            target_id: targetId,
+            position: position,
+            new_parent_id: newParentId
+        }).then(response => {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec du déplacement'));
+            }
+        });
+    },
+
+    addFolderToPanier: function(folderId) {
+        if (!this.projetId) {
+            alert('Sélectionnez d\'abord un projet');
+            return;
+        }
+
+        this.ajax('add_folder_to_panier', {
+            projet_id: this.projetId,
+            folder_id: folderId
+        }).then(response => {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
     },
 
     // ================================

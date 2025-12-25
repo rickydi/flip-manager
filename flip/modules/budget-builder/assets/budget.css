@@ -19,7 +19,7 @@
     align-items: center;
     padding: 6px 8px;
     border-radius: 4px;
-    cursor: default;
+    cursor: grab;
     gap: 4px;
 }
 
@@ -27,13 +27,7 @@
     background-color: rgba(30, 58, 95, 0.1);
 }
 
-.catalogue-item.is-item {
-    cursor: grab;
-}
-
-.catalogue-item.is-item:active {
-    cursor: grabbing;
-}
+/* is-item styles - cursor déjà géré globalement */
 
 .catalogue-item .folder-toggle {
     width: 20px;
@@ -92,6 +86,31 @@
 .catalogue-item.drag-over {
     background-color: rgba(25, 135, 84, 0.2);
     border: 1px dashed #198754;
+}
+
+.catalogue-item.drag-above {
+    border-top: 3px solid #0d6efd;
+    margin-top: -2px;
+}
+
+.catalogue-item.drag-below {
+    border-bottom: 3px solid #0d6efd;
+    margin-bottom: -2px;
+}
+
+.catalogue-item.drag-into {
+    background-color: rgba(25, 135, 84, 0.3);
+    border: 2px dashed #198754;
+    border-radius: 6px;
+}
+
+.catalogue-item:active {
+    cursor: grabbing;
+}
+
+/* Pendant le drag, désactiver le hover sur les autres éléments */
+body.is-dragging .catalogue-item:not(.dragging):hover {
+    background-color: transparent;
 }
 
 /* ================================

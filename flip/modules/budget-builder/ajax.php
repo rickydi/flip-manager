@@ -139,6 +139,52 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'move_catalogue_item':
+            $id = (int)($input['id'] ?? 0);
+            $targetId = (int)($input['target_id'] ?? 0);
+            $position = $input['position'] ?? 'after'; // before, after, into
+            $newParentId = isset($input['new_parent_id']) ? (int)$input['new_parent_id'] : null;
+
+            if (!$id || !$targetId) throw new Exception('IDs requis');
+
+            // Récupérer les infos de la cible
+            $stmt = $pdo->prepare("SELECT parent_id, ordre FROM catalogue_items WHERE id = ?");
+            $stmt->execute([$targetId]);
+            $target = $stmt->fetch();
+
+            if (!$target) throw new Exception('Cible non trouvée');
+
+            if ($position === 'into') {
+                // Déplacer dans le dossier cible
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ?");
+                $stmt->execute([$targetId]);
+                $newOrdre = $stmt->fetchColumn();
+
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET parent_id = ?, ordre = ? WHERE id = ?");
+                $stmt->execute([$targetId, $newOrdre, $id]);
+            } else {
+                // Déplacer avant ou après la cible (même parent)
+                $parentId = $target['parent_id'];
+                $targetOrdre = $target['ordre'];
+
+                // Décaler les éléments pour faire de la place
+                if ($position === 'before') {
+                    $stmt = $pdo->prepare("UPDATE catalogue_items SET ordre = ordre + 1 WHERE parent_id <=> ? AND ordre >= ?");
+                    $stmt->execute([$parentId, $targetOrdre]);
+                    $newOrdre = $targetOrdre;
+                } else {
+                    $stmt = $pdo->prepare("UPDATE catalogue_items SET ordre = ordre + 1 WHERE parent_id <=> ? AND ordre > ?");
+                    $stmt->execute([$parentId, $targetOrdre]);
+                    $newOrdre = $targetOrdre + 1;
+                }
+
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET parent_id = ?, ordre = ? WHERE id = ?");
+                $stmt->execute([$parentId, $newOrdre, $id]);
+            }
+
+            echo json_encode(['success' => true]);
+            break;
+
         // ================================
         // PANIER
         // ================================
@@ -192,6 +238,76 @@ try {
             }
 
             echo json_encode(['success' => true, 'id' => $newId]);
+            break;
+
+        case 'add_folder_to_panier':
+            $projetId = (int)($input['projet_id'] ?? 0);
+            $folderId = (int)($input['folder_id'] ?? 0);
+
+            if (!$projetId || !$folderId) {
+                throw new Exception('Projet et dossier requis');
+            }
+
+            // Fonction récursive pour récupérer tous les items d'un dossier
+            function getAllItemsInFolder($pdo, $folderId) {
+                $items = [];
+
+                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1");
+                $stmt->execute([$folderId]);
+                $children = $stmt->fetchAll();
+
+                foreach ($children as $child) {
+                    if ($child['type'] === 'item') {
+                        $items[] = $child;
+                    } else {
+                        // Récursion pour les sous-dossiers
+                        $items = array_merge($items, getAllItemsInFolder($pdo, $child['id']));
+                    }
+                }
+
+                return $items;
+            }
+
+            $items = getAllItemsInFolder($pdo, $folderId);
+
+            if (empty($items)) {
+                throw new Exception('Aucun item dans ce dossier');
+            }
+
+            $addedCount = 0;
+            foreach ($items as $catalogueItem) {
+                // Vérifier si l'item existe déjà dans le panier
+                $stmt = $pdo->prepare("SELECT id, quantite FROM budget_items WHERE projet_id = ? AND catalogue_item_id = ?");
+                $stmt->execute([$projetId, $catalogueItem['id']]);
+                $existing = $stmt->fetch();
+
+                if ($existing) {
+                    // Incrémenter la quantité
+                    $stmt = $pdo->prepare("UPDATE budget_items SET quantite = quantite + 1 WHERE id = ?");
+                    $stmt->execute([$existing['id']]);
+                } else {
+                    // Ajouter nouveau
+                    $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
+                    $stmt->execute([$projetId]);
+                    $ordre = $stmt->fetchColumn();
+
+                    $stmt = $pdo->prepare("
+                        INSERT INTO budget_items (projet_id, catalogue_item_id, nom, prix, quantite, ordre)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ");
+                    $stmt->execute([
+                        $projetId,
+                        $catalogueItem['id'],
+                        $catalogueItem['nom'],
+                        $catalogueItem['prix'],
+                        $catalogueItem['quantite_defaut'] ?? 1,
+                        $ordre
+                    ]);
+                }
+                $addedCount++;
+            }
+
+            echo json_encode(['success' => true, 'count' => $addedCount]);
             break;
 
         case 'remove_from_panier':
