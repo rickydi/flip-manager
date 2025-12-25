@@ -202,17 +202,34 @@ function buildPanierTree($items, $parentId = null) {
     return $tree;
 }
 
+/**
+ * Calculer le total du panier récursivement (inclut items dans les dossiers)
+ */
+function calculatePanierTotal($items) {
+    $total = 0;
+    foreach ($items as $item) {
+        $itemType = $item['type'] ?? 'item';
+        if ($itemType === 'item') {
+            $prix = $item['prix'] ?? $item['catalogue_prix'] ?? 0;
+            $quantite = $item['quantite'] ?? 1;
+            $total += $prix * $quantite;
+        }
+        // Récursion pour les enfants (dossiers)
+        if (!empty($item['children'])) {
+            $total += calculatePanierTotal($item['children']);
+        }
+    }
+    return $total;
+}
+
 // ============================================
 // Charger les données
 // ============================================
 $catalogue = getCatalogueTree($pdo);
 $panier = isset($projetId) ? getPanier($pdo, $projetId) : [];
 
-// Calculer le total du panier
-$totalPanier = 0;
-foreach ($panier as $item) {
-    $totalPanier += ($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1);
-}
+// Calculer le total du panier (récursif)
+$totalPanier = calculatePanierTotal($panier);
 ?>
 
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
