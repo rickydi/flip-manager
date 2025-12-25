@@ -199,7 +199,6 @@ const BudgetBuilder = {
         }).then(response => {
             console.log('add_folder_to_panier response:', response);
             if (response.success) {
-                alert('Ajouté: ' + (response.count || 0) + ' item(s) du dossier');
                 location.reload();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));

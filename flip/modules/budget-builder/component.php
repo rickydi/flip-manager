@@ -250,7 +250,7 @@ $totalPanier = calculatePanierTotal($panier);
                         </button>
                     </div>
                 </div>
-                <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
+                <div class="card-body p-2">
                     <div id="catalogue-tree" class="catalogue-tree">
                         <?php renderCatalogueTree($catalogue); ?>
                     </div>
@@ -277,7 +277,7 @@ $totalPanier = calculatePanierTotal($panier);
                     </span>
                     <span class="badge bg-primary fs-6" id="panier-total"><?= formatMoney($totalPanier) ?></span>
                 </div>
-                <div class="card-body p-2" style="max-height: 70vh; overflow-y: auto;">
+                <div class="card-body p-2">
                     <div id="panier-items" class="panier-items">
                         <?php if (empty($panier)): ?>
                             <div class="text-center text-muted py-4" id="panier-empty">
