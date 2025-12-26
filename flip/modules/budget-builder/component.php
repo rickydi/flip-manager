@@ -478,8 +478,8 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
                                 $etapeLabel = $section['etape_num'] ? "N.{$section['etape_num']} " . e($section['etape_nom']) : e($section['etape_nom']);
                                 $sectionTotal = calculatePanierTotal($section['items']);
                             ?>
-                            <div class="panier-section mb-2" data-etape-id="<?= $section['etape_id'] ?? 'null' ?>">
-                                <div class="panier-section-header d-flex align-items-center justify-content-between px-2 py-1" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--bs-primary, #0d6efd); cursor: pointer;" onclick="togglePanierSection(this)">
+                            <div class="panier-section" data-etape-id="<?= $section['etape_id'] ?? 'null' ?>">
+                                <div class="panier-section-header d-flex align-items-center justify-content-between" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--bs-primary, #0d6efd); cursor: pointer; padding: 2px 8px;" onclick="togglePanierSection(this)">
                                     <span>
                                         <i class="bi bi-caret-down-fill section-toggle me-1"></i>
                                         <i class="bi bi-list-ol text-primary me-1"></i>
@@ -488,7 +488,7 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
                                     </span>
                                     <span class="badge bg-success"><?= formatMoney($sectionTotal) ?></span>
                                 </div>
-                                <div class="panier-section-content ps-2">
+                                <div class="panier-section-content">
                                     <?php renderPanierTree($section['items']); ?>
                                 </div>
                             </div>

@@ -223,6 +223,19 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     display: none;
 }
 
+.panier-section {
+    margin-bottom: 0.5rem;
+}
+
+.panier-section-content {
+    padding-left: 0.5rem;
+}
+
+.panier-section-header {
+    padding: 2px 8px !important;
+    margin-bottom: 0;
+}
+
 /* Drop zone - toute la carte panier */
 #panier-card.drag-over {
     border: 2px dashed var(--success-color) !important;
