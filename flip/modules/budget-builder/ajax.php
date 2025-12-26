@@ -145,6 +145,20 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
     return $addedCount;
 }
 
+// Fonction helper pour propager l'étape à tous les enfants récursivement
+function propagateEtapeToChildren($pdo, $parentId, $etapeId) {
+    $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND actif = 1");
+    $stmt->execute([$parentId]);
+    $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    foreach ($children as $childId) {
+        $stmt = $pdo->prepare("UPDATE catalogue_items SET etape_id = ? WHERE id = ?");
+        $stmt->execute([$etapeId, $childId]);
+        // Récursion pour les sous-enfants
+        propagateEtapeToChildren($pdo, $childId, $etapeId);
+    }
+}
+
 // Lire les données JSON
 $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
@@ -402,6 +416,9 @@ try {
                 $stmt->execute([$parentId, $newOrdre, $etapeId, $id]);
             }
 
+            // Propager l'étape à tous les enfants récursivement
+            propagateEtapeToChildren($pdo, $id, $etapeId);
+
             echo json_encode(['success' => true]);
             break;
 
@@ -414,6 +431,9 @@ try {
             // Déplacer l'élément vers la section (étape) - le mettre à la racine de la section
             $stmt = $pdo->prepare("UPDATE catalogue_items SET etape_id = ?, parent_id = NULL WHERE id = ?");
             $stmt->execute([$etapeId, $id]);
+
+            // Propager l'étape à tous les enfants récursivement
+            propagateEtapeToChildren($pdo, $id, $etapeId);
 
             echo json_encode(['success' => true]);
             break;
