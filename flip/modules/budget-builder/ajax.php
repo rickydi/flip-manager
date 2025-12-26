@@ -845,6 +845,80 @@ try {
             echo json_encode(['success' => true, 'fixed' => count($rootItems)]);
             break;
 
+        case 'fetch_price_from_url':
+            $url = trim($input['url'] ?? '');
+            if (empty($url)) throw new Exception('URL requis');
+
+            // Valider l'URL
+            if (!filter_var($url, FILTER_VALIDATE_URL)) {
+                throw new Exception('URL invalide');
+            }
+
+            // Récupérer le contenu de la page
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_HTTPHEADER => [
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language: fr-CA,fr;q=0.9,en;q=0.8'
+                ]
+            ]);
+            $html = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode !== 200 || empty($html)) {
+                throw new Exception('Impossible de charger la page (code: ' . $httpCode . ')');
+            }
+
+            $price = null;
+
+            // Patterns pour trouver les prix (sites canadiens courants)
+            $patterns = [
+                // JSON-LD structured data (très fiable)
+                '/"price"\s*:\s*"?(\d+(?:[.,]\d{2})?)"?/i',
+                // Meta tags
+                '/property="product:price:amount"\s+content="(\d+(?:[.,]\d{2})?)"/i',
+                '/content="(\d+(?:[.,]\d{2})?)"\s+property="product:price:amount"/i',
+                // Home Depot, Rona, etc.
+                '/data-price="(\d+(?:[.,]\d{2})?)"/i',
+                '/class="[^"]*price[^"]*"[^>]*>\s*\$?\s*(\d+(?:[.,]\d{2})?)/i',
+                // Prix avec $ canadien
+                '/(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)\s*\$/i',
+                '/\$\s*(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)/i',
+                // Prix génériques
+                '/<span[^>]*class="[^"]*(?:price|prix|cost|amount)[^"]*"[^>]*>\s*\$?\s*(\d+(?:[.,]\d{2})?)/i',
+                '/itemprop="price"[^>]*content="(\d+(?:[.,]\d{2})?)"/i',
+            ];
+
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $html, $matches)) {
+                    $priceStr = $matches[1];
+                    // Nettoyer le prix
+                    $priceStr = preg_replace('/\s/', '', $priceStr);
+                    $priceStr = str_replace(',', '.', $priceStr);
+                    $priceFloat = (float)$priceStr;
+
+                    // Vérifier que c'est un prix raisonnable (entre 0.01 et 100000)
+                    if ($priceFloat >= 0.01 && $priceFloat <= 100000) {
+                        $price = $priceFloat;
+                        break;
+                    }
+                }
+            }
+
+            if ($price === null) {
+                throw new Exception('Prix non trouvé sur cette page');
+            }
+
+            echo json_encode(['success' => true, 'price' => $price]);
+            break;
+
         case 'get_order_items_by_etape':
             $projetId = (int)($input['projet_id'] ?? 0);
             if (!$projetId) throw new Exception('Projet requis');

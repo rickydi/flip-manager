@@ -861,10 +861,14 @@ function renderPanierTree($items, $level = 0) {
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
                         <input type="url" class="form-control" id="item-modal-lien" placeholder="https://...">
+                        <button type="button" class="btn btn-outline-primary" id="item-modal-fetch-price" title="Vérifier le prix avec IA">
+                            <i class="bi bi-robot"></i>
+                        </button>
                         <button type="button" class="btn btn-outline-secondary" id="item-modal-open-link" title="Ouvrir le lien">
                             <i class="bi bi-box-arrow-up-right"></i>
                         </button>
                     </div>
+                    <small class="text-muted">Cliquez sur <i class="bi bi-robot"></i> pour récupérer le prix automatiquement</small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1376,6 +1380,46 @@ function renderPanierTree($items, $level = 0) {
         if (lien) {
             window.open(lien, '_blank');
         }
+    });
+
+    // Récupérer le prix depuis l'URL avec IA
+    document.getElementById('item-modal-fetch-price').addEventListener('click', function() {
+        const lien = document.getElementById('item-modal-lien').value;
+        if (!lien) {
+            alert('Veuillez entrer un lien d\'achat d\'abord');
+            return;
+        }
+
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btn.disabled = true;
+
+        BudgetBuilder.ajax('fetch_price_from_url', { url: lien }).then(response => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+
+            if (response.success && response.price) {
+                const priceInput = document.getElementById('item-modal-prix');
+                const oldPrice = parseFloat(priceInput.value) || 0;
+                const newPrice = response.price;
+
+                if (oldPrice !== newPrice) {
+                    priceInput.value = newPrice;
+                    priceInput.style.backgroundColor = '#d4edda';
+                    setTimeout(() => priceInput.style.backgroundColor = '', 2000);
+                    alert('Prix trouvé: ' + formatMoney(newPrice));
+                } else {
+                    alert('Le prix est déjà à jour: ' + formatMoney(newPrice));
+                }
+            } else {
+                alert('Erreur: ' + (response.message || 'Prix non trouvé'));
+            }
+        }).catch(err => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+            alert('Erreur de connexion');
+        });
     });
 
     // Bouton scroll to top
