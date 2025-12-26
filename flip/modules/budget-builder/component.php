@@ -579,6 +579,10 @@ function renderSectionItems($items, $level = 0) {
                         onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
                     <i class="bi bi-pencil"></i>
                 </button>
+                <button type="button" class="btn btn-sm btn-link p-0 text-warning me-1"
+                        onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
+                    <i class="bi bi-copy"></i>
+                </button>
                 <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
                         onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
                     <i class="bi bi-plus-circle-fill"></i>
@@ -642,6 +646,10 @@ function renderCatalogueTree($items, $level = 0) {
                 <button type="button" class="btn btn-sm btn-link p-0 text-info me-1"
                         onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
                     <i class="bi bi-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-link p-0 text-warning me-1"
+                        onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
+                    <i class="bi bi-copy"></i>
                 </button>
                 <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
                         onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
@@ -993,6 +1001,17 @@ function renderPanierTree($items, $level = 0) {
         BudgetBuilder.ajax('update_item', data).then(response => {
             if (response.success) {
                 itemModal.hide();
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    // Dupliquer un item
+    function duplicateItem(itemId) {
+        BudgetBuilder.ajax('duplicate_item', { id: itemId }).then(response => {
+            if (response.success) {
                 location.reload();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));

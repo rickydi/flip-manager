@@ -268,6 +268,41 @@ try {
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;
 
+        case 'duplicate_item':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            // Récupérer l'item original
+            $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ?");
+            $stmt->execute([$id]);
+            $item = $stmt->fetch();
+
+            if (!$item) throw new Exception('Item non trouvé');
+
+            // Trouver le prochain ordre
+            $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ?");
+            $stmt->execute([$item['parent_id']]);
+            $newOrdre = $stmt->fetchColumn();
+
+            // Créer la copie
+            $stmt = $pdo->prepare("
+                INSERT INTO catalogue_items (parent_id, type, nom, prix, fournisseur, lien_achat, etape_id, ordre, actif)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ");
+            $stmt->execute([
+                $item['parent_id'],
+                $item['type'],
+                $item['nom'] . ' (copie)',
+                $item['prix'],
+                $item['fournisseur'],
+                $item['lien_achat'],
+                $item['etape_id'],
+                $newOrdre
+            ]);
+
+            echo json_encode(['success' => true, 'new_id' => $pdo->lastInsertId()]);
+            break;
+
         case 'update_folder':
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');
