@@ -404,6 +404,20 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
 
 <div class="budget-builder-container">
+    <!-- Contrôle de taille du texte -->
+    <div class="d-flex justify-content-end align-items-center mb-2 gap-1">
+        <small class="text-muted me-1">Taille:</small>
+        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(-1)" title="Réduire">
+            <i class="bi bi-dash"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="resetFontSize()" title="Réinitialiser">
+            <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(1)" title="Agrandir">
+            <i class="bi bi-plus"></i>
+        </button>
+    </div>
+
     <div class="row g-3">
         <!-- MAGASIN (gauche) -->
         <div class="col-md-6">
@@ -886,6 +900,39 @@ function renderPanierTree($items, $level = 0) {
 <script>
     // Initialiser avec l'ID du projet
     BudgetBuilder.init(<?= $projetId ?? 'null' ?>);
+
+    // Contrôle de la taille du texte
+    const FONT_SIZE_KEY = 'budget-builder-font-size';
+    const DEFAULT_FONT_SIZE = 0.95;
+    const MIN_FONT_SIZE = 0.75;
+    const MAX_FONT_SIZE = 1.4;
+    const FONT_STEP = 0.05;
+
+    function getCurrentFontSize() {
+        return parseFloat(localStorage.getItem(FONT_SIZE_KEY)) || DEFAULT_FONT_SIZE;
+    }
+
+    function applyFontSize(size) {
+        document.querySelector('.budget-builder-container').style.setProperty('--item-font-size', size + 'rem');
+        document.querySelectorAll('.catalogue-item, .panier-item, .panier-section-header').forEach(el => {
+            el.style.fontSize = size + 'rem';
+        });
+    }
+
+    function changeFontSize(direction) {
+        let size = getCurrentFontSize() + (direction * FONT_STEP);
+        size = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
+        localStorage.setItem(FONT_SIZE_KEY, size);
+        applyFontSize(size);
+    }
+
+    function resetFontSize() {
+        localStorage.setItem(FONT_SIZE_KEY, DEFAULT_FONT_SIZE);
+        applyFontSize(DEFAULT_FONT_SIZE);
+    }
+
+    // Appliquer la taille sauvegardée au chargement
+    applyFontSize(getCurrentFontSize());
 
     // Modal item
     let itemModal = null;
