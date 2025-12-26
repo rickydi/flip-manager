@@ -380,7 +380,7 @@ $totalPanier = calculatePanierTotal($panier);
                             <i class="bi bi-file-earmark-text me-1"></i>Commande
                         </button>
                         <?php endif; ?>
-                        <span class="btn btn-primary btn-sm disabled" id="panier-total" style="height: 31px; opacity: 1;"><?= formatMoney($totalPanier) ?></span>
+                        <span class="btn btn-primary disabled d-flex align-items-center justify-content-center fw-bold" id="panier-total" style="height: 31px; min-width: 110px; opacity: 1; font-size: 1rem;"><?= formatMoney($totalPanier) ?></span>
                     </div>
                 </div>
                 <div class="card-body p-2">
