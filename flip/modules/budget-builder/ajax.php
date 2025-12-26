@@ -272,35 +272,63 @@ try {
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');
 
-            // Récupérer l'item original
-            $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ?");
+            // Fonction récursive pour dupliquer un élément et ses enfants
+            $duplicateRecursive = function($pdo, $itemId, $newParentId, $addCopySuffix = true) use (&$duplicateRecursive) {
+                // Récupérer l'item original
+                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ?");
+                $stmt->execute([$itemId]);
+                $item = $stmt->fetch();
+
+                if (!$item) return null;
+
+                // Trouver le prochain ordre
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ?");
+                $stmt->execute([$newParentId]);
+                $newOrdre = $stmt->fetchColumn();
+
+                // Créer la copie
+                $newNom = $addCopySuffix ? $item['nom'] . ' (copie)' : $item['nom'];
+                $stmt = $pdo->prepare("
+                    INSERT INTO catalogue_items (parent_id, type, nom, prix, fournisseur, lien_achat, etape_id, ordre, actif)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+                ");
+                $stmt->execute([
+                    $newParentId,
+                    $item['type'],
+                    $newNom,
+                    $item['prix'],
+                    $item['fournisseur'],
+                    $item['lien_achat'],
+                    $item['etape_id'],
+                    $newOrdre
+                ]);
+
+                $newId = $pdo->lastInsertId();
+
+                // Si c'est un dossier, dupliquer les enfants récursivement
+                if ($item['type'] === 'folder') {
+                    $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY ordre");
+                    $stmt->execute([$itemId]);
+                    $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+                    foreach ($children as $childId) {
+                        $duplicateRecursive($pdo, $childId, $newId, false); // Pas de suffixe pour les enfants
+                    }
+                }
+
+                return $newId;
+            };
+
+            // Récupérer l'item pour avoir son parent_id
+            $stmt = $pdo->prepare("SELECT parent_id FROM catalogue_items WHERE id = ?");
             $stmt->execute([$id]);
             $item = $stmt->fetch();
 
             if (!$item) throw new Exception('Item non trouvé');
 
-            // Trouver le prochain ordre
-            $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ?");
-            $stmt->execute([$item['parent_id']]);
-            $newOrdre = $stmt->fetchColumn();
+            $newId = $duplicateRecursive($pdo, $id, $item['parent_id'], true);
 
-            // Créer la copie
-            $stmt = $pdo->prepare("
-                INSERT INTO catalogue_items (parent_id, type, nom, prix, fournisseur, lien_achat, etape_id, ordre, actif)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-            ");
-            $stmt->execute([
-                $item['parent_id'],
-                $item['type'],
-                $item['nom'] . ' (copie)',
-                $item['prix'],
-                $item['fournisseur'],
-                $item['lien_achat'],
-                $item['etape_id'],
-                $newOrdre
-            ]);
-
-            echo json_encode(['success' => true, 'new_id' => $pdo->lastInsertId()]);
+            echo json_encode(['success' => true, 'new_id' => $newId]);
             break;
 
         case 'update_folder':

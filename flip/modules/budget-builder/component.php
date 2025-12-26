@@ -595,6 +595,9 @@ function renderSectionItems($items, $level = 0) {
                     <button type="button" class="btn btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
                         <i class="bi bi-plus-circle"></i>
                     </button>
+                    <button type="button" class="btn btn-link p-0 text-warning" onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
+                        <i class="bi bi-copy"></i>
+                    </button>
                 </div>
             <?php endif; ?>
 
@@ -665,6 +668,9 @@ function renderCatalogueTree($items, $level = 0) {
                     </button>
                     <button type="button" class="btn btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
                         <i class="bi bi-plus-circle"></i>
+                    </button>
+                    <button type="button" class="btn btn-link p-0 text-warning" onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
+                        <i class="bi bi-copy"></i>
                     </button>
                 </div>
             <?php endif; ?>
