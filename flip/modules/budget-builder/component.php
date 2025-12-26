@@ -257,7 +257,63 @@ function getCatalogueTree($pdo, $parentId = null) {
 }
 
 /**
- * Récupérer le panier en arbre (items du projet)
+ * Récupérer le panier groupé par section/étape
+ */
+function getPanierBySection($pdo, $projetId) {
+    if (!$projetId) return [];
+
+    // Récupérer toutes les étapes
+    $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, id");
+    $etapes = $stmt->fetchAll();
+
+    // Récupérer tous les items du panier avec l'étape
+    $stmt = $pdo->prepare("
+        SELECT bi.*, ci.nom as catalogue_nom, ci.prix as catalogue_prix, ci.etape_id,
+               e.nom as etape_nom, e.ordre as etape_ordre
+        FROM budget_items bi
+        LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+        LEFT JOIN budget_etapes e ON ci.etape_id = e.id
+        WHERE bi.projet_id = ?
+        ORDER BY e.ordre, e.id, bi.ordre, bi.id
+    ");
+    $stmt->execute([$projetId]);
+    $allItems = $stmt->fetchAll();
+
+    if (empty($allItems)) return [];
+
+    // Grouper par étape
+    $sections = [];
+    $etapeNum = 0;
+
+    foreach ($etapes as $etape) {
+        $etapeNum++;
+        $etapeItems = array_filter($allItems, fn($item) => ($item['etape_id'] ?? null) == $etape['id']);
+        if (!empty($etapeItems)) {
+            $sections[] = [
+                'etape_id' => $etape['id'],
+                'etape_nom' => $etape['nom'],
+                'etape_num' => $etapeNum,
+                'items' => buildPanierTree(array_values($etapeItems))
+            ];
+        }
+    }
+
+    // Items sans étape
+    $noEtapeItems = array_filter($allItems, fn($item) => empty($item['etape_id']));
+    if (!empty($noEtapeItems)) {
+        $sections[] = [
+            'etape_id' => null,
+            'etape_nom' => 'Non spécifié',
+            'etape_num' => null,
+            'items' => buildPanierTree(array_values($noEtapeItems))
+        ];
+    }
+
+    return $sections;
+}
+
+/**
+ * Récupérer le panier en arbre (items du projet) - version plate
  */
 function getPanier($pdo, $projetId) {
     if (!$projetId) return [];
@@ -323,14 +379,26 @@ function calculatePanierTotal($items) {
     return $total;
 }
 
+/**
+ * Calculer le total du panier par sections
+ */
+function calculatePanierSectionsTotal($sections) {
+    $total = 0;
+    foreach ($sections as $section) {
+        $total += calculatePanierTotal($section['items']);
+    }
+    return $total;
+}
+
 // ============================================
 // Charger les données
 // ============================================
 $catalogueSections = getCatalogueBySection($pdo);
+$panierSections = isset($projetId) ? getPanierBySection($pdo, $projetId) : [];
 $panier = isset($projetId) ? getPanier($pdo, $projetId) : [];
 
-// Calculer le total du panier (récursif)
-$totalPanier = calculatePanierTotal($panier);
+// Calculer le total du panier
+$totalPanier = calculatePanierSectionsTotal($panierSections);
 ?>
 
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
@@ -372,7 +440,7 @@ $totalPanier = calculatePanierTotal($panier);
                         <?php endif; ?>
                     </span>
                     <div class="d-flex align-items-center gap-2">
-                        <?php if (!empty($panier)): ?>
+                        <?php if (!empty($panierSections)): ?>
                         <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearPanier()" title="Vider le panier" style="height: 31px; width: 31px; padding: 0;">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -385,14 +453,32 @@ $totalPanier = calculatePanierTotal($panier);
                 </div>
                 <div class="card-body p-2">
                     <div id="panier-items" class="panier-items">
-                        <?php if (empty($panier)): ?>
+                        <?php if (empty($panierSections)): ?>
                             <div class="text-center text-muted py-4" id="panier-empty">
                                 <i class="bi bi-cart" style="font-size: 2rem;"></i>
                                 <p class="mt-2 mb-0">Panier vide</p>
                                 <small>Glissez des items depuis le Magasin</small>
                             </div>
                         <?php else: ?>
-                            <?php renderPanierTree($panier); ?>
+                            <?php foreach ($panierSections as $section):
+                                $etapeLabel = $section['etape_num'] ? "N.{$section['etape_num']} " . e($section['etape_nom']) : e($section['etape_nom']);
+                                $sectionTotal = calculatePanierTotal($section['items']);
+                            ?>
+                            <div class="panier-section mb-2" data-etape-id="<?= $section['etape_id'] ?? 'null' ?>">
+                                <div class="panier-section-header d-flex align-items-center justify-content-between px-2 py-1" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--bs-primary, #0d6efd); cursor: pointer;" onclick="togglePanierSection(this)">
+                                    <span>
+                                        <i class="bi bi-caret-down-fill section-toggle me-1"></i>
+                                        <i class="bi bi-list-ol text-primary me-1"></i>
+                                        <strong><?= $etapeLabel ?></strong>
+                                        <span class="badge bg-secondary ms-1"><?= count($section['items']) ?></span>
+                                    </span>
+                                    <span class="badge bg-success"><?= formatMoney($sectionTotal) ?></span>
+                                </div>
+                                <div class="panier-section-content ps-2">
+                                    <?php renderPanierTree($section['items']); ?>
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                 </div>
@@ -1211,6 +1297,52 @@ function renderPanierTree($items, $level = 0) {
         if (!confirm('Vider complètement le panier?')) return;
 
         BudgetBuilder.ajax('clear_panier', { projet_id: BudgetBuilder.projetId }).then(response => {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    // Toggle section du panier
+    function togglePanierSection(header) {
+        const content = header.nextElementSibling;
+        const toggle = header.querySelector('.section-toggle');
+        if (content.style.display === 'none') {
+            content.style.display = '';
+            toggle.classList.remove('bi-caret-right-fill');
+            toggle.classList.add('bi-caret-down-fill');
+        } else {
+            content.style.display = 'none';
+            toggle.classList.remove('bi-caret-down-fill');
+            toggle.classList.add('bi-caret-right-fill');
+        }
+    }
+
+    // Toggle folder dans le panier
+    function togglePanierFolder(toggle) {
+        const item = toggle.closest('.panier-item');
+        const children = item.nextElementSibling;
+        if (children && children.classList.contains('panier-folder-children')) {
+            const icon = toggle.querySelector('i');
+            if (children.style.display === 'none') {
+                children.style.display = '';
+                icon.classList.remove('bi-caret-right-fill');
+                icon.classList.add('bi-caret-down-fill');
+            } else {
+                children.style.display = 'none';
+                icon.classList.remove('bi-caret-down-fill');
+                icon.classList.add('bi-caret-right-fill');
+            }
+        }
+    }
+
+    // Supprimer du panier
+    function removeFromPanier(itemId) {
+        if (!confirm('Supprimer cet élément?')) return;
+
+        BudgetBuilder.ajax('remove_from_panier', { id: itemId }).then(response => {
             if (response.success) {
                 location.reload();
             } else {
