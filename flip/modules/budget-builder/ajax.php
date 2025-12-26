@@ -333,14 +333,19 @@ try {
                 return $newId;
             };
 
-            // Récupérer l'item pour avoir son parent_id
-            $stmt = $pdo->prepare("SELECT parent_id FROM catalogue_items WHERE id = ?");
+            // Récupérer l'item pour avoir son parent_id et etape_id
+            $stmt = $pdo->prepare("SELECT parent_id, etape_id FROM catalogue_items WHERE id = ?");
             $stmt->execute([$id]);
             $item = $stmt->fetch();
 
             if (!$item) throw new Exception('Item non trouvé');
 
             $newId = $duplicateRecursive($pdo, $id, $item['parent_id'], true);
+
+            // Propager l'étape du parent à tous les enfants du nouvel élément
+            if ($newId && $item['etape_id']) {
+                propagateEtapeToChildren($pdo, $newId, $item['etape_id']);
+            }
 
             echo json_encode(['success' => true, 'new_id' => $newId]);
             break;
