@@ -24,11 +24,12 @@
 .catalogue-item {
     display: flex;
     align-items: center;
-    padding: 6px 8px;
+    padding: 2px 8px;
     border-radius: 4px;
     cursor: grab;
     gap: 6px;
     color: var(--text-primary);
+    font-size: 0.95rem;
 }
 
 .catalogue-item:hover {
