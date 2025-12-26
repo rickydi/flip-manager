@@ -584,19 +584,20 @@ function renderSectionItems($items, $level = 0) {
                             onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
                         <i class="bi bi-copy"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary add-to-panier"
                             onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
                         <i class="bi bi-plus-circle"></i>
                     </button>
                 <?php else: ?>
+                    <span class="item-prix-badge"></span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
-                        <i class="bi bi-plus-circle"></i>
-                    </button>
                     <button type="button" class="btn btn-sm btn-link p-0 text-warning" onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
                         <i class="bi bi-copy"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
+                        <i class="bi bi-plus-circle"></i>
                     </button>
                 <?php endif; ?>
                 <button type="button" class="btn btn-sm btn-link p-0 text-danger"
@@ -655,22 +656,20 @@ function renderCatalogueTree($items, $level = 0) {
                             onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
                         <i class="bi bi-copy"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary add-to-panier"
                             onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
                         <i class="bi bi-plus-circle"></i>
                     </button>
                 <?php else: ?>
-                    <button type="button" class="btn btn-sm btn-link p-0 text-info" onclick="openFolderModal(<?= $item['id'] ?>)" title="Modifier étape">
-                        <i class="bi bi-pencil"></i>
-                    </button>
+                    <span class="item-prix-badge"></span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
-                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
-                        <i class="bi bi-plus-circle"></i>
-                    </button>
                     <button type="button" class="btn btn-sm btn-link p-0 text-warning" onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
                         <i class="bi bi-copy"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="addItem(<?= $item['id'] ?>, 'item')" title="Item">
+                        <i class="bi bi-plus-circle"></i>
                     </button>
                 <?php endif; ?>
                 <button type="button" class="btn btn-sm btn-link p-0 text-danger"
