@@ -373,14 +373,14 @@ $totalPanier = calculatePanierTotal($panier);
                     </span>
                     <div class="d-flex align-items-center gap-2">
                         <?php if (!empty($panier)): ?>
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearPanier()" title="Vider le panier">
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearPanier()" title="Vider le panier" style="height: 31px; width: 31px; padding: 0;">
                             <i class="bi bi-trash"></i>
                         </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openOrderModal()">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="openOrderModal()" style="height: 31px;">
                             <i class="bi bi-file-earmark-text me-1"></i>Commande
                         </button>
                         <?php endif; ?>
-                        <span class="badge bg-primary fs-6" id="panier-total"><?= formatMoney($totalPanier) ?></span>
+                        <span class="btn btn-primary btn-sm disabled" id="panier-total" style="height: 31px; opacity: 1;"><?= formatMoney($totalPanier) ?></span>
                     </div>
                 </div>
                 <div class="card-body p-2">
