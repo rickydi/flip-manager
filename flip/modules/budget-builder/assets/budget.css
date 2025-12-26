@@ -142,10 +142,11 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 .panier-item {
     display: flex;
     align-items: center;
-    padding: 6px 8px;
+    padding: 2px 8px;
     border-radius: 4px;
     gap: 6px;
     color: var(--text-primary);
+    font-size: 0.95rem;
 }
 
 .panier-item:hover {
