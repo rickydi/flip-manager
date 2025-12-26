@@ -573,9 +573,9 @@ function renderSectionItems($items, $level = 0) {
                 <?= e($item['nom']) ?>
             </span>
 
-            <?php if (!$isFolder): ?>
-                <span class="item-actions">
-                    <span class="badge bg-secondary"><?= formatMoney($item['prix'] ?? 0) ?></span>
+            <span class="item-actions">
+                <?php if (!$isFolder): ?>
+                    <span class="badge bg-secondary item-prix-badge"><?= formatMoney($item['prix'] ?? 0) ?></span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info"
                             onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
                         <i class="bi bi-pencil"></i>
@@ -588,9 +588,7 @@ function renderSectionItems($items, $level = 0) {
                             onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
                         <i class="bi bi-plus-circle-fill"></i>
                     </button>
-                </span>
-            <?php else: ?>
-                <span class="item-actions">
+                <?php else: ?>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
@@ -600,12 +598,12 @@ function renderSectionItems($items, $level = 0) {
                     <button type="button" class="btn btn-sm btn-link p-0 text-warning" onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
                         <i class="bi bi-copy"></i>
                     </button>
-                </span>
-            <?php endif; ?>
-
-            <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="deleteItem(<?= $item['id'] ?>)" title="Supprimer">
-                <i class="bi bi-trash"></i>
-            </button>
+                <?php endif; ?>
+                <button type="button" class="btn btn-sm btn-link p-0 text-danger"
+                        onclick="deleteItem(<?= $item['id'] ?>)" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </span>
         </div>
 
         <?php if ($isFolder && $hasChildren): ?>
@@ -646,9 +644,9 @@ function renderCatalogueTree($items, $level = 0) {
                 <?= e($item['nom']) ?>
             </span>
 
-            <?php if (!$isFolder): ?>
-                <span class="item-actions">
-                    <span class="badge bg-secondary"><?= formatMoney($item['prix']) ?></span>
+            <span class="item-actions">
+                <?php if (!$isFolder): ?>
+                    <span class="badge bg-secondary item-prix-badge"><?= formatMoney($item['prix']) ?></span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info"
                             onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
                         <i class="bi bi-pencil"></i>
@@ -661,9 +659,7 @@ function renderCatalogueTree($items, $level = 0) {
                             onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
                         <i class="bi bi-plus-circle-fill"></i>
                     </button>
-                </span>
-            <?php else: ?>
-                <span class="item-actions">
+                <?php else: ?>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info" onclick="openFolderModal(<?= $item['id'] ?>)" title="Modifier étape">
                         <i class="bi bi-pencil"></i>
                     </button>
@@ -676,12 +672,12 @@ function renderCatalogueTree($items, $level = 0) {
                     <button type="button" class="btn btn-sm btn-link p-0 text-warning" onclick="duplicateItem(<?= $item['id'] ?>)" title="Dupliquer">
                         <i class="bi bi-copy"></i>
                     </button>
-                </span>
-            <?php endif; ?>
-
-            <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="deleteItem(<?= $item['id'] ?>)" title="Supprimer">
-                <i class="bi bi-trash"></i>
-            </button>
+                <?php endif; ?>
+                <button type="button" class="btn btn-sm btn-link p-0 text-danger"
+                        onclick="deleteItem(<?= $item['id'] ?>)" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </span>
         </div>
 
         <?php if ($isFolder && $hasChildren): ?>
