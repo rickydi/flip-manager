@@ -699,8 +699,11 @@ function renderPanierTree($items, $level = 0) {
                 <span class="folder-toggle invisible"></span>
                 <i class="bi bi-box-seam text-primary me-1"></i>
                 <span class="item-nom"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
-                <input type="number" class="form-control form-control-sm item-qte"
-                       value="<?= $item['quantite'] ?? 1 ?>" min="1">
+                <span class="item-qte-controls d-flex align-items-center">
+                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary" onclick="changeQte(<?= $item['id'] ?>, -1)"><i class="bi bi-dash"></i></button>
+                    <span class="item-qte mx-1" data-id="<?= $item['id'] ?>"><?= $item['quantite'] ?? 1 ?></span>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-secondary" onclick="changeQte(<?= $item['id'] ?>, 1)"><i class="bi bi-plus"></i></button>
+                </span>
                 <span class="badge bg-secondary item-prix"
                       data-id="<?= $item['id'] ?>"
                       data-prix="<?= $item['prix'] ?? $item['catalogue_prix'] ?? 0 ?>"
@@ -1383,6 +1386,23 @@ function renderPanierTree($items, $level = 0) {
                 icon.classList.add('bi-caret-right-fill');
             }
         }
+    }
+
+    // Changer la quantité avec +/-
+    function changeQte(itemId, delta) {
+        const qteEl = document.querySelector(`.item-qte[data-id="${itemId}"]`);
+        if (!qteEl) return;
+
+        let newQte = parseInt(qteEl.textContent) + delta;
+        if (newQte < 1) newQte = 1;
+
+        qteEl.textContent = newQte;
+
+        BudgetBuilder.ajax('update_panier_quantity', { id: itemId, quantite: newQte }).then(response => {
+            if (response.success) {
+                BudgetBuilder.updateTotals();
+            }
+        });
     }
 
     // Supprimer du panier

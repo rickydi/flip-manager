@@ -487,8 +487,9 @@ const BudgetBuilder = {
             // Calculer le total de cette section
             section.querySelectorAll('.panier-item.is-item').forEach(item => {
                 const prixEl = item.querySelector('.item-prix');
+                const qteEl = item.querySelector('.item-qte');
                 const prix = parseFloat(prixEl?.dataset?.prix) || 0;
-                const qte = parseInt(item.querySelector('.item-qte')?.value) || 1;
+                const qte = parseInt(qteEl?.textContent || qteEl?.value) || 1;
                 const itemTotal = prix * qte;
                 sectionTotal += itemTotal;
 
@@ -511,8 +512,9 @@ const BudgetBuilder = {
         if (grandTotal === 0) {
             document.querySelectorAll('.panier-item.is-item').forEach(item => {
                 const prixEl = item.querySelector('.item-prix');
+                const qteEl = item.querySelector('.item-qte');
                 const prix = parseFloat(prixEl?.dataset?.prix) || 0;
-                const qte = parseInt(item.querySelector('.item-qte')?.value) || 1;
+                const qte = parseInt(qteEl?.textContent || qteEl?.value) || 1;
                 const itemTotal = prix * qte;
                 grandTotal += itemTotal;
 
