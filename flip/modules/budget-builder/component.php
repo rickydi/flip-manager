@@ -391,6 +391,35 @@ function calculatePanierSectionsTotal($sections) {
 }
 
 // ============================================
+// Auto-correction des étapes (propage l'étape aux enfants)
+// ============================================
+function autoFixEtapes($pdo) {
+    // Fonction récursive pour propager l'étape
+    $propagate = function($pdo, $parentId, $etapeId) use (&$propagate) {
+        $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND actif = 1");
+        $stmt->execute([$parentId]);
+        $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        foreach ($children as $childId) {
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET etape_id = ? WHERE id = ? AND (etape_id IS NULL OR etape_id != ?)");
+            $stmt->execute([$etapeId, $childId, $etapeId]);
+            $propagate($pdo, $childId, $etapeId);
+        }
+    };
+
+    // Pour chaque item racine avec une étape, propager aux enfants
+    $stmt = $pdo->query("SELECT id, etape_id FROM catalogue_items WHERE etape_id IS NOT NULL AND actif = 1");
+    $items = $stmt->fetchAll();
+
+    foreach ($items as $item) {
+        $propagate($pdo, $item['id'], $item['etape_id']);
+    }
+}
+
+// Exécuter l'auto-correction
+autoFixEtapes($pdo);
+
+// ============================================
 // Charger les données
 // ============================================
 $catalogueSections = getCatalogueBySection($pdo);
@@ -528,9 +557,6 @@ function renderCatalogueSections($sections) {
                 <span class="item-nom fw-bold"><?= $etapeLabel ?></span>
                 <span class="badge bg-primary ms-2"><?= $itemCount ?></span>
                 <div class="btn-group btn-group-sm ms-auto">
-                    <button type="button" class="btn btn-link p-0 text-secondary" onclick="fixSectionEtapes(<?= $etapeId ?>)" title="Corriger les étapes">
-                        <i class="bi bi-wrench"></i>
-                    </button>
                     <button type="button" class="btn btn-link p-0 text-success" onclick="addItemToSection(<?= $etapeId ?>, 'folder')" title="Ajouter dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
@@ -1368,18 +1394,6 @@ function renderPanierTree($items, $level = 0) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     })();
-
-    // Corriger les étapes d'une section
-    function fixSectionEtapes(etapeId) {
-        BudgetBuilder.ajax('fix_section_etapes', { etape_id: etapeId }).then(response => {
-            if (response.success) {
-                alert('Étapes corrigées pour ' + response.fixed + ' élément(s)');
-                location.reload();
-            } else {
-                alert('Erreur: ' + (response.message || 'Échec'));
-            }
-        });
-    }
 
     // Vider le panier
     function clearPanier() {
