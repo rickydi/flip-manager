@@ -98,15 +98,6 @@
     flex-shrink: 0;
 }
 
-.catalogue-item .add-to-panier {
-    opacity: 0;
-    transition: opacity 0.15s;
-}
-
-.catalogue-item:hover .add-to-panier {
-    opacity: 1;
-}
-
 .folder-children {
     /* Contenu des dossiers */
 }
