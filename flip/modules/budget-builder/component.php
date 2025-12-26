@@ -586,7 +586,7 @@ function renderSectionItems($items, $level = 0) {
                     </button>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
                             onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
-                        <i class="bi bi-plus-circle-fill"></i>
+                        <i class="bi bi-plus-circle"></i>
                     </button>
                 <?php else: ?>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
@@ -657,7 +657,7 @@ function renderCatalogueTree($items, $level = 0) {
                     </button>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
                             onclick="addToPanier(<?= $item['id'] ?>)" title="Ajouter au panier">
-                        <i class="bi bi-plus-circle-fill"></i>
+                        <i class="bi bi-plus-circle"></i>
                     </button>
                 <?php else: ?>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info" onclick="openFolderModal(<?= $item['id'] ?>)" title="Modifier étape">
