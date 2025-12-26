@@ -477,23 +477,55 @@ const BudgetBuilder = {
     },
 
     updateTotals: function() {
-        let total = 0;
-        document.querySelectorAll('.panier-item.is-item').forEach(item => {
-            const prixEl = item.querySelector('.item-prix');
-            // Utiliser data-prix pour le prix brut (évite les problèmes de parsing du format monétaire)
-            const prix = parseFloat(prixEl?.dataset?.prix) || 0;
-            const qte = parseInt(item.querySelector('.item-qte')?.value) || 1;
-            const itemTotal = prix * qte;
-            total += itemTotal;
+        const self = this;
+        let grandTotal = 0;
 
-            const totalEl = item.querySelector('.item-total');
-            if (totalEl) {
-                totalEl.textContent = this.formatMoney(itemTotal);
+        // Mettre à jour chaque section
+        document.querySelectorAll('.panier-section').forEach(section => {
+            let sectionTotal = 0;
+
+            // Calculer le total de cette section
+            section.querySelectorAll('.panier-item.is-item').forEach(item => {
+                const prixEl = item.querySelector('.item-prix');
+                const prix = parseFloat(prixEl?.dataset?.prix) || 0;
+                const qte = parseInt(item.querySelector('.item-qte')?.value) || 1;
+                const itemTotal = prix * qte;
+                sectionTotal += itemTotal;
+
+                const totalEl = item.querySelector('.item-total');
+                if (totalEl) {
+                    totalEl.textContent = self.formatMoney(itemTotal);
+                }
+            });
+
+            // Mettre à jour le badge de la section
+            const sectionBadge = section.querySelector('.panier-section-header .badge.bg-success');
+            if (sectionBadge) {
+                sectionBadge.textContent = self.formatMoney(sectionTotal);
             }
+
+            grandTotal += sectionTotal;
         });
 
+        // Si pas de sections (ancien format), calculer directement
+        if (grandTotal === 0) {
+            document.querySelectorAll('.panier-item.is-item').forEach(item => {
+                const prixEl = item.querySelector('.item-prix');
+                const prix = parseFloat(prixEl?.dataset?.prix) || 0;
+                const qte = parseInt(item.querySelector('.item-qte')?.value) || 1;
+                const itemTotal = prix * qte;
+                grandTotal += itemTotal;
+
+                const totalEl = item.querySelector('.item-total');
+                if (totalEl) {
+                    totalEl.textContent = self.formatMoney(itemTotal);
+                }
+            });
+        }
+
+        // Mettre à jour le total général
         document.querySelectorAll('#panier-total, #panier-total-footer').forEach(el => {
-            el.textContent = this.formatMoney(total);
+            el.textContent = self.formatMoney(grandTotal);
         });
     },
 
