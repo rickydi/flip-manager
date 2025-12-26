@@ -528,6 +528,9 @@ function renderCatalogueSections($sections) {
                 <span class="item-nom fw-bold"><?= $etapeLabel ?></span>
                 <span class="badge bg-primary ms-2"><?= $itemCount ?></span>
                 <div class="btn-group btn-group-sm ms-auto">
+                    <button type="button" class="btn btn-link p-0 text-secondary" onclick="fixSectionEtapes(<?= $etapeId ?>)" title="Corriger les étapes">
+                        <i class="bi bi-wrench"></i>
+                    </button>
                     <button type="button" class="btn btn-link p-0 text-success" onclick="addItemToSection(<?= $etapeId ?>, 'folder')" title="Ajouter dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
@@ -1365,6 +1368,18 @@ function renderPanierTree($items, $level = 0) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     })();
+
+    // Corriger les étapes d'une section
+    function fixSectionEtapes(etapeId) {
+        BudgetBuilder.ajax('fix_section_etapes', { etape_id: etapeId }).then(response => {
+            if (response.success) {
+                alert('Étapes corrigées pour ' + response.fixed + ' élément(s)');
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
 
     // Vider le panier
     function clearPanier() {

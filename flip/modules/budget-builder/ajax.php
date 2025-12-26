@@ -824,6 +824,27 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'fix_section_etapes':
+            // Corriger tous les items d'une section pour qu'ils aient la bonne étape
+            $etapeId = isset($input['etape_id']) ? ($input['etape_id'] ? (int)$input['etape_id'] : null) : null;
+
+            // Récupérer tous les items racine de cette section
+            if ($etapeId) {
+                $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE etape_id = ? AND actif = 1");
+                $stmt->execute([$etapeId]);
+            } else {
+                $stmt = $pdo->query("SELECT id FROM catalogue_items WHERE (etape_id IS NULL OR etape_id = 0) AND parent_id IS NULL AND actif = 1");
+            }
+            $rootItems = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            // Propager l'étape à tous les enfants de chaque item racine
+            foreach ($rootItems as $itemId) {
+                propagateEtapeToChildren($pdo, $itemId, $etapeId);
+            }
+
+            echo json_encode(['success' => true, 'fixed' => count($rootItems)]);
+            break;
+
         case 'get_order_items_by_etape':
             $projetId = (int)($input['projet_id'] ?? 0);
             if (!$projetId) throw new Exception('Projet requis');
