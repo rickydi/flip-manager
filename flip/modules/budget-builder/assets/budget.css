@@ -184,15 +184,56 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 
 .panier-item .item-qte-controls {
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
 }
 
-.panier-item .item-qte-controls button {
+.qte-btn {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--border-color, #6c757d);
+    border-radius: 3px;
+    background: var(--bg-card, #2a2a3a);
+    color: var(--text-primary, #fff);
+    font-size: 12px;
+    font-weight: bold;
     line-height: 1;
-    font-size: 0.85em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qte-btn:hover {
+    background: var(--primary-color, #0d6efd);
+    border-color: var(--primary-color, #0d6efd);
+    color: #fff;
+}
+
+.qte-btn.qte-minus {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.qte-btn.qte-minus:hover {
+    background: #dc3545;
+    color: #fff;
+}
+
+.qte-btn.qte-plus {
+    border-color: #198754;
+    color: #198754;
+}
+
+.qte-btn.qte-plus:hover {
+    background: #198754;
+    color: #fff;
 }
 
 .panier-item .item-qte {
-    min-width: 16px;
+    min-width: 18px;
     text-align: center;
     font-weight: bold;
     font-size: inherit;
