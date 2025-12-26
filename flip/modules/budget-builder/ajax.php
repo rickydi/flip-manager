@@ -881,19 +881,27 @@ try {
             // Patterns pour trouver les prix (sites canadiens courants)
             $patterns = [
                 // JSON-LD structured data (très fiable)
-                '/"price"\s*:\s*"?(\d+(?:[.,]\d{2})?)"?/i',
+                '/"price"\s*:\s*"?(\d+(?:[.,]\d{1,2})?)"?/i',
+                '/"lowPrice"\s*:\s*"?(\d+(?:[.,]\d{1,2})?)"?/i',
                 // Meta tags
-                '/property="product:price:amount"\s+content="(\d+(?:[.,]\d{2})?)"/i',
-                '/content="(\d+(?:[.,]\d{2})?)"\s+property="product:price:amount"/i',
+                '/property="product:price:amount"\s+content="(\d+(?:[.,]\d{1,2})?)"/i',
+                '/content="(\d+(?:[.,]\d{1,2})?)"\s+property="product:price:amount"/i',
+                '/name="product:price:amount"\s+content="(\d+(?:[.,]\d{1,2})?)"/i',
+                // Canac, Patrick Morin et autres sites québécois
+                '/(\d{1,3}(?:\s?\d{3})*[.,]\d{2})\s*\$\s*(?:\/|<)/i',
+                '/class="[^"]*(?:price|prix)[^"]*"[^>]*>[\s\n]*(\d{1,3}(?:[\s,]\d{3})*[.,]\d{2})\s*\$/im',
+                '/>(\d{1,3}[.,]\d{2})\s*\$\s*</i',
                 // Home Depot, Rona, etc.
-                '/data-price="(\d+(?:[.,]\d{2})?)"/i',
-                '/class="[^"]*price[^"]*"[^>]*>\s*\$?\s*(\d+(?:[.,]\d{2})?)/i',
-                // Prix avec $ canadien
-                '/(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)\s*\$/i',
-                '/\$\s*(\d{1,3}(?:[\s,]\d{3})*(?:[.,]\d{2})?)/i',
-                // Prix génériques
-                '/<span[^>]*class="[^"]*(?:price|prix|cost|amount)[^"]*"[^>]*>\s*\$?\s*(\d+(?:[.,]\d{2})?)/i',
-                '/itemprop="price"[^>]*content="(\d+(?:[.,]\d{2})?)"/i',
+                '/data-price="(\d+(?:[.,]\d{1,2})?)"/i',
+                '/data-product-price="(\d+(?:[.,]\d{1,2})?)"/i',
+                // Prix avec $ canadien (format: 149,99 $ ou 1 234,56 $)
+                '/(\d{1,3}(?:[\s\x{00a0}]\d{3})*[.,]\d{2})\s*\$/u',
+                '/\$\s*(\d{1,3}(?:[\s\x{00a0}]\d{3})*[.,]\d{2})/u',
+                // Prix génériques avec classes
+                '/<[^>]*class="[^"]*(?:price|prix|cost|amount|regular-price|sale-price)[^"]*"[^>]*>[\s\S]*?(\d{1,3}(?:[\s,]\d{3})*[.,]\d{2})/i',
+                '/itemprop="price"[^>]*content="(\d+(?:[.,]\d{1,2})?)"/i',
+                // Dernier recours - tout nombre suivi de $
+                '/(\d{1,3}[.,]\d{2})\s*\$/i',
             ];
 
             foreach ($patterns as $pattern) {
