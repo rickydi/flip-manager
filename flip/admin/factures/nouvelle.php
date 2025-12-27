@@ -50,7 +50,7 @@ $categoriesGroupees = getCategoriesGrouped($pdo);
 // Récupérer les étapes du budget-builder (nouveau système)
 $etapes = [];
 try {
-    $stmt = $pdo->query("SELECT id, nom FROM budget_etapes WHERE actif = 1 ORDER BY ordre, nom");
+    $stmt = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
     $etapes = $stmt->fetchAll();
 } catch (Exception $e) {
     // Table n'existe pas encore
