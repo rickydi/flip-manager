@@ -10,6 +10,13 @@ require_once '../../includes/functions.php';
 
 requireAdmin();
 
+// Migration automatique: ajouter colonne etape_id si elle n'existe pas
+try {
+    $pdo->query("SELECT etape_id FROM factures LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE factures ADD COLUMN etape_id INT DEFAULT NULL AFTER categorie_id");
+}
+
 $factureId = (int)($_GET['id'] ?? 0);
 if (!$factureId) {
     setFlashMessage('danger', 'Facture non trouvée.');
