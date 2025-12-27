@@ -697,11 +697,24 @@ try {
             break;
 
         case 'get_fournisseurs':
-            // Récupérer la liste unique des fournisseurs
-            $stmt = $pdo->query("SELECT DISTINCT fournisseur FROM catalogue_items WHERE fournisseur IS NOT NULL AND fournisseur != '' ORDER BY fournisseur");
-            $fournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            // Récupérer les fournisseurs de la table fournisseurs
+            $fournisseurs = [];
+            try {
+                $stmt = $pdo->query("SELECT nom FROM fournisseurs WHERE actif = 1 ORDER BY nom");
+                $fournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            } catch (Exception $e) {
+                // Table n'existe pas encore
+            }
 
-            echo json_encode(['success' => true, 'fournisseurs' => $fournisseurs]);
+            // Ajouter aussi les fournisseurs déjà utilisés dans le catalogue
+            $stmt = $pdo->query("SELECT DISTINCT fournisseur FROM catalogue_items WHERE fournisseur IS NOT NULL AND fournisseur != '' ORDER BY fournisseur");
+            $catalogueFournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            // Fusionner et enlever les doublons
+            $fournisseurs = array_unique(array_merge($fournisseurs, $catalogueFournisseurs));
+            sort($fournisseurs);
+
+            echo json_encode(['success' => true, 'fournisseurs' => array_values($fournisseurs)]);
             break;
 
         // ================================
