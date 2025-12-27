@@ -14,7 +14,11 @@ requireAdmin();
 try {
     $pdo->query("SELECT etape_id FROM factures LIMIT 1");
 } catch (Exception $e) {
-    $pdo->exec("ALTER TABLE factures ADD COLUMN etape_id INT DEFAULT NULL AFTER categorie_id");
+    try {
+        $pdo->exec("ALTER TABLE factures ADD COLUMN etape_id INT DEFAULT NULL");
+    } catch (Exception $e2) {
+        // Colonne existe déjà ou autre erreur
+    }
 }
 
 $pageTitle = 'Nouvelle facture';
