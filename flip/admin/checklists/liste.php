@@ -181,11 +181,6 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/templates/liste.php') ?>">
-                <i class="bi bi-box-seam me-1"></i>Templates
-            </a>
-        </li>
-        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/fournisseurs/liste.php') ?>">
                 <i class="bi bi-shop me-1"></i>Fournisseurs
             </a>

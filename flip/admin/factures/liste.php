@@ -29,6 +29,27 @@ try {
     }
 }
 
+// Migration: Retirer les anciennes catégories - mettre categorie_id à NULL
+// On utilise maintenant seulement les étapes du budget-builder
+try {
+    // Vérifier s'il reste des factures avec categorie_id non NULL
+    $stmt = $pdo->query("SELECT COUNT(*) FROM factures WHERE categorie_id IS NOT NULL");
+    if ($stmt->fetchColumn() > 0) {
+        // Retirer la contrainte FK si elle existe
+        try {
+            $pdo->exec("ALTER TABLE factures DROP FOREIGN KEY factures_ibfk_2");
+        } catch (Exception $e) {}
+        try {
+            $pdo->exec("ALTER TABLE factures DROP FOREIGN KEY fk_factures_categorie");
+        } catch (Exception $e) {}
+
+        // Mettre tous les categorie_id à NULL
+        $pdo->exec("UPDATE factures SET categorie_id = NULL");
+    }
+} catch (Exception $e) {
+    // Ignorer les erreurs
+}
+
 // Traitement du toggle paiement (AJAX ou GET)
 if (isset($_GET['toggle_paiement']) && isset($_GET['id'])) {
     $factureId = (int)$_GET['id'];

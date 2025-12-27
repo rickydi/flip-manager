@@ -55,10 +55,7 @@ $tousLesFournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
 
-// Récupérer les catégories groupées (ancien système - fallback)
-$categoriesGroupees = getCategoriesGrouped($pdo);
-
-// Récupérer les étapes du budget-builder (nouveau système)
+// Récupérer les étapes du budget-builder
 $etapes = [];
 try {
     $stmt = $pdo->query("SELECT id, nom, ordre FROM budget_etapes ORDER BY ordre, nom");
@@ -74,7 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $projetId = (int)($_POST['projet_id'] ?? 0);
         $etapeId = (int)($_POST['etape_id'] ?? 0);
-        $categorieId = (int)($_POST['categorie_id'] ?? 0); // Fallback ancien système
         $fournisseur = trim($_POST['fournisseur'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $dateFacture = $_POST['date_facture'] ?? '';
@@ -86,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Validation
         if (!$projetId) $errors[] = 'Veuillez sélectionner un projet.';
-        if (!$etapeId && !$categorieId) $errors[] = 'Veuillez sélectionner une étape.';
+        if (!$etapeId) $errors[] = 'Veuillez sélectionner une étape.';
         if (empty($fournisseur)) $errors[] = 'Le fournisseur est requis.';
         if (empty($dateFacture)) $errors[] = 'La date de la facture est requise.';
         if ($montantAvantTaxes <= 0) $errors[] = 'Le montant avant taxes doit être supérieur à 0.';
@@ -146,14 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dateApprobation = $approuverDirect ? date('Y-m-d H:i:s') : null;
             
             $stmt = $pdo->prepare("
-                INSERT INTO factures (projet_id, categorie_id, etape_id, user_id, fournisseur, description, date_facture,
+                INSERT INTO factures (projet_id, etape_id, user_id, fournisseur, description, date_facture,
                                      montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut,
                                      approuve_par, date_approbation)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             if ($stmt->execute([
-                $projetId, $categorieId ?: null, $etapeId ?: null, $_SESSION['user_id'], $fournisseur, $description,
+                $projetId, $etapeId ?: null, $_SESSION['user_id'], $fournisseur, $description,
                 $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
                 $statut, $approuvePar, $dateApprobation
             ])) {
@@ -222,26 +218,12 @@ include '../../includes/header.php';
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Étape *</label>
-                        <?php if (!empty($etapes)): ?>
                         <select class="form-select" name="etape_id" required>
                             <option value="">Sélectionner...</option>
                             <?php foreach ($etapes as $etape): ?>
                                 <option value="<?= $etape['id'] ?>"><?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <?php else: ?>
-                        <!-- Fallback sur catégories si pas d'étapes -->
-                        <select class="form-select" name="categorie_id" required>
-                            <option value="">Sélectionner...</option>
-                            <?php foreach ($categoriesGroupees as $groupe => $cats): ?>
-                                <optgroup label="<?= getGroupeCategorieLabel($groupe) ?>">
-                                    <?php foreach ($cats as $cat): ?>
-                                        <option value="<?= $cat['id'] ?>"><?= e($cat['nom']) ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php endif; ?>
                     </div>
                 </div>
 
