@@ -44,8 +44,17 @@ $tousLesFournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
 
-// Récupérer les catégories groupées
+// Récupérer les catégories groupées (ancien système - fallback)
 $categoriesGroupees = getCategoriesGrouped($pdo);
+
+// Récupérer les étapes du budget-builder (nouveau système)
+$etapes = [];
+try {
+    $stmt = $pdo->query("SELECT id, nom FROM budget_etapes WHERE actif = 1 ORDER BY ordre, nom");
+    $etapes = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas encore
+}
 
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -53,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Token de sécurité invalide.';
     } else {
         $projetId = (int)($_POST['projet_id'] ?? 0);
-        $categorieId = (int)($_POST['categorie_id'] ?? 0);
+        $etapeId = (int)($_POST['etape_id'] ?? 0);
+        $categorieId = (int)($_POST['categorie_id'] ?? 0); // Fallback ancien système
         $fournisseur = trim($_POST['fournisseur'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $dateFacture = $_POST['date_facture'] ?? '';
@@ -62,10 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tvq = parseNumber($_POST['tvq'] ?? 0);
         $notes = trim($_POST['notes'] ?? '');
         $approuverDirect = isset($_POST['approuver_direct']);
-        
+
         // Validation
         if (!$projetId) $errors[] = 'Veuillez sélectionner un projet.';
-        if (!$categorieId) $errors[] = 'Veuillez sélectionner une catégorie.';
+        if (!$etapeId && !$categorieId) $errors[] = 'Veuillez sélectionner une étape.';
         if (empty($fournisseur)) $errors[] = 'Le fournisseur est requis.';
         if (empty($dateFacture)) $errors[] = 'La date de la facture est requise.';
         if ($montantAvantTaxes <= 0) $errors[] = 'Le montant avant taxes doit être supérieur à 0.';
@@ -125,14 +135,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $dateApprobation = $approuverDirect ? date('Y-m-d H:i:s') : null;
             
             $stmt = $pdo->prepare("
-                INSERT INTO factures (projet_id, categorie_id, user_id, fournisseur, description, date_facture, 
-                                     montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut, 
+                INSERT INTO factures (projet_id, categorie_id, etape_id, user_id, fournisseur, description, date_facture,
+                                     montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut,
                                      approuve_par, date_approbation)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
-            
+
             if ($stmt->execute([
-                $projetId, $categorieId, $_SESSION['user_id'], $fournisseur, $description,
+                $projetId, $categorieId ?: null, $etapeId ?: null, $_SESSION['user_id'], $fournisseur, $description,
                 $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
                 $statut, $approuvePar, $dateApprobation
             ])) {
@@ -200,7 +210,16 @@ include '../../includes/header.php';
                     </div>
 
                     <div class="col-md-6 mb-3">
-                        <label class="form-label">Catégorie *</label>
+                        <label class="form-label">Étape *</label>
+                        <?php if (!empty($etapes)): ?>
+                        <select class="form-select" name="etape_id" required>
+                            <option value="">Sélectionner...</option>
+                            <?php foreach ($etapes as $etape): ?>
+                                <option value="<?= $etape['id'] ?>"><?= e($etape['nom']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php else: ?>
+                        <!-- Fallback sur catégories si pas d'étapes -->
                         <select class="form-select" name="categorie_id" required>
                             <option value="">Sélectionner...</option>
                             <?php foreach ($categoriesGroupees as $groupe => $cats): ?>
@@ -211,6 +230,7 @@ include '../../includes/header.php';
                                 </optgroup>
                             <?php endforeach; ?>
                         </select>
+                        <?php endif; ?>
                     </div>
                 </div>
 

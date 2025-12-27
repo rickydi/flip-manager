@@ -18,6 +18,13 @@ try {
     $pdo->exec("ALTER TABLE factures ADD COLUMN est_payee TINYINT(1) DEFAULT 0 AFTER statut");
 }
 
+// Migration automatique: ajouter colonne etape_id pour le nouveau système budget-builder
+try {
+    $pdo->query("SELECT etape_id FROM factures LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE factures ADD COLUMN etape_id INT DEFAULT NULL AFTER categorie_id");
+}
+
 // Traitement du toggle paiement (AJAX ou GET)
 if (isset($_GET['toggle_paiement']) && isset($_GET['id'])) {
     $factureId = (int)$_GET['id'];

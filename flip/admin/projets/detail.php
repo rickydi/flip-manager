@@ -1479,6 +1479,7 @@ $depenses = calculerDepensesParCategorie($pdo, $projetId);
 
 // NOUVEAU SYSTÈME: Budget par étape (sections du budget-builder)
 $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
+$depensesParEtape = calculerDepensesParEtape($pdo, $projetId);
 
 // Calcul des coûts récurrents réels basés sur le temps écoulé depuis l'achat
 $recurrentsReels = calculerCoutsRecurrentsReels($projet);
@@ -2840,10 +2841,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     // NOUVEAU SYSTÈME: Afficher par étape si le budget-builder est utilisé
                     if (!empty($budgetParEtape)):
                         foreach ($budgetParEtape as $etapeId => $etape):
-                            if ($etape['total'] == 0) continue;
                             $budgetHT = $etape['total'];
-                            // Pour l'instant, pas de dépenses réelles par étape (à implémenter plus tard)
-                            $depense = 0;
+                            // Dépenses réelles par étape (factures avec cette étape)
+                            $depense = $depensesParEtape[$etapeId]['total'] ?? 0;
+                            // Afficher même si budget = 0 mais qu'il y a des dépenses
+                            if ($budgetHT == 0 && $depense == 0) continue;
                             $ecart = $budgetHT - $depense;
                             $totalBudgetReno += $budgetHT;
                             $totalReelReno += $depense;
@@ -2853,6 +2855,23 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td><i class="bi bi-bookmark-fill me-1 text-muted"></i><?= e($etape['nom']) ?></td>
                         <td class="text-end detail-etape-budget"><?= formatMoney($budgetHT) ?></td>
                         <td class="text-end detail-etape-diff <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
+                        <td class="text-end detail-etape-reel"><?= formatMoney($depense) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php
+                    // Afficher aussi les étapes qui ont des dépenses mais pas de budget
+                    foreach ($depensesParEtape as $etapeId => $depenseEtape):
+                        if (isset($budgetParEtape[$etapeId])) continue; // Déjà affiché
+                        $depense = $depenseEtape['total'];
+                        if ($depense == 0) continue;
+                        $ecart = 0 - $depense;
+                        $totalReelReno += $depense;
+                        $totalEcartReno += $ecart;
+                    ?>
+                    <tr class="sub-item detail-etape-row" data-etape-id="<?= $etapeId ?>">
+                        <td><i class="bi bi-bookmark-fill me-1 text-muted"></i><?= e($depenseEtape['nom']) ?></td>
+                        <td class="text-end detail-etape-budget">-</td>
+                        <td class="text-end detail-etape-diff negative"><?= formatMoney($ecart) ?></td>
                         <td class="text-end detail-etape-reel"><?= formatMoney($depense) ?></td>
                     </tr>
                     <?php endforeach; ?>

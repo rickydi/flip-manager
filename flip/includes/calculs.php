@@ -370,6 +370,45 @@ function calculerBudgetParEtape($pdo, $projetId) {
 }
 
 /**
+ * Calcule les dépenses réelles par étape (factures groupées par etape_id)
+ * @param PDO $pdo
+ * @param int $projetId
+ * @return array [etape_id => ['nom' => string, 'total' => float]]
+ */
+function calculerDepensesParEtape($pdo, $projetId) {
+    $result = [];
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                e.id as etape_id,
+                e.nom as etape_nom,
+                e.ordre as etape_ordre,
+                SUM(f.montant_avant_taxes) as total
+            FROM factures f
+            LEFT JOIN budget_etapes e ON f.etape_id = e.id
+            WHERE f.projet_id = ? AND f.statut != 'rejetee' AND f.etape_id IS NOT NULL
+            GROUP BY e.id, e.nom, e.ordre
+            ORDER BY e.ordre, e.nom
+        ");
+        $stmt->execute([$projetId]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $etapeId = $row['etape_id'] ?? 0;
+            $result[$etapeId] = [
+                'nom' => $row['etape_nom'] ?? 'Non spécifié',
+                'ordre' => $row['etape_ordre'] ?? 999,
+                'total' => (float) ($row['total'] ?? 0)
+            ];
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas
+    }
+
+    return $result;
+}
+
+/**
  * Calcule le total des factures réelles (approuvées ET en attente - seules les rejetées sont exclues)
  * @param PDO $pdo
  * @param int $projetId
