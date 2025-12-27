@@ -271,7 +271,7 @@ function calculerCoutsVente($projet) {
  * @return float
  */
 function calculerTotalBudgetRenovation($pdo, $projetId) {
-    // NOUVEAU SYSTÈME: Utiliser budget_items (panier du budget-builder)
+    // Utiliser budget_items (panier du budget-builder)
     try {
         $stmt = $pdo->prepare("
             SELECT SUM(prix * quantite) as total
@@ -280,53 +280,10 @@ function calculerTotalBudgetRenovation($pdo, $projetId) {
         ");
         $stmt->execute([$projetId]);
         $result = $stmt->fetch();
-        $total = (float) ($result['total'] ?? 0);
-
-        // Si on a des données dans le nouveau système, les utiliser
-        if ($total > 0) {
-            return $total;
-        }
+        return (float) ($result['total'] ?? 0);
     } catch (Exception $e) {
-        // Table n'existe pas encore, fallback à l'ancien système
+        return 0;
     }
-
-    // ANCIEN SYSTÈME (fallback): Utiliser budgets table
-    // Charger les quantités de groupes pour ce projet
-    $groupeQtes = [];
-    try {
-        $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
-        $stmt->execute([$projetId]);
-        foreach ($stmt->fetchAll() as $row) {
-            $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
-        }
-    } catch (Exception $e) {
-        // Table n'existe pas encore
-    }
-
-    // Calculer le total avec multiplication par quantité de groupe
-    $total = 0;
-    try {
-        $stmt = $pdo->prepare("
-            SELECT b.montant_extrapole, c.groupe
-            FROM budgets b
-            JOIN categories c ON b.categorie_id = c.id
-            WHERE b.projet_id = ?
-        ");
-        $stmt->execute([$projetId]);
-        foreach ($stmt->fetchAll() as $row) {
-            $groupe = $row['groupe'] ?? 'autre';
-            $qteGroupe = $groupeQtes[$groupe] ?? 1;
-            $total += (float)$row['montant_extrapole'] * $qteGroupe;
-        }
-    } catch (Exception $e) {
-        // Fallback à l'ancienne méthode si erreur
-        $stmt = $pdo->prepare("SELECT SUM(montant_extrapole) as total FROM budgets WHERE projet_id = ?");
-        $stmt->execute([$projetId]);
-        $result = $stmt->fetch();
-        $total = (float) ($result['total'] ?? 0);
-    }
-
-    return $total;
 }
 
 /**
@@ -1074,55 +1031,7 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
         // Table n'existe pas
     }
 
-    // ANCIEN SYSTÈME: Fallback sur projet_items
-    if (!$hasItems) {
-        // Charger les quantités de groupes pour ce projet
-        $groupeQtes = [];
-        try {
-            $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
-            $stmt->execute([$projetId]);
-            foreach ($stmt->fetchAll() as $row) {
-                $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
-            }
-        } catch (Exception $e) {
-            // Table n'existe pas encore
-        }
-
-        try {
-            $stmt = $pdo->prepare("
-                SELECT pi.prix_unitaire, pi.quantite as qte_item, pi.sans_taxe,
-                       pp.quantite as qte_cat, c.groupe
-                FROM projet_items pi
-                JOIN projet_postes pp ON pi.projet_poste_id = pp.id
-                JOIN categories c ON pp.categorie_id = c.id
-                WHERE pi.projet_id = ?
-            ");
-            $stmt->execute([$projetId]);
-            $oldItems = $stmt->fetchAll();
-
-            foreach ($oldItems as $row) {
-                $hasItems = true;
-                $prix = (float)$row['prix_unitaire'];
-                $qteItem = (int)$row['qte_item'];
-                $qteCat = (int)$row['qte_cat'];
-                $groupe = $row['groupe'] ?? 'autre';
-                $qteGroupe = $groupeQtes[$groupe] ?? 1;
-                $sansTaxe = (int)($row['sans_taxe'] ?? 0);
-
-                $montant = $prix * $qteItem * $qteCat * $qteGroupe;
-
-                if ($sansTaxe) {
-                    $totalNonTaxable += $montant;
-                } else {
-                    $totalTaxable += $montant;
-                }
-            }
-        } catch (Exception $e) {
-            // Table n'existe pas
-        }
-    }
-
-    // Si toujours pas d'items, utiliser le budget total comme taxable (fallback)
+    // Si pas d'items dans le nouveau système, utiliser le budget total comme taxable
     if (!$hasItems) {
         $totalTaxable = calculerTotalBudgetRenovation($pdo, $projetId);
     }
@@ -1145,62 +1054,6 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
         'tvq' => round($tvq, 2),
         'total_ttc' => round($totalAvecTaxes, 2)
     ];
-}
-
-/**
- * Calcule les montants taxables et non-taxables par catégorie
- * @param PDO $pdo
- * @param int $projetId
- * @return array [categorie_id => ['taxable' => float, 'non_taxable' => float]]
- */
-function calculerTaxabiliteParCategorie($pdo, $projetId) {
-    $result = [];
-
-    // Charger les quantités de groupes
-    $groupeQtes = [];
-    try {
-        $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
-        $stmt->execute([$projetId]);
-        foreach ($stmt->fetchAll() as $row) {
-            $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
-        }
-    } catch (Exception $e) {}
-
-    try {
-        $stmt = $pdo->prepare("
-            SELECT pi.prix_unitaire, pi.quantite as qte_item, pi.sans_taxe,
-                   pp.quantite as qte_cat, pp.categorie_id, c.groupe
-            FROM projet_items pi
-            JOIN projet_postes pp ON pi.projet_poste_id = pp.id
-            JOIN categories c ON pp.categorie_id = c.id
-            WHERE pi.projet_id = ?
-        ");
-        $stmt->execute([$projetId]);
-
-        foreach ($stmt->fetchAll() as $row) {
-            $catId = (int)$row['categorie_id'];
-            $prix = (float)$row['prix_unitaire'];
-            $qteItem = (int)$row['qte_item'];
-            $qteCat = (int)$row['qte_cat'];
-            $groupe = $row['groupe'] ?? 'autre';
-            $qteGroupe = $groupeQtes[$groupe] ?? 1;
-            $sansTaxe = (int)($row['sans_taxe'] ?? 0);
-
-            $montant = $prix * $qteItem * $qteCat * $qteGroupe;
-
-            if (!isset($result[$catId])) {
-                $result[$catId] = ['taxable' => 0, 'non_taxable' => 0];
-            }
-
-            if ($sansTaxe) {
-                $result[$catId]['non_taxable'] += $montant;
-            } else {
-                $result[$catId]['taxable'] += $montant;
-            }
-        }
-    } catch (Exception $e) {}
-
-    return $result;
 }
 
 /**
