@@ -45,8 +45,14 @@ if ($facture['statut'] !== 'en_attente') {
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
 
-// Récupérer les catégories groupées
-$categoriesGrouped = getCategoriesGrouped($pdo);
+// Récupérer les étapes du budget-builder
+$etapes = [];
+try {
+    $stmt = $pdo->query("SELECT id, nom, ordre FROM budget_etapes ORDER BY ordre, nom");
+    $etapes = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas encore
+}
 
 $errors = [];
 
@@ -76,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Récupérer les données
             $projetId = (int)($_POST['projet_id'] ?? 0);
-            $categorieId = (int)($_POST['categorie_id'] ?? 0);
+            $etapeId = (int)($_POST['etape_id'] ?? 0);
             $fournisseur = trim($_POST['fournisseur'] ?? '');
             $description = trim($_POST['description'] ?? '');
             $dateFacture = $_POST['date_facture'] ?? '';
@@ -89,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($projetId <= 0) {
                 $errors[] = 'Veuillez sélectionner un projet.';
             }
-            if ($categorieId <= 0) {
-                $errors[] = 'Veuillez sélectionner une catégorie.';
+            if ($etapeId <= 0) {
+                $errors[] = 'Veuillez sélectionner une étape.';
             }
             if (empty($fournisseur)) {
                 $errors[] = 'Veuillez entrer le nom du fournisseur.';
@@ -124,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("
                     UPDATE factures SET
                         projet_id = ?,
-                        categorie_id = ?,
+                        etape_id = ?,
                         fournisseur = ?,
                         description = ?,
                         date_facture = ?,
@@ -137,10 +143,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         date_modification = NOW()
                     WHERE id = ?
                 ");
-                
+
                 $result = $stmt->execute([
                     $projetId,
-                    $categorieId,
+                    $etapeId,
                     $fournisseur,
                     $description,
                     $dateFacture,
@@ -226,20 +232,16 @@ include '../includes/header.php';
                                    required>
                         </div>
                         
-                        <!-- Catégorie -->
+                        <!-- Étape -->
                         <div class="mb-3">
-                            <label for="categorie_id" class="form-label">Catégorie *</label>
-                            <select class="form-select" id="categorie_id" name="categorie_id" required>
-                                <option value="">Sélectionner une catégorie...</option>
-                                <?php foreach ($categoriesGrouped as $groupe => $cats): ?>
-                                    <optgroup label="<?= e(getGroupeCategorieLabel($groupe)) ?>">
-                                        <?php foreach ($cats as $cat): ?>
-                                            <option value="<?= $cat['id'] ?>" 
-                                                    <?= $facture['categorie_id'] == $cat['id'] ? 'selected' : '' ?>>
-                                                <?= e($cat['nom']) ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </optgroup>
+                            <label for="etape_id" class="form-label">Étape *</label>
+                            <select class="form-select" id="etape_id" name="etape_id" required>
+                                <option value="">Sélectionner une étape...</option>
+                                <?php foreach ($etapes as $etape): ?>
+                                    <option value="<?= $etape['id'] ?>"
+                                            <?= ($facture['etape_id'] ?? 0) == $etape['id'] ? 'selected' : '' ?>>
+                                        <?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>

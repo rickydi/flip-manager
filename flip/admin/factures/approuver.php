@@ -54,10 +54,10 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
     } elseif ($action === 'rejeter') {
         // Afficher le formulaire de rejet
         $stmt = $pdo->prepare("
-            SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom
+            SELECT f.*, p.nom as projet_nom, e.nom as etape_nom
             FROM factures f
             JOIN projets p ON f.projet_id = p.id
-            JOIN categories c ON f.categorie_id = c.id
+            LEFT JOIN budget_etapes e ON f.etape_id = e.id
             WHERE f.id = ?
         ");
         $stmt->execute([$factureId]);
@@ -78,7 +78,7 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
                     </div>
                     <div class="card-body">
                         <p><strong>Projet:</strong> <?= e($facture['projet_nom']) ?></p>
-                        <p><strong>Catégorie:</strong> <?= e($facture['categorie_nom']) ?></p>
+                        <p><strong>Étape:</strong> <?= e($facture['etape_nom'] ?? 'Non spécifié') ?></p>
                         <p><strong>Date:</strong> <?= formatDate($facture['date_facture']) ?></p>
                         
                         <form method="POST" action="">
@@ -159,11 +159,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Récupérer les factures en attente
 $stmt = $pdo->query("
-    SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom,
+    SELECT f.*, p.nom as projet_nom, e.nom as etape_nom,
            CONCAT(u.prenom, ' ', u.nom) as employe_nom
     FROM factures f
     JOIN projets p ON f.projet_id = p.id
-    JOIN categories c ON f.categorie_id = c.id
+    LEFT JOIN budget_etapes e ON f.etape_id = e.id
     JOIN users u ON f.user_id = u.id
     WHERE f.statut = 'en_attente'
     ORDER BY f.date_creation ASC
@@ -212,7 +212,7 @@ include '../../includes/header.php';
                                 <th>Date</th>
                                 <th>Projet</th>
                                 <th>Fournisseur</th>
-                                <th>Catégorie</th>
+                                <th>Étape</th>
                                 <th>Employé</th>
                                 <th class="text-end">Montant</th>
                                 <th>Fichier</th>
@@ -234,7 +234,7 @@ include '../../includes/header.php';
                                             <br><small class="text-muted"><?= e(substr($facture['description'], 0, 50)) ?></small>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?= e($facture['categorie_nom']) ?></td>
+                                    <td><?= e($facture['etape_nom'] ?? 'Non spécifié') ?></td>
                                     <td><?= e($facture['employe_nom']) ?></td>
                                     <td class="text-end">
                                         <strong><?= formatMoney($facture['montant_total']) ?></strong>

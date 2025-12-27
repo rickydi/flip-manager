@@ -94,11 +94,6 @@ include '../../includes/header.php';
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" href="<?= url('/admin/categories/liste.php') ?>">
-                <i class="bi bi-tags me-1"></i>Catégories
-            </a>
-        </li>
-        <li class="nav-item">
             <a class="nav-link" href="<?= url('/admin/fournisseurs/liste.php') ?>">
                 <i class="bi bi-shop me-1"></i>Fournisseurs
             </a>

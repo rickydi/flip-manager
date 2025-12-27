@@ -343,23 +343,6 @@ function getStatutFactureIcon($statut) {
 }
 
 /**
- * Récupère le libellé du groupe de catégorie
- * @param string $groupe
- * @return string
- */
-function getGroupeCategorieLabel($groupe) {
-    $labels = [
-        'exterieur' => 'Extérieur',
-        'finition' => 'Finition intérieure',
-        'ebenisterie' => 'Ébénisterie',
-        'electricite' => 'Électricité',
-        'plomberie' => 'Plomberie',
-        'autre' => 'Autre'
-    ];
-    return $labels[$groupe] ?? $groupe;
-}
-
-/**
  * Affiche un message flash
  * @param string $type success, danger, warning, info
  * @param string $message
@@ -458,22 +441,6 @@ function getProjetById($pdo, $id) {
     $stmt = $pdo->prepare("SELECT * FROM projets WHERE id = ?");
     $stmt->execute([$id]);
     return $stmt->fetch();
-}
-
-/**
- * Récupère toutes les catégories groupées
- * @param PDO $pdo
- * @return array
- */
-function getCategoriesGrouped($pdo) {
-    $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre");
-    $categories = $stmt->fetchAll();
-    
-    $grouped = [];
-    foreach ($categories as $cat) {
-        $grouped[$cat['groupe']][] = $cat;
-    }
-    return $grouped;
 }
 
 /**
