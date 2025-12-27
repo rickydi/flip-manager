@@ -318,7 +318,7 @@ include '../../includes/header.php';
                                 <tr onclick="window.location='<?= url('/admin/factures/modifier.php?id=' . $facture['id']) ?>'" style="cursor:pointer" class="<?= $isRemboursement ? 'table-success' : '' ?>">
                                     <td class="text-center" onclick="event.stopPropagation()">
                                         <?php if ($isImage): ?>
-                                            <a href="<?= url('/uploads/factures/' . $facture['fichier']) ?>" target="_blank">
+                                            <a href="javascript:void(0)" onclick="openImageModal('<?= url('/uploads/factures/' . $facture['fichier']) ?>', '<?= e($facture['fournisseur']) ?>')">
                                                 <img src="<?= url('/uploads/factures/' . $facture['fichier']) ?>"
                                                      alt="Facture"
                                                      style="width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid #ddd">
@@ -499,5 +499,28 @@ function supprimerFacture() {
 </script>
 
 <!-- Info: Page auto-refresh toutes les 15 secondes -->
+
+<!-- Modal pour afficher les images de factures -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalTitle">Facture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <div class="modal-body text-center p-0">
+                <img src="" id="imageModalImg" style="max-width:100%; max-height:80vh; object-fit:contain;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openImageModal(imageUrl, fournisseur) {
+    document.getElementById('imageModalImg').src = imageUrl;
+    document.getElementById('imageModalTitle').textContent = 'Facture - ' + fournisseur;
+    new bootstrap.Modal(document.getElementById('imageModal')).show();
+}
+</script>
 
 <?php include '../../includes/footer.php'; ?>
