@@ -47,6 +47,13 @@ try {
     $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN lien_achat VARCHAR(500) DEFAULT NULL");
 }
 
+// Ajouter colonne sans_taxe si manquante
+try {
+    $pdo->query("SELECT sans_taxe FROM catalogue_items LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN sans_taxe TINYINT(1) DEFAULT 0");
+}
+
 // ============================================
 // AUTO-MIGRATION: Table budget_items (panier)
 // ============================================

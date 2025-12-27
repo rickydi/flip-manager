@@ -1477,6 +1477,9 @@ $categories = getCategories($pdo);
 $budgets = getBudgetsParCategorie($pdo, $projetId);
 $depenses = calculerDepensesParCategorie($pdo, $projetId);
 
+// NOUVEAU SYSTÈME: Budget par étape (sections du budget-builder)
+$budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
+
 // Calcul des coûts récurrents réels basés sur le temps écoulé depuis l'achat
 $recurrentsReels = calculerCoutsRecurrentsReels($projet);
 $moisEcoules = $recurrentsReels['mois_ecoules'];
@@ -2833,6 +2836,29 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
                     $totalEcartReno = 0; // Somme de tous les écarts (positifs compensent négatifs)
+
+                    // NOUVEAU SYSTÈME: Afficher par étape si le budget-builder est utilisé
+                    if (!empty($budgetParEtape)):
+                        foreach ($budgetParEtape as $etapeId => $etape):
+                            if ($etape['total'] == 0) continue;
+                            $budgetHT = $etape['total'];
+                            // Pour l'instant, pas de dépenses réelles par étape (à implémenter plus tard)
+                            $depense = 0;
+                            $ecart = $budgetHT - $depense;
+                            $totalBudgetReno += $budgetHT;
+                            $totalReelReno += $depense;
+                            $totalEcartReno += $ecart;
+                    ?>
+                    <tr class="sub-item detail-etape-row" data-etape-id="<?= $etapeId ?>">
+                        <td><i class="bi bi-bookmark-fill me-1 text-muted"></i><?= e($etape['nom']) ?></td>
+                        <td class="text-end detail-etape-budget"><?= formatMoney($budgetHT) ?></td>
+                        <td class="text-end detail-etape-diff <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= $ecart != 0 ? formatMoney($ecart) : '-' ?></td>
+                        <td class="text-end detail-etape-reel"><?= formatMoney($depense) ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php else: ?>
+                    <?php
+                    // ANCIEN SYSTÈME: Fallback sur les catégories
                     foreach ($categories as $cat):
                         $budgetUnit = $budgets[$cat['id']] ?? 0;
                         $depense = $depenses[$cat['id']] ?? 0;
@@ -2864,6 +2890,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <td class="text-end detail-cat-reel"><?= formatMoney($depense) ?></td>
                     </tr>
                     <?php endforeach; ?>
+                    <?php endif; ?>
                     
                     <!-- MAIN D'ŒUVRE -->
                     <?php

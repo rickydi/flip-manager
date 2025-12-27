@@ -981,45 +981,29 @@ function calculerTaxes($montantAvantTaxes) {
  * @return array
  */
 function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
-    // Charger les quantités de groupes pour ce projet
-    $groupeQtes = [];
-    try {
-        $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
-        $stmt->execute([$projetId]);
-        foreach ($stmt->fetchAll() as $row) {
-            $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
-        }
-    } catch (Exception $e) {
-        // Table n'existe pas encore
-    }
-
     // Calculer les totaux taxables et non-taxables par item
     $totalTaxable = 0;
     $totalNonTaxable = 0;
     $hasItems = false;
 
+    // NOUVEAU SYSTÈME: Essayer d'abord budget_items (panier du budget-builder)
     try {
         $stmt = $pdo->prepare("
-            SELECT pi.prix_unitaire, pi.quantite as qte_item, pi.sans_taxe,
-                   pp.quantite as qte_cat, c.groupe
-            FROM projet_items pi
-            JOIN projet_postes pp ON pi.projet_poste_id = pp.id
-            JOIN categories c ON pp.categorie_id = c.id
-            WHERE pi.projet_id = ?
+            SELECT bi.prix, bi.quantite, ci.sans_taxe
+            FROM budget_items bi
+            LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+            WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
         ");
         $stmt->execute([$projetId]);
         $items = $stmt->fetchAll();
 
         foreach ($items as $row) {
             $hasItems = true;
-            $prix = (float)$row['prix_unitaire'];
-            $qteItem = (int)$row['qte_item'];
-            $qteCat = (int)$row['qte_cat'];
-            $groupe = $row['groupe'] ?? 'autre';
-            $qteGroupe = $groupeQtes[$groupe] ?? 1;
+            $prix = (float)$row['prix'];
+            $qte = (int)$row['quantite'];
             $sansTaxe = (int)($row['sans_taxe'] ?? 0);
 
-            $montant = $prix * $qteItem * $qteCat * $qteGroupe;
+            $montant = $prix * $qte;
 
             if ($sansTaxe) {
                 $totalNonTaxable += $montant;
@@ -1031,7 +1015,55 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
         // Table n'existe pas
     }
 
-    // Si pas d'items, utiliser le budget total comme taxable (fallback pour anciens projets)
+    // ANCIEN SYSTÈME: Fallback sur projet_items
+    if (!$hasItems) {
+        // Charger les quantités de groupes pour ce projet
+        $groupeQtes = [];
+        try {
+            $stmt = $pdo->prepare("SELECT groupe_nom, quantite FROM projet_groupes WHERE projet_id = ?");
+            $stmt->execute([$projetId]);
+            foreach ($stmt->fetchAll() as $row) {
+                $groupeQtes[$row['groupe_nom']] = (int)$row['quantite'];
+            }
+        } catch (Exception $e) {
+            // Table n'existe pas encore
+        }
+
+        try {
+            $stmt = $pdo->prepare("
+                SELECT pi.prix_unitaire, pi.quantite as qte_item, pi.sans_taxe,
+                       pp.quantite as qte_cat, c.groupe
+                FROM projet_items pi
+                JOIN projet_postes pp ON pi.projet_poste_id = pp.id
+                JOIN categories c ON pp.categorie_id = c.id
+                WHERE pi.projet_id = ?
+            ");
+            $stmt->execute([$projetId]);
+            $oldItems = $stmt->fetchAll();
+
+            foreach ($oldItems as $row) {
+                $hasItems = true;
+                $prix = (float)$row['prix_unitaire'];
+                $qteItem = (int)$row['qte_item'];
+                $qteCat = (int)$row['qte_cat'];
+                $groupe = $row['groupe'] ?? 'autre';
+                $qteGroupe = $groupeQtes[$groupe] ?? 1;
+                $sansTaxe = (int)($row['sans_taxe'] ?? 0);
+
+                $montant = $prix * $qteItem * $qteCat * $qteGroupe;
+
+                if ($sansTaxe) {
+                    $totalNonTaxable += $montant;
+                } else {
+                    $totalTaxable += $montant;
+                }
+            }
+        } catch (Exception $e) {
+            // Table n'existe pas
+        }
+    }
+
+    // Si toujours pas d'items, utiliser le budget total comme taxable (fallback)
     if (!$hasItems) {
         $totalTaxable = calculerTotalBudgetRenovation($pdo, $projetId);
     }
