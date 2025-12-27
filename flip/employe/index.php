@@ -19,10 +19,10 @@ $projets = getProjets($pdo);
 // Récupérer les dernières factures de l'employé
 $userId = getCurrentUserId();
 $stmt = $pdo->prepare("
-    SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom
+    SELECT f.*, p.nom as projet_nom, e.nom as etape_nom
     FROM factures f
     JOIN projets p ON f.projet_id = p.id
-    JOIN categories c ON f.categorie_id = c.id
+    LEFT JOIN budget_etapes e ON f.etape_id = e.id
     WHERE f.user_id = ?
     ORDER BY f.date_creation DESC
     LIMIT 10
@@ -274,7 +274,7 @@ include '../includes/header.php';
                                     <td><?= formatDate($facture['date_facture']) ?></td>
                                     <td><?= e($facture['projet_nom']) ?></td>
                                     <td><?= e($facture['fournisseur']) ?></td>
-                                    <td><?= e($facture['categorie_nom']) ?></td>
+                                    <td><?= e($facture['etape_nom'] ?? '-') ?></td>
                                     <td class="text-end"><?= formatMoney($facture['montant_total']) ?></td>
                                     <td class="text-center">
                                         <span class="badge <?= getStatutFactureClass($facture['statut']) ?>">

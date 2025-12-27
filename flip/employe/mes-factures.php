@@ -47,10 +47,10 @@ $totalPages = ceil($totalFactures / $perPage);
 
 // Récupérer les factures
 $sql = "
-    SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom
+    SELECT f.*, p.nom as projet_nom, e.nom as etape_nom
     FROM factures f
     JOIN projets p ON f.projet_id = p.id
-    JOIN categories c ON f.categorie_id = c.id
+    LEFT JOIN budget_etapes e ON f.etape_id = e.id
     $where
     ORDER BY f.date_creation DESC
     LIMIT $perPage OFFSET $offset
@@ -187,7 +187,7 @@ include '../includes/header.php';
                                             <span class="badge bg-success ms-1"><?= __('refund') ?></span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?= e($facture['categorie_nom']) ?></td>
+                                    <td><?= e($facture['etape_nom'] ?? '-') ?></td>
                                     <td class="text-end">
                                         <strong class="<?= $isRemboursement ? 'text-success' : '' ?>">
                                             <?= $isRemboursement ? '+' : '' ?><?= formatMoney(abs($facture['montant_total'])) ?>
