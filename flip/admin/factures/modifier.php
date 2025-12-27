@@ -73,7 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $projetId = (int)($_POST['projet_id'] ?? 0);
         $etapeId = (int)($_POST['etape_id'] ?? 0);
-        $categorieId = (int)($_POST['categorie_id'] ?? 0); // Fallback ancien système
+        // Garder l'ancien categorie_id si pas fourni (pour la contrainte FK)
+        $categorieId = (int)($_POST['categorie_id'] ?? 0) ?: $facture['categorie_id'];
         $fournisseur = trim($_POST['fournisseur'] ?? '');
         $description = trim($_POST['description'] ?? '');
         $dateFacture = $_POST['date_facture'] ?? '';
@@ -120,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ");
 
                 if ($stmt->execute([
-                    $projetId, $categorieId ?: null, $etapeId ?: null, $fournisseur, $description,
+                    $projetId, $categorieId, $etapeId ?: null, $fournisseur, $description,
                     $dateFacture, $montantAvantTaxes, $tps, $tvq,
                     $montantTotal, $fichier, $notes, $statut,
                     $factureId
