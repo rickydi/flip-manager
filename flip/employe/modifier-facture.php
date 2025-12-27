@@ -109,8 +109,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($projetId <= 0) {
                 $errors[] = 'Veuillez sélectionner un projet.';
             }
+            // etape_id est optionnel (peut être NULL)
             if ($etapeId <= 0) {
-                $errors[] = 'Veuillez sélectionner une étape.';
+                $etapeId = null;
             }
             if (empty($fournisseur)) {
                 $errors[] = 'Veuillez entrer le nom du fournisseur.';
@@ -246,11 +247,11 @@ include '../includes/header.php';
                                    required>
                         </div>
                         
-                        <!-- Étape -->
+                        <!-- Étape (optionnel) -->
                         <div class="mb-3">
-                            <label for="etape_id" class="form-label">Étape *</label>
-                            <select class="form-select" id="etape_id" name="etape_id" required>
-                                <option value="">Sélectionner une étape...</option>
+                            <label for="etape_id" class="form-label">Étape</label>
+                            <select class="form-select" id="etape_id" name="etape_id">
+                                <option value="">-- Aucune étape --</option>
                                 <?php foreach ($etapes as $etape): ?>
                                     <option value="<?= $etape['id'] ?>"
                                             <?= ($facture['etape_id'] ?? 0) == $etape['id'] ? 'selected' : '' ?>>
