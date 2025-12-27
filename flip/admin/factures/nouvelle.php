@@ -159,7 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ])) {
                 $msg = $approuverDirect ? 'Facture ajoutée et approuvée!' : 'Facture ajoutée!';
                 setFlashMessage('success', $msg);
-                redirect('/admin/factures/liste.php?projet=' . $projetId);
+                redirect('/admin/projets/detail.php?id=' . $projetId);
             } else {
                 $errors[] = 'Erreur lors de l\'ajout de la facture.';
                 if ($fichier) deleteUploadedFile($fichier);
