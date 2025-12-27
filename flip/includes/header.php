@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" style="background-color: #212529;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,7 +36,7 @@
         <?= $extraCss ?>
     <?php endif; ?>
 </head>
-<body>
+<body style="background-color: #212529;">
     <?php if (isLoggedIn()): ?>
         <?php include __DIR__ . '/navbar.php'; ?>
     <?php endif; ?>
