@@ -12,6 +12,13 @@ require_once '../includes/notifications.php';
 // Vérifier que l'utilisateur est connecté
 requireLogin();
 
+// Auto-migration: ajouter colonne etape_id si elle n'existe pas
+try {
+    $pdo->exec("ALTER TABLE factures ADD COLUMN etape_id INT DEFAULT NULL");
+} catch (Exception $e) {
+    // Colonne existe déjà
+}
+
 $pageTitle = 'Nouvelle facture';
 
 // Récupérer les projets actifs
