@@ -563,7 +563,7 @@ function renderCatalogueSections($sections) {
                 <i class="bi bi-list-ol text-primary me-1"></i>
                 <span class="item-nom fw-bold"><?= $etapeLabel ?></span>
                 <span class="badge bg-primary ms-2"><?= $itemCount ?></span>
-                <div class="btn-group btn-group-sm ms-auto">
+                <div class="btn-group btn-group-sm ms-auto" style="gap: 8px;">
                     <button type="button" class="btn btn-link p-0 text-success" onclick="addItemToSection(<?= $etapeId ?>, 'folder')" title="Ajouter dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
