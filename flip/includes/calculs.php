@@ -271,6 +271,26 @@ function calculerCoutsVente($projet) {
  * @return float
  */
 function calculerTotalBudgetRenovation($pdo, $projetId) {
+    // NOUVEAU SYSTÈME: Utiliser budget_items (panier du budget-builder)
+    try {
+        $stmt = $pdo->prepare("
+            SELECT SUM(prix * quantite) as total
+            FROM budget_items
+            WHERE projet_id = ? AND (type = 'item' OR type IS NULL)
+        ");
+        $stmt->execute([$projetId]);
+        $result = $stmt->fetch();
+        $total = (float) ($result['total'] ?? 0);
+
+        // Si on a des données dans le nouveau système, les utiliser
+        if ($total > 0) {
+            return $total;
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas encore, fallback à l'ancien système
+    }
+
+    // ANCIEN SYSTÈME (fallback): Utiliser budgets table
     // Charger les quantités de groupes pour ce projet
     $groupeQtes = [];
     try {
@@ -307,6 +327,46 @@ function calculerTotalBudgetRenovation($pdo, $projetId) {
     }
 
     return $total;
+}
+
+/**
+ * Calcule le budget de rénovation par étape (section) - NOUVEAU SYSTÈME
+ * @param PDO $pdo
+ * @param int $projetId
+ * @return array [etape_id => ['nom' => string, 'total' => float]]
+ */
+function calculerBudgetParEtape($pdo, $projetId) {
+    $result = [];
+
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                e.id as etape_id,
+                e.nom as etape_nom,
+                e.ordre as etape_ordre,
+                SUM(bi.prix * bi.quantite) as total
+            FROM budget_items bi
+            LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+            LEFT JOIN budget_etapes e ON ci.etape_id = e.id
+            WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
+            GROUP BY e.id, e.nom, e.ordre
+            ORDER BY e.ordre, e.nom
+        ");
+        $stmt->execute([$projetId]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            $etapeId = $row['etape_id'] ?? 0;
+            $result[$etapeId] = [
+                'nom' => $row['etape_nom'] ?? 'Non spécifié',
+                'ordre' => $row['etape_ordre'] ?? 999,
+                'total' => (float) ($row['total'] ?? 0)
+            ];
+        }
+    } catch (Exception $e) {
+        // Table n'existe pas
+    }
+
+    return $result;
 }
 
 /**
