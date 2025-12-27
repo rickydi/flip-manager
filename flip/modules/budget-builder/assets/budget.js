@@ -459,6 +459,7 @@ const BudgetBuilder = {
 
     showAddQuantityModal: function(catalogueItemId, itemInfo) {
         const self = this;
+        console.log('itemInfo:', itemInfo); // DEBUG
         const existsText = itemInfo.exists
             ? `<div class="alert alert-info mb-3">
                  <i class="bi bi-info-circle me-2"></i>
