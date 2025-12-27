@@ -84,16 +84,13 @@ if (!empty($conditionsJoin)) {
     $sqlProjet .= " AND " . implode(" AND ", $conditionsJoin);
 }
 if ($filtreGroupe !== '') {
-    $sqlProjet .= " LEFT JOIN categories c ON f.categorie_id = c.id";
+    $sqlProjet .= " LEFT JOIN budget_etapes e ON f.etape_id = e.id";
 }
 if ($filtreProjet > 0) {
     $conditionsWhere[] = "p.id = ?";
     $paramsProjet[] = $filtreProjet;
 }
-if ($filtreGroupe !== '') {
-    $conditionsWhere[] = "c.groupe = ?";
-    $paramsProjet[] = $filtreGroupe;
-}
+// Groupe filter removed - not applicable with budget_etapes
 if (!empty($conditionsWhere)) {
     $sqlProjet .= " WHERE " . implode(" AND ", $conditionsWhere);
 }
@@ -136,46 +133,41 @@ foreach ($rapportProjets as &$projet) {
 }
 unset($projet);
 
-// 2. Rapport par catégorie (avec requêtes préparées)
-$sqlCategorie = "
-    SELECT c.nom as categorie, c.groupe,
-           COALESCE(SUM(f.montant_total), 0) as total
-    FROM categories c
-    LEFT JOIN factures f ON f.categorie_id = c.id AND f.statut = 'approuvee'
-";
-$paramsCategorie = [];
-$conditionsCatJoin = [];
-$conditionsCatWhere = ["1=1"];
+// 2. Rapport par étape (avec requêtes préparées)
+$rapportCategories = [];
+try {
+    $sqlEtape = "
+        SELECT e.nom as categorie, '' as groupe,
+               COALESCE(SUM(f.montant_total), 0) as total
+        FROM budget_etapes e
+        LEFT JOIN factures f ON f.etape_id = e.id AND f.statut = 'approuvee'
+    ";
+    $paramsEtape = [];
+    $conditionsEtapeJoin = [];
 
-if ($dateDebut) {
-    $conditionsCatJoin[] = "f.date_facture >= ?";
-    $paramsCategorie[] = $dateDebut;
-}
-if ($dateFin) {
-    $conditionsCatJoin[] = "f.date_facture <= ?";
-    $paramsCategorie[] = $dateFin;
-}
-if ($filtreProjet > 0) {
-    $conditionsCatJoin[] = "f.projet_id = ?";
-    $paramsCategorie[] = $filtreProjet;
-}
-if (!empty($conditionsCatJoin)) {
-    $sqlCategorie .= " AND " . implode(" AND ", $conditionsCatJoin);
-}
-if ($filtreCategorie > 0) {
-    $conditionsCatWhere[] = "c.id = ?";
-    $paramsCategorie[] = $filtreCategorie;
-}
-if ($filtreGroupe !== '') {
-    $conditionsCatWhere[] = "c.groupe = ?";
-    $paramsCategorie[] = $filtreGroupe;
-}
-$sqlCategorie .= " WHERE " . implode(" AND ", $conditionsCatWhere);
-$sqlCategorie .= " GROUP BY c.id, c.nom, c.groupe HAVING total > 0 ORDER BY total DESC";
+    if ($dateDebut) {
+        $conditionsEtapeJoin[] = "f.date_facture >= ?";
+        $paramsEtape[] = $dateDebut;
+    }
+    if ($dateFin) {
+        $conditionsEtapeJoin[] = "f.date_facture <= ?";
+        $paramsEtape[] = $dateFin;
+    }
+    if ($filtreProjet > 0) {
+        $conditionsEtapeJoin[] = "f.projet_id = ?";
+        $paramsEtape[] = $filtreProjet;
+    }
+    if (!empty($conditionsEtapeJoin)) {
+        $sqlEtape .= " AND " . implode(" AND ", $conditionsEtapeJoin);
+    }
+    $sqlEtape .= " GROUP BY e.id, e.nom HAVING total > 0 ORDER BY total DESC";
 
-$stmtCategorie = $pdo->prepare($sqlCategorie);
-$stmtCategorie->execute($paramsCategorie);
-$rapportCategories = $stmtCategorie->fetchAll();
+    $stmtEtape = $pdo->prepare($sqlEtape);
+    $stmtEtape->execute($paramsEtape);
+    $rapportCategories = $stmtEtape->fetchAll();
+} catch (Exception $e) {
+    $rapportCategories = [];
+}
 
 // 3. Rapport par employé (avec requêtes préparées)
 try {

@@ -185,20 +185,8 @@ function syncBudgetsFromProjetItems($pdo, $projetId) {
     }
 
     // Récupérer les quantités des postes et leur groupe
-    $stmt = $pdo->prepare("
-        SELECT pp.categorie_id, pp.quantite as poste_qte, c.groupe
-        FROM projet_postes pp
-        JOIN categories c ON c.id = pp.categorie_id
-        WHERE pp.projet_id = ?
-    ");
-    $stmt->execute([$projetId]);
+    // Legacy code - projet_postes n'est plus utilisé
     $postes = [];
-    foreach ($stmt->fetchAll() as $p) {
-        $postes[$p['categorie_id']] = [
-            'qte' => $p['poste_qte'],
-            'groupe' => $p['groupe']
-        ];
-    }
 
     // Mettre à jour la table budgets
     foreach ($totals as $t) {
@@ -1191,20 +1179,17 @@ if (!$projet) {
     redirect('/admin/projets/liste.php');
 }
 
-// Récupérer les catégories avec budgets
-$stmt = $pdo->prepare("
-    SELECT c.*, COALESCE(b.montant_extrapole, 0) as montant_extrapole
-    FROM categories c
-    LEFT JOIN budgets b ON c.id = b.categorie_id AND b.projet_id = ?
-    ORDER BY c.groupe, c.ordre
-");
-$stmt->execute([$projetId]);
-$categoriesAvecBudget = $stmt->fetchAll();
+// Récupérer les étapes (remplace les anciennes catégories)
+$categoriesAvecBudget = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, nom");
+    $categoriesAvecBudget = $stmt->fetchAll();
+} catch (Exception $e) {}
 
-// Grouper par catégorie
+// Grouper par catégorie (toutes dans 'Étapes' maintenant)
 $categoriesGroupees = [];
 foreach ($categoriesAvecBudget as $cat) {
-    $categoriesGroupees[$cat['groupe']][] = $cat;
+    $categoriesGroupees['etapes'][] = $cat;
 }
 
 $groupeLabels = [
@@ -1586,20 +1571,8 @@ function getSousCategoriesRecursifBudget($pdo, $categorieId, $parentId = null) {
 }
 
 try {
-    // Charger les catégories avec leur structure récursive
-    $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre, nom");
-    $categories = $stmt->fetchAll();
-
-    foreach ($categories as $catIndex => $cat) {
-        $catId = $cat['id'];
-        $templatesBudgets[$catId] = [
-            'id' => $catId,
-            'nom' => $cat['nom'],
-            'groupe' => $cat['groupe'],
-            'ordre' => $cat['ordre'] ?? $catIndex,
-            'sous_categories' => getSousCategoriesRecursifBudget($pdo, $catId)
-        ];
-    }
+    // Legacy: ancien système de catégories - maintenant on utilise budget_etapes
+    // Ce code n'est plus utilisé avec le nouveau budget-builder
 
     // Charger les postes existants du projet
     $stmt = $pdo->prepare("SELECT * FROM projet_postes WHERE projet_id = ?");
@@ -2116,9 +2089,9 @@ try {
 $facturesProjet = [];
 try {
     $stmt = $pdo->prepare("
-        SELECT f.*, c.nom as categorie_nom
+        SELECT f.*, e.nom as etape_nom
         FROM factures f
-        LEFT JOIN categories c ON f.categorie_id = c.id
+        LEFT JOIN budget_etapes e ON f.etape_id = e.id
         WHERE f.projet_id = ?
         ORDER BY f.date_facture DESC, f.id DESC
     ");

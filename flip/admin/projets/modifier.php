@@ -29,15 +29,14 @@ if (!$projet) {
     redirect('/admin/projets/liste.php');
 }
 
-// Récupérer les catégories avec budgets
-$stmt = $pdo->prepare("
-    SELECT c.*, COALESCE(b.montant_extrapole, 0) as montant_extrapole
-    FROM categories c
-    LEFT JOIN budgets b ON c.id = b.categorie_id AND b.projet_id = ?
-    ORDER BY c.groupe, c.ordre
-");
-$stmt->execute([$projetId]);
-$categories = $stmt->fetchAll();
+// Récupérer les étapes (ancien système de catégories remplacé)
+$categories = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, nom");
+    $categories = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas encore
+}
 
 // Récupérer les prêteurs disponibles
 $stmt = $pdo->query("SELECT * FROM investisseurs ORDER BY nom");
@@ -240,19 +239,16 @@ $stmt = $pdo->prepare("SELECT * FROM projets WHERE id = ?");
 $stmt->execute([$projetId]);
 $projet = $stmt->fetch();
 
-// Recharger les budgets
-$stmt = $pdo->prepare("
-    SELECT c.*, COALESCE(b.montant_extrapole, 0) as montant_extrapole
-    FROM categories c
-    LEFT JOIN budgets b ON c.id = b.categorie_id AND b.projet_id = ?
-    ORDER BY c.groupe, c.ordre
-");
-$stmt->execute([$projetId]);
-$categories = $stmt->fetchAll();
+// Recharger les étapes
+$categories = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, nom");
+    $categories = $stmt->fetchAll();
+} catch (Exception $e) {}
 
 $categoriesGroupees = [];
 foreach ($categories as $cat) {
-    $categoriesGroupees[$cat['groupe']][] = $cat;
+    $categoriesGroupees['Étapes'][] = $cat;
 }
 
 // Calculer la durée réelle (comme dans calculs.php)

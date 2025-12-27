@@ -179,11 +179,11 @@ $totalImpaye = $stmtImpaye->fetchColumn();
 
 // Récupérer les factures
 $sql = "
-    SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom,
+    SELECT f.*, p.nom as projet_nom, e.nom as etape_nom,
            CONCAT(u.prenom, ' ', u.nom) as employe_nom
     FROM factures f
     JOIN projets p ON f.projet_id = p.id
-    JOIN categories c ON f.categorie_id = c.id
+    LEFT JOIN budget_etapes e ON f.etape_id = e.id
     JOIN users u ON f.user_id = u.id
     $where
     ORDER BY f.date_creation DESC

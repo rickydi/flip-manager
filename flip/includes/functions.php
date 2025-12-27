@@ -449,8 +449,13 @@ function getProjetById($pdo, $id) {
  * @return array
  */
 function getCategories($pdo) {
-    $stmt = $pdo->query("SELECT * FROM categories ORDER BY groupe, ordre");
-    return $stmt->fetchAll();
+    // Utilise maintenant budget_etapes au lieu de categories
+    try {
+        $stmt = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, nom");
+        return $stmt->fetchAll();
+    } catch (Exception $e) {
+        return [];
+    }
 }
 
 /**

@@ -133,11 +133,11 @@ $activites = array_slice($activites, 0, 20);
 
 // Factures en attente
 $stmt = $pdo->query("
-    SELECT f.*, p.nom as projet_nom, c.nom as categorie_nom, 
+    SELECT f.*, p.nom as projet_nom, e.nom as etape_nom,
            CONCAT(u.prenom, ' ', u.nom) as employe_nom
     FROM factures f
     JOIN projets p ON f.projet_id = p.id
-    JOIN categories c ON f.categorie_id = c.id
+    LEFT JOIN budget_etapes e ON f.etape_id = e.id
     JOIN users u ON f.user_id = u.id
     WHERE f.statut = 'en_attente'
     ORDER BY f.date_creation ASC

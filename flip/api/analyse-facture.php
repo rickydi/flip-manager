@@ -53,13 +53,16 @@ try {
     $stmt = $pdo->query("SELECT nom FROM fournisseurs WHERE actif = 1 ORDER BY nom");
     $fournisseurs = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // Récupérer les catégories
-    $stmt = $pdo->query("SELECT id, nom FROM categories ORDER BY nom");
-    $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Récupérer les étapes
+    $etapes = [];
+    try {
+        $stmt = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
+        $etapes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Exception $e) {}
 
     // Analyser avec Claude
     $claude = new ClaudeService($pdo);
-    $result = $claude->analyserFacture($imageData, $mimeType, $fournisseurs, $categories);
+    $result = $claude->analyserFacture($imageData, $mimeType, $fournisseurs, $etapes);
 
     echo json_encode([
         'success' => true,
