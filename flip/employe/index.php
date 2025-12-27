@@ -16,19 +16,43 @@ $pageTitle = __('dashboard');
 // Récupérer les projets actifs
 $projets = getProjets($pdo);
 
+// Auto-création table budget_etapes si elle n'existe pas
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS budget_etapes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nom VARCHAR(255) NOT NULL,
+        ordre INT DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {}
+
 // Récupérer les dernières factures de l'employé
 $userId = getCurrentUserId();
-$stmt = $pdo->prepare("
-    SELECT f.*, p.nom as projet_nom, e.nom as etape_nom
-    FROM factures f
-    JOIN projets p ON f.projet_id = p.id
-    LEFT JOIN budget_etapes e ON f.etape_id = e.id
-    WHERE f.user_id = ?
-    ORDER BY f.date_creation DESC
-    LIMIT 10
-");
-$stmt->execute([$userId]);
-$mesFactures = $stmt->fetchAll();
+$mesFactures = [];
+try {
+    $stmt = $pdo->prepare("
+        SELECT f.*, p.nom as projet_nom, e.nom as etape_nom
+        FROM factures f
+        JOIN projets p ON f.projet_id = p.id
+        LEFT JOIN budget_etapes e ON f.etape_id = e.id
+        WHERE f.user_id = ?
+        ORDER BY f.date_creation DESC
+        LIMIT 10
+    ");
+    $stmt->execute([$userId]);
+    $mesFactures = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Fallback sans étapes
+    $stmt = $pdo->prepare("
+        SELECT f.*, p.nom as projet_nom, NULL as etape_nom
+        FROM factures f
+        JOIN projets p ON f.projet_id = p.id
+        WHERE f.user_id = ?
+        ORDER BY f.date_creation DESC
+        LIMIT 10
+    ");
+    $stmt->execute([$userId]);
+    $mesFactures = $stmt->fetchAll();
+}
 
 // Statistiques
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM factures WHERE user_id = ?");

@@ -15,9 +15,16 @@ requireLogin();
 // Auto-migration: ajouter colonne etape_id si elle n'existe pas
 try {
     $pdo->exec("ALTER TABLE factures ADD COLUMN etape_id INT DEFAULT NULL");
-} catch (Exception $e) {
-    // Colonne existe déjà
-}
+} catch (Exception $e) {}
+
+// Auto-création table budget_etapes si elle n'existe pas
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS budget_etapes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nom VARCHAR(255) NOT NULL,
+        ordre INT DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {}
 
 $pageTitle = 'Nouvelle facture';
 
@@ -29,9 +36,7 @@ $etapes = [];
 try {
     $stmt = $pdo->query("SELECT id, nom, ordre FROM budget_etapes ORDER BY ordre, nom");
     $etapes = $stmt->fetchAll();
-} catch (Exception $e) {
-    // Table n'existe pas encore
-}
+} catch (Exception $e) {}
 
 // Projet pré-sélectionné
 $projetIdSelected = isset($_GET['projet_id']) ? (int)$_GET['projet_id'] : 0;

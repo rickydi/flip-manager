@@ -11,6 +11,15 @@ require_once '../includes/functions.php';
 // Vérifier que l'utilisateur est connecté
 requireLogin();
 
+// Auto-création table budget_etapes si elle n'existe pas
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS budget_etapes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nom VARCHAR(255) NOT NULL,
+        ordre INT DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+} catch (Exception $e) {}
+
 $pageTitle = 'Mes factures';
 
 // Pagination
