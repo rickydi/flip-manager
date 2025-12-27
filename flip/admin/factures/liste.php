@@ -360,7 +360,7 @@ include '../../includes/header.php';
                                             <span class="badge bg-success ms-1">Remb.</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td><?= e($facture['categorie_nom']) ?></td>
+                                    <td><?= e($facture['etape_nom'] ?? '-') ?></td>
                                     <td><?= e($facture['employe_nom']) ?></td>
                                     <td class="text-end">
                                         <strong class="<?= $isRemboursement ? 'text-success' : '' ?>">

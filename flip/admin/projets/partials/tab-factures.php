@@ -1,7 +1,7 @@
     <div class="tab-pane fade <?= $tab === 'factures' ? 'show active' : '' ?>" id="factures" role="tabpanel">
         <?php
         $totalFacturesTab = array_sum(array_column($facturesProjet, 'montant_total'));
-        $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'categorie_nom')));
+        $facturesCategories = array_unique(array_filter(array_column($facturesProjet, 'etape_nom')));
         $totalImpayeProjet = array_sum(array_map(function($f) {
             return empty($f['est_payee']) ? $f['montant_total'] : 0;
         }, $facturesProjet));
@@ -78,10 +78,10 @@
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['categorie_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>">
+                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>">
                             <td><?= formatDate($f['date_facture']) ?></td>
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
-                            <td><?= e($f['categorie_nom'] ?? 'N/A') ?></td>
+                            <td><?= e($f['etape_nom'] ?? 'N/A') ?></td>
                             <td class="text-end fw-bold"><?= formatMoney($f['montant_total']) ?></td>
                             <td>
                                 <?php
