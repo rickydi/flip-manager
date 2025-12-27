@@ -110,24 +110,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Si pas d'erreur, mettre à jour
         if (empty($errors)) {
-            $stmt = $pdo->prepare("
-                UPDATE factures SET
-                    projet_id = ?, categorie_id = ?, etape_id = ?, fournisseur = ?, description = ?,
-                    date_facture = ?, montant_avant_taxes = ?, tps = ?, tvq = ?,
-                    montant_total = ?, fichier = ?, notes = ?, statut = ?
-                WHERE id = ?
-            ");
-            
-            if ($stmt->execute([
-                $projetId, $categorieId ?: null, $etapeId ?: null, $fournisseur, $description,
-                $dateFacture, $montantAvantTaxes, $tps, $tvq,
-                $montantTotal, $fichier, $notes, $statut,
-                $factureId
-            ])) {
-                setFlashMessage('success', 'Facture mise à jour!');
-                redirect('/admin/factures/liste.php?projet=' . $projetId);
-            } else {
-                $errors[] = 'Erreur lors de la mise à jour.';
+            try {
+                $stmt = $pdo->prepare("
+                    UPDATE factures SET
+                        projet_id = ?, categorie_id = ?, etape_id = ?, fournisseur = ?, description = ?,
+                        date_facture = ?, montant_avant_taxes = ?, tps = ?, tvq = ?,
+                        montant_total = ?, fichier = ?, notes = ?, statut = ?
+                    WHERE id = ?
+                ");
+
+                if ($stmt->execute([
+                    $projetId, $categorieId ?: null, $etapeId ?: null, $fournisseur, $description,
+                    $dateFacture, $montantAvantTaxes, $tps, $tvq,
+                    $montantTotal, $fichier, $notes, $statut,
+                    $factureId
+                ])) {
+                    setFlashMessage('success', 'Facture mise à jour!');
+                    redirect('/admin/factures/liste.php?projet=' . $projetId);
+                } else {
+                    $errors[] = 'Erreur SQL: ' . implode(' - ', $stmt->errorInfo());
+                }
+            } catch (Exception $e) {
+                $errors[] = 'Exception: ' . $e->getMessage();
             }
         }
     }
