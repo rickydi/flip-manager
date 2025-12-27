@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $factureId
                 ])) {
                     setFlashMessage('success', 'Facture mise à jour!');
-                    redirect('/admin/projets/detail.php?id=' . $projetId);
+                    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=factures');
                 } else {
                     $errors[] = 'Erreur SQL: ' . implode(' - ', $stmt->errorInfo());
                 }
