@@ -371,6 +371,7 @@ function calculerBudgetParEtape($pdo, $projetId) {
 
 /**
  * Calcule les dépenses réelles par étape (factures groupées par etape_id)
+ * Inclut aussi les factures sans étape dans une catégorie "Non classé"
  * @param PDO $pdo
  * @param int $projetId
  * @return array [etape_id => ['nom' => string, 'total' => float]]
@@ -379,6 +380,7 @@ function calculerDepensesParEtape($pdo, $projetId) {
     $result = [];
 
     try {
+        // Factures avec étape
         $stmt = $pdo->prepare("
             SELECT
                 e.id as etape_id,
@@ -399,6 +401,24 @@ function calculerDepensesParEtape($pdo, $projetId) {
                 'nom' => $row['etape_nom'] ?? 'Non spécifié',
                 'ordre' => $row['etape_ordre'] ?? 999,
                 'total' => (float) ($row['total'] ?? 0)
+            ];
+        }
+
+        // Factures SANS étape (anciennes factures)
+        $stmt = $pdo->prepare("
+            SELECT SUM(montant_avant_taxes) as total
+            FROM factures
+            WHERE projet_id = ? AND statut != 'rejetee' AND etape_id IS NULL
+        ");
+        $stmt->execute([$projetId]);
+        $row = $stmt->fetch();
+        $totalSansEtape = (float) ($row['total'] ?? 0);
+
+        if ($totalSansEtape > 0) {
+            $result[0] = [
+                'nom' => 'Non classé (anciennes factures)',
+                'ordre' => 9999,
+                'total' => $totalSansEtape
             ];
         }
     } catch (Exception $e) {
