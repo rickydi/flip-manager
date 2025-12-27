@@ -448,7 +448,7 @@ try {
         // ================================
 
         case 'check_panier_item':
-            // Vérifie si un item existe déjà dans le panier et retourne sa quantité
+            // Vérifie si un item existe déjà dans le panier et retourne sa quantité TOTALE
             $projetId = (int)($input['projet_id'] ?? 0);
             $catalogueItemId = (int)($input['catalogue_item_id'] ?? 0);
 
@@ -465,15 +465,22 @@ try {
                 throw new Exception('Item non trouvé');
             }
 
-            // Vérifier si l'item existe déjà dans le panier
-            $stmt = $pdo->prepare("SELECT id, quantite FROM budget_items WHERE projet_id = ? AND catalogue_item_id = ?");
+            // Vérifier si l'item existe déjà dans le panier - SOMME de toutes les instances
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as count, COALESCE(SUM(quantite), 0) as total_quantite
+                FROM budget_items
+                WHERE projet_id = ? AND catalogue_item_id = ?
+            ");
             $stmt->execute([$projetId, $catalogueItemId]);
-            $existing = $stmt->fetch();
+            $result = $stmt->fetch();
+
+            $exists = (int)$result['count'] > 0;
+            $totalQuantite = (int)$result['total_quantite'];
 
             echo json_encode([
                 'success' => true,
-                'exists' => (bool)$existing,
-                'current_quantity' => $existing ? (int)$existing['quantite'] : 0,
+                'exists' => $exists,
+                'current_quantity' => $totalQuantite,
                 'item_name' => $catalogueItem['nom'],
                 'item_price' => (float)$catalogueItem['prix']
             ]);
