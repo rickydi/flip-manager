@@ -447,13 +447,48 @@ try {
         // PANIER
         // ================================
 
-        case 'add_to_panier':
+        case 'check_panier_item':
+            // Vérifie si un item existe déjà dans le panier et retourne sa quantité
             $projetId = (int)($input['projet_id'] ?? 0);
             $catalogueItemId = (int)($input['catalogue_item_id'] ?? 0);
 
             if (!$projetId || !$catalogueItemId) {
                 throw new Exception('Projet et item requis');
             }
+
+            // Récupérer l'item du catalogue
+            $stmt = $pdo->prepare("SELECT nom, prix FROM catalogue_items WHERE id = ? AND type = 'item'");
+            $stmt->execute([$catalogueItemId]);
+            $catalogueItem = $stmt->fetch();
+
+            if (!$catalogueItem) {
+                throw new Exception('Item non trouvé');
+            }
+
+            // Vérifier si l'item existe déjà dans le panier
+            $stmt = $pdo->prepare("SELECT id, quantite FROM budget_items WHERE projet_id = ? AND catalogue_item_id = ?");
+            $stmt->execute([$projetId, $catalogueItemId]);
+            $existing = $stmt->fetch();
+
+            echo json_encode([
+                'success' => true,
+                'exists' => (bool)$existing,
+                'current_quantity' => $existing ? (int)$existing['quantite'] : 0,
+                'item_name' => $catalogueItem['nom'],
+                'item_price' => (float)$catalogueItem['prix']
+            ]);
+            break;
+
+        case 'add_to_panier':
+            $projetId = (int)($input['projet_id'] ?? 0);
+            $catalogueItemId = (int)($input['catalogue_item_id'] ?? 0);
+            $quantiteToAdd = (int)($input['quantite'] ?? 1);
+
+            if (!$projetId || !$catalogueItemId) {
+                throw new Exception('Projet et item requis');
+            }
+
+            if ($quantiteToAdd < 1) $quantiteToAdd = 1;
 
             // Récupérer l'item du catalogue
             $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ? AND type = 'item'");
@@ -470,9 +505,9 @@ try {
             $existing = $stmt->fetch();
 
             if ($existing) {
-                // Incrémenter la quantité
-                $stmt = $pdo->prepare("UPDATE budget_items SET quantite = quantite + 1 WHERE id = ?");
-                $stmt->execute([$existing['id']]);
+                // Ajouter la quantité spécifiée
+                $stmt = $pdo->prepare("UPDATE budget_items SET quantite = quantite + ? WHERE id = ?");
+                $stmt->execute([$quantiteToAdd, $existing['id']]);
                 $newId = $existing['id'];
             } else {
                 // Ajouter nouveau
@@ -489,7 +524,7 @@ try {
                     $catalogueItemId,
                     $catalogueItem['nom'],
                     $catalogueItem['prix'],
-                    $catalogueItem['quantite_defaut'] ?? 1,
+                    $quantiteToAdd,
                     $ordre
                 ]);
                 $newId = $pdo->lastInsertId();

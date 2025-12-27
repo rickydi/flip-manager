@@ -442,15 +442,98 @@ const BudgetBuilder = {
             return;
         }
 
-        this.ajax('add_to_panier', {
+        const self = this;
+
+        // D'abord vérifier si l'item existe déjà dans le panier
+        this.ajax('check_panier_item', {
             projet_id: this.projetId,
             catalogue_item_id: catalogueItemId
         }).then(response => {
             if (response.success) {
-                location.reload();
+                self.showAddQuantityModal(catalogueItemId, response);
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
+        });
+    },
+
+    showAddQuantityModal: function(catalogueItemId, itemInfo) {
+        const self = this;
+        const existsText = itemInfo.exists
+            ? `<div class="alert alert-info mb-3">
+                 <i class="bi bi-info-circle me-2"></i>
+                 Cet item est déjà dans le panier: <strong>${itemInfo.current_quantity}</strong> unité(s)
+               </div>`
+            : '';
+
+        const modalHtml = `
+            <div class="modal fade" id="addQuantityModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="bi bi-cart-plus me-2"></i>Ajouter au panier</h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <h6 class="mb-3">${itemInfo.item_name}</h6>
+                            <p class="text-muted mb-3">Prix: ${itemInfo.item_price.toFixed(2)} $</p>
+                            ${existsText}
+                            <div class="mb-3">
+                                <label class="form-label">Quantité à ajouter:</label>
+                                <input type="number" class="form-control" id="addQuantityInput" value="1" min="1" autofocus>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="button" class="btn btn-primary" id="confirmAddBtn">
+                                <i class="bi bi-cart-plus me-1"></i>Ajouter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Supprimer l'ancien modal s'il existe
+        const oldModal = document.getElementById('addQuantityModal');
+        if (oldModal) oldModal.remove();
+
+        // Ajouter le nouveau modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = new bootstrap.Modal(document.getElementById('addQuantityModal'));
+        const input = document.getElementById('addQuantityInput');
+        const confirmBtn = document.getElementById('confirmAddBtn');
+
+        confirmBtn.addEventListener('click', function() {
+            const quantite = parseInt(input.value) || 1;
+            modal.hide();
+
+            self.ajax('add_to_panier', {
+                projet_id: self.projetId,
+                catalogue_item_id: catalogueItemId,
+                quantite: quantite
+            }).then(response => {
+                if (response.success) {
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + (response.message || 'Échec'));
+                }
+            });
+        });
+
+        // Permettre Enter pour confirmer
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                confirmBtn.click();
+            }
+        });
+
+        modal.show();
+
+        // Focus sur l'input après ouverture du modal
+        document.getElementById('addQuantityModal').addEventListener('shown.bs.modal', function() {
+            input.select();
         });
     },
 
