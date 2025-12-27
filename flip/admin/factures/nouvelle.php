@@ -50,7 +50,7 @@ $categoriesGroupees = getCategoriesGrouped($pdo);
 // Récupérer les étapes du budget-builder (nouveau système)
 $etapes = [];
 try {
-    $stmt = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
+    $stmt = $pdo->query("SELECT id, nom, ordre FROM budget_etapes ORDER BY ordre, nom");
     $etapes = $stmt->fetchAll();
 } catch (Exception $e) {
     // Table n'existe pas encore
@@ -215,7 +215,7 @@ include '../../includes/header.php';
                         <select class="form-select" name="etape_id" required>
                             <option value="">Sélectionner...</option>
                             <?php foreach ($etapes as $etape): ?>
-                                <option value="<?= $etape['id'] ?>"><?= e($etape['nom']) ?></option>
+                                <option value="<?= $etape['id'] ?>"><?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?></option>
                             <?php endforeach; ?>
                         </select>
                         <?php else: ?>
