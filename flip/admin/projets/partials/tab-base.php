@@ -445,17 +445,12 @@ if ($isPartialBase) {
                 body: new FormData(form),
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).then(() => {
-                return fetch(location.href + '&partial=base', {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
-            }).then(res => res.text())
-              .then(html => {
-                const target = document.getElementById('base-dynamic-content');
-                if (target) {
-                    target.innerHTML = html;
-                }
                 setState(saved);
-                setTimeout(() => setState(idle), 1200);
+
+                // ✅ retour au comportement stable (recalcul complet)
+                setTimeout(() => {
+                    location.reload();
+                }, 300);
             });
         }
 
