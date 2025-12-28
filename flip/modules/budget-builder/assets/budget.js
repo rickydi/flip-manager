@@ -1110,22 +1110,12 @@ const BudgetBuilder = {
                 window.updateIndicateurs(res.indicateurs);
             }
 
-            // ✅ FALLBACK DURABLE :
-            // Le tableau Rénovation est 100% rendu côté PHP
-            // → on recharge uniquement le contenu du tab Base sans reload page
-            const baseTab = document.getElementById('base');
-            if (baseTab) {
-                fetch(window.location.href + '&_partial=base')
-                    .then(r => r.text())
-                    .then(html => {
-                        // Extraire uniquement le tab Base
-                        const tmp = document.createElement('div');
-                        tmp.innerHTML = html;
-                        const newBase = tmp.querySelector('#base');
-                        if (newBase) {
-                            baseTab.innerHTML = newBase.innerHTML;
-                        }
-                    });
+            // ❌ IMPORTANT :
+            // Ne JAMAIS recharger le HTML du tab Base après une action panier
+            // Cela détruit les graphiques et la main-d’œuvre
+            // ✅ Les données sont mises à jour uniquement via JS
+            if (typeof window.initDetailCharts === 'function') {
+                window.initDetailCharts();
             }
         })
         .catch(() => {});
