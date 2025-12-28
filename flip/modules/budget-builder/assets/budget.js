@@ -397,7 +397,7 @@ const BudgetBuilder = {
                     quantite: quantite
                 }).then(response => {
                     if (response.success) {
-                        self.loadPanier();
+                        self.refreshAfterBudgetChange();
                     } else {
                         alert('Erreur: ' + (response.message || 'Échec'));
                     }
@@ -656,7 +656,7 @@ const BudgetBuilder = {
                     quantite: quantite
                 }).then(response => {
                     if (response.success) {
-                        self.loadPanier();
+                        self.refreshAfterBudgetChange();
                     } else {
                         alert('Erreur: ' + (response.message || 'Échec'));
                     }
@@ -689,7 +689,7 @@ const BudgetBuilder = {
                 self.ajax('remove_from_panier', { id: panierItemId })
                     .then(response => {
                         if (response.success) {
-                            self.loadPanier();
+                            self.refreshAfterBudgetChange();
                         } else {
                             alert('Erreur: ' + (response.message || 'Échec'));
                         }
