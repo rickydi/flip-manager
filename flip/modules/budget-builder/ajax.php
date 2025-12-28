@@ -1384,6 +1384,13 @@ try {
             echo json_encode(['success' => true, 'grouped' => $grouped]);
             break;
 
+        case 'debug_items':
+            // Debug: voir tous les items dans la base
+            $stmt = $pdo->query("SELECT id, parent_id, type, nom, etape_id, actif FROM catalogue_items ORDER BY id");
+            $items = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'items' => $items, 'count' => count($items)]);
+            break;
+
         default:
             throw new Exception('Action non reconnue: ' . $action);
     }
