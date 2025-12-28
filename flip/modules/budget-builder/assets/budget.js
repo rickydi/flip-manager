@@ -5,6 +5,7 @@
 const BudgetBuilder = {
     projetId: null,
     ajaxUrl: null,
+    panierDropInitialized: false, // Flag pour éviter les multiples handlers
 
     init: function(projetId) {
         this.projetId = projetId;
@@ -23,17 +24,68 @@ const BudgetBuilder = {
             this.ajaxUrl = '/flip/modules/budget-builder/ajax.php';
         }
 
-        this.initDragDrop();
+        this.initPanierDrop(); // Initialiser UNE SEULE FOIS le drop sur le panier
+        this.initCatalogueDrag(); // Initialiser le drag sur les éléments du catalogue
         this.initQuantityChange();
 
         console.log('Budget Builder initialized', { projetId: this.projetId });
     },
 
     // ================================
-    // DRAG & DROP
+    // DRAG & DROP - Panier (une seule fois)
     // ================================
 
-    initDragDrop: function() {
+    initPanierDrop: function() {
+        if (this.panierDropInitialized) return; // Ne pas réinitialiser
+
+        const self = this;
+        const panierCard = document.getElementById('panier-card');
+
+        if (panierCard) {
+            panierCard.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+                this.classList.add('drag-over');
+            });
+
+            panierCard.addEventListener('dragleave', function(e) {
+                if (!this.contains(e.relatedTarget)) {
+                    this.classList.remove('drag-over');
+                }
+            });
+
+            panierCard.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                this.classList.remove('drag-over');
+
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    console.log('Drop data:', data);
+
+                    if (data.id) {
+                        if (data.type === 'folder') {
+                            console.log('Adding folder to panier:', data.id);
+                            self.addFolderToPanier(parseInt(data.id));
+                        } else {
+                            console.log('Adding item to panier:', data.id);
+                            self.addToPanier(parseInt(data.id));
+                        }
+                    }
+                } catch (err) {
+                    console.error('Drop error:', err);
+                }
+            });
+
+            this.panierDropInitialized = true;
+        }
+    },
+
+    // ================================
+    // DRAG & DROP - Catalogue (réinitialisable)
+    // ================================
+
+    initCatalogueDrag: function() {
         const self = this;
 
         // Tous les éléments du catalogue sont draggables (items ET dossiers)
@@ -145,45 +197,6 @@ const BudgetBuilder = {
                 self.moveItem(draggedId, targetId, position, newParentId);
             });
         });
-
-        // Zone de drop (toute la carte panier) - accepte items ET dossiers
-        const panierCard = document.getElementById('panier-card');
-        if (panierCard) {
-            panierCard.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = 'copy';
-                this.classList.add('drag-over');
-            });
-
-            panierCard.addEventListener('dragleave', function(e) {
-                // Vérifier qu'on quitte vraiment la zone
-                if (!this.contains(e.relatedTarget)) {
-                    this.classList.remove('drag-over');
-                }
-            });
-
-            panierCard.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('drag-over');
-
-                try {
-                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                    console.log('Drop data:', data);
-
-                    if (data.id) {
-                        if (data.type === 'folder') {
-                            console.log('Adding folder to panier:', data.id);
-                            self.addFolderToPanier(parseInt(data.id));
-                        } else {
-                            console.log('Adding item to panier:', data.id);
-                            self.addToPanier(parseInt(data.id));
-                        }
-                    }
-                } catch (err) {
-                    console.error('Drop error:', err);
-                }
-            });
-        }
 
         // Drop sur les en-têtes de section (pour changer l'étape)
         document.querySelectorAll('.is-section-header').forEach(sectionHeader => {
@@ -784,8 +797,8 @@ const BudgetBuilder = {
     },
 
     reinitDragDropForItems: function() {
-        // Réinitialiser le drag & drop sur les nouveaux éléments
-        this.initDragDrop();
+        // Réinitialiser le drag & drop sur les éléments du catalogue (pas le panier)
+        this.initCatalogueDrag();
     },
 
     escapeHtml: function(text) {
