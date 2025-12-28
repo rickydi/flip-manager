@@ -176,6 +176,8 @@ try {
             $nom = trim($input['nom'] ?? '');
             $prix = (float)($input['prix'] ?? 0);
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
+            $fournisseur = trim($input['fournisseur'] ?? '');
+            $lien = trim($input['lien'] ?? '');
 
             if (empty($nom)) {
                 throw new Exception('Le nom est requis');
@@ -200,8 +202,8 @@ try {
             }
             $ordre = $stmt->fetchColumn();
 
-            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id) VALUES (?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$parentId, $type, $nom, $prix, $ordre, $etapeId]);
+            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$parentId, $type, $nom, $prix, $ordre, $etapeId, $fournisseur ?: null, $lien ?: null]);
 
             echo json_encode([
                 'success' => true,

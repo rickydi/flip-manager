@@ -969,9 +969,38 @@ function renderPanierTree($items, $level = 0) {
                     <label class="form-label">Nom</label>
                     <input type="text" class="form-control" id="add-item-nom" placeholder="Entrez le nom...">
                 </div>
-                <div class="mb-3" id="add-item-prix-group" style="display: none;">
-                    <label class="form-label">Prix</label>
-                    <input type="number" class="form-control" id="add-item-prix" value="0" step="0.01" min="0">
+                <div id="add-item-fields" style="display: none;">
+                    <div class="mb-3">
+                        <label class="form-label">Prix</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="add-item-prix" step="0.01" min="0" value="0">
+                            <span class="input-group-text">$</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fournisseur</label>
+                        <select class="form-select" id="add-item-fournisseur">
+                            <option value="">-- Aucun fournisseur --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span>Étape</span>
+                            <button type="button" class="btn btn-link btn-sm p-0" onclick="openEtapesModal()">
+                                <i class="bi bi-gear"></i> Gérer
+                            </button>
+                        </label>
+                        <select class="form-select" id="add-item-etape">
+                            <option value="">-- Aucune étape --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Lien d'achat</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                            <input type="url" class="form-control" id="add-item-lien" placeholder="https://...">
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1786,7 +1815,7 @@ function renderPanierTree($items, $level = 0) {
 
     let addItemModal = null;
 
-    function openAddItemModal(parentId, type, etapeId = null) {
+    async function openAddItemModal(parentId, type, etapeId = null) {
         if (!addItemModal) {
             addItemModal = new bootstrap.Modal(document.getElementById('addItemModal'));
         }
@@ -1797,17 +1826,48 @@ function renderPanierTree($items, $level = 0) {
         document.getElementById('add-item-etape-id').value = etapeId || '';
         document.getElementById('add-item-nom').value = '';
         document.getElementById('add-item-prix').value = '0';
+        document.getElementById('add-item-fournisseur').value = '';
+        document.getElementById('add-item-etape').value = etapeId || '';
+        document.getElementById('add-item-lien').value = '';
 
-        // Mettre à jour le titre et afficher/cacher le prix
+        // Mettre à jour le titre et afficher/cacher les champs item
         const titleEl = document.getElementById('addItemModalTitle');
-        const prixGroup = document.getElementById('add-item-prix-group');
+        const itemFields = document.getElementById('add-item-fields');
 
         if (type === 'folder') {
             titleEl.innerHTML = '<i class="bi bi-folder-plus me-2 text-warning"></i>Nouveau dossier';
-            prixGroup.style.display = 'none';
+            itemFields.style.display = 'none';
         } else {
             titleEl.innerHTML = '<i class="bi bi-box-seam me-2 text-primary"></i>Nouvel item';
-            prixGroup.style.display = 'block';
+            itemFields.style.display = 'block';
+
+            // Charger les fournisseurs et étapes
+            const [fournisseursResp, etapesResp] = await Promise.all([
+                BudgetBuilder.ajax('get_fournisseurs', {}),
+                BudgetBuilder.ajax('get_etapes', {})
+            ]);
+
+            // Remplir le select des fournisseurs
+            if (fournisseursResp.success && fournisseursResp.fournisseurs) {
+                const select = document.getElementById('add-item-fournisseur');
+                select.innerHTML = '<option value="">-- Aucun fournisseur --</option>' +
+                    fournisseursResp.fournisseurs
+                        .map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`)
+                        .join('');
+            }
+
+            // Remplir le select des étapes
+            if (etapesResp.success && etapesResp.etapes) {
+                const select = document.getElementById('add-item-etape');
+                select.innerHTML = '<option value="">-- Aucune étape --</option>' +
+                    etapesResp.etapes
+                        .map(e => `<option value="${e.id}">${escapeHtml(e.nom)}</option>`)
+                        .join('');
+                // Sélectionner l'étape si passée en paramètre
+                if (etapeId) {
+                    select.value = etapeId;
+                }
+            }
         }
 
         addItemModal.show();
@@ -1819,9 +1879,7 @@ function renderPanierTree($items, $level = 0) {
     function saveAddItemModal() {
         const parentId = document.getElementById('add-item-parent-id').value || null;
         const type = document.getElementById('add-item-type').value;
-        const etapeId = document.getElementById('add-item-etape-id').value || null;
         const nom = document.getElementById('add-item-nom').value.trim();
-        const prix = parseFloat(document.getElementById('add-item-prix').value) || 0;
 
         if (!nom) {
             alert('Veuillez entrer un nom');
@@ -1829,13 +1887,24 @@ function renderPanierTree($items, $level = 0) {
             return;
         }
 
-        BudgetBuilder.ajax('add_catalogue_item', {
+        let data = {
             parent_id: parentId,
             type: type,
-            nom: nom,
-            prix: prix,
-            etape_id: etapeId
-        }).then(response => {
+            nom: nom
+        };
+
+        // Ajouter les champs item si c'est un item
+        if (type === 'item') {
+            data.prix = parseFloat(document.getElementById('add-item-prix').value) || 0;
+            data.fournisseur = document.getElementById('add-item-fournisseur').value;
+            data.etape_id = document.getElementById('add-item-etape').value || null;
+            data.lien = document.getElementById('add-item-lien').value;
+        } else {
+            // Pour un dossier, utiliser l'étape du hidden field
+            data.etape_id = document.getElementById('add-item-etape-id').value || null;
+        }
+
+        BudgetBuilder.ajax('add_catalogue_item', data).then(response => {
             if (response.success) {
                 addItemModal.hide();
                 location.reload();
