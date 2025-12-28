@@ -1324,6 +1324,10 @@ function addToPanier(id) {
     BudgetBuilder.addToPanier(id);
 }
 
+function addFolderToPanier(id) {
+    BudgetBuilder.addFolderToPanier(id);
+}
+
 function removeFromPanier(id) {
     BudgetBuilder.removeFromPanier(id);
 }
