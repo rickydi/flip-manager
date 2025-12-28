@@ -533,7 +533,7 @@ if ($isPartialBase) {
                     <?php endif; ?>
                     <tr class="total-row">
                         <td>Sous-total Acquisition</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
+                        <td class="text-end" id="detailAcquisitionTotal"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['couts_acquisition']['total']) ?></td>
                     </tr>
@@ -594,7 +594,7 @@ if ($isPartialBase) {
                     ?>
                     <tr class="total-row">
                         <td>Sous-total Récurrents</td>
-                        <td class="text-end"><?= formatMoney($totalRecExtrapole) ?></td>
+                        <td class="text-end" id="detailRecurrentsTotal"><?= formatMoney($totalRecExtrapole) ?></td>
                         <td class="text-end <?= $ecartTotalRec >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTotalRec) ?></td>
                         <td class="text-end"><?= formatMoney($totalRecReel) ?></td>
                     </tr>
@@ -843,7 +843,7 @@ if ($isPartialBase) {
                     ?>
                     <tr class="total-row">
                         <td>Sous-total Vente</td>
-                        <td class="text-end"><?= formatMoney($totalVentePrevu) ?></td>
+                        <td class="text-end" id="detailVenteTotal"><?= formatMoney($totalVentePrevu) ?></td>
                         <td class="text-end <?= $ecartVente >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartVente) ?></td>
                         <td class="text-end"><?= formatMoney($totalVenteReel) ?></td>
                     </tr>
@@ -852,7 +852,7 @@ if ($isPartialBase) {
                     <?php $diffTotal = $indicateurs['cout_total_projet'] - $indicateurs['cout_total_reel']; ?>
                     <tr class="grand-total">
                         <td>COÛT TOTAL PROJET</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['cout_total_projet']) ?></td>
+                        <td class="text-end" id="detailCoutTotalProjet"><?= formatMoney($indicateurs['cout_total_projet']) ?></td>
                         <td class="text-end" style="color:<?= $diffTotal >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= formatMoney($diffTotal) ?></td>
                         <td class="text-end"><?= formatMoney($indicateurs['cout_total_reel']) ?></td>
                     </tr>

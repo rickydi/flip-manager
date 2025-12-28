@@ -338,9 +338,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
         $pdo->commit();
 
-        // Recalculer les indicateurs
+        // Recalculer les indicateurs complets (comme get_indicateurs)
         $projet = getProjetById($pdo, $projetId);
         $indicateurs = calculerIndicateursProjet($pdo, $projet);
+        $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
+        $depensesParEtape = calculerDepensesParEtape($pdo, $projetId);
 
         echo json_encode([
             'success' => true,
@@ -348,8 +350,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 'valeur_potentielle' => $indicateurs['valeur_potentielle'],
                 'equite_potentielle' => $indicateurs['equite_potentielle'],
                 'equite_reelle' => $indicateurs['equite_reelle'],
-                'roi_leverage' => $indicateurs['roi_leverage']
-            ]
+                'roi_leverage' => $indicateurs['roi_leverage'],
+                'cout_total_projet' => $indicateurs['cout_total_projet']
+            ],
+            'renovation' => $indicateurs['renovation'],
+            'budget_par_etape' => $budgetParEtape,
+            'depenses_par_etape' => $depensesParEtape,
+            'main_oeuvre' => $indicateurs['main_doeuvre'],
+            'couts_acquisition' => $indicateurs['couts_acquisition'],
+            'couts_recurrents' => $indicateurs['couts_recurrents'],
+            'couts_vente' => $indicateurs['couts_vente']
         ]);
     } catch (Exception $e) {
         $pdo->rollBack();
@@ -2958,11 +2968,44 @@ window.updateIndicateurs = function(ind) {
     const elEquiteBudget = document.getElementById('indEquiteBudget');
     const elEquiteReelle = document.getElementById('indEquiteReelle');
     const elRoi = document.getElementById('indRoiLeverage');
+    const elCoutTotal = document.getElementById('detailCoutTotalProjet');
 
     if (elValeur) elValeur.textContent = window.formatMoneyBase(ind.valeur_potentielle);
     if (elEquiteBudget) elEquiteBudget.textContent = window.formatMoneyBase(ind.equite_potentielle);
     if (elEquiteReelle) elEquiteReelle.textContent = window.formatMoneyBase(ind.equite_reelle);
     if (elRoi) elRoi.textContent = window.formatPercentBase(ind.roi_leverage);
+    if (elCoutTotal && ind.cout_total_projet) elCoutTotal.textContent = window.formatMoneyBase(ind.cout_total_projet);
+};
+
+// Fonction pour mettre à jour les sections de coûts (acquisition, récurrents, vente)
+window.updateCoutsSection = function(section, data) {
+    // Mettre à jour les sous-totaux par section
+    const totalEl = document.getElementById('detail' + section.charAt(0).toUpperCase() + section.slice(1) + 'Total');
+    if (totalEl && data.total !== undefined) {
+        totalEl.textContent = window.formatMoneyBase(data.total);
+    }
+
+    // Pour les récurrents, mettre à jour les valeurs extrapolées
+    if (section === 'recurrents' && data) {
+        Object.keys(data).forEach(key => {
+            if (typeof data[key] === 'object' && data[key].extrapole !== undefined) {
+                const el = document.getElementById('detailRecurrent_' + key);
+                if (el) el.textContent = window.formatMoneyBase(data[key].extrapole);
+            }
+        });
+    }
+
+    // Pour la vente, mettre à jour commission et intérêts
+    if (section === 'vente' && data) {
+        const elCommission = document.getElementById('detailCommissionTTC');
+        const elInterets = document.getElementById('detailInterets');
+        if (elCommission && data.commission_ttc !== undefined) {
+            elCommission.textContent = window.formatMoneyBase(data.commission_ttc);
+        }
+        if (elInterets && data.interets !== undefined) {
+            elInterets.textContent = window.formatMoneyBase(data.interets);
+        }
+    }
 };
 
 window.updateRenovation = function(reno, budgetParEtape, depensesParEtape) {
@@ -3061,9 +3104,37 @@ window.updateRenovation = function(reno, budgetParEtape, depensesParEtape) {
                     showBaseSaveStatus('saved');
                     setTimeout(() => showBaseSaveStatus('idle'), 2000);
 
-                    // Mettre à jour les indicateurs
+                    // Mettre à jour les indicateurs de base
                     if (data.indicateurs) {
                         updateIndicateurs(data.indicateurs);
+                    }
+
+                    // Mettre à jour la section rénovation complète
+                    if (data.renovation) {
+                        if (typeof window.renderRenovationFromJson === 'function') {
+                            window.renderRenovationFromJson(
+                                data.renovation,
+                                data.budget_par_etape || {},
+                                data.depenses_par_etape || {}
+                            );
+                        } else if (typeof window.updateRenovation === 'function') {
+                            window.updateRenovation(
+                                data.renovation,
+                                data.budget_par_etape,
+                                data.depenses_par_etape
+                            );
+                        }
+                    }
+
+                    // Mettre à jour les coûts d'acquisition, récurrents et vente
+                    if (data.couts_acquisition) {
+                        updateCoutsSection('acquisition', data.couts_acquisition);
+                    }
+                    if (data.couts_recurrents) {
+                        updateCoutsSection('recurrents', data.couts_recurrents);
+                    }
+                    if (data.couts_vente) {
+                        updateCoutsSection('vente', data.couts_vente);
                     }
                 } else {
                     console.error('Erreur:', data.error);
