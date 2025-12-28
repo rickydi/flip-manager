@@ -784,7 +784,7 @@ function renderPanierTree($items, $level = 0) {
 
 <!-- Modal commande groupée par fournisseur -->
 <div class="modal fade" id="orderModal" tabindex="-1">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
                 <h5 class="modal-title"><i class="bi bi-file-earmark-text me-2"></i>Document de commande</h5>
@@ -828,7 +828,7 @@ function renderPanierTree($items, $level = 0) {
 
 <!-- Modal édition item -->
 <div class="modal fade" id="itemModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-box-seam me-2"></i>Modifier l'item</h5>
@@ -891,7 +891,7 @@ function renderPanierTree($items, $level = 0) {
 
 <!-- Modal gestion des étapes -->
 <div class="modal fade" id="etapesModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-list-ol me-2"></i>Gérer les étapes</h5>
@@ -919,7 +919,7 @@ function renderPanierTree($items, $level = 0) {
 
 <!-- Modal édition dossier -->
 <div class="modal fade" id="folderModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-folder-fill text-warning me-2"></i>Modifier le dossier</h5>
