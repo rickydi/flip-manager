@@ -712,7 +712,7 @@ const BudgetBuilder = {
         document.querySelectorAll('.panier-section').forEach(section => {
             let sectionTotal = 0;
 
-            // Calculer le total de cette section
+            // Calculer le total de cette section - tous les items (chaque item n'existe qu'une fois dans le DOM)
             section.querySelectorAll('.panier-item.is-item').forEach(item => {
                 const prixEl = item.querySelector('.item-prix');
                 const qteEl = item.querySelector('.item-qte');
@@ -738,7 +738,7 @@ const BudgetBuilder = {
 
         // Si pas de sections (ancien format), calculer directement
         if (grandTotal === 0) {
-            document.querySelectorAll('.panier-item.is-item').forEach(item => {
+            document.querySelectorAll('#panier-items .panier-item.is-item').forEach(item => {
                 const prixEl = item.querySelector('.item-prix');
                 const qteEl = item.querySelector('.item-qte');
                 const prix = parseFloat(prixEl?.dataset?.prix) || 0;
@@ -1095,9 +1095,9 @@ const BudgetBuilder = {
                         <i class="bi bi-box-seam text-primary me-1"></i>
                         <span class="item-nom">${this.escapeHtml(item.nom)}</span>
                         <span class="item-qte-controls d-flex align-items-center">
-                            <button type="button" class="qte-btn qte-minus" onclick="changeQte(${item.id}, -1)">−</button>
+                            <button type="button" class="qte-btn qte-minus" data-id="${item.id}">−</button>
                             <span class="item-qte" data-id="${item.id}">${item.quantite || 1}</span>
-                            <button type="button" class="qte-btn qte-plus" onclick="changeQte(${item.id}, 1)">+</button>
+                            <button type="button" class="qte-btn qte-plus" data-id="${item.id}">+</button>
                         </span>
                         <span class="badge bg-secondary item-prix"
                               data-id="${item.id}"

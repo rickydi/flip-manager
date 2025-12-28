@@ -797,9 +797,9 @@ function renderPanierTree($items, $level = 0) {
                 <i class="bi bi-box-seam text-primary me-1"></i>
                 <span class="item-nom"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
                 <span class="item-qte-controls d-flex align-items-center">
-                    <button type="button" class="qte-btn qte-minus" onclick="changeQte(<?= $item['id'] ?>, -1)">−</button>
+                    <button type="button" class="qte-btn qte-minus" data-id="<?= $item['id'] ?>">−</button>
                     <span class="item-qte" data-id="<?= $item['id'] ?>"><?= $item['quantite'] ?? 1 ?></span>
-                    <button type="button" class="qte-btn qte-plus" onclick="changeQte(<?= $item['id'] ?>, 1)">+</button>
+                    <button type="button" class="qte-btn qte-plus" data-id="<?= $item['id'] ?>">+</button>
                 </span>
                 <span class="badge bg-secondary item-prix"
                       data-id="<?= $item['id'] ?>"
