@@ -1452,7 +1452,7 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
      */
 
     // ✅ Valeur serveur déjà TTC + MO
-    const totalBudgetReno = reno.total_ttc_avec_mo ?? reno.total_ttc ?? 0;
+    const totalBudgetReno = reno.budget_ttc_avec_mo ?? reno.budget_ttc ?? 0;
 
     // ✅ Valeur réelle serveur déjà TTC + MO
     const totalReelReno = reno.reel_ttc_avec_mo ?? reno.reel_ttc ?? 0;
