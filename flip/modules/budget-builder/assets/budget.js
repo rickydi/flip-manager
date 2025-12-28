@@ -7,6 +7,12 @@ const BudgetBuilder = {
     ajaxUrl: null,
     panierDropInitialized: false, // Flag pour éviter les multiples handlers
 
+    // Undo/Redo stacks
+    undoStack: [],
+    redoStack: [],
+    maxHistorySize: 50,
+    isRestoring: false, // Flag pour éviter de sauvegarder pendant une restauration
+
     init: function(projetId) {
         this.projetId = projetId;
 
@@ -27,6 +33,7 @@ const BudgetBuilder = {
         this.initPanierDrop(); // Initialiser UNE SEULE FOIS le drop sur le panier
         this.initCatalogueDrag(); // Initialiser le drag sur les éléments du catalogue
         this.initQuantityChange();
+        this.initUndoRedoKeyboard(); // Raccourcis clavier Ctrl+Z / Ctrl+Y
 
         console.log('Budget Builder initialized', { projetId: this.projetId });
     },
@@ -382,16 +389,19 @@ const BudgetBuilder = {
             const quantite = parseInt(input.value) || 1;
             modal.hide();
 
-            self.ajax('add_folder_to_panier', {
-                projet_id: self.projetId,
-                folder_id: folderId,
-                quantite: quantite
-            }).then(response => {
-                if (response.success) {
-                    self.loadPanier();
-                } else {
-                    alert('Erreur: ' + (response.message || 'Échec'));
-                }
+            // Sauvegarder l'état AVANT l'ajout
+            self.saveStateForUndo().then(() => {
+                self.ajax('add_folder_to_panier', {
+                    projet_id: self.projetId,
+                    folder_id: folderId,
+                    quantite: quantite
+                }).then(response => {
+                    if (response.success) {
+                        self.loadPanier();
+                    } else {
+                        alert('Erreur: ' + (response.message || 'Échec'));
+                    }
+                });
             });
         });
 
@@ -417,14 +427,43 @@ const BudgetBuilder = {
     initQuantityChange: function() {
         const self = this;
 
-        document.querySelectorAll('.panier-item .item-qte').forEach(input => {
-            input.addEventListener('change', function() {
+        // Handlers pour les boutons + et -
+        document.querySelectorAll('.qte-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const itemId = this.dataset.id;
                 const itemDiv = this.closest('.panier-item');
-                const itemId = itemDiv.dataset.id;
-                const newQte = parseInt(this.value) || 1;
+                const qteSpan = itemDiv.querySelector('.item-qte');
+                let currentQte = parseInt(qteSpan.textContent) || 1;
 
-                self.updateQuantity(itemId, newQte);
+                if (this.classList.contains('qte-minus')) {
+                    currentQte = Math.max(1, currentQte - 1);
+                } else if (this.classList.contains('qte-plus')) {
+                    currentQte++;
+                }
+
+                // Mettre à jour visuellement immédiatement
+                qteSpan.textContent = currentQte;
+
+                // Sauvegarder pour undo et mettre à jour en base
+                self.saveStateForUndo().then(() => {
+                    self.updateQuantity(itemId, currentQte);
+                });
             });
+        });
+
+        // Handler pour les inputs (si utilisés)
+        document.querySelectorAll('.panier-item .item-qte').forEach(input => {
+            if (input.tagName === 'INPUT') {
+                input.addEventListener('change', function() {
+                    const itemDiv = this.closest('.panier-item');
+                    const itemId = itemDiv.dataset.id;
+                    const newQte = parseInt(this.value) || 1;
+
+                    self.saveStateForUndo().then(() => {
+                        self.updateQuantity(itemId, newQte);
+                    });
+                });
+            }
         });
     },
 
@@ -605,16 +644,19 @@ const BudgetBuilder = {
             const quantite = parseInt(input.value) || 1;
             modal.hide();
 
-            self.ajax('add_to_panier', {
-                projet_id: self.projetId,
-                catalogue_item_id: catalogueItemId,
-                quantite: quantite
-            }).then(response => {
-                if (response.success) {
-                    self.loadPanier();
-                } else {
-                    alert('Erreur: ' + (response.message || 'Échec'));
-                }
+            // Sauvegarder l'état AVANT l'ajout
+            self.saveStateForUndo().then(() => {
+                self.ajax('add_to_panier', {
+                    projet_id: self.projetId,
+                    catalogue_item_id: catalogueItemId,
+                    quantite: quantite
+                }).then(response => {
+                    if (response.success) {
+                        self.loadPanier();
+                    } else {
+                        alert('Erreur: ' + (response.message || 'Échec'));
+                    }
+                });
             });
         });
 
@@ -635,14 +677,17 @@ const BudgetBuilder = {
 
     removeFromPanier: function(panierItemId) {
         const self = this;
-        this.ajax('remove_from_panier', { id: panierItemId })
-            .then(response => {
-                if (response.success) {
-                    self.loadPanier();
-                } else {
-                    alert('Erreur: ' + (response.message || 'Échec'));
-                }
-            });
+        // Sauvegarder l'état AVANT la suppression
+        this.saveStateForUndo().then(() => {
+            self.ajax('remove_from_panier', { id: panierItemId })
+                .then(response => {
+                    if (response.success) {
+                        self.loadPanier();
+                    } else {
+                        alert('Erreur: ' + (response.message || 'Échec'));
+                    }
+                });
+        });
     },
 
     updateQuantity: function(panierItemId, quantite) {
@@ -1024,6 +1069,154 @@ const BudgetBuilder = {
 
     formatMoney: function(amount) {
         return new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
+    },
+
+    // ================================
+    // UNDO / REDO
+    // ================================
+
+    initUndoRedoKeyboard: function() {
+        const self = this;
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Z = Undo
+            if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                self.undo();
+            }
+            // Ctrl+Y ou Ctrl+Shift+Z = Redo
+            if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'z')) {
+                e.preventDefault();
+                self.redo();
+            }
+        });
+    },
+
+    saveStateForUndo: function() {
+        if (this.isRestoring || !this.projetId) return Promise.resolve();
+
+        const self = this;
+        return this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
+            if (response.success) {
+                // Sauvegarder l'état actuel
+                self.undoStack.push({
+                    sections: response.sections || [],
+                    total: response.total || 0
+                });
+
+                // Limiter la taille de l'historique
+                if (self.undoStack.length > self.maxHistorySize) {
+                    self.undoStack.shift();
+                }
+
+                // Vider le redo stack quand on fait une nouvelle action
+                self.redoStack = [];
+
+                self.updateUndoRedoButtons();
+            }
+        });
+    },
+
+    undo: function() {
+        if (this.undoStack.length === 0 || !this.projetId) return;
+
+        const self = this;
+        this.isRestoring = true;
+
+        // Sauvegarder l'état actuel dans redoStack avant de restaurer
+        this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
+            if (response.success) {
+                self.redoStack.push({
+                    sections: response.sections || [],
+                    total: response.total || 0
+                });
+            }
+
+            // Restaurer l'état précédent
+            const previousState = self.undoStack.pop();
+            self.restorePanierState(previousState).then(() => {
+                self.isRestoring = false;
+                self.updateUndoRedoButtons();
+            });
+        });
+    },
+
+    redo: function() {
+        if (this.redoStack.length === 0 || !this.projetId) return;
+
+        const self = this;
+        this.isRestoring = true;
+
+        // Sauvegarder l'état actuel dans undoStack avant de restaurer
+        this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
+            if (response.success) {
+                self.undoStack.push({
+                    sections: response.sections || [],
+                    total: response.total || 0
+                });
+            }
+
+            // Restaurer l'état suivant
+            const nextState = self.redoStack.pop();
+            self.restorePanierState(nextState).then(() => {
+                self.isRestoring = false;
+                self.updateUndoRedoButtons();
+            });
+        });
+    },
+
+    restorePanierState: function(state) {
+        const self = this;
+
+        // Extraire tous les items de toutes les sections
+        const items = [];
+        if (state.sections) {
+            state.sections.forEach(section => {
+                self.extractItemsFromSection(section.items, items);
+            });
+        }
+
+        return this.ajax('restore_panier', {
+            projet_id: this.projetId,
+            items: items
+        }).then(response => {
+            if (response.success) {
+                self.loadPanier();
+            }
+        });
+    },
+
+    extractItemsFromSection: function(sectionItems, result) {
+        const self = this;
+        if (!sectionItems) return;
+
+        sectionItems.forEach(item => {
+            result.push({
+                id: item.id,
+                catalogue_item_id: item.catalogue_item_id,
+                parent_budget_id: item.parent_budget_id,
+                type: item.type,
+                nom: item.nom,
+                prix: item.prix,
+                quantite: item.quantite,
+                ordre: item.ordre
+            });
+
+            if (item.children) {
+                self.extractItemsFromSection(item.children, result);
+            }
+        });
+    },
+
+    updateUndoRedoButtons: function() {
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+
+        if (undoBtn) {
+            undoBtn.disabled = this.undoStack.length === 0;
+        }
+        if (redoBtn) {
+            redoBtn.disabled = this.redoStack.length === 0;
+        }
     },
 
     // ================================

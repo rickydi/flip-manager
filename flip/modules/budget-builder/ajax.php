@@ -817,6 +817,61 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'restore_panier':
+            // Restaurer le panier à partir d'un snapshot (pour undo/redo)
+            $projetId = (int)($input['projet_id'] ?? 0);
+            $items = $input['items'] ?? [];
+
+            if (!$projetId) throw new Exception('Projet requis');
+
+            // Supprimer tous les items actuels
+            $stmt = $pdo->prepare("DELETE FROM budget_items WHERE projet_id = ?");
+            $stmt->execute([$projetId]);
+
+            // Mapping des anciens IDs vers les nouveaux IDs
+            $idMapping = [];
+
+            // Trier les items: d'abord ceux sans parent, puis les enfants
+            usort($items, function($a, $b) {
+                $aHasParent = !empty($a['parent_budget_id']) ? 1 : 0;
+                $bHasParent = !empty($b['parent_budget_id']) ? 1 : 0;
+                return $aHasParent - $bHasParent;
+            });
+
+            // Réinsérer les items
+            foreach ($items as $item) {
+                $oldId = $item['id'] ?? null;
+                $parentBudgetId = null;
+
+                // Si l'item avait un parent, utiliser le nouveau ID mappé
+                if (!empty($item['parent_budget_id']) && isset($idMapping[$item['parent_budget_id']])) {
+                    $parentBudgetId = $idMapping[$item['parent_budget_id']];
+                }
+
+                $stmt = $pdo->prepare("
+                    INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $projetId,
+                    $item['catalogue_item_id'] ?? null,
+                    $parentBudgetId,
+                    $item['type'] ?? 'item',
+                    $item['nom'] ?? '',
+                    $item['prix'] ?? 0,
+                    $item['quantite'] ?? 1,
+                    $item['ordre'] ?? 0
+                ]);
+
+                // Sauvegarder le mapping ancien ID -> nouveau ID
+                if ($oldId) {
+                    $idMapping[$oldId] = $pdo->lastInsertId();
+                }
+            }
+
+            echo json_encode(['success' => true, 'restored' => count($items)]);
+            break;
+
         case 'get_panier':
             $projetId = (int)($input['projet_id'] ?? 0);
             if (!$projetId) throw new Exception('Projet requis');

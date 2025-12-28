@@ -463,18 +463,31 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
 
 <div class="budget-builder-container">
-    <!-- Contrôle de taille du texte -->
-    <div class="d-flex justify-content-end align-items-center mb-2 gap-1">
-        <small class="text-muted me-1">Taille:</small>
-        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(-1)" title="Réduire">
-            <i class="bi bi-dash"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="resetFontSize()" title="Réinitialiser">
-            <i class="bi bi-arrow-counterclockwise"></i>
-        </button>
-        <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(1)" title="Agrandir">
-            <i class="bi bi-plus"></i>
-        </button>
+    <!-- Toolbar: Undo/Redo + Contrôle de taille -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <!-- Undo/Redo -->
+        <div class="d-flex align-items-center gap-1">
+            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" id="undoBtn" onclick="BudgetBuilder.undo()" title="Annuler (Ctrl+Z)" disabled>
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" id="redoBtn" onclick="BudgetBuilder.redo()" title="Rétablir (Ctrl+Y)" disabled>
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+
+        <!-- Taille du texte -->
+        <div class="d-flex align-items-center gap-1">
+            <small class="text-muted me-1">Taille:</small>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(-1)" title="Réduire">
+                <i class="bi bi-dash"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="resetFontSize()" title="Réinitialiser">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(1)" title="Agrandir">
+                <i class="bi bi-plus"></i>
+            </button>
+        </div>
     </div>
 
     <div class="row g-3">
@@ -1638,12 +1651,15 @@ function renderPanierTree($items, $level = 0) {
     function clearPanier() {
         if (!confirm('Vider complètement le panier?')) return;
 
-        BudgetBuilder.ajax('clear_panier', { projet_id: BudgetBuilder.projetId }).then(response => {
-            if (response.success) {
-                BudgetBuilder.loadPanier();
-            } else {
-                alert('Erreur: ' + (response.message || 'Échec'));
-            }
+        // Sauvegarder l'état AVANT de vider (pour undo)
+        BudgetBuilder.saveStateForUndo().then(() => {
+            BudgetBuilder.ajax('clear_panier', { projet_id: BudgetBuilder.projetId }).then(response => {
+                if (response.success) {
+                    BudgetBuilder.loadPanier();
+                } else {
+                    alert('Erreur: ' + (response.message || 'Échec'));
+                }
+            });
         });
     }
 
