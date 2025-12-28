@@ -349,12 +349,16 @@ const BudgetBuilder = {
                             <h6 class="mb-3"><i class="bi bi-folder-fill text-warning me-2"></i>${this.escapeHtml(folderInfo.folder_name)}</h6>
                             <p class="text-muted mb-3">Ce dossier contient <strong>${folderInfo.item_count}</strong> item(s)</p>
                             ${existsText}
-                            <p class="small text-muted">Tous les items du dossier seront ajoutés au panier.</p>
+                            <div class="mb-3">
+                                <label class="form-label">Combien de fois ajouter ce dossier?</label>
+                                <input type="number" class="form-control" id="folderQuantityInput" value="1" min="1" autofocus>
+                                <small class="text-muted">Les quantités des items seront multipliées par ce nombre</small>
+                            </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                             <button type="button" class="btn btn-warning" id="confirmAddFolderBtn">
-                                <i class="bi bi-folder-plus me-1"></i>Ajouter tout
+                                <i class="bi bi-folder-plus me-1"></i>Ajouter
                             </button>
                         </div>
                     </div>
@@ -371,13 +375,16 @@ const BudgetBuilder = {
 
         const modal = new bootstrap.Modal(document.getElementById('folderQuantityModal'));
         const confirmBtn = document.getElementById('confirmAddFolderBtn');
+        const input = document.getElementById('folderQuantityInput');
 
         confirmBtn.addEventListener('click', function() {
+            const quantite = parseInt(input.value) || 1;
             modal.hide();
 
             self.ajax('add_folder_to_panier', {
                 projet_id: self.projetId,
-                folder_id: folderId
+                folder_id: folderId,
+                quantite: quantite
             }).then(response => {
                 if (response.success) {
                     self.loadPanier();
@@ -387,7 +394,19 @@ const BudgetBuilder = {
             });
         });
 
+        // Permettre Enter pour confirmer
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                confirmBtn.click();
+            }
+        });
+
         modal.show();
+
+        // Focus sur l'input après ouverture du modal
+        document.getElementById('folderQuantityModal').addEventListener('shown.bs.modal', function() {
+            input.select();
+        });
     },
 
     // ================================

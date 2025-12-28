@@ -105,7 +105,7 @@ try {
 }
 
 // Fonction helper pour ajouter récursivement un dossier et son contenu au panier
-function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentBudgetId = null, $depth = 0) {
+function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentBudgetId = null, $depth = 0, $quantiteMultiplier = 1) {
     // Protection contre récursion infinie
     if ($depth > 10) {
         return 0;
@@ -134,10 +134,13 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
             $newFolderId = $pdo->lastInsertId();
             $addedCount++;
 
-            // Récursion pour le contenu du sous-dossier
-            $addedCount += addFolderContentsToPanier($pdo, $projetId, $child['id'], $newFolderId, $depth + 1);
+            // Récursion pour le contenu du sous-dossier (passer le multiplicateur)
+            $addedCount += addFolderContentsToPanier($pdo, $projetId, $child['id'], $newFolderId, $depth + 1, $quantiteMultiplier);
         } else {
-            // Ajouter l'item
+            // Ajouter l'item avec quantité multipliée
+            $baseQuantite = $child['quantite_defaut'] ?? 1;
+            $finalQuantite = $baseQuantite * $quantiteMultiplier;
+
             $stmt = $pdo->prepare("
                 INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
                 VALUES (?, ?, ?, 'item', ?, ?, ?, ?)
@@ -148,7 +151,7 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
                 $parentBudgetId,
                 $child['nom'],
                 $child['prix'],
-                $child['quantite_defaut'] ?? 1,
+                $finalQuantite,
                 $ordre
             ]);
             $addedCount++;
@@ -680,6 +683,7 @@ try {
         case 'add_folder_to_panier':
             $projetId = (int)($input['projet_id'] ?? 0);
             $folderId = (int)($input['folder_id'] ?? 0);
+            $quantiteMultiplier = max(1, (int)($input['quantite'] ?? 1));
 
             if (!$projetId || !$folderId) {
                 throw new Exception('Projet et dossier requis');
@@ -707,8 +711,8 @@ try {
             $stmt->execute([$projetId, $folderId, $folder['nom'], $ordre]);
             $mainFolderId = $pdo->lastInsertId();
 
-            // Ajouter récursivement le contenu du dossier
-            $addedCount = 1 + addFolderContentsToPanier($pdo, $projetId, $folderId, $mainFolderId);
+            // Ajouter récursivement le contenu du dossier avec le multiplicateur de quantité
+            $addedCount = 1 + addFolderContentsToPanier($pdo, $projetId, $folderId, $mainFolderId, 0, $quantiteMultiplier);
 
             echo json_encode(['success' => true, 'count' => $addedCount]);
             break;
