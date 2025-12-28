@@ -741,7 +741,7 @@ if ($isPartialBase) {
                     // Réel TTC = factures TTC + main d'œuvre réelle
                     $renoReelTTC = $indicateurs['renovation']['reel_ttc'] + $indicateurs['main_doeuvre']['cout'];
                     // Budget TTC = budget extrapolé TTC + main d'œuvre planifiée
-                    $renoBudgetTTC = $indicateurs['renovation']['total_ttc'] + $indicateurs['main_doeuvre_extrapole']['cout'];
+                    $renoBudgetTTC = $indicateurs['renovation']['budget_ttc'] + $indicateurs['main_doeuvre_extrapole']['cout'];
                     $diffReno = $renoBudgetTTC - $renoReelTTC;
                     ?>
                     <tr class="total-row">

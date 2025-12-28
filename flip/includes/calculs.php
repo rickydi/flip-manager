@@ -753,6 +753,8 @@ function calculerRenovationCentralisee(PDO $pdo, array $projet): array {
         'contingence' => $budget['contingence'],
         'tps' => $budget['tps'],
         'tvq' => $budget['tvq'],
+        'reel_tps' => $factures['tps'],
+        'reel_tvq' => $factures['tvq'],
         'main_doeuvre_reelle' => $moReel,
         'main_doeuvre_budget' => $moBudget
     ];

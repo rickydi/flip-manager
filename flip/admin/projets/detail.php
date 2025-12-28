@@ -2975,7 +2975,9 @@ window.updateRenovation = function(reno, budgetParEtape, depensesParEtape) {
     if (elContingence) elContingence.textContent = window.formatMoneyBase(reno.contingence);
     if (elTPS) elTPS.textContent = window.formatMoneyBase(reno.tps);
     if (elTVQ) elTVQ.textContent = window.formatMoneyBase(reno.tvq);
-    if (elRenoTotal) elRenoTotal.textContent = window.formatMoneyBase(reno.total_ttc);
+    // Sous-total = budget TTC + main d'oeuvre extrapolée (identique au calcul PHP)
+    const renoBudgetTTC = (reno.budget_ttc || 0) + (reno.main_doeuvre_budget?.cout || 0);
+    if (elRenoTotal) elRenoTotal.textContent = window.formatMoneyBase(renoBudgetTTC);
 
     // Mettre à jour chaque ligne d'étape (Budget, Diff, Réel)
     if (budgetParEtape) {
