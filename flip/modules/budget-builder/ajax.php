@@ -194,12 +194,12 @@ try {
                 }
             }
 
-            // Récupérer le prochain ordre
+            // Récupérer le prochain ordre (parmi les actifs)
             if ($parentId) {
-                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ?");
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ? AND actif = 1");
                 $stmt->execute([$parentId]);
             } else {
-                $stmt = $pdo->query("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id IS NULL");
+                $stmt = $pdo->query("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id IS NULL AND actif = 1");
             }
             $ordre = $stmt->fetchColumn();
 
@@ -328,15 +328,15 @@ try {
 
             // Fonction récursive pour dupliquer un élément et ses enfants
             $duplicateRecursive = function($pdo, $itemId, $newParentId, $addCopySuffix = true) use (&$duplicateRecursive) {
-                // Récupérer l'item original
-                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ?");
+                // Récupérer l'item original (seulement si actif)
+                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ? AND actif = 1");
                 $stmt->execute([$itemId]);
                 $item = $stmt->fetch();
 
                 if (!$item) return null;
 
-                // Trouver le prochain ordre
-                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ?");
+                // Trouver le prochain ordre (seulement parmi les actifs)
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ? AND actif = 1");
                 $stmt->execute([$newParentId]);
                 $newOrdre = $stmt->fetchColumn();
 
@@ -435,7 +435,7 @@ try {
 
             if ($position === 'into') {
                 // Déplacer dans le dossier cible - hériter de son étape
-                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ?");
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ? AND actif = 1");
                 $stmt->execute([$targetId]);
                 $newOrdre = $stmt->fetchColumn();
 
