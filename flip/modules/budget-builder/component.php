@@ -1520,9 +1520,17 @@ function renderPanierTree($items, $level = 0) {
 
     // Variables pour le sélecteur de prix
     let currentPriceInput = null;
-    const priceSelectorModal = new bootstrap.Modal(document.getElementById('priceSelectorModal'));
+    let priceSelectorModal = null;
     const priceSelectorIframe = document.getElementById('price-selector-iframe');
     const priceSelectorLoading = document.getElementById('price-selector-loading');
+
+    // Initialiser le modal à la demande
+    function getPriceSelectorModal() {
+        if (!priceSelectorModal) {
+            priceSelectorModal = new bootstrap.Modal(document.getElementById('priceSelectorModal'));
+        }
+        return priceSelectorModal;
+    }
 
     // Ouvrir le sélecteur de prix (edit modal)
     document.getElementById('item-modal-select-price').addEventListener('click', function() {
@@ -1540,7 +1548,7 @@ function renderPanierTree($items, $level = 0) {
         priceSelectorLoading.style.display = 'block';
         priceSelectorIframe.style.display = 'none';
         priceSelectorIframe.src = '<?= url('/modules/budget-builder/proxy.php') ?>?url=' + encodeURIComponent(url);
-        priceSelectorModal.show();
+        getPriceSelectorModal().show();
 
         priceSelectorIframe.onload = function() {
             priceSelectorLoading.style.display = 'none';
@@ -1554,9 +1562,9 @@ function renderPanierTree($items, $level = 0) {
             currentPriceInput.value = e.data.value;
             currentPriceInput.style.backgroundColor = '#d4edda';
             setTimeout(() => currentPriceInput.style.backgroundColor = '', 2000);
-            priceSelectorModal.hide();
+            getPriceSelectorModal().hide();
         } else if (e.data && e.data.type === 'close') {
-            priceSelectorModal.hide();
+            getPriceSelectorModal().hide();
         }
     });
 
