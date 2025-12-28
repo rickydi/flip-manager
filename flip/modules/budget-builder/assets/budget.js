@@ -1498,21 +1498,10 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
     if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
 
     // ✅ Recalcul complet du Sous-total Rénovation (incluant main-d'œuvre)
-    let moBudget = 0;
-    let moReel = 0;
-
-    const moRow = document.querySelector('.labor-row');
-    if (moRow) {
-        const cells = moRow.querySelectorAll('td');
-        if (cells.length >= 4) {
-            moBudget = parseFloat(cells[1].textContent.replace(/[^0-9.-]+/g, '')) || 0;
-            moReel = parseFloat(cells[3].textContent.replace(/[^0-9.-]+/g, '')) || 0;
-        }
-    } else {
-        // ✅ Panier vidé → plus de MO
-        moBudget = 0;
-        moReel = 0;
-    }
+    // ✅ SOURCE UNIQUE DE VÉRITÉ POUR LA MAIN‑D’ŒUVRE
+    // NE JAMAIS relire la MO depuis le DOM (ordre de rendu non fiable)
+    let moBudget = reno.main_oeuvre_budget || 0;
+    let moReel = reno.main_oeuvre_reelle || 0;
 
     // ✅ Recalcul TTC robuste (budget + taxes + MO)
     const budgetHT = reno.total_ht || 0;
@@ -1524,8 +1513,10 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
     const renoBudgetTTC = (reno.total_ttc ?? (budgetHT + tps + tvq)) || 0;
     const renoReelTTC = (reno.reel_ttc ?? (budgetHT + tps + tvq)) || 0;
 
-    const totalBudgetReno = renoBudgetTTC + moBudget;
-    const totalReelReno = renoReelTTC + moReel;
+    // ✅ LOGIQUE MÉTIER CORRECTE :
+    // Sous‑total Rénovation = (Rénovation TTC) + (MO)
+    const totalBudgetReno = (renoBudgetTTC || 0) + (moBudget || 0);
+    const totalReelReno   = (renoReelTTC   || 0) + (moReel   || 0);
 
     // ✅ Mise à jour forcée (MO seule incluse)
     if (elTotal) {
