@@ -202,7 +202,7 @@ try {
             }
             $ordre = $stmt->fetchColumn();
 
-            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$parentId, $type, $nom, $prix, $ordre, $etapeId, $fournisseur ?: null, $lien ?: null]);
 
             echo json_encode([
