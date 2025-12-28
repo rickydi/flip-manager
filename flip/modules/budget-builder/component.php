@@ -668,6 +668,9 @@ function renderSectionItems($items, $level = 0) {
                     </button>
                 <?php else: ?>
                     <span class="item-prix-badge"></span>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-info" onclick="openFolderModal(<?= $item['id'] ?>)" title="Modifier">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
@@ -746,6 +749,9 @@ function renderCatalogueTree($items, $level = 0) {
                     </button>
                 <?php else: ?>
                     <span class="item-prix-badge"></span>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-info" onclick="openFolderModal(<?= $item['id'] ?>)" title="Modifier">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(<?= $item['id'] ?>, 'folder')" title="Sous-dossier">
                         <i class="bi bi-folder-plus"></i>
                     </button>
