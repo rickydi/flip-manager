@@ -333,7 +333,8 @@ const BudgetBuilder = {
         const existsText = folderInfo.existing_in_cart > 0
             ? `<div class="alert alert-info mb-3">
                  <i class="bi bi-info-circle me-2"></i>
-                 ${folderInfo.existing_in_cart} item(s) de ce dossier sont déjà dans le panier
+                 Déjà dans le panier: <strong>${folderInfo.existing_quantity}</strong> unité(s)
+                 (${folderInfo.existing_in_cart} item(s) différent(s))
                </div>`
             : '';
 

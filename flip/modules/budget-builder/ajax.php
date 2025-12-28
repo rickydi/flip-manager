@@ -662,21 +662,26 @@ try {
             $childItemIds = $getChildItemIds($pdo, $folderId);
 
             $existingCount = 0;
+            $existingQuantity = 0;
             if (!empty($childItemIds)) {
                 $placeholders = implode(',', array_fill(0, count($childItemIds), '?'));
                 $stmt = $pdo->prepare("
-                    SELECT COUNT(*) FROM budget_items
+                    SELECT COUNT(*) as count, COALESCE(SUM(quantite), 0) as total_quantite
+                    FROM budget_items
                     WHERE projet_id = ? AND catalogue_item_id IN ($placeholders)
                 ");
                 $stmt->execute(array_merge([$projetId], $childItemIds));
-                $existingCount = (int)$stmt->fetchColumn();
+                $result = $stmt->fetch();
+                $existingCount = (int)$result['count'];
+                $existingQuantity = (int)$result['total_quantite'];
             }
 
             echo json_encode([
                 'success' => true,
                 'folder_name' => $folder['nom'],
                 'item_count' => $itemCount,
-                'existing_in_cart' => $existingCount
+                'existing_in_cart' => $existingCount,
+                'existing_quantity' => $existingQuantity
             ]);
             break;
 
