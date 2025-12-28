@@ -638,6 +638,7 @@ try {
 
         case 'get_folder_info':
             $folderId = (int)($input['folder_id'] ?? 0);
+            $projetId = (int)($input['projet_id'] ?? 0);
             if (!$folderId) throw new Exception('ID dossier requis');
 
             // Récupérer le dossier
@@ -647,28 +648,47 @@ try {
 
             if (!$folder) throw new Exception('Dossier non trouvé');
 
-            // Compter les items dans le dossier (récursivement)
-            $countItems = function($pdo, $parentId) use (&$countItems) {
-                $count = 0;
+            // Récupérer tous les IDs des items dans le dossier (récursivement)
+            $getItemIds = function($pdo, $parentId) use (&$getItemIds) {
+                $ids = [];
                 $stmt = $pdo->prepare("SELECT id, type FROM catalogue_items WHERE parent_id = ? AND actif = 1");
                 $stmt->execute([$parentId]);
                 $children = $stmt->fetchAll();
                 foreach ($children as $child) {
                     if ($child['type'] === 'item') {
-                        $count++;
+                        $ids[] = $child['id'];
                     } else {
-                        $count += $countItems($pdo, $child['id']);
+                        $ids = array_merge($ids, $getItemIds($pdo, $child['id']));
                     }
                 }
-                return $count;
+                return $ids;
             };
 
-            $itemCount = $countItems($pdo, $folderId);
+            $itemIds = $getItemIds($pdo, $folderId);
+            $itemCount = count($itemIds);
+
+            // Vérifier combien sont déjà dans le panier
+            $existingCount = 0;
+            $existingQuantity = 0;
+            if ($projetId && count($itemIds) > 0) {
+                $placeholders = implode(',', array_fill(0, count($itemIds), '?'));
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) as count, COALESCE(SUM(quantite), 0) as total_qty
+                    FROM budget_items
+                    WHERE projet_id = ? AND catalogue_item_id IN ($placeholders)
+                ");
+                $stmt->execute(array_merge([$projetId], $itemIds));
+                $result = $stmt->fetch();
+                $existingCount = (int)$result['count'];
+                $existingQuantity = (int)$result['total_qty'];
+            }
 
             echo json_encode([
                 'success' => true,
                 'folder_name' => $folder['nom'],
-                'item_count' => $itemCount
+                'item_count' => $itemCount,
+                'existing_count' => $existingCount,
+                'existing_quantity' => $existingQuantity
             ]);
             break;
 

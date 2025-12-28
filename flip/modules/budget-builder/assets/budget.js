@@ -316,7 +316,8 @@ const BudgetBuilder = {
 
         // D'abord récupérer les infos du dossier
         this.ajax('get_folder_info', {
-            folder_id: folderId
+            folder_id: folderId,
+            projet_id: this.projetId
         }).then(response => {
             if (response.success) {
                 self.showFolderQuantityModal(folderId, response);
@@ -329,6 +330,15 @@ const BudgetBuilder = {
     showFolderQuantityModal: function(folderId, folderInfo) {
         const self = this;
 
+        // Message si des items existent déjà dans le panier
+        const existingText = folderInfo.existing_count > 0
+            ? `<div class="alert alert-info mb-3">
+                 <i class="bi bi-info-circle me-2"></i>
+                 <strong>${folderInfo.existing_count}</strong> item(s) de ce dossier sont déjà dans le panier
+                 (<strong>${folderInfo.existing_quantity}</strong> unité(s) au total)
+               </div>`
+            : '';
+
         const modalHtml = `
             <div class="modal fade" id="addFolderQuantityModal" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
@@ -340,6 +350,7 @@ const BudgetBuilder = {
                         <div class="modal-body">
                             <h6 class="mb-3"><i class="bi bi-folder-fill text-warning me-2"></i>${this.escapeHtml(folderInfo.folder_name)}</h6>
                             <p class="text-muted mb-3">Ce dossier contient <strong>${folderInfo.item_count}</strong> item(s)</p>
+                            ${existingText}
                             <div class="mb-3">
                                 <label class="form-label">Quantité de chaque item:</label>
                                 <input type="number" class="form-control" id="folderQuantityInput" value="1" min="1" autofocus>
