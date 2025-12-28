@@ -1861,7 +1861,7 @@ function renderPanierTree($items, $level = 0) {
                 const select = document.getElementById('add-item-etape');
                 select.innerHTML = '<option value="">-- Aucune étape --</option>' +
                     etapesResp.etapes
-                        .map(e => `<option value="${e.id}">${escapeHtml(e.nom)}</option>`)
+                        .map((e, i) => `<option value="${e.id}">N.${i + 1} ${escapeHtml(e.nom)}</option>`)
                         .join('');
                 // Sélectionner l'étape si passée en paramètre
                 if (etapeId) {
