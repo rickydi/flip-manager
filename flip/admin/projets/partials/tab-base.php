@@ -112,20 +112,6 @@
     <div class="row g-3 mb-3">
         <div class="col-md-4">
             <div class="card chart-card h-100">
-                <div class="chart-header red">
-                    <div class="chart-icon red">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </div>
-                    <div>
-                        <div class="chart-title">Coûts vs Valeur</div>
-                        <div class="chart-subtitle">Évolution dans le temps</div>
-                    </div>
-                </div>
-                <div class="chart-body"><canvas id="chartCouts" height="150"></canvas></div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card chart-card h-100">
                 <div class="chart-header blue">
                     <div class="chart-icon blue">
                         <i class="bi bi-clock-history"></i>
