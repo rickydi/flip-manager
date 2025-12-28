@@ -1497,28 +1497,18 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
     if (elTPS) elTPS.textContent = formatMoneyBase(reno.tps);
     if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
 
-    // ✅ Recalcul complet du Sous-total Rénovation (incluant main-d'œuvre)
-    // ✅ SOURCE UNIQUE DE VÉRITÉ POUR LA MAIN‑D’ŒUVRE
-    // NE JAMAIS relire la MO depuis le DOM (ordre de rendu non fiable)
-    let moBudget = reno.main_oeuvre_budget || 0;
-    let moReel = reno.main_oeuvre_reelle || 0;
+    /**
+     * ✅ CORRECTION DÉFINITIVE (SCÉNARIO A)
+     * Le live JS ne doit JAMAIS recalculer le sous‑total rénovation.
+     * Il doit AFFICHER EXACTEMENT la valeur serveur.
+     */
 
-    // ✅ Recalcul TTC robuste (budget + taxes + MO)
-    const budgetHT = reno.total_ht || 0;
-    const tps = reno.tps || 0;
-    const tvq = reno.tvq || 0;
+    // ✅ Valeur serveur déjà TTC + MO
+    const totalBudgetReno = reno.total_ttc_avec_mo ?? reno.total_ttc ?? 0;
 
-    // ⚠️ IMPORTANT :
-    // quand le panier est vide, reno.total_ttc = 0 MAIS la MO existe encore
-    const renoBudgetTTC = (reno.total_ttc ?? (budgetHT + tps + tvq)) || 0;
-    const renoReelTTC = (reno.reel_ttc ?? (budgetHT + tps + tvq)) || 0;
+    // ✅ Valeur réelle serveur déjà TTC + MO
+    const totalReelReno = reno.reel_ttc_avec_mo ?? reno.reel_ttc ?? 0;
 
-    // ✅ LOGIQUE MÉTIER CORRECTE :
-    // Sous‑total Rénovation = (Rénovation TTC) + (MO)
-    const totalBudgetReno = (renoBudgetTTC || 0) + (moBudget || 0);
-    const totalReelReno   = (renoReelTTC   || 0) + (moReel   || 0);
-
-    // ✅ Mise à jour forcée (MO seule incluse)
     if (elTotal) {
         elTotal.textContent = formatMoneyBase(totalBudgetReno);
     }
