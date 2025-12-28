@@ -1440,9 +1440,7 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
     const tableBody = document.querySelector('.cost-table tbody');
     if (!tableBody) return;
 
-    const marker = Array.from(tableBody.children).find(tr =>
-        tr.innerHTML.includes('RÉNOVATION_DYNAMIC_START')
-    );
+    const marker = tableBody.querySelector('tr.section-header[data-section="renovation"]');
     if (!marker) return;
 
     // Supprimer toutes les lignes après le header Rénovation jusqu’au prochain section-header
