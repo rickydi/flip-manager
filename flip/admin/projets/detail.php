@@ -332,6 +332,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 }
 
 // ========================================
+// AJAX: Obtenir les indicateurs (refresh sans sauvegarder)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'get_indicateurs') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    try {
+        $projet = getProjetById($pdo, $projetId);
+        $indicateurs = calculerIndicateursProjet($pdo, $projet);
+
+        echo json_encode([
+            'success' => true,
+            'indicateurs' => [
+                'valeur_potentielle' => $indicateurs['valeur_potentielle'],
+                'equite_potentielle' => $indicateurs['equite_potentielle'],
+                'equite_reelle' => $indicateurs['equite_reelle'],
+                'roi_leverage' => $indicateurs['roi_leverage']
+            ]
+        ]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
 // AJAX: Toggle checklist item
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'toggle_checklist') {
@@ -2957,6 +2987,12 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         e.preventDefault();
         autoSaveBase();
     });
+
+    // Exposer certaines fonctions globalement pour le refresh des indicateurs
+    window.updateIndicateurs = updateIndicateurs;
+    window.formatMoneyBase = formatMoneyBase;
+    window.formatPercentBase = formatPercentBase;
+    window.baseFormCsrfToken = csrfToken;
 })();
 </script>
 
@@ -3626,13 +3662,32 @@ function createToastContainer() {
 </style>
 
 <script>
-// Persistance de l'onglet actif dans l'URL
+// Persistance de l'onglet actif dans l'URL et refresh des données
 document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(tab => {
     tab.addEventListener('shown.bs.tab', function(e) {
         const tabId = e.target.getAttribute('data-bs-target').replace('#', '');
         const url = new URL(window.location);
         url.searchParams.set('tab', tabId);
         window.history.replaceState({}, '', url);
+
+        // Rafraîchir les indicateurs quand on arrive sur l'onglet Base
+        if (tabId === 'base' && window.baseFormCsrfToken && window.updateIndicateurs) {
+            const formData = new FormData();
+            formData.set('ajax_action', 'get_indicateurs');
+            formData.set('csrf_token', window.baseFormCsrfToken);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.indicateurs) {
+                    window.updateIndicateurs(data.indicateurs);
+                }
+            })
+            .catch(err => console.error('Erreur refresh indicateurs:', err));
+        }
     });
 });
 
