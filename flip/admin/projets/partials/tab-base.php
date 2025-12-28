@@ -447,10 +447,10 @@ if ($isPartialBase) {
             }).then(() => {
                 setState(saved);
 
-                // ✅ retour au comportement stable (recalcul complet)
-                setTimeout(() => {
-                    location.reload();
-                }, 300);
+                // ✅ LIVE UPDATE SANS RELOAD
+                if (window.BudgetBuilder && typeof BudgetBuilder.refreshIndicateurs === 'function') {
+                    BudgetBuilder.refreshIndicateurs();
+                }
             });
         }
 
