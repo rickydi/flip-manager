@@ -1025,6 +1025,8 @@ const BudgetBuilder = {
     // Point central après toute modification du budget
     refreshAfterBudgetChange: function() {
         this.loadPanier();
+        // Synchroniser automatiquement le détail du projet (onglet Base)
+        this.refreshIndicateurs();
     },
 
     refreshAll: function() {
