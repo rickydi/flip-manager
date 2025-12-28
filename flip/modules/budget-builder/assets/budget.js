@@ -1443,13 +1443,8 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
     const marker = tableBody.querySelector('tr.section-header[data-section="renovation"]');
     if (!marker) return;
 
-    // Supprimer toutes les lignes après le header Rénovation jusqu’au prochain section-header
-    let row = marker.nextElementSibling;
-    while (row && !row.classList.contains('section-header')) {
-        const toRemove = row;
-        row = row.nextElementSibling;
-        toRemove.remove();
-    }
+    // Supprimer uniquement les lignes dynamiques de rénovation (JS)
+    tableBody.querySelectorAll('.detail-etape-row').forEach(row => row.remove());
 
     let totalBudget = 0;
     let totalReel = 0;
