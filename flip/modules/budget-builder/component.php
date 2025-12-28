@@ -470,13 +470,6 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 })();
 </script>
 
-<style>
-/* Appliquer la taille de police sauvegardée immédiatement */
-.catalogue-item, .panier-item, .panier-section-header {
-    font-size: var(--bb-font-size, 0.95rem) !important;
-}
-</style>
-
 <div class="budget-builder-container">
     <!-- Toolbar: Undo/Redo + Contrôle de taille -->
     <div class="d-flex justify-content-between align-items-center mb-2">
