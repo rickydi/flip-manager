@@ -1058,6 +1058,21 @@ const BudgetBuilder = {
 
     // Rafraîchir les indicateurs du projet (Base tab) après changement du budget
     refreshIndicateurs: function(retryCount = 0) {
+        // ⚠️ Le tab Base n’est pas monté tant qu’il n’a jamais été ouvert
+        // → on force son chargement une fois
+        const baseTab = document.getElementById('tab-base');
+        if (baseTab && !baseTab.dataset.loaded) {
+            baseTab.dataset.loaded = '1';
+            fetch(baseTab.dataset.url, { credentials: 'same-origin' })
+                .then(r => r.text())
+                .then(html => {
+                    baseTab.innerHTML = html;
+                    // relancer après montage réel
+                    setTimeout(() => this.refreshIndicateurs(), 100);
+                });
+            return;
+        }
+
         // Token pas encore prêt → retry automatique
         if (!window.baseFormCsrfToken) {
             if (retryCount < 10) {
