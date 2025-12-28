@@ -849,9 +849,14 @@ function renderPanierTree($items, $level = 0) {
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Fournisseur</label>
-                    <select class="form-select" id="item-modal-fournisseur">
-                        <option value="">-- Aucun fournisseur --</option>
-                    </select>
+                    <div class="input-group">
+                        <select class="form-select" id="item-modal-fournisseur">
+                            <option value="">-- Aucun fournisseur --</option>
+                        </select>
+                        <button type="button" class="btn btn-outline-success" id="item-modal-add-fournisseur" title="Ajouter un fournisseur">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label d-flex justify-content-between align-items-center">
@@ -981,9 +986,14 @@ function renderPanierTree($items, $level = 0) {
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Fournisseur</label>
-                        <select class="form-select" id="add-item-fournisseur">
-                            <option value="">-- Aucun fournisseur --</option>
-                        </select>
+                        <div class="input-group">
+                            <select class="form-select" id="add-item-fournisseur">
+                                <option value="">-- Aucun fournisseur --</option>
+                            </select>
+                            <button type="button" class="btn btn-outline-success" id="add-item-add-fournisseur" title="Ajouter un fournisseur">
+                                <i class="bi bi-plus-lg"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label d-flex justify-content-between align-items-center">
@@ -1479,6 +1489,33 @@ function renderPanierTree($items, $level = 0) {
         if (lien) {
             window.open(lien, '_blank');
         }
+    });
+
+    // Ajouter un nouveau fournisseur
+    function addNewFournisseur(selectId) {
+        const nom = prompt('Nom du nouveau fournisseur:');
+        if (!nom || !nom.trim()) return;
+
+        BudgetBuilder.ajax('add_fournisseur', { nom: nom.trim() }).then(response => {
+            if (response.success) {
+                // Ajouter aux deux selects
+                const option = new Option(response.fournisseur.nom, response.fournisseur.nom, true, true);
+                document.getElementById('item-modal-fournisseur').add(option.cloneNode(true));
+                document.getElementById('add-item-fournisseur').add(option.cloneNode(true));
+                // Sélectionner dans le select actuel
+                document.getElementById(selectId).value = response.fournisseur.nom;
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    document.getElementById('item-modal-add-fournisseur').addEventListener('click', function() {
+        addNewFournisseur('item-modal-fournisseur');
+    });
+
+    document.getElementById('add-item-add-fournisseur').addEventListener('click', function() {
+        addNewFournisseur('add-item-fournisseur');
     });
 
     // Variables pour le sélecteur de prix

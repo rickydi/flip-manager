@@ -807,6 +807,39 @@ try {
             echo json_encode(['success' => true, 'fournisseurs' => array_values($fournisseurs)]);
             break;
 
+        case 'add_fournisseur':
+            $nom = trim($input['nom'] ?? '');
+            if (empty($nom)) throw new Exception('Nom requis');
+
+            // Créer la table fournisseurs si elle n'existe pas
+            try {
+                $pdo->query("SELECT 1 FROM fournisseurs LIMIT 1");
+            } catch (Exception $e) {
+                $pdo->exec("
+                    CREATE TABLE fournisseurs (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        nom VARCHAR(255) NOT NULL UNIQUE,
+                        actif TINYINT(1) DEFAULT 1,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                ");
+            }
+
+            // Vérifier si le fournisseur existe déjà
+            $stmt = $pdo->prepare("SELECT id, nom FROM fournisseurs WHERE nom = ?");
+            $stmt->execute([$nom]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                echo json_encode(['success' => true, 'fournisseur' => $existing, 'message' => 'Fournisseur existe déjà']);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO fournisseurs (nom) VALUES (?)");
+                $stmt->execute([$nom]);
+                $id = $pdo->lastInsertId();
+                echo json_encode(['success' => true, 'fournisseur' => ['id' => $id, 'nom' => $nom]]);
+            }
+            break;
+
         // ================================
         // ÉTAPES
         // ================================
