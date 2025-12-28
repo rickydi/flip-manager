@@ -869,17 +869,15 @@ function renderPanierTree($items, $level = 0) {
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
                         <input type="url" class="form-control" id="item-modal-lien" placeholder="https://...">
-                        <button type="button" class="btn btn-outline-secondary" id="item-modal-open-link" title="Ouvrir le lien">
-                            <i class="bi bi-box-arrow-up-right"></i>
+                        <button type="button" class="btn btn-outline-primary" id="item-modal-select-price" title="Sélectionner le prix sur le site">
+                            <i class="bi bi-cursor-fill"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-success" id="item-modal-paste-price" title="Coller le prix sélectionné">
-                            <i class="bi bi-clipboard-check"></i>
+                        <button type="button" class="btn btn-outline-secondary" id="item-modal-open-link" title="Ouvrir dans un nouvel onglet">
+                            <i class="bi bi-box-arrow-up-right"></i>
                         </button>
                     </div>
                     <small class="text-muted">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#bookmarkletHelpModal" class="text-decoration-none">
-                            <i class="bi bi-info-circle"></i> Comment sélectionner un prix sur un site?
-                        </a>
+                        <i class="bi bi-cursor-fill"></i> Ouvre le site ici pour sélectionner le prix
                     </small>
                 </div>
             </div>
@@ -1003,17 +1001,15 @@ function renderPanierTree($items, $level = 0) {
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
                             <input type="url" class="form-control" id="add-item-lien" placeholder="https://...">
-                            <button type="button" class="btn btn-outline-secondary" id="add-item-open-link" title="Ouvrir le lien">
-                                <i class="bi bi-box-arrow-up-right"></i>
+                            <button type="button" class="btn btn-outline-primary" id="add-item-select-price" title="Sélectionner le prix sur le site">
+                                <i class="bi bi-cursor-fill"></i>
                             </button>
-                            <button type="button" class="btn btn-outline-success" id="add-item-paste-price" title="Coller le prix sélectionné">
-                                <i class="bi bi-clipboard-check"></i>
+                            <button type="button" class="btn btn-outline-secondary" id="add-item-open-link" title="Ouvrir dans un nouvel onglet">
+                                <i class="bi bi-box-arrow-up-right"></i>
                             </button>
                         </div>
                         <small class="text-muted">
-                            <a href="#" data-bs-toggle="modal" data-bs-target="#bookmarkletHelpModal" class="text-decoration-none">
-                                <i class="bi bi-info-circle"></i> Comment sélectionner un prix sur un site?
-                            </a>
+                            <i class="bi bi-cursor-fill"></i> Ouvre le site ici pour sélectionner le prix
                         </small>
                     </div>
                 </div>
@@ -1028,46 +1024,20 @@ function renderPanierTree($items, $level = 0) {
     </div>
 </div>
 
-<!-- Modal aide bookmarklet -->
-<div class="modal fade" id="bookmarkletHelpModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+<!-- Modal sélecteur de prix avec iframe -->
+<div class="modal fade" id="priceSelectorModal" tabindex="-1">
+    <div class="modal-dialog modal-fullscreen">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-bookmark-star me-2"></i>Sélecteur de Prix</h5>
+            <div class="modal-header py-2">
+                <h5 class="modal-title"><i class="bi bi-cursor-fill me-2"></i>Cliquez sur le prix</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="alert alert-info">
-                    <strong>Comment ça marche?</strong><br>
-                    Glissez le bouton ci-dessous dans votre barre de favoris. Sur un site de magasin, cliquez dessus pour sélectionner le prix visuellement.
+            <div class="modal-body p-0">
+                <div id="price-selector-loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-3">Chargement du site...</p>
                 </div>
-
-                <div class="text-center mb-4 p-3 bg-light rounded">
-                    <p class="mb-2">👇 Glissez ce bouton dans vos favoris:</p>
-                    <a href="javascript:(function(){var o=document.createElement('style');o.textContent='*{cursor:crosshair!important}.flip-price-hover{outline:3px solid #198754!important;background:rgba(25,135,84,0.1)!important}';document.head.appendChild(o);var h=null;document.addEventListener('mouseover',function(e){if(h)h.classList.remove('flip-price-hover');h=e.target;h.classList.add('flip-price-hover')});document.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();var t=e.target.innerText||e.target.textContent;var p=t.match(/[\d\s,.]+/);if(p){var n=p[0].replace(/\s/g,'').replace(',','.');n=parseFloat(n);if(n>0&&n<1000000){navigator.clipboard.writeText(n.toString());alert('Prix copié: '+n+' $\n\nRetournez dans Flip Manager et cliquez sur le bouton vert pour coller.');}}o.remove();document.body.style.cursor='';},true)})();"
-                       class="btn btn-lg btn-success"
-                       onclick="event.preventDefault(); alert('Glissez ce bouton dans votre barre de favoris!');"
-                       draggable="true">
-                        <i class="bi bi-currency-dollar me-1"></i>Flip Prix
-                    </a>
-                </div>
-
-                <h6>Instructions:</h6>
-                <ol>
-                    <li><strong>Installation (une seule fois):</strong> Glissez le bouton vert "Flip Prix" dans votre barre de favoris</li>
-                    <li><strong>Sur le site du magasin:</strong> Allez sur la page du produit</li>
-                    <li><strong>Activez le sélecteur:</strong> Cliquez sur "Flip Prix" dans vos favoris</li>
-                    <li><strong>Sélectionnez le prix:</strong> Cliquez sur le prix affiché (il sera surligné en vert)</li>
-                    <li><strong>Retour dans Flip:</strong> Le prix est copié! Cliquez sur <i class="bi bi-clipboard-check text-success"></i> pour le coller</li>
-                </ol>
-
-                <div class="alert alert-warning mt-3 mb-0">
-                    <i class="bi bi-lightbulb me-1"></i>
-                    <strong>Astuce:</strong> Si la barre de favoris n'est pas visible, appuyez sur <kbd>Ctrl+Shift+B</kbd> (Windows) ou <kbd>Cmd+Shift+B</kbd> (Mac).
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <iframe id="price-selector-iframe" style="width:100%;height:100%;border:none;display:none;"></iframe>
             </div>
         </div>
     </div>
@@ -1511,22 +1481,51 @@ function renderPanierTree($items, $level = 0) {
         }
     });
 
-    // Coller le prix depuis le presse-papier (edit modal)
-    document.getElementById('item-modal-paste-price').addEventListener('click', async function() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const price = parseFloat(text.replace(',', '.').replace(/[^\d.]/g, ''));
-            if (price > 0 && price < 1000000) {
-                const priceInput = document.getElementById('item-modal-prix');
-                priceInput.value = price;
-                priceInput.style.backgroundColor = '#d4edda';
-                setTimeout(() => priceInput.style.backgroundColor = '', 2000);
-            } else {
-                alert('Aucun prix valide dans le presse-papier.\n\nUtilisez le bookmarklet "Flip Prix" sur le site du magasin d\'abord.');
-            }
-        } catch (err) {
-            alert('Impossible de lire le presse-papier.\n\nAutorisez l\'accès au presse-papier ou collez manuellement (Ctrl+V).');
+    // Variables pour le sélecteur de prix
+    let currentPriceInput = null;
+    const priceSelectorModal = new bootstrap.Modal(document.getElementById('priceSelectorModal'));
+    const priceSelectorIframe = document.getElementById('price-selector-iframe');
+    const priceSelectorLoading = document.getElementById('price-selector-loading');
+
+    // Ouvrir le sélecteur de prix (edit modal)
+    document.getElementById('item-modal-select-price').addEventListener('click', function() {
+        const lien = document.getElementById('item-modal-lien').value;
+        if (!lien) {
+            alert('Entrez d\'abord un lien d\'achat');
+            return;
         }
+        currentPriceInput = document.getElementById('item-modal-prix');
+        openPriceSelector(lien);
+    });
+
+    // Fonction pour ouvrir le sélecteur de prix
+    function openPriceSelector(url) {
+        priceSelectorLoading.style.display = 'block';
+        priceSelectorIframe.style.display = 'none';
+        priceSelectorIframe.src = '<?= url('/modules/budget-builder/proxy.php') ?>?url=' + encodeURIComponent(url);
+        priceSelectorModal.show();
+
+        priceSelectorIframe.onload = function() {
+            priceSelectorLoading.style.display = 'none';
+            priceSelectorIframe.style.display = 'block';
+        };
+    }
+
+    // Écouter les messages du proxy (prix sélectionné)
+    window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'price' && currentPriceInput) {
+            currentPriceInput.value = e.data.value;
+            currentPriceInput.style.backgroundColor = '#d4edda';
+            setTimeout(() => currentPriceInput.style.backgroundColor = '', 2000);
+            priceSelectorModal.hide();
+        } else if (e.data && e.data.type === 'close') {
+            priceSelectorModal.hide();
+        }
+    });
+
+    // Nettoyer l'iframe quand le modal se ferme
+    document.getElementById('priceSelectorModal').addEventListener('hidden.bs.modal', function() {
+        priceSelectorIframe.src = 'about:blank';
     });
 
     // Bouton scroll to top
@@ -1972,21 +1971,14 @@ function renderPanierTree($items, $level = 0) {
         }
     });
 
-    // Coller le prix depuis le presse-papier (add item modal)
-    document.getElementById('add-item-paste-price').addEventListener('click', async function() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const price = parseFloat(text.replace(',', '.').replace(/[^\d.]/g, ''));
-            if (price > 0 && price < 1000000) {
-                const priceInput = document.getElementById('add-item-prix');
-                priceInput.value = price;
-                priceInput.style.backgroundColor = '#d4edda';
-                setTimeout(() => priceInput.style.backgroundColor = '', 2000);
-            } else {
-                alert('Aucun prix valide dans le presse-papier.\n\nUtilisez le bookmarklet "Flip Prix" sur le site du magasin d\'abord.');
-            }
-        } catch (err) {
-            alert('Impossible de lire le presse-papier.\n\nAutorisez l\'accès au presse-papier ou collez manuellement (Ctrl+V).');
+    // Ouvrir le sélecteur de prix (add item modal)
+    document.getElementById('add-item-select-price').addEventListener('click', function() {
+        const lien = document.getElementById('add-item-lien').value;
+        if (!lien) {
+            alert('Entrez d\'abord un lien d\'achat');
+            return;
         }
+        currentPriceInput = document.getElementById('add-item-prix');
+        openPriceSelector(lien);
     });
 </script>
