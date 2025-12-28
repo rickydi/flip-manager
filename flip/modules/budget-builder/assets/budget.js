@@ -712,59 +712,12 @@ const BudgetBuilder = {
         });
     },
 
+    /**
+     * ❌ DÉSACTIVÉ
+     * Les totaux panier sont calculés uniquement côté serveur.
+     */
     updateTotals: function() {
-        const self = this;
-        let grandTotal = 0;
-
-        // Mettre à jour chaque section
-        document.querySelectorAll('.panier-section').forEach(section => {
-            let sectionTotal = 0;
-
-            // Calculer le total de cette section - tous les items (chaque item n'existe qu'une fois dans le DOM)
-            section.querySelectorAll('.panier-item.is-item').forEach(item => {
-                const prixEl = item.querySelector('.item-prix');
-                const qteEl = item.querySelector('.item-qte');
-                const prix = parseFloat(prixEl?.dataset?.prix) || 0;
-                const qte = parseInt(qteEl?.textContent || qteEl?.value) || 1;
-                const itemTotal = prix * qte;
-                sectionTotal += itemTotal;
-
-                const totalEl = item.querySelector('.item-total');
-                if (totalEl) {
-                    totalEl.textContent = self.formatMoney(itemTotal);
-                }
-            });
-
-            // Mettre à jour le badge de la section
-            const sectionBadge = section.querySelector('.panier-section-header .badge.bg-success');
-            if (sectionBadge) {
-                sectionBadge.textContent = self.formatMoney(sectionTotal);
-            }
-
-            grandTotal += sectionTotal;
-        });
-
-        // Si pas de sections (ancien format), calculer directement
-        if (grandTotal === 0) {
-            document.querySelectorAll('#panier-items .panier-item.is-item').forEach(item => {
-                const prixEl = item.querySelector('.item-prix');
-                const qteEl = item.querySelector('.item-qte');
-                const prix = parseFloat(prixEl?.dataset?.prix) || 0;
-                const qte = parseInt(qteEl?.textContent || qteEl?.value) || 1;
-                const itemTotal = prix * qte;
-                grandTotal += itemTotal;
-
-                const totalEl = item.querySelector('.item-total');
-                if (totalEl) {
-                    totalEl.textContent = self.formatMoney(itemTotal);
-                }
-            });
-        }
-
-        // Mettre à jour le total général
-        document.querySelectorAll('#panier-total, #panier-total-footer').forEach(el => {
-            el.textContent = self.formatMoney(grandTotal);
-        });
+        // no-op
     },
 
     formatMoney: function(amount) {
@@ -1060,46 +1013,35 @@ const BudgetBuilder = {
 
     // Rafraîchir les indicateurs du projet (Base tab) après changement du budget
     refreshIndicateurs: function(retryCount = 0) {
-        // ⚠️ Le tab Base n’est pas monté tant qu’il n’a jamais été ouvert
-        // → on force son chargement une fois
-        // ✅ ID réel du tab = "base" (Bootstrap tab-pane)
-        const baseTab = document.getElementById('base');
-
-        // Le contenu est déjà présent en HTML (PHP rendu côté serveur)
-        // → le vrai problème n’est PAS le chargement, mais l’exécution JS
-        if (baseTab && !baseTab.dataset.jsReady) {
-            baseTab.dataset.jsReady = '1';
-
-            // Forcer l’exécution des scripts dépendants du tab Base
-            // (charts / indicateurs / rénovation)
-            setTimeout(() => {
-                if (typeof window.initBaseCharts === 'function') {
-                    window.initBaseCharts();
-                }
-                this.refreshIndicateurs();
-            }, 50);
-        }
-
-        // Token pas encore prêt → retry automatique
+        const self = this;
+        
+        // Token pas encore prêt → retry automatique ou aller le chercher
         if (!window.baseFormCsrfToken) {
-            if (retryCount < 10) {
+            const tokenInput = document.querySelector('input[name="csrf_token"]');
+            if (tokenInput) {
+                window.baseFormCsrfToken = tokenInput.value;
+            } else if (retryCount < 10) {
                 setTimeout(() => {
-                    this.refreshIndicateurs(retryCount + 1);
+                    self.refreshIndicateurs(retryCount + 1);
                 }, 150);
+                return;
+            } else {
+                console.error("CSRF Token manquant pour refreshIndicateurs");
+                return;
             }
-            return;
-        }
-
-        if (typeof window.updateIndicateurs !== 'function'
-            || typeof window.updateRenovation !== 'function') {
-            return;
         }
 
         const formData = new FormData();
         formData.set('ajax_action', 'get_project_totals');
         formData.set('csrf_token', window.baseFormCsrfToken);
 
-        fetch(window.location.href, {
+        // Utiliser l'URL actuelle ou celle du détail de projet si on est dans le module standalone
+        let fetchUrl = window.location.href;
+        if (window.location.pathname.includes('/modules/budget-builder/')) {
+             fetchUrl = '/flip/admin/projets/detail.php?id=' + this.projetId;
+        }
+
+        fetch(fetchUrl, {
             method: 'POST',
             body: formData
         })
@@ -1121,7 +1063,6 @@ const BudgetBuilder = {
                         res.depenses_par_etape || {}
                     );
                 } else if (typeof window.updateRenovation === 'function') {
-                    // Fallback temporaire
                     window.updateRenovation(
                         res.renovation,
                         res.budget_par_etape,
@@ -1129,13 +1070,24 @@ const BudgetBuilder = {
                     );
                 }
             }
+            
+            // ✅ FORCER LA MISE À JOUR DU DOM (au cas où)
+            const elRenoTotal = document.getElementById('detailRenoTotal');
+            if (elRenoTotal && res.renovation) {
+                 // Utiliser reel_ttc_avec_mo si c'est ce qu'on veut afficher, ou total_ttc budget
+                 // Dans calculs.php on utilise budget_ttc_avec_mo pour le coût total projet
+                 // Mais dans tab-base.php on affiche renoBudgetTTC (qui est total_ttc + mo_extrapole)
+                 // Or res.renovation.budget_ttc_avec_mo EST total_ttc + mo_extrapole
+                 const montantAffiche = res.renovation.budget_ttc_avec_mo;
+                 elRenoTotal.textContent = new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(montantAffiche);
+            }
 
             // ✅ Rebind des graphiques sans détruire le DOM
             if (typeof window.initDetailCharts === 'function') {
                 window.initDetailCharts();
             }
         })
-        .catch(() => {});
+        .catch(err => console.error("Erreur refreshIndicateurs", err));
     },
 
     renderPanier: function(sections, total) {
@@ -1155,7 +1107,8 @@ const BudgetBuilder = {
                 const etapeLabel = section.etape_num
                     ? `N.${section.etape_num} ${this.escapeHtml(section.etape_nom)}`
                     : this.escapeHtml(section.etape_nom);
-                const sectionTotal = this.calculateSectionTotal(section.items);
+                // ✅ total section fourni par le serveur
+                const sectionTotal = section.total || 0;
 
                 html += `
                     <div class="panier-section" data-etape-id="${section.etape_id || 'null'}">
@@ -1246,17 +1199,12 @@ const BudgetBuilder = {
         return html;
     },
 
+    /**
+     * ❌ DÉSACTIVÉ
+     * Les totaux par section sont fournis par le serveur.
+     */
     calculateSectionTotal: function(items) {
-        let total = 0;
-        items.forEach(item => {
-            if (item.type !== 'folder') {
-                total += (item.prix || 0) * (item.quantite || 1);
-            }
-            if (item.children) {
-                total += this.calculateSectionTotal(item.children);
-            }
-        });
-        return total;
+        return 0;
     },
 
     formatMoney: function(amount) {
