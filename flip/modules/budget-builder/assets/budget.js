@@ -805,6 +805,7 @@ const BudgetBuilder = {
             // Compter tous les éléments (dossiers + items)
             const itemCount = group.items.length;
             let etapeLabel;
+            const etapeId = group.etape_id || 'null';
 
             // Utiliser le numéro d'étape réel retourné par le serveur
             if (group.etape_id && group.etape_num) {
@@ -814,16 +815,24 @@ const BudgetBuilder = {
             }
 
             html += `
-                <div class="etape-group mb-3">
-                    <div class="catalogue-item is-etape-header" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--primary-color);">
-                        <span class="folder-toggle" onclick="toggleEtapeGroup(this)">
+                <div class="etape-section mb-3" data-etape-id="${etapeId}">
+                    <div class="catalogue-item is-section-header" style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--bs-primary, #0d6efd);">
+                        <span class="folder-toggle" onclick="toggleSection(this)">
                             <i class="bi bi-caret-down-fill"></i>
                         </span>
                         <i class="bi bi-list-ol text-primary me-1"></i>
                         <span class="item-nom fw-bold">${etapeLabel}</span>
-                        <span class="badge bg-primary ms-auto">${itemCount} item(s)</span>
+                        <span class="badge bg-primary ms-2">${itemCount}</span>
+                        <div class="btn-group btn-group-sm ms-auto" style="gap: 10px;">
+                            <button type="button" class="btn btn-link p-0 text-success" onclick="addItemToSection(${etapeId}, 'folder')" title="Ajouter dossier">
+                                <i class="bi bi-folder-plus" style="font-size: 1.25rem;"></i>
+                            </button>
+                            <button type="button" class="btn btn-link p-0 text-primary" onclick="addItemToSection(${etapeId}, 'item')" title="Ajouter item">
+                                <i class="bi bi-plus-circle" style="font-size: 1.25rem;"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="etape-group-children folder-children" style="margin-left: 16px;">
+                    <div class="section-children folder-children" data-etape="${etapeId}">
                         ${this.renderEtapeItems(group.items)}
                     </div>
                 </div>
@@ -845,68 +854,78 @@ const BudgetBuilder = {
             const isFolder = item.type === 'folder';
             const hasChildren = item.children && item.children.length > 0;
 
+            html += `
+                <div class="catalogue-item ${isFolder ? 'is-folder' : 'is-item'}"
+                     data-id="${item.id}"
+                     data-type="${item.type}"
+                     data-prix="${item.prix || 0}">
+            `;
+
             if (isFolder) {
-                // Rendre un dossier avec ses enfants
                 html += `
-                    <div class="catalogue-item is-folder"
-                         data-id="${item.id}"
-                         data-type="folder">
-                        <span class="folder-toggle ${hasChildren ? '' : 'invisible'}" onclick="toggleFolder(this)">
-                            <i class="bi bi-caret-down-fill"></i>
-                        </span>
-                        <i class="bi bi-folder-fill text-warning me-1"></i>
-                        <span class="item-nom" ondblclick="editItemName(this, ${item.id})">${this.escapeHtml(item.nom)}</span>
-                        <div class="btn-group btn-group-sm">
-                            <button type="button" class="btn btn-link p-0 text-info" onclick="openFolderModal(${item.id})" title="Modifier étape">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button type="button" class="btn btn-link p-0 text-success" onclick="addItem(${item.id}, 'folder')" title="Sous-dossier">
-                                <i class="bi bi-folder-plus"></i>
-                            </button>
-                            <button type="button" class="btn btn-link p-0 text-primary" onclick="addItem(${item.id}, 'item')" title="Item">
-                                <i class="bi bi-plus-circle"></i>
-                            </button>
-                        </div>
-                        <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="deleteItem(${item.id})" title="Supprimer">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
+                    <span class="folder-toggle ${hasChildren ? '' : 'invisible'}" onclick="toggleFolder(this)">
+                        <i class="bi bi-caret-down-fill"></i>
+                    </span>
+                    <i class="bi bi-folder-fill text-warning me-1"></i>
                 `;
-
-                if (hasChildren) {
-                    html += `<div class="folder-children" data-parent="${item.id}">${this.renderEtapeItems(item.children)}</div>`;
-                }
             } else {
-                // Rendre un item
-                const folderPath = item.folder_path ? `<span class="text-muted small me-1"><i class="bi bi-folder text-warning"></i> ${this.escapeHtml(item.folder_path)} /</span>` : '';
-
                 html += `
-                    <div class="catalogue-item is-item"
-                         data-id="${item.id}"
-                         data-type="item"
-                         data-prix="${item.prix || 0}">
-                        <span class="folder-toggle invisible"></span>
-                        <i class="bi bi-box-seam text-primary me-1"></i>
-                        ${folderPath}
-                        <span class="item-nom" ondblclick="editItemName(this, ${item.id})">${this.escapeHtml(item.nom)}</span>
-                        <span class="badge bg-secondary me-1">${this.formatMoney(item.prix || 0)}</span>
-                        <button type="button" class="btn btn-sm btn-link p-0 text-info me-1"
-                                onclick="openItemModal(${item.id})" title="Modifier">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-link p-0 text-secondary me-1"
-                                onclick="duplicateItem(${item.id})" title="Dupliquer">
-                            <i class="bi bi-files"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
-                                onclick="addToPanier(${item.id})" title="Ajouter au panier">
-                            <i class="bi bi-plus-circle-fill"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="deleteItem(${item.id})" title="Supprimer">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
+                    <span class="folder-toggle invisible"></span>
+                    <i class="bi bi-box-seam text-primary me-1"></i>
                 `;
+            }
+
+            html += `
+                <span class="item-nom" ondblclick="editItemName(this, ${item.id})">
+                    ${this.escapeHtml(item.nom)}
+                </span>
+                <span class="item-actions">
+            `;
+
+            if (!isFolder) {
+                // Actions pour les items
+                html += `
+                    <span class="badge bg-secondary item-prix-badge">${this.formatMoney(item.prix || 0)}</span>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-info"
+                            onclick="openItemModal(${item.id})" title="Modifier">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-warning"
+                            onclick="duplicateItem(${item.id})" title="Dupliquer">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary add-to-panier"
+                            onclick="addToPanier(${item.id})" title="Ajouter au panier">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                `;
+            } else {
+                // Actions pour les dossiers
+                html += `
+                    <span class="item-prix-badge"></span>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-success" onclick="addItem(${item.id}, 'folder')" title="Sous-dossier">
+                        <i class="bi bi-folder-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-warning" onclick="duplicateItem(${item.id})" title="Dupliquer">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-primary" onclick="addItem(${item.id}, 'item')" title="Item">
+                        <i class="bi bi-plus-circle"></i>
+                    </button>
+                `;
+            }
+
+            html += `
+                    <button type="button" class="btn btn-sm btn-link p-0 text-danger"
+                            onclick="deleteItem(${item.id})" title="Supprimer">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </span>
+            </div>
+            `;
+
+            if (isFolder && hasChildren) {
+                html += `<div class="folder-children" data-parent="${item.id}">${this.renderEtapeItems(item.children)}</div>`;
             }
         });
 
