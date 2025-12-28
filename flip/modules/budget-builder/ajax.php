@@ -999,26 +999,46 @@ try {
                 throw new Exception('URL invalide');
             }
 
-            // Récupérer le contenu de la page
+            // Récupérer le contenu de la page avec headers complets pour éviter les blocages
             $ch = curl_init();
             curl_setopt_array($ch, [
                 CURLOPT_URL => $url,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_TIMEOUT => 15,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_TIMEOUT => 20,
+                CURLOPT_CONNECTTIMEOUT => 10,
                 CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_ENCODING => 'gzip, deflate',
                 CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 CURLOPT_HTTPHEADER => [
-                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language: fr-CA,fr;q=0.9,en;q=0.8'
-                ]
+                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language: fr-CA,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+                    'Accept-Encoding: gzip, deflate, br',
+                    'Connection: keep-alive',
+                    'Upgrade-Insecure-Requests: 1',
+                    'Sec-Fetch-Dest: document',
+                    'Sec-Fetch-Mode: navigate',
+                    'Sec-Fetch-Site: none',
+                    'Sec-Fetch-User: ?1',
+                    'Cache-Control: max-age=0',
+                    'sec-ch-ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                    'sec-ch-ua-mobile: ?0',
+                    'sec-ch-ua-platform: "Windows"'
+                ],
+                CURLOPT_COOKIEJAR => '/tmp/curl_cookies_' . md5($url) . '.txt',
+                CURLOPT_COOKIEFILE => '/tmp/curl_cookies_' . md5($url) . '.txt'
             ]);
             $html = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
             curl_close($ch);
 
             if ($httpCode !== 200 || empty($html)) {
-                throw new Exception('Impossible de charger la page (code: ' . $httpCode . ')');
+                $errorMsg = 'Impossible de charger la page (code: ' . $httpCode . ')';
+                if ($curlError) $errorMsg .= ' - ' . $curlError;
+                throw new Exception($errorMsg);
             }
 
             $price = null;
