@@ -1110,13 +1110,22 @@ const BudgetBuilder = {
                 window.updateIndicateurs(res.indicateurs);
             }
 
-            // ✅ Mise à jour RÉNOVATION (logique manquante)
-            if (res.renovation && typeof window.updateRenovation === 'function') {
-                window.updateRenovation(
-                    res.renovation,
-                    res.budget_par_etape,
-                    res.depenses_par_etape
-                );
+            // ✅ RÉNOVATION – rendu JSON centralisé
+            if (res.renovation) {
+                if (typeof window.renderRenovationFromJson === 'function') {
+                    window.renderRenovationFromJson(
+                        res.renovation,
+                        res.budget_par_etape || {},
+                        res.depenses_par_etape || {}
+                    );
+                } else if (typeof window.updateRenovation === 'function') {
+                    // Fallback temporaire
+                    window.updateRenovation(
+                        res.renovation,
+                        res.budget_par_etape,
+                        res.depenses_par_etape
+                    );
+                }
             }
 
             // ✅ Rebind des graphiques sans détruire le DOM
@@ -1420,6 +1429,79 @@ const BudgetBuilder = {
             return { success: false, message: error.message };
         });
     }
+};
+
+/**
+ * ================================
+ * RÉNOVATION – RENDU CENTRALISÉ JSON
+ * ================================
+ */
+window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEtape) {
+    const tableBody = document.querySelector('.cost-table tbody');
+    if (!tableBody) return;
+
+    const marker = Array.from(tableBody.children).find(tr =>
+        tr.innerHTML.includes('RÉNOVATION_DYNAMIC_START')
+    );
+    if (!marker) return;
+
+    // Supprimer toutes les lignes après le header Rénovation jusqu’au prochain section-header
+    let row = marker.nextElementSibling;
+    while (row && !row.classList.contains('section-header')) {
+        const toRemove = row;
+        row = row.nextElementSibling;
+        toRemove.remove();
+    }
+
+    let totalBudget = 0;
+    let totalReel = 0;
+
+    Object.entries(budgetParEtape).forEach(([etapeId, etape]) => {
+        const budget = etape.total || 0;
+        const dep = depensesParEtape[etapeId]?.total || 0;
+        if (budget === 0 && dep === 0) return;
+
+        const diff = budget - dep;
+        totalBudget += budget;
+        totalReel += dep;
+
+        marker.insertAdjacentHTML('afterend', `
+            <tr class="sub-item detail-etape-row" data-etape-id="${etapeId}">
+                <td><i class="bi bi-bookmark-fill me-1 text-muted"></i>${etape.nom}</td>
+                <td class="text-end">${formatMoneyBase(budget)}</td>
+                <td class="text-end ${diff >= 0 ? 'positive' : 'negative'}">${diff !== 0 ? formatMoneyBase(diff) : '-'}</td>
+                <td class="text-end">${formatMoneyBase(dep)}</td>
+            </tr>
+        `);
+    });
+
+    // Étapes avec dépenses sans budget
+    Object.entries(depensesParEtape).forEach(([etapeId, dep]) => {
+        if (budgetParEtape[etapeId]) return;
+        if (!dep.total) return;
+
+        totalReel += dep.total;
+
+        marker.insertAdjacentHTML('afterend', `
+            <tr class="sub-item detail-etape-row" data-etape-id="${etapeId}">
+                <td><i class="bi bi-bookmark-fill me-1 text-muted"></i>${dep.nom}</td>
+                <td class="text-end">-</td>
+                <td class="text-end negative">${formatMoneyBase(-dep.total)}</td>
+                <td class="text-end">${formatMoneyBase(dep.total)}</td>
+            </tr>
+        `);
+    });
+
+    // Totaux / taxes
+    const elCont = document.getElementById('detailContingence');
+    const elTPS = document.getElementById('detailTPS');
+    const elTVQ = document.getElementById('detailTVQ');
+    const elTotal = document.getElementById('detailRenoTotal');
+
+    if (elCont) elCont.textContent = formatMoneyBase(reno.contingence);
+    if (elTPS) elTPS.textContent = formatMoneyBase(reno.tps);
+    if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
+    if (elTotal) elTotal.textContent = formatMoneyBase(reno.total_ttc);
 };
 
 // Fonctions globales pour les onclick

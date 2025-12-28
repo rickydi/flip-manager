@@ -560,11 +560,15 @@
                         <td class="text-end"><?= formatMoney($totalRecReel) ?></td>
                     </tr>
                     
-                    <!-- RÉNOVATION -->
-                    <tr class="section-header" data-section="renovation">
-                        <td colspan="4"><i class="bi bi-tools me-1"></i> Rénovation (+ <?= $projet['taux_contingence'] ?>% contingence) <i class="bi bi-chevron-down toggle-icon"></i></td>
-                    </tr>
-                    <?php
+<!-- RÉNOVATION -->
+<tr class="section-header" data-section="renovation">
+    <td colspan="4">
+        <i class="bi bi-tools me-1"></i>
+        Rénovation (+ <?= $projet['taux_contingence'] ?>% contingence)
+        <i class="bi bi-chevron-down toggle-icon"></i>
+    </td>
+</tr>
+<!-- RÉNOVATION_DYNAMIC_START -->
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
                     $totalEcartReno = 0; // Somme de tous les écarts (positifs compensent négatifs)
@@ -644,7 +648,6 @@
                     <?php endif; ?>
                     
                     <!-- MAIN D'ŒUVRE -->
-                    <?php
                     $diffMO = $moExtrapole['cout'] - $moReel['cout'];
                     // Ajouter l'écart MO au total (positif ou négatif)
                     $totalEcartReno += $diffMO;
