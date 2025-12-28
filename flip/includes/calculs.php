@@ -727,6 +727,36 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
 }
 
 /**
+ * ✅ SOURCE UNIQUE – RÉNOVATION CENTRALISÉE
+ * Retourne TOUS les montants rénovation de façon cohérente
+ * AUCUN autre calcul rénovation ne doit exister ailleurs
+ */
+function calculerRenovationCentralisee(PDO $pdo, array $projet): array {
+    $budget = calculerBudgetRenovationComplet($pdo, $projet['id'], (float)$projet['taux_contingence']);
+
+    $factures = calculerTaxesFacturesReelles($pdo, $projet['id']);
+    $moReel = calculerCoutMainDoeuvre($pdo, $projet['id']);
+    $moBudget = calculerCoutMainDoeuvreExtrapole($pdo, $projet);
+
+    $budgetTtcAvecMo = $budget['total_ttc'] + $moBudget['cout'];
+    $reelTtcAvecMo = $factures['total_ttc'] + $moReel['cout'];
+
+    return [
+        'budget_ht' => $budget['budget_ht'],
+        'budget_ttc' => $budget['total_ttc'],
+        'budget_ttc_avec_mo' => $budgetTtcAvecMo,
+        'reel_ttc' => $factures['total_ttc'],
+        'reel_ttc_avec_mo' => $reelTtcAvecMo,
+        'ecart' => $budgetTtcAvecMo - $reelTtcAvecMo,
+        'contingence' => $budget['contingence'],
+        'tps' => $budget['tps'],
+        'tvq' => $budget['tvq'],
+        'main_doeuvre_reelle' => $moReel,
+        'main_doeuvre_budget' => $moBudget
+    ];
+}
+
+/**
  * Calcule tous les indicateurs financiers d'un projet
  * @param PDO $pdo
  * @param array $projet
@@ -785,14 +815,18 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Coûts de vente (sans intérêts pour l'instant)
     $coutsVente = calculerCoutsVente($projetModifie);
     
-    // Rénovation
-    $totalBudgetRenovation = calculerTotalBudgetRenovation($pdo, $projet['id']);
-    $totalFacturesReelles = calculerTotalFacturesReelles($pdo, $projet['id']);
-    $taxesReelles = calculerTaxesFacturesReelles($pdo, $projet['id']);
-    $contingence = calculerContingence($totalBudgetRenovation, (float) $projet['taux_contingence']);
-
-    // Budget avec taxes
-    $budgetComplet = calculerBudgetRenovationComplet($pdo, $projet['id'], (float) $projet['taux_contingence']);
+    /**
+     * ❌ ANCIEN SYSTÈME (BUG)
+     * La rénovation était calculée ICI puis PLUS BAS encore une fois.
+     * ➜ double comptabilisation garantie.
+     *
+     * ✅ SUPPRIMÉ : on utilise UNIQUEMENT la rénovation centralisée.
+     */
+    $renovation = calculerRenovationCentralisee($pdo, $projet);
+    $budgetComplet = [
+        'total_ttc' => $renovation['budget_ttc'],
+    ];
+    $totalFacturesReelles = $renovation['reel_ttc'];
     
     // Récupérer les prêteurs pour avoir les intérêts PRÉVUS (avec durée prévue)
     $dataFinancement = getInvestisseursProjet($pdo, $projet['id'], 0, $moisPrevu);
@@ -817,10 +851,14 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Coûts fixes totaux (maintenant avec les bons intérêts)
     $coutsFixesTotaux = calculerCoutsFixesTotaux($coutsAcquisition, $coutsRecurrents, $coutsVente);
 
-    // Coût total projet - UTILISER LE TTC (avec taxes) pour la rénovation!
-    // Avant: utilisait $totalBudgetRenovation (HT) + $contingence
-    // Maintenant: utilise $budgetComplet['total_ttc'] qui inclut HT + contingence + TPS + TVQ
-    $coutTotalProjet = (float) $projet['prix_achat'] + $coutsFixesTotaux + $budgetComplet['total_ttc'];
+    /**
+     * ✅ CORRECTION FINALE
+     * La rénovation est ajoutée UNE SEULE FOIS
+     * depuis la source centralisée.
+     */
+    $coutTotalProjet = (float) $projet['prix_achat']
+        + $coutsFixesTotaux
+        + $renovation['budget_ttc_avec_mo'];
 
     // Équité potentielle
     $valeurPotentielle = (float) $projet['valeur_potentielle'];
@@ -918,31 +956,10 @@ function calculerIndicateursProjet($pdo, $projet) {
         'couts_recurrents' => $coutsRecurrents,
         'couts_vente' => $coutsVente,
         'couts_fixes_totaux' => $coutsFixesTotaux,
-        'renovation' => [
-            'budget' => $totalBudgetRenovation,
-            'reel' => $totalFacturesReelles,
-            'reel_ht' => $taxesReelles['montant_ht'],
-            'reel_tps' => $taxesReelles['tps'],
-            'reel_tvq' => $taxesReelles['tvq'],
-            'reel_ttc' => $taxesReelles['total_ttc'],
-            'ecart' => $totalBudgetAvecMO - $totalReelAvecMO,
-            'progression' => $progressionBudget,
-            'contingence' => $budgetComplet['contingence'],
-            'sous_total_avant_taxes' => $budgetComplet['sous_total_avant_taxes'],
-            'tps' => $budgetComplet['tps'],
-            'tvq' => $budgetComplet['tvq'],
-            'total_ttc' => $budgetComplet['total_ttc']
-        ],
-        'main_doeuvre' => [
-            'heures' => $mainDoeuvreReelle['heures'],
-            'cout' => $mainDoeuvreReelle['cout']
-        ],
-        'main_doeuvre_extrapole' => [
-            'heures' => $mainDoeuvreExtrapole['heures'],
-            'cout' => $mainDoeuvreExtrapole['cout'],
-            'jours' => $mainDoeuvreExtrapole['jours']
-        ],
-        'contingence' => $budgetComplet['contingence'],
+
+        // ✅ SOURCE UNIQUE RÉNOVATION (déjà calculée)
+        'renovation' => $renovation,
+
         'cout_total_projet' => $coutTotalProjet,
         'valeur_potentielle' => $valeurPotentielle,
         'equite_potentielle' => $equitePotentielle,
