@@ -582,9 +582,9 @@ if ($isPartialBase) {
 
                         $ecart = $extrapole - $reel;
                     ?>
-                    <tr class="sub-item">
+                    <tr class="sub-item" data-recurrent-code="<?= e($type['code']) ?>">
                         <td><?= e($type['nom']) ?><?= $isLoyer ? ' <small class="text-success">(revenu)</small>' : '' ?></td>
-                        <td class="text-end"><?= $isLoyer ? '-' : '' ?><?= formatMoney($extrapole) ?></td>
+                        <td class="text-end" id="detailRecurrent_<?= e($type['code']) ?>"><?= $isLoyer ? '-' : '' ?><?= formatMoney($extrapole) ?></td>
                         <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecart) ?></td>
                         <td class="text-end"><?= $isLoyer ? '-' : '' ?><?= formatMoney($reel) ?></td>
                     </tr>

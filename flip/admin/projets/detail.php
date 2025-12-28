@@ -2987,12 +2987,22 @@ window.updateCoutsSection = function(section, data) {
 
     // Pour les récurrents, mettre à jour les valeurs extrapolées
     if (section === 'recurrents' && data) {
+        // Clés fixes (taxes_municipales, electricite, etc.)
         Object.keys(data).forEach(key => {
-            if (typeof data[key] === 'object' && data[key].extrapole !== undefined) {
+            if (key !== 'details' && key !== 'total' && typeof data[key] === 'object' && data[key].extrapole !== undefined) {
                 const el = document.getElementById('detailRecurrent_' + key);
                 if (el) el.textContent = window.formatMoneyBase(data[key].extrapole);
             }
         });
+        // Types dynamiques dans 'details' (gazon, etc.)
+        if (data.details) {
+            Object.keys(data.details).forEach(key => {
+                if (typeof data.details[key] === 'object' && data.details[key].extrapole !== undefined) {
+                    const el = document.getElementById('detailRecurrent_' + key);
+                    if (el) el.textContent = window.formatMoneyBase(data.details[key].extrapole);
+                }
+            });
+        }
     }
 
     // Pour la vente, mettre à jour commission et intérêts
