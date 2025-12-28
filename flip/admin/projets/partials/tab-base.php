@@ -710,11 +710,11 @@ if ($isPartialBase) {
                     
                     
                     <?php
-                    $ecartContingence = $indicateurs['contingence'] - $contingenceUtilisee;
+                    $ecartContingence = $indicateurs['renovation']['contingence'] - $contingenceUtilisee;
                     ?>
                     <tr class="sub-item">
                         <td>Contingence <?= $projet['taux_contingence'] ?>%</td>
-                        <td class="text-end" id="detailContingence"><?= formatMoney($indicateurs['contingence']) ?></td>
+                        <td class="text-end" id="detailContingence"><?= formatMoney($indicateurs['renovation']['contingence']) ?></td>
                         <td class="text-end <?= $ecartContingence >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartContingence) ?></td>
                         <td class="text-end"><?= formatMoney($contingenceUtilisee) ?></td>
                     </tr>
