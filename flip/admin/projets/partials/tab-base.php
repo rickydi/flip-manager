@@ -569,8 +569,9 @@
                     $totalReelReno = 0;
                     $totalEcartReno = 0; // Somme de tous les écarts (positifs compensent négatifs)
 
-                    // NOUVEAU SYSTÈME: Afficher par étape si le budget-builder est utilisé
-                    if (!empty($budgetParEtape)):
+                    // NOUVEAU SYSTÈME: Afficher par étape si le budget-builder est utilisé OU s'il y a des dépenses par étape
+                    if (!empty($budgetParEtape) || !empty($depensesParEtape)):
+                        // D'abord afficher les étapes avec budget
                         foreach ($budgetParEtape as $etapeId => $etape):
                             $budgetHT = $etape['total'];
                             // Dépenses réelles par étape (factures avec cette étape)
