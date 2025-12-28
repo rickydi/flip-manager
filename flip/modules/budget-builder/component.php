@@ -462,6 +462,21 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
 
+<script>
+// Appliquer la taille de police AVANT le rendu pour éviter le saut visuel
+(function() {
+    var savedSize = localStorage.getItem('budget-builder-font-size') || '0.95';
+    document.documentElement.style.setProperty('--bb-font-size', savedSize + 'rem');
+})();
+</script>
+
+<style>
+/* Appliquer la taille de police sauvegardée immédiatement */
+.catalogue-item, .panier-item, .panier-section-header {
+    font-size: var(--bb-font-size, 0.95rem) !important;
+}
+</style>
+
 <div class="budget-builder-container">
     <!-- Toolbar: Undo/Redo + Contrôle de taille -->
     <div class="d-flex justify-content-between align-items-center mb-2">
@@ -1152,10 +1167,7 @@ function renderPanierTree($items, $level = 0) {
     }
 
     function applyFontSize(size) {
-        document.querySelector('.budget-builder-container').style.setProperty('--item-font-size', size + 'rem');
-        document.querySelectorAll('.catalogue-item, .panier-item, .panier-section-header').forEach(el => {
-            el.style.fontSize = size + 'rem';
-        });
+        document.documentElement.style.setProperty('--bb-font-size', size + 'rem');
     }
 
     function changeFontSize(direction) {
