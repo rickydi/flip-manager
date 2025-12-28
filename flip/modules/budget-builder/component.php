@@ -1534,6 +1534,7 @@ function renderPanierTree($items, $level = 0) {
                         totalBadge.innerHTML = formatMoney(newPrice * qte);
                     }
                     BudgetBuilder.updateTotals();
+                    BudgetBuilder.refreshIndicateurs();
                 } else {
                     element.innerHTML = originalHtml;
                     alert('Erreur: ' + (response.message || 'Échec'));

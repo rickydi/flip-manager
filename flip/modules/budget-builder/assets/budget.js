@@ -691,12 +691,15 @@ const BudgetBuilder = {
     },
 
     updateQuantity: function(panierItemId, quantite) {
+        const self = this;
         this.ajax('update_panier_quantity', {
             id: panierItemId,
             quantite: quantite
         }).then(response => {
             if (response.success) {
-                this.updateTotals();
+                self.updateTotals();
+                // Rafraîchir les indicateurs après changement de quantité
+                self.refreshIndicateurs();
             }
         });
     },
@@ -977,8 +980,32 @@ const BudgetBuilder = {
         this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
             if (response.success) {
                 self.renderPanier(response.sections, response.total);
+                // Rafraîchir les indicateurs du projet après chaque changement du panier
+                self.refreshIndicateurs();
             }
         });
+    },
+
+    // Rafraîchir les indicateurs du projet (Base tab) après changement du budget
+    refreshIndicateurs: function() {
+        // Vérifier si on est sur la page detail avec les fonctions exposées
+        if (typeof window.updateIndicateurs === 'function' && window.baseFormCsrfToken) {
+            const formData = new FormData();
+            formData.set('ajax_action', 'get_indicateurs');
+            formData.set('csrf_token', window.baseFormCsrfToken);
+
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.indicateurs) {
+                    window.updateIndicateurs(data.indicateurs);
+                }
+            })
+            .catch(err => console.log('Refresh indicateurs skipped:', err));
+        }
     },
 
     renderPanier: function(sections, total) {
