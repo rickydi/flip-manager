@@ -554,6 +554,25 @@
         <i class="bi bi-chevron-down toggle-icon"></i>
     </td>
 </tr>
+
+<!-- MAIN D'ŒUVRE -->
+<?php
+$diffMO = $moExtrapole['cout'] - $moReel['cout'];
+if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0):
+?>
+<tr class="sub-item labor-row">
+    <td>
+        <i class="bi bi-person-fill me-1"></i>Main d'œuvre
+        <small class="d-block opacity-75">
+            Planifié: <?= number_format($moExtrapole['heures'], 0) ?>h (<?= $moExtrapole['jours'] ?>j) |
+            Réel: <?= number_format($moReel['heures'], 1) ?>h
+        </small>
+    </td>
+    <td class="text-end"><?= formatMoney($moExtrapole['cout']) ?></td>
+    <td class="text-end <?= $diffMO >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffMO) ?></td>
+    <td class="text-end"><?= formatMoney($moReel['cout']) ?></td>
+</tr>
+<?php endif; ?>
 <!-- RÉNOVATION_DYNAMIC_START -->
 <?php
                     $totalBudgetReno = 0;
@@ -677,24 +696,6 @@
                         <td class="text-end"><?= formatMoney($renoReelTTC) ?></td>
                     </tr>
 
-                    <!-- MAIN D'ŒUVRE -->
-<?php
-                    $diffMO = $moExtrapole['cout'] - $moReel['cout'];
-                    if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0):
-                    ?>
-                    <tr class="sub-item labor-row">
-                        <td>
-                            <i class="bi bi-person-fill me-1"></i>Main d'œuvre
-                            <small class="d-block opacity-75">
-                                Planifié: <?= number_format($moExtrapole['heures'], 0) ?>h (<?= $moExtrapole['jours'] ?>j) | 
-                                Réel: <?= number_format($moReel['heures'], 1) ?>h
-                            </small>
-                        </td>
-                        <td class="text-end"><?= formatMoney($moExtrapole['cout']) ?></td>
-                        <td class="text-end <?= $diffMO >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($diffMO) ?></td>
-                        <td class="text-end"><?= formatMoney($moReel['cout']) ?></td>
-                    </tr>
-                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
