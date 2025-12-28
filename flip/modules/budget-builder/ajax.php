@@ -1125,6 +1125,35 @@ try {
             echo json_encode(['success' => true, 'price' => $price]);
             break;
 
+        case 'extract_price_from_image':
+            $imageData = $input['image'] ?? '';
+            if (empty($imageData)) throw new Exception('Image requise');
+
+            // Extraire le type MIME et les données base64
+            if (preg_match('/^data:([^;]+);base64,(.+)$/', $imageData, $matches)) {
+                $mimeType = $matches[1];
+                $base64Data = $matches[2];
+            } else {
+                throw new Exception('Format d\'image invalide');
+            }
+
+            // Vérifier que c'est une image valide
+            if (!in_array($mimeType, ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'])) {
+                throw new Exception('Type d\'image non supporté: ' . $mimeType);
+            }
+
+            // Utiliser Claude Vision pour extraire le prix
+            require_once __DIR__ . '/../../includes/ClaudeService.php';
+            $claude = new ClaudeService($pdo);
+            $result = $claude->extractPriceFromImage($base64Data, $mimeType);
+
+            if ($result['success']) {
+                echo json_encode(['success' => true, 'price' => $result['price'], 'method' => 'vision']);
+            } else {
+                throw new Exception($result['message'] ?? 'Prix non trouvé dans l\'image');
+            }
+            break;
+
         case 'get_order_items_by_etape':
             $projetId = (int)($input['projet_id'] ?? 0);
             if (!$projetId) throw new Exception('Projet requis');

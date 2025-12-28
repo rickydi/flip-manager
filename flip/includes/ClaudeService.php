@@ -347,6 +347,59 @@ class ClaudeService {
     }
 
     /**
+     * Extrait le prix d'un produit depuis une capture d'écran (Vision)
+     * @param string $imageData Image en base64 (sans le préfixe data:image/...)
+     * @param string $mimeType Type MIME de l'image (image/png, image/jpeg, etc.)
+     * @return array
+     */
+    public function extractPriceFromImage($imageData, $mimeType = 'image/png') {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'price' => null, 'message' => 'Clé API Claude non configurée'];
+        }
+
+        $systemPrompt = "Tu es un assistant spécialisé dans l'extraction de prix de produits depuis des captures d'écran de sites de magasins. " .
+                       "Tu dois analyser l'image fournie et trouver le prix de vente actuel du produit. " .
+                       "Ignore les prix barrés (anciens prix) et trouve le prix actuel. " .
+                       "Les prix sont généralement en dollars canadiens (CAD/$). " .
+                       "Réponds UNIQUEMENT en JSON valide avec cette structure: {\"price\": 123.45, \"found\": true} ou {\"price\": null, \"found\": false, \"reason\": \"explication\"}";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 200,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'image',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => $mimeType,
+                                'data' => $imageData
+                            ]
+                        ],
+                        [
+                            'type' => 'text',
+                            'text' => "Analyse cette capture d'écran d'une page produit et extrait le prix de vente actuel. Réponds en JSON."
+                        ]
+                    ]
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+            if (isset($result['found']) && $result['found'] && isset($result['price'])) {
+                return ['success' => true, 'price' => (float)$result['price'], 'message' => 'Prix trouvé par analyse d\'image'];
+            }
+            return ['success' => false, 'price' => null, 'message' => $result['reason'] ?? 'Prix non trouvé dans l\'image'];
+        } catch (Exception $e) {
+            return ['success' => false, 'price' => null, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Extrait les parties pertinentes du HTML pour l'analyse de prix
      */
     private function extractRelevantHtml($html) {

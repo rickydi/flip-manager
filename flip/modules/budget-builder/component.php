@@ -869,14 +869,18 @@ function renderPanierTree($items, $level = 0) {
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
                         <input type="url" class="form-control" id="item-modal-lien" placeholder="https://...">
-                        <button type="button" class="btn btn-outline-primary" id="item-modal-fetch-price" title="Vérifier le prix avec IA">
+                        <button type="button" class="btn btn-outline-primary" id="item-modal-fetch-price" title="Vérifier le prix avec IA (URL)">
                             <i class="bi bi-robot"></i>
                         </button>
+                        <button type="button" class="btn btn-outline-info" id="item-modal-upload-screenshot" title="Analyser une capture d'écran">
+                            <i class="bi bi-camera"></i>
+                        </button>
+                        <input type="file" id="item-modal-screenshot-input" accept="image/*" style="display: none;">
                         <button type="button" class="btn btn-outline-secondary" id="item-modal-open-link" title="Ouvrir le lien">
                             <i class="bi bi-box-arrow-up-right"></i>
                         </button>
                     </div>
-                    <small class="text-muted">Cliquez sur <i class="bi bi-robot"></i> pour récupérer le prix automatiquement</small>
+                    <small class="text-muted"><i class="bi bi-robot"></i> URL auto | <i class="bi bi-camera"></i> Capture d'écran</small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -999,14 +1003,18 @@ function renderPanierTree($items, $level = 0) {
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
                             <input type="url" class="form-control" id="add-item-lien" placeholder="https://...">
-                            <button type="button" class="btn btn-outline-primary" id="add-item-fetch-price" title="Vérifier le prix avec IA">
+                            <button type="button" class="btn btn-outline-primary" id="add-item-fetch-price" title="Vérifier le prix avec IA (URL)">
                                 <i class="bi bi-robot"></i>
                             </button>
+                            <button type="button" class="btn btn-outline-info" id="add-item-upload-screenshot" title="Analyser une capture d'écran">
+                                <i class="bi bi-camera"></i>
+                            </button>
+                            <input type="file" id="add-item-screenshot-input" accept="image/*" style="display: none;">
                             <button type="button" class="btn btn-outline-secondary" id="add-item-open-link" title="Ouvrir le lien">
                                 <i class="bi bi-box-arrow-up-right"></i>
                             </button>
                         </div>
-                        <small class="text-muted">Cliquez sur <i class="bi bi-robot"></i> pour récupérer le prix automatiquement</small>
+                        <small class="text-muted"><i class="bi bi-robot"></i> URL auto | <i class="bi bi-camera"></i> Capture d'écran</small>
                     </div>
                 </div>
             </div>
@@ -1498,6 +1506,46 @@ function renderPanierTree($items, $level = 0) {
         });
     });
 
+    // Upload de capture d'écran pour extraction de prix (edit modal)
+    document.getElementById('item-modal-upload-screenshot').addEventListener('click', function() {
+        document.getElementById('item-modal-screenshot-input').click();
+    });
+
+    document.getElementById('item-modal-screenshot-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const imageData = event.target.result;
+            const btn = document.getElementById('item-modal-upload-screenshot');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            btn.disabled = true;
+
+            BudgetBuilder.ajax('extract_price_from_image', { image: imageData }).then(response => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+
+                if (response.success && response.price) {
+                    const priceInput = document.getElementById('item-modal-prix');
+                    priceInput.value = response.price;
+                    priceInput.style.backgroundColor = '#d4edda';
+                    setTimeout(() => priceInput.style.backgroundColor = '', 2000);
+                    alert('Prix trouvé: ' + formatMoney(response.price));
+                } else {
+                    alert('Erreur: ' + (response.message || 'Prix non trouvé dans l\'image'));
+                }
+            }).catch(err => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                alert('Erreur: ' + (err.message || 'Erreur de connexion'));
+            });
+        };
+        reader.readAsDataURL(file);
+        e.target.value = ''; // Reset pour permettre de re-sélectionner le même fichier
+    });
+
     // Bouton scroll to top
     (function() {
         const btn = document.getElementById('scroll-to-top');
@@ -1979,5 +2027,45 @@ function renderPanierTree($items, $level = 0) {
             btn.disabled = false;
             alert('Erreur de connexion');
         });
+    });
+
+    // Upload de capture d'écran pour extraction de prix (add item modal)
+    document.getElementById('add-item-upload-screenshot').addEventListener('click', function() {
+        document.getElementById('add-item-screenshot-input').click();
+    });
+
+    document.getElementById('add-item-screenshot-input').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const imageData = event.target.result;
+            const btn = document.getElementById('add-item-upload-screenshot');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+            btn.disabled = true;
+
+            BudgetBuilder.ajax('extract_price_from_image', { image: imageData }).then(response => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+
+                if (response.success && response.price) {
+                    const priceInput = document.getElementById('add-item-prix');
+                    priceInput.value = response.price;
+                    priceInput.style.backgroundColor = '#d4edda';
+                    setTimeout(() => priceInput.style.backgroundColor = '', 2000);
+                    alert('Prix trouvé: ' + formatMoney(response.price));
+                } else {
+                    alert('Erreur: ' + (response.message || 'Prix non trouvé dans l\'image'));
+                }
+            }).catch(err => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                alert('Erreur: ' + (err.message || 'Erreur de connexion'));
+            });
+        };
+        reader.readAsDataURL(file);
+        e.target.value = ''; // Reset pour permettre de re-sélectionner le même fichier
     });
 </script>
