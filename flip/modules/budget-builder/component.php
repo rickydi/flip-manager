@@ -60,8 +60,8 @@ try {
 } catch (Exception $e) {
     $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1");
 }
-// S'assurer que tous les items existants ont actif défini
-$pdo->exec("UPDATE catalogue_items SET actif = 1 WHERE actif IS NULL");
+// FORCE FIX: Mettre TOUS les items à actif = 1 (désactive temporairement le soft-delete)
+$pdo->exec("UPDATE catalogue_items SET actif = 1 WHERE actif != 1 OR actif IS NULL");
 
 // Ajouter colonne etape_id si manquante
 try {
