@@ -197,8 +197,8 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     display: flex;
     align-items: center;
     gap: 2px;
-    width: 70px;
-    min-width: 70px;
+    width: 100px;
+    min-width: 100px;
     justify-content: center;
 }
 
@@ -246,8 +246,8 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 }
 
 .panier-item .item-qte {
-    width: 24px;
-    min-width: 24px;
+    width: 45px;
+    min-width: 45px;
     text-align: center;
     font-weight: bold;
     font-size: inherit;
@@ -261,14 +261,14 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 }
 
 .panier-item .item-prix {
-    width: 80px;
-    min-width: 80px;
+    width: 110px;
+    min-width: 110px;
     text-align: right;
 }
 
 .panier-item .item-total {
-    width: 90px;
-    min-width: 90px;
+    width: 120px;
+    min-width: 120px;
     text-align: right;
 }
 
