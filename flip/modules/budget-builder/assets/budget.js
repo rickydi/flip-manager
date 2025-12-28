@@ -1050,6 +1050,10 @@ const BudgetBuilder = {
         return this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
             if (response.success) {
                 self.renderPanier(response.sections, response.total);
+
+                // ✅ IMPORTANT : relancer les calculs rénovation / indicateurs
+                // (sinon la rénovation ne s’auto‑update plus)
+                self.refreshIndicateurs();
             }
         });
     },
