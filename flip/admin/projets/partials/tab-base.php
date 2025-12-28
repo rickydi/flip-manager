@@ -569,6 +569,7 @@
     </td>
 </tr>
 <!-- RÉNOVATION_DYNAMIC_START -->
+<?php
                     $totalBudgetReno = 0;
                     $totalReelReno = 0;
                     $totalEcartReno = 0; // Somme de tous les écarts (positifs compensent négatifs)
@@ -648,6 +649,7 @@
                     <?php endif; ?>
                     
                     <!-- MAIN D'ŒUVRE -->
+<?php
                     $diffMO = $moExtrapole['cout'] - $moReel['cout'];
                     // Ajouter l'écart MO au total (positif ou négatif)
                     $totalEcartReno += $diffMO;
