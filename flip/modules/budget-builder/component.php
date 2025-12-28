@@ -462,38 +462,15 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
 
-<script>
-// Appliquer la taille de police AVANT le rendu pour éviter le saut visuel
-(function() {
-    var savedSize = localStorage.getItem('budget-builder-font-size') || '0.95';
-    document.documentElement.style.setProperty('--bb-font-size', savedSize + 'rem');
-})();
-</script>
-
 <div class="budget-builder-container">
-    <!-- Toolbar: Undo/Redo + Contrôle de taille -->
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <!-- Undo/Redo -->
+    <!-- Toolbar: Undo/Redo -->
+    <div class="d-flex align-items-center mb-2">
         <div class="d-flex align-items-center gap-1">
             <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" id="undoBtn" onclick="BudgetBuilder.undo()" title="Annuler (Ctrl+Z)" disabled>
                 <i class="bi bi-arrow-counterclockwise"></i>
             </button>
             <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-1" id="redoBtn" onclick="BudgetBuilder.redo()" title="Rétablir (Ctrl+Y)" disabled>
                 <i class="bi bi-arrow-clockwise"></i>
-            </button>
-        </div>
-
-        <!-- Taille du texte -->
-        <div class="d-flex align-items-center gap-1">
-            <small class="text-muted me-1">Taille:</small>
-            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(-1)" title="Réduire">
-                <i class="bi bi-dash"></i>
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="resetFontSize()" title="Réinitialiser">
-                <i class="bi bi-arrow-counterclockwise"></i>
-            </button>
-            <button type="button" class="btn btn-outline-secondary btn-sm px-2 py-0" onclick="changeFontSize(1)" title="Agrandir">
-                <i class="bi bi-plus"></i>
             </button>
         </div>
     </div>
@@ -1147,36 +1124,6 @@ function renderPanierTree($items, $level = 0) {
     document.getElementById('undoBtn').addEventListener('click', function() {
         BudgetBuilder.restoreLastDeleted();
     });
-
-    // Contrôle de la taille du texte
-    const FONT_SIZE_KEY = 'budget-builder-font-size';
-    const DEFAULT_FONT_SIZE = 0.95;
-    const MIN_FONT_SIZE = 0.75;
-    const MAX_FONT_SIZE = 1.4;
-    const FONT_STEP = 0.05;
-
-    function getCurrentFontSize() {
-        return parseFloat(localStorage.getItem(FONT_SIZE_KEY)) || DEFAULT_FONT_SIZE;
-    }
-
-    function applyFontSize(size) {
-        document.documentElement.style.setProperty('--bb-font-size', size + 'rem');
-    }
-
-    function changeFontSize(direction) {
-        let size = getCurrentFontSize() + (direction * FONT_STEP);
-        size = Math.max(MIN_FONT_SIZE, Math.min(MAX_FONT_SIZE, size));
-        localStorage.setItem(FONT_SIZE_KEY, size);
-        applyFontSize(size);
-    }
-
-    function resetFontSize() {
-        localStorage.setItem(FONT_SIZE_KEY, DEFAULT_FONT_SIZE);
-        applyFontSize(DEFAULT_FONT_SIZE);
-    }
-
-    // Appliquer la taille sauvegardée au chargement
-    applyFontSize(getCurrentFontSize());
 
     // Modal item
     let itemModal = null;

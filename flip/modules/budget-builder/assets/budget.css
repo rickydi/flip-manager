@@ -4,7 +4,7 @@
  */
 
 .budget-builder-container {
-    /* La taille de police est gérée par --bb-font-size définie dans component.php */
+    /* Container principal */
 }
 
 /* Conteneur des enfants - simple indentation */
@@ -29,7 +29,7 @@
     cursor: grab;
     gap: 0.5em;
     color: var(--text-primary);
-    font-size: var(--bb-font-size, 0.95rem);
+    font-size: 0.95rem;
 }
 
 .catalogue-item:hover {
@@ -157,7 +157,7 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     border-radius: 4px;
     gap: 0.5em;
     color: var(--text-primary);
-    font-size: var(--bb-font-size, 0.95rem);
+    font-size: 0.95rem;
 }
 
 .panier-item:hover {
