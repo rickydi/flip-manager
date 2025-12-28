@@ -1706,10 +1706,13 @@ function renderPanierTree($items, $level = 0) {
 
         qteEl.textContent = newQte;
 
-        BudgetBuilder.ajax('update_panier_quantity', { id: itemId, quantite: newQte }).then(response => {
-            if (response.success) {
-                BudgetBuilder.updateTotals();
-            }
+        // Sauvegarder l'état AVANT le changement (pour undo)
+        BudgetBuilder.saveStateForUndo().then(() => {
+            BudgetBuilder.ajax('update_panier_quantity', { id: itemId, quantite: newQte }).then(response => {
+                if (response.success) {
+                    BudgetBuilder.updateTotals();
+                }
+            });
         });
     }
 
@@ -1717,13 +1720,8 @@ function renderPanierTree($items, $level = 0) {
     function removeFromPanier(itemId) {
         if (!confirm('Supprimer cet élément?')) return;
 
-        BudgetBuilder.ajax('remove_from_panier', { id: itemId }).then(response => {
-            if (response.success) {
-                BudgetBuilder.loadPanier();
-            } else {
-                alert('Erreur: ' + (response.message || 'Échec'));
-            }
-        });
+        // Utiliser la méthode BudgetBuilder qui supporte undo
+        BudgetBuilder.removeFromPanier(itemId);
     }
 
     // Modal commande

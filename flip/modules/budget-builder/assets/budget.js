@@ -1017,12 +1017,12 @@ const BudgetBuilder = {
 
             if (isFolder) {
                 html += `
-                    <div class="panier-item is-folder" data-id="${item.id}">
+                    <div class="panier-item is-folder" data-id="${item.id}" data-type="folder">
                         <span class="folder-toggle ${hasChildren ? '' : 'invisible'}" onclick="togglePanierFolder(this)">
                             <i class="bi bi-caret-down-fill"></i>
                         </span>
                         <i class="bi bi-folder-fill text-warning me-1"></i>
-                        <span class="item-nom">${this.escapeHtml(item.nom)}</span>
+                        <span class="item-nom fw-bold">${this.escapeHtml(item.nom)}</span>
                         <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-auto" onclick="removeFromPanier(${item.id})" title="Supprimer">
                             <i class="bi bi-trash"></i>
                         </button>
@@ -1033,17 +1033,22 @@ const BudgetBuilder = {
                 }
             } else {
                 html += `
-                    <div class="panier-item" data-id="${item.id}" data-prix="${item.prix || 0}">
+                    <div class="panier-item is-item" data-id="${item.id}" data-type="item">
                         <span class="folder-toggle invisible"></span>
                         <i class="bi bi-box-seam text-primary me-1"></i>
                         <span class="item-nom">${this.escapeHtml(item.nom)}</span>
-                        <div class="item-qte-controls">
-                            <button type="button" class="qte-btn qte-minus" data-id="${item.id}">−</button>
-                            <span class="item-qte">${item.quantite || 1}</span>
-                            <button type="button" class="qte-btn qte-plus" data-id="${item.id}">+</button>
-                        </div>
-                        <span class="item-prix badge bg-secondary">${this.formatMoney(item.prix || 0)}</span>
-                        <span class="item-total badge bg-info">${this.formatMoney(itemTotal)}</span>
+                        <span class="item-qte-controls d-flex align-items-center">
+                            <button type="button" class="qte-btn qte-minus" onclick="changeQte(${item.id}, -1)">−</button>
+                            <span class="item-qte" data-id="${item.id}">${item.quantite || 1}</span>
+                            <button type="button" class="qte-btn qte-plus" onclick="changeQte(${item.id}, 1)">+</button>
+                        </span>
+                        <span class="badge bg-secondary item-prix"
+                              data-id="${item.id}"
+                              data-prix="${item.prix || 0}"
+                              ondblclick="editPanierPrice(this)"
+                              style="cursor: pointer;"
+                              title="Double-clic pour modifier">${this.formatMoney(item.prix || 0)}</span>
+                        <span class="badge bg-success item-total">${this.formatMoney(itemTotal)}</span>
                         <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="removeFromPanier(${item.id})" title="Supprimer">
                             <i class="bi bi-trash"></i>
                         </button>
