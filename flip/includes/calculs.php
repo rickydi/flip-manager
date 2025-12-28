@@ -882,10 +882,12 @@ function calculerIndicateursProjet($pdo, $projet) {
     // Main d'œuvre EXTRAPOLÉE/PLANIFIÉE (budget prévu)
     $mainDoeuvreExtrapole = calculerCoutMainDoeuvreExtrapole($pdo, $projet);
 
-    // Coût total BUDGET incluant main d'œuvre PLANIFIÉE
-    $coutTotalProjet = $coutTotalProjet + $mainDoeuvreExtrapole['cout'];
+    // ❌ CORRECTION DOUBLE COMPTE MO
+    // La MO est déjà incluse dans $renovation['budget_ttc_avec_mo'] utilisé plus haut.
+    // On ne l'ajoute plus ici.
+    // $coutTotalProjet = $coutTotalProjet + $mainDoeuvreExtrapole['cout'];
 
-    // Recalculer l'équité avec la main d'œuvre PLANIFIÉE
+    // Recalculer l'équité (si nécessaire, mais $coutTotalProjet est déjà bon)
     $equitePotentielle = calculerEquitePotentielle($valeurPotentielle, $coutTotalProjet);
 
     // Recalculer les profits des investisseurs avec l'équité correcte
