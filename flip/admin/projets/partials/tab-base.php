@@ -437,7 +437,11 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).then(() => {
                 setState(saved);
-                setTimeout(() => setState(idle), 1500);
+
+                // ✅ Recalcul serveur → refresh automatique
+                setTimeout(() => {
+                    location.reload();
+                }, 300);
             });
         }
 
