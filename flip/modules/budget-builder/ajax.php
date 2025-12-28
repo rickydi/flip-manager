@@ -154,6 +154,7 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
 }
 
 // Fonction helper pour ajouter récursivement un dossier avec quantité personnalisée
+// Si un item existe déjà dans le panier, on additionne la quantité
 function addFolderContentsToPanierWithQuantity($pdo, $projetId, $catalogueFolderId, $parentBudgetId = null, $quantite = 1) {
     $addedCount = 0;
 
@@ -163,13 +164,13 @@ function addFolderContentsToPanierWithQuantity($pdo, $projetId, $catalogueFolder
     $children = $stmt->fetchAll();
 
     foreach ($children as $child) {
-        // Obtenir le prochain ordre
-        $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
-        $stmt->execute([$projetId]);
-        $ordre = $stmt->fetchColumn();
-
         if ($child['type'] === 'folder') {
-            // Ajouter le sous-dossier
+            // Pour les dossiers, on ne vérifie pas les doublons - on ajoute toujours
+            // Obtenir le prochain ordre
+            $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
+            $stmt->execute([$projetId]);
+            $ordre = $stmt->fetchColumn();
+
             $stmt = $pdo->prepare("
                 INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
                 VALUES (?, ?, ?, 'folder', ?, 0, 1, ?)
@@ -181,20 +182,35 @@ function addFolderContentsToPanierWithQuantity($pdo, $projetId, $catalogueFolder
             // Récursion pour le contenu du sous-dossier avec la même quantité
             $addedCount += addFolderContentsToPanierWithQuantity($pdo, $projetId, $child['id'], $newFolderId, $quantite);
         } else {
-            // Ajouter l'item avec la quantité spécifiée
-            $stmt = $pdo->prepare("
-                INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
-                VALUES (?, ?, ?, 'item', ?, ?, ?, ?)
-            ");
-            $stmt->execute([
-                $projetId,
-                $child['id'],
-                $parentBudgetId,
-                $child['nom'],
-                $child['prix'],
-                $quantite, // Utiliser la quantité spécifiée
-                $ordre
-            ]);
+            // Pour les items, vérifier s'il existe déjà dans le panier
+            $stmt = $pdo->prepare("SELECT id, quantite FROM budget_items WHERE projet_id = ? AND catalogue_item_id = ?");
+            $stmt->execute([$projetId, $child['id']]);
+            $existing = $stmt->fetch();
+
+            if ($existing) {
+                // Item existe déjà - additionner la quantité
+                $stmt = $pdo->prepare("UPDATE budget_items SET quantite = quantite + ? WHERE id = ?");
+                $stmt->execute([$quantite, $existing['id']]);
+            } else {
+                // Nouvel item - l'ajouter
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM budget_items WHERE projet_id = ?");
+                $stmt->execute([$projetId]);
+                $ordre = $stmt->fetchColumn();
+
+                $stmt = $pdo->prepare("
+                    INSERT INTO budget_items (projet_id, catalogue_item_id, parent_budget_id, type, nom, prix, quantite, ordre)
+                    VALUES (?, ?, ?, 'item', ?, ?, ?, ?)
+                ");
+                $stmt->execute([
+                    $projetId,
+                    $child['id'],
+                    $parentBudgetId,
+                    $child['nom'],
+                    $child['prix'],
+                    $quantite,
+                    $ordre
+                ]);
+            }
             $addedCount++;
         }
     }
