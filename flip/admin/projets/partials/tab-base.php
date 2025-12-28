@@ -585,8 +585,8 @@ if ($isPartialBase) {
                     <tr class="sub-item" data-recurrent-code="<?= e($type['code']) ?>">
                         <td><?= e($type['nom']) ?><?= $isLoyer ? ' <small class="text-success">(revenu)</small>' : '' ?></td>
                         <td class="text-end" id="detailRecurrent_<?= e($type['code']) ?>"><?= $isLoyer ? '-' : '' ?><?= formatMoney($extrapole) ?></td>
-                        <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecart) ?></td>
-                        <td class="text-end"><?= $isLoyer ? '-' : '' ?><?= formatMoney($reel) ?></td>
+                        <td class="text-end <?= $ecart >= 0 ? 'positive' : 'negative' ?>" id="detailRecurrentDiff_<?= e($type['code']) ?>"><?= formatMoney($ecart) ?></td>
+                        <td class="text-end" id="detailRecurrentReel_<?= e($type['code']) ?>"><?= $isLoyer ? '-' : '' ?><?= formatMoney($reel) ?></td>
                     </tr>
                     <?php endforeach; ?>
                     <?php
@@ -595,8 +595,8 @@ if ($isPartialBase) {
                     <tr class="total-row">
                         <td>Sous-total Récurrents</td>
                         <td class="text-end" id="detailRecurrentsTotal"><?= formatMoney($totalRecExtrapole) ?></td>
-                        <td class="text-end <?= $ecartTotalRec >= 0 ? 'positive' : 'negative' ?>"><?= formatMoney($ecartTotalRec) ?></td>
-                        <td class="text-end"><?= formatMoney($totalRecReel) ?></td>
+                        <td class="text-end <?= $ecartTotalRec >= 0 ? 'positive' : 'negative' ?>" id="detailRecurrentsDiff"><?= formatMoney($ecartTotalRec) ?></td>
+                        <td class="text-end" id="detailRecurrentsReel"><?= formatMoney($totalRecReel) ?></td>
                     </tr>
                     
 <!-- RÉNOVATION -->

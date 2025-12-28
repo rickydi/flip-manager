@@ -344,6 +344,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
         $depensesParEtape = calculerDepensesParEtape($pdo, $projetId);
 
+        // Calculer les récurrents réels basés sur les mois écoulés
+        $moisEcoules = calculerMoisEcoules($projet);
+        $coutsRecurrentsReel = calculerCoutsRecurrentsDynamiques($pdo, $projetId, $moisEcoules);
+
         echo json_encode([
             'success' => true,
             'indicateurs' => [
@@ -359,6 +363,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
             'main_oeuvre' => $indicateurs['main_doeuvre'],
             'couts_acquisition' => $indicateurs['couts_acquisition'],
             'couts_recurrents' => $indicateurs['couts_recurrents'],
+            'couts_recurrents_reel' => $coutsRecurrentsReel,
+            'mois_ecoules' => $moisEcoules,
             'couts_vente' => $indicateurs['couts_vente']
         ]);
     } catch (Exception $e) {
@@ -2978,30 +2984,62 @@ window.updateIndicateurs = function(ind) {
 };
 
 // Fonction pour mettre à jour les sections de coûts (acquisition, récurrents, vente)
-window.updateCoutsSection = function(section, data) {
+window.updateCoutsSection = function(section, data, dataReel) {
     // Mettre à jour les sous-totaux par section
     const totalEl = document.getElementById('detail' + section.charAt(0).toUpperCase() + section.slice(1) + 'Total');
     if (totalEl && data.total !== undefined) {
         totalEl.textContent = window.formatMoneyBase(data.total);
     }
 
-    // Pour les récurrents, mettre à jour les valeurs extrapolées
+    // Pour les récurrents, mettre à jour les valeurs extrapolées ET réelles
     if (section === 'recurrents' && data) {
+        // Helper pour mettre à jour une ligne récurrent
+        const updateRecurrentRow = (key, extrapole, reel) => {
+            const elExtrapole = document.getElementById('detailRecurrent_' + key);
+            const elReel = document.getElementById('detailRecurrentReel_' + key);
+            const elDiff = document.getElementById('detailRecurrentDiff_' + key);
+
+            if (elExtrapole) elExtrapole.textContent = window.formatMoneyBase(extrapole);
+            if (elReel) elReel.textContent = window.formatMoneyBase(reel);
+            if (elDiff) {
+                const diff = extrapole - reel;
+                elDiff.textContent = window.formatMoneyBase(diff);
+                elDiff.classList.remove('positive', 'negative');
+                elDiff.classList.add(diff >= 0 ? 'positive' : 'negative');
+            }
+        };
+
         // Clés fixes (taxes_municipales, electricite, etc.)
         Object.keys(data).forEach(key => {
             if (key !== 'details' && key !== 'total' && typeof data[key] === 'object' && data[key].extrapole !== undefined) {
-                const el = document.getElementById('detailRecurrent_' + key);
-                if (el) el.textContent = window.formatMoneyBase(data[key].extrapole);
+                const extrapole = data[key].extrapole;
+                const reel = dataReel && dataReel[key] ? dataReel[key].extrapole : 0;
+                updateRecurrentRow(key, extrapole, reel);
             }
         });
+
         // Types dynamiques dans 'details' (gazon, etc.)
         if (data.details) {
             Object.keys(data.details).forEach(key => {
                 if (typeof data.details[key] === 'object' && data.details[key].extrapole !== undefined) {
-                    const el = document.getElementById('detailRecurrent_' + key);
-                    if (el) el.textContent = window.formatMoneyBase(data.details[key].extrapole);
+                    const extrapole = data.details[key].extrapole;
+                    const reel = dataReel && dataReel.details && dataReel.details[key] ? dataReel.details[key].extrapole : 0;
+                    updateRecurrentRow(key, extrapole, reel);
                 }
             });
+        }
+
+        // Mettre à jour le sous-total Réel et Diff
+        const elReelTotal = document.getElementById('detailRecurrentsReel');
+        const elDiffTotal = document.getElementById('detailRecurrentsDiff');
+        if (elReelTotal && dataReel) {
+            elReelTotal.textContent = window.formatMoneyBase(dataReel.total);
+        }
+        if (elDiffTotal && dataReel) {
+            const diffTotal = data.total - dataReel.total;
+            elDiffTotal.textContent = window.formatMoneyBase(diffTotal);
+            elDiffTotal.classList.remove('positive', 'negative');
+            elDiffTotal.classList.add(diffTotal >= 0 ? 'positive' : 'negative');
         }
     }
 
@@ -3141,7 +3179,7 @@ window.updateRenovation = function(reno, budgetParEtape, depensesParEtape) {
                         updateCoutsSection('acquisition', data.couts_acquisition);
                     }
                     if (data.couts_recurrents) {
-                        updateCoutsSection('recurrents', data.couts_recurrents);
+                        updateCoutsSection('recurrents', data.couts_recurrents, data.couts_recurrents_reel);
                     }
                     if (data.couts_vente) {
                         updateCoutsSection('vente', data.couts_vente);
