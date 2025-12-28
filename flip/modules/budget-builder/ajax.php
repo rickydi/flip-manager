@@ -807,6 +807,19 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'update_panier_folder_name':
+            $id = (int)($input['id'] ?? 0);
+            $nom = trim($input['nom'] ?? '');
+
+            if (!$id) throw new Exception('ID requis');
+            if (!$nom) throw new Exception('Nom requis');
+
+            $stmt = $pdo->prepare("UPDATE budget_items SET nom = ? WHERE id = ?");
+            $stmt->execute([$nom, $id]);
+
+            echo json_encode(['success' => true]);
+            break;
+
         case 'clear_panier':
             $projetId = (int)($input['projet_id'] ?? 0);
             if (!$projetId) throw new Exception('Projet requis');

@@ -1080,9 +1080,14 @@ const BudgetBuilder = {
                         </span>
                         <i class="bi bi-folder-fill text-warning me-1"></i>
                         <span class="item-nom fw-bold">${this.escapeHtml(item.nom)}</span>
-                        <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-auto" onclick="removeFromPanier(${item.id})" title="Supprimer">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        <span class="ms-auto">
+                            <button type="button" class="btn btn-sm btn-link p-0 text-info me-1" onclick="editPanierFolderName(${item.id})" title="Renommer">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link p-0 text-danger" onclick="removeFromPanier(${item.id})" title="Supprimer">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </span>
                     </div>
                 `;
                 if (hasChildren) {

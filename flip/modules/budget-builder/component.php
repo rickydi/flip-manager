@@ -792,6 +792,14 @@ function renderPanierTree($items, $level = 0) {
                 </span>
                 <i class="bi bi-folder-fill text-warning me-1"></i>
                 <span class="item-nom fw-bold"><?= e($item['nom'] ?? $item['catalogue_nom']) ?></span>
+                <span class="ms-auto">
+                    <button type="button" class="btn btn-sm btn-link p-0 text-info me-1" onclick="editPanierFolderName(<?= $item['id'] ?>)" title="Renommer">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-link p-0 text-danger" onclick="removeFromPanier(<?= $item['id'] ?>)" title="Supprimer">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </span>
             <?php else: ?>
                 <span class="folder-toggle invisible"></span>
                 <i class="bi bi-box-seam text-primary me-1"></i>
@@ -808,11 +816,10 @@ function renderPanierTree($items, $level = 0) {
                       style="cursor: pointer;"
                       title="Double-clic pour modifier"><?= formatMoney($item['prix'] ?? $item['catalogue_prix'] ?? 0) ?></span>
                 <span class="badge bg-success item-total"><?= formatMoney(($item['prix'] ?? $item['catalogue_prix'] ?? 0) * ($item['quantite'] ?? 1)) ?></span>
+                <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="removeFromPanier(<?= $item['id'] ?>)" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                </button>
             <?php endif; ?>
-
-            <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="removeFromPanier(<?= $item['id'] ?>)" title="Supprimer">
-                <i class="bi bi-trash"></i>
-            </button>
         </div>
 
         <?php if ($isFolder && $hasChildren): ?>
@@ -1549,6 +1556,55 @@ function renderPanierTree($items, $level = 0) {
                 save();
             } else if (e.key === 'Escape') {
                 element.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    // Éditer le nom d'un dossier dans le panier
+    function editPanierFolderName(folderId) {
+        const folderDiv = document.querySelector(`.panier-item[data-id="${folderId}"][data-type="folder"]`);
+        if (!folderDiv) return;
+
+        const nomSpan = folderDiv.querySelector('.item-nom');
+        const currentName = nomSpan.textContent.trim();
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm';
+        input.style.width = '150px';
+        input.style.display = 'inline-block';
+        input.value = currentName;
+
+        const originalHtml = nomSpan.innerHTML;
+        nomSpan.innerHTML = '';
+        nomSpan.appendChild(input);
+        input.focus();
+        input.select();
+
+        const save = () => {
+            const newName = input.value.trim();
+            if (!newName) {
+                nomSpan.innerHTML = originalHtml;
+                return;
+            }
+
+            BudgetBuilder.ajax('update_panier_folder_name', { id: folderId, nom: newName }).then(response => {
+                if (response.success) {
+                    nomSpan.textContent = newName;
+                } else {
+                    nomSpan.innerHTML = originalHtml;
+                    alert('Erreur: ' + (response.message || 'Échec'));
+                }
+            });
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                save();
+            } else if (e.key === 'Escape') {
+                nomSpan.innerHTML = originalHtml;
             }
         });
     }
