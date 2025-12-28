@@ -1110,10 +1110,16 @@ const BudgetBuilder = {
                 window.updateIndicateurs(res.indicateurs);
             }
 
-            // ❌ IMPORTANT :
-            // Ne JAMAIS recharger le HTML du tab Base après une action panier
-            // Cela détruit les graphiques et la main-d’œuvre
-            // ✅ Les données sont mises à jour uniquement via JS
+            // ✅ Mise à jour RÉNOVATION (logique manquante)
+            if (res.renovation && typeof window.updateRenovation === 'function') {
+                window.updateRenovation(
+                    res.renovation,
+                    res.budget_par_etape,
+                    res.depenses_par_etape
+                );
+            }
+
+            // ✅ Rebind des graphiques sans détruire le DOM
             if (typeof window.initDetailCharts === 'function') {
                 window.initDetailCharts();
             }
