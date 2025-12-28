@@ -378,7 +378,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && in_
         $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
         $depensesParEtape = calculerDepensesParEtape($pdo, $projetId);
 
-        echo json_encode([
+echo json_encode([
             'success' => true,
             'indicateurs' => [
                 'valeur_potentielle' => $indicateurs['valeur_potentielle'],
@@ -389,7 +389,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && in_
             ],
             'renovation' => $indicateurs['renovation'],
             'budget_par_etape' => $budgetParEtape,
-            'depenses_par_etape' => $depensesParEtape
+            'depenses_par_etape' => $depensesParEtape,
+            'main_oeuvre' => $indicateurs['main_doeuvre']
         ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -2642,8 +2643,13 @@ const optionsBar = {
     }
 };
 
-// Chart 1: Coûts vs Valeur
-new Chart(document.getElementById('chartCouts'), {
+window.initDetailCharts = function () {
+    if (window.chartCouts) window.chartCouts.destroy();
+    if (window.chartBudget) window.chartBudget.destroy();
+    if (window.chartProfits) window.chartProfits.destroy();
+
+    // Chart 1: Coûts vs Valeur
+    window.chartCouts = new Chart(document.getElementById('chartCouts'), {
     type: 'line',
     data: {
         labels: <?= json_encode($labelsTimeline) ?>,
@@ -2674,6 +2680,7 @@ new Chart(document.getElementById('chartCouts'), {
     },
     options: optionsLine
 });
+};
 
 // Chart 2: Heures travaillées
 new Chart(document.getElementById('chartBudget'), {
