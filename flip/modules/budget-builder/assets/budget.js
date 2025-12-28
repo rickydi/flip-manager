@@ -383,16 +383,50 @@ const BudgetBuilder = {
         });
     },
 
-    deleteItem: function(itemId) {
-        if (!confirm('Supprimer cet élément et tout son contenu?')) return;
+    // Undo system
+    lastDeletedItem: null,
+    undoToast: null,
 
+    showUndoToast: function(message) {
+        if (!this.undoToast) {
+            const toastEl = document.getElementById('undoToast');
+            if (toastEl) {
+                this.undoToast = new bootstrap.Toast(toastEl);
+            }
+        }
+        if (this.undoToast) {
+            document.getElementById('undoToastMessage').textContent = message;
+            this.undoToast.show();
+        }
+    },
+
+    deleteItem: function(itemId) {
         const self = this;
+        // Supprimer sans confirmation - on peut annuler avec undo
         this.ajax('delete_catalogue_item', { id: itemId })
             .then(response => {
                 if (response.success) {
+                    self.lastDeletedItem = { id: itemId, type: 'catalogue' };
                     self.loadCatalogueByEtape();
+                    self.showUndoToast('Élément supprimé');
                 } else {
                     alert('Erreur: ' + (response.message || 'Échec'));
+                }
+            });
+    },
+
+    restoreLastDeleted: function() {
+        if (!this.lastDeletedItem) return;
+
+        const self = this;
+        this.ajax('restore_catalogue_item', { id: this.lastDeletedItem.id })
+            .then(response => {
+                if (response.success) {
+                    self.lastDeletedItem = null;
+                    self.loadCatalogueByEtape();
+                    if (self.undoToast) self.undoToast.hide();
+                } else {
+                    alert('Erreur: ' + (response.message || 'Impossible de restaurer'));
                 }
             });
     },

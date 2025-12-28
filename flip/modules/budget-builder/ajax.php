@@ -237,11 +237,48 @@ try {
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');
 
-            // La suppression en cascade est gérée par la FK
-            $stmt = $pdo->prepare("DELETE FROM catalogue_items WHERE id = ?");
+            // Soft delete - marquer comme inactif (permet undo)
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET actif = 0 WHERE id = ?");
             $stmt->execute([$id]);
 
+            // Désactiver récursivement les enfants
+            $disableChildren = function($pdo, $parentId) use (&$disableChildren) {
+                $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ?");
+                $stmt->execute([$parentId]);
+                $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($children as $childId) {
+                    $stmt = $pdo->prepare("UPDATE catalogue_items SET actif = 0 WHERE id = ?");
+                    $stmt->execute([$childId]);
+                    $disableChildren($pdo, $childId);
+                }
+            };
+            $disableChildren($pdo, $id);
+
             echo json_encode(['success' => true, 'message' => 'Supprimé']);
+            break;
+
+        case 'restore_catalogue_item':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            // Restaurer l'item et ses enfants
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET actif = 1 WHERE id = ?");
+            $stmt->execute([$id]);
+
+            // Restaurer récursivement les enfants
+            $restoreChildren = function($pdo, $parentId) use (&$restoreChildren) {
+                $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ?");
+                $stmt->execute([$parentId]);
+                $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($children as $childId) {
+                    $stmt = $pdo->prepare("UPDATE catalogue_items SET actif = 1 WHERE id = ?");
+                    $stmt->execute([$childId]);
+                    $restoreChildren($pdo, $childId);
+                }
+            };
+            $restoreChildren($pdo, $id);
+
+            echo json_encode(['success' => true, 'message' => 'Restauré']);
             break;
 
         case 'reorder_catalogue':

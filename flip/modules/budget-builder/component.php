@@ -1053,10 +1053,31 @@ function renderPanierTree($items, $level = 0) {
     </div>
 </div>
 
+<!-- Toast Undo -->
+<div class="position-fixed bottom-0 start-50 translate-middle-x mb-4" style="z-index: 9999;">
+    <div id="undoToast" class="toast align-items-center text-bg-dark border-0" role="alert" data-bs-autohide="true" data-bs-delay="8000">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="bi bi-trash me-2"></i>
+                <span id="undoToastMessage">Élément supprimé</span>
+            </div>
+            <button type="button" class="btn btn-warning btn-sm me-2 m-auto" id="undoBtn">
+                <i class="bi bi-arrow-counterclockwise me-1"></i>Annuler
+            </button>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
     // Initialiser avec l'ID du projet
     BudgetBuilder.init(<?= $projetId ?? 'null' ?>);
+
+    // Bouton Undo
+    document.getElementById('undoBtn').addEventListener('click', function() {
+        BudgetBuilder.restoreLastDeleted();
+    });
 
     // Contrôle de la taille du texte
     const FONT_SIZE_KEY = 'budget-builder-font-size';
