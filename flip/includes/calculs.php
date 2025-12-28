@@ -274,9 +274,10 @@ function calculerTotalBudgetRenovation($pdo, $projetId) {
     // Utiliser budget_items (panier du budget-builder)
     try {
         $stmt = $pdo->prepare("
-            SELECT SUM(prix * quantite) as total
-            FROM budget_items
-            WHERE projet_id = ? AND (type = 'item' OR type IS NULL)
+            SELECT SUM(bi.prix * bi.quantite * COALESCE(parent.quantite, 1)) as total
+            FROM budget_items bi
+            LEFT JOIN budget_items parent ON bi.parent_budget_id = parent.id
+            WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
         ");
         $stmt->execute([$projetId]);
         $result = $stmt->fetch();
@@ -301,8 +302,9 @@ function calculerBudgetParEtape($pdo, $projetId) {
                 e.id as etape_id,
                 e.nom as etape_nom,
                 e.ordre as etape_ordre,
-                SUM(bi.prix * bi.quantite) as total
+                SUM(bi.prix * bi.quantite * COALESCE(parent.quantite, 1)) as total
             FROM budget_items bi
+            LEFT JOIN budget_items parent ON bi.parent_budget_id = parent.id
             LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
             LEFT JOIN budget_etapes e ON ci.etape_id = e.id
             WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
@@ -873,7 +875,7 @@ function calculerIndicateursProjet($pdo, $projet) {
     
     // Pourcentages
     $pctCoutsFixes = calculerPourcentageValeur($coutsFixesTotaux, $valeurPotentielle);
-    $pctRenovation = calculerPourcentageValeur($totalBudgetRenovation, $valeurPotentielle);
+    $pctRenovation = calculerPourcentageValeur($renovation['budget_ttc_avec_mo'], $valeurPotentielle);
     $pctPrixAchat = calculerPourcentageValeur((float) $projet['prix_achat'], $valeurPotentielle);
     
     // Main d'œuvre RÉELLE (heures travaillées)
@@ -1026,8 +1028,9 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
     // NOUVEAU SYSTÈME: Essayer d'abord budget_items (panier du budget-builder)
     try {
         $stmt = $pdo->prepare("
-            SELECT bi.prix, bi.quantite, ci.sans_taxe
+            SELECT bi.prix, bi.quantite, ci.sans_taxe, parent.quantite as parent_quantite
             FROM budget_items bi
+            LEFT JOIN budget_items parent ON bi.parent_budget_id = parent.id
             LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
             WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
         ");
@@ -1038,9 +1041,12 @@ function calculerBudgetRenovationComplet($pdo, $projetId, $tauxContingence) {
             $hasItems = true;
             $prix = (float)$row['prix'];
             $qte = (int)$row['quantite'];
+            $qteParent = (int)($row['parent_quantite'] ?? 1); // Prendre quantité du dossier parent si existe
+            $qteParent = $qteParent > 0 ? $qteParent : 1; // Sécurité
+
             $sansTaxe = (int)($row['sans_taxe'] ?? 0);
 
-            $montant = $prix * $qte;
+            $montant = $prix * $qte * $qteParent;
 
             if ($sansTaxe) {
                 $totalNonTaxable += $montant;
