@@ -314,17 +314,80 @@ const BudgetBuilder = {
             return;
         }
 
-        this.ajax('add_folder_to_panier', {
+        // D'abord récupérer les infos du folder
+        this.ajax('get_folder_info', {
             projet_id: this.projetId,
             folder_id: folderId
         }).then(response => {
-            console.log('add_folder_to_panier response:', response);
             if (response.success) {
-                self.loadPanier();
+                self.showFolderQuantityModal(folderId, response);
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
         });
+    },
+
+    showFolderQuantityModal: function(folderId, folderInfo) {
+        const self = this;
+
+        const existsText = folderInfo.existing_in_cart > 0
+            ? `<div class="alert alert-info mb-3">
+                 <i class="bi bi-info-circle me-2"></i>
+                 ${folderInfo.existing_in_cart} item(s) de ce dossier sont déjà dans le panier
+               </div>`
+            : '';
+
+        const modalHtml = `
+            <div class="modal fade" id="folderQuantityModal" tabindex="-1">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h5 class="modal-title"><i class="bi bi-folder-plus me-2"></i>Ajouter le dossier</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <h6 class="mb-3"><i class="bi bi-folder-fill text-warning me-2"></i>${this.escapeHtml(folderInfo.folder_name)}</h6>
+                            <p class="text-muted mb-3">Ce dossier contient <strong>${folderInfo.item_count}</strong> item(s)</p>
+                            ${existsText}
+                            <p class="small text-muted">Tous les items du dossier seront ajoutés au panier.</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="button" class="btn btn-warning" id="confirmAddFolderBtn">
+                                <i class="bi bi-folder-plus me-1"></i>Ajouter tout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Supprimer l'ancien modal s'il existe
+        const oldModal = document.getElementById('folderQuantityModal');
+        if (oldModal) oldModal.remove();
+
+        // Ajouter le nouveau modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        const modal = new bootstrap.Modal(document.getElementById('folderQuantityModal'));
+        const confirmBtn = document.getElementById('confirmAddFolderBtn');
+
+        confirmBtn.addEventListener('click', function() {
+            modal.hide();
+
+            self.ajax('add_folder_to_panier', {
+                projet_id: self.projetId,
+                folder_id: folderId
+            }).then(response => {
+                if (response.success) {
+                    self.loadPanier();
+                } else {
+                    alert('Erreur: ' + (response.message || 'Échec'));
+                }
+            });
+        });
+
+        modal.show();
     },
 
     // ================================

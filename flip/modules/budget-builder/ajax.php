@@ -603,6 +603,80 @@ try {
             echo json_encode(['success' => true, 'id' => $newId]);
             break;
 
+        case 'get_folder_info':
+            // Récupère les infos d'un folder pour le modal de quantité
+            $projetId = (int)($input['projet_id'] ?? 0);
+            $folderId = (int)($input['folder_id'] ?? 0);
+
+            if (!$projetId || !$folderId) {
+                throw new Exception('Projet et dossier requis');
+            }
+
+            // Récupérer le dossier
+            $stmt = $pdo->prepare("SELECT id, nom FROM catalogue_items WHERE id = ? AND type = 'folder' AND actif = 1");
+            $stmt->execute([$folderId]);
+            $folder = $stmt->fetch();
+
+            if (!$folder) {
+                throw new Exception('Dossier non trouvé');
+            }
+
+            // Compter les items dans ce folder (récursivement)
+            $countItems = function($pdo, $parentId, $depth = 0) use (&$countItems) {
+                if ($depth > 10) return 0;
+                $count = 0;
+                $stmt = $pdo->prepare("SELECT id, type FROM catalogue_items WHERE parent_id = ? AND actif = 1");
+                $stmt->execute([$parentId]);
+                $children = $stmt->fetchAll();
+                foreach ($children as $child) {
+                    if ($child['type'] === 'item') {
+                        $count++;
+                    } else {
+                        $count += $countItems($pdo, $child['id'], $depth + 1);
+                    }
+                }
+                return $count;
+            };
+            $itemCount = $countItems($pdo, $folderId);
+
+            // Vérifier combien d'items de ce folder sont déjà dans le panier
+            // On cherche les items dont le catalogue_item_id correspond à un enfant de ce folder
+            $getChildItemIds = function($pdo, $parentId, $depth = 0) use (&$getChildItemIds) {
+                if ($depth > 10) return [];
+                $ids = [];
+                $stmt = $pdo->prepare("SELECT id, type FROM catalogue_items WHERE parent_id = ? AND actif = 1");
+                $stmt->execute([$parentId]);
+                $children = $stmt->fetchAll();
+                foreach ($children as $child) {
+                    if ($child['type'] === 'item') {
+                        $ids[] = $child['id'];
+                    } else {
+                        $ids = array_merge($ids, $getChildItemIds($pdo, $child['id'], $depth + 1));
+                    }
+                }
+                return $ids;
+            };
+            $childItemIds = $getChildItemIds($pdo, $folderId);
+
+            $existingCount = 0;
+            if (!empty($childItemIds)) {
+                $placeholders = implode(',', array_fill(0, count($childItemIds), '?'));
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) FROM budget_items
+                    WHERE projet_id = ? AND catalogue_item_id IN ($placeholders)
+                ");
+                $stmt->execute(array_merge([$projetId], $childItemIds));
+                $existingCount = (int)$stmt->fetchColumn();
+            }
+
+            echo json_encode([
+                'success' => true,
+                'folder_name' => $folder['nom'],
+                'item_count' => $itemCount,
+                'existing_in_cart' => $existingCount
+            ]);
+            break;
+
         case 'add_folder_to_panier':
             $projetId = (int)($input['projet_id'] ?? 0);
             $folderId = (int)($input['folder_id'] ?? 0);
