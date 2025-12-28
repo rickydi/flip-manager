@@ -36,19 +36,7 @@ try {
         $pdo->query("SELECT actif FROM catalogue_items LIMIT 1");
     } catch (Exception $e) {
         $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1");
-    }
-    // S'assurer que tous les items existants ont actif défini (seulement NULL, pas 0)
-    $pdo->exec("UPDATE catalogue_items SET actif = 1 WHERE actif IS NULL");
-    // Aussi mettre le DEFAULT à 1 pour les futures insertions
-    try {
-        $pdo->exec("ALTER TABLE catalogue_items ALTER COLUMN actif SET DEFAULT 1");
-    } catch (Exception $e) {
-        // MySQL syntax différente
-        try {
-            $pdo->exec("ALTER TABLE catalogue_items MODIFY COLUMN actif TINYINT(1) NOT NULL DEFAULT 1");
-        } catch (Exception $e2) {
-            // Ignorer si ça échoue
-        }
+        // Nouveaux items auront actif=1 par défaut
     }
 } catch (Exception $e) {
     // Créer la table catalogue_items
@@ -121,7 +109,7 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
     $addedCount = 0;
 
     // Récupérer les enfants de ce dossier
-    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND (actif = 1 OR actif IS NULL) ORDER BY type DESC, ordre");
+    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre");
     $stmt->execute([$catalogueFolderId]);
     $children = $stmt->fetchAll();
 
@@ -167,7 +155,7 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
 
 // Fonction helper pour propager l'étape à tous les enfants récursivement
 function propagateEtapeToChildren($pdo, $parentId, $etapeId) {
-    $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND (actif = 1 OR actif IS NULL)");
+    $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND actif = 1");
     $stmt->execute([$parentId]);
     $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -348,14 +336,14 @@ try {
             // Fonction récursive pour dupliquer un élément et ses enfants
             $duplicateRecursive = function($pdo, $itemId, $newParentId, $addCopySuffix = true) use (&$duplicateRecursive) {
                 // Récupérer l'item original (seulement si actif)
-                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ? AND (actif = 1 OR actif IS NULL)");
+                $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ? AND actif = 1");
                 $stmt->execute([$itemId]);
                 $item = $stmt->fetch();
 
                 if (!$item) return null;
 
                 // Trouver le prochain ordre (seulement parmi les actifs)
-                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ? AND (actif = 1 OR actif IS NULL)");
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id <=> ? AND actif = 1");
                 $stmt->execute([$newParentId]);
                 $newOrdre = $stmt->fetchColumn();
 
@@ -380,7 +368,7 @@ try {
 
                 // Si c'est un dossier, dupliquer les enfants récursivement
                 if ($item['type'] === 'folder') {
-                    $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND (actif = 1 OR actif IS NULL) ORDER BY ordre");
+                    $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY ordre");
                     $stmt->execute([$itemId]);
                     $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -454,7 +442,7 @@ try {
 
             if ($position === 'into') {
                 // Déplacer dans le dossier cible - hériter de son étape
-                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ? AND (actif = 1 OR actif IS NULL)");
+                $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id = ? AND actif = 1");
                 $stmt->execute([$targetId]);
                 $newOrdre = $stmt->fetchColumn();
 
@@ -911,7 +899,7 @@ try {
             $getChildren = function($pdo, $parentId) use (&$getChildren) {
                 $stmt = $pdo->prepare("
                     SELECT * FROM catalogue_items
-                    WHERE parent_id = ? AND (actif = 1 OR actif IS NULL)
+                    WHERE parent_id = ? AND actif = 1
                     ORDER BY type DESC, ordre, nom
                 ");
                 $stmt->execute([$parentId]);
@@ -957,7 +945,7 @@ try {
                 // Les enfants seront chargés via getChildren()
                 $stmt = $pdo->prepare("
                     SELECT * FROM catalogue_items
-                    WHERE etape_id = ? AND (actif = 1 OR actif IS NULL) AND parent_id IS NULL
+                    WHERE etape_id = ? AND actif = 1 AND parent_id IS NULL
                     ORDER BY type DESC, ordre, nom
                 ");
                 $stmt->execute([$etape['id']]);
@@ -983,7 +971,7 @@ try {
             // Éléments sans étape (qui n'ont pas de parent avec étape non plus)
             $stmt = $pdo->query("
                 SELECT * FROM catalogue_items
-                WHERE (etape_id IS NULL OR etape_id = 0) AND (actif = 1 OR actif IS NULL) AND parent_id IS NULL
+                WHERE (etape_id IS NULL OR etape_id = 0) AND actif = 1 AND parent_id IS NULL
                 ORDER BY type DESC, ordre, nom
             ");
             $noEtapeItems = $stmt->fetchAll();
@@ -1063,10 +1051,10 @@ try {
 
             // Récupérer tous les items racine de cette section
             if ($etapeId) {
-                $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE etape_id = ? AND (actif = 1 OR actif IS NULL)");
+                $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE etape_id = ? AND actif = 1");
                 $stmt->execute([$etapeId]);
             } else {
-                $stmt = $pdo->query("SELECT id FROM catalogue_items WHERE (etape_id IS NULL OR etape_id = 0) AND parent_id IS NULL AND (actif = 1 OR actif IS NULL)");
+                $stmt = $pdo->query("SELECT id FROM catalogue_items WHERE (etape_id IS NULL OR etape_id = 0) AND parent_id IS NULL AND actif = 1");
             }
             $rootItems = $stmt->fetchAll(PDO::FETCH_COLUMN);
 

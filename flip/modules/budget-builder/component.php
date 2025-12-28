@@ -57,11 +57,13 @@ try {
 // Ajouter colonne actif si manquante (pour soft-delete/undo)
 try {
     $pdo->query("SELECT actif FROM catalogue_items LIMIT 1");
+    // Colonne existe - mettre à 1 seulement les NULL (anciens items)
+    $pdo->exec("UPDATE catalogue_items SET actif = 1 WHERE actif IS NULL");
 } catch (Exception $e) {
+    // Colonne n'existe pas - l'ajouter avec DEFAULT 1
     $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1");
+    // Tous les items existants auront actif = 1 grâce au DEFAULT
 }
-// FORCE FIX: Mettre TOUS les items à actif = 1 (désactive temporairement le soft-delete)
-$pdo->exec("UPDATE catalogue_items SET actif = 1 WHERE actif != 1 OR actif IS NULL");
 
 // Ajouter colonne etape_id si manquante
 try {
