@@ -1871,10 +1871,12 @@ function renderPanierTree($items, $level = 0) {
         }
 
         addItemModal.show();
-
-        // Focus sur le champ nom
-        setTimeout(() => document.getElementById('add-item-nom').focus(), 300);
     }
+
+    // Focus automatique quand le modal est affiché
+    document.getElementById('addItemModal').addEventListener('shown.bs.modal', function() {
+        document.getElementById('add-item-nom').focus();
+    });
 
     function saveAddItemModal() {
         const parentId = document.getElementById('add-item-parent-id').value || null;
