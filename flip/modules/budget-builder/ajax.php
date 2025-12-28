@@ -105,7 +105,12 @@ try {
 }
 
 // Fonction helper pour ajouter récursivement un dossier et son contenu au panier
-function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentBudgetId = null) {
+function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentBudgetId = null, $depth = 0) {
+    // Protection contre récursion infinie
+    if ($depth > 10) {
+        return 0;
+    }
+
     $addedCount = 0;
 
     // Récupérer les enfants de ce dossier
@@ -130,7 +135,7 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
             $addedCount++;
 
             // Récursion pour le contenu du sous-dossier
-            $addedCount += addFolderContentsToPanier($pdo, $projetId, $child['id'], $newFolderId);
+            $addedCount += addFolderContentsToPanier($pdo, $projetId, $child['id'], $newFolderId, $depth + 1);
         } else {
             // Ajouter l'item
             $stmt = $pdo->prepare("
@@ -154,7 +159,12 @@ function addFolderContentsToPanier($pdo, $projetId, $catalogueFolderId, $parentB
 }
 
 // Fonction helper pour propager l'étape à tous les enfants récursivement
-function propagateEtapeToChildren($pdo, $parentId, $etapeId) {
+function propagateEtapeToChildren($pdo, $parentId, $etapeId, $depth = 0) {
+    // Protection contre récursion infinie
+    if ($depth > 10) {
+        return;
+    }
+
     $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ? AND actif = 1");
     $stmt->execute([$parentId]);
     $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
@@ -163,7 +173,7 @@ function propagateEtapeToChildren($pdo, $parentId, $etapeId) {
         $stmt = $pdo->prepare("UPDATE catalogue_items SET etape_id = ? WHERE id = ?");
         $stmt->execute([$etapeId, $childId]);
         // Récursion pour les sous-enfants
-        propagateEtapeToChildren($pdo, $childId, $etapeId);
+        propagateEtapeToChildren($pdo, $childId, $etapeId, $depth + 1);
     }
 }
 
@@ -249,14 +259,15 @@ try {
             $stmt->execute([$id]);
 
             // Désactiver récursivement les enfants
-            $disableChildren = function($pdo, $parentId) use (&$disableChildren) {
+            $disableChildren = function($pdo, $parentId, $depth = 0) use (&$disableChildren) {
+                if ($depth > 10) return;
                 $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ?");
                 $stmt->execute([$parentId]);
                 $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($children as $childId) {
                     $stmt = $pdo->prepare("UPDATE catalogue_items SET actif = 0 WHERE id = ?");
                     $stmt->execute([$childId]);
-                    $disableChildren($pdo, $childId);
+                    $disableChildren($pdo, $childId, $depth + 1);
                 }
             };
             $disableChildren($pdo, $id);
@@ -273,14 +284,15 @@ try {
             $stmt->execute([$id]);
 
             // Restaurer récursivement les enfants
-            $restoreChildren = function($pdo, $parentId) use (&$restoreChildren) {
+            $restoreChildren = function($pdo, $parentId, $depth = 0) use (&$restoreChildren) {
+                if ($depth > 10) return;
                 $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE parent_id = ?");
                 $stmt->execute([$parentId]);
                 $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 foreach ($children as $childId) {
                     $stmt = $pdo->prepare("UPDATE catalogue_items SET actif = 1 WHERE id = ?");
                     $stmt->execute([$childId]);
-                    $restoreChildren($pdo, $childId);
+                    $restoreChildren($pdo, $childId, $depth + 1);
                 }
             };
             $restoreChildren($pdo, $id);
@@ -334,7 +346,10 @@ try {
             if (!$id) throw new Exception('ID requis');
 
             // Fonction récursive pour dupliquer un élément et ses enfants
-            $duplicateRecursive = function($pdo, $itemId, $newParentId, $addCopySuffix = true) use (&$duplicateRecursive) {
+            $duplicateRecursive = function($pdo, $itemId, $newParentId, $addCopySuffix = true, $depth = 0) use (&$duplicateRecursive) {
+                // Protection contre récursion infinie
+                if ($depth > 10) return null;
+
                 // Récupérer l'item original (seulement si actif)
                 $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE id = ? AND actif = 1");
                 $stmt->execute([$itemId]);
@@ -373,7 +388,7 @@ try {
                     $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
                     foreach ($children as $childId) {
-                        $duplicateRecursive($pdo, $childId, $newId, false); // Pas de suffixe pour les enfants
+                        $duplicateRecursive($pdo, $childId, $newId, false, $depth + 1); // Pas de suffixe pour les enfants
                     }
                 }
 
@@ -419,14 +434,15 @@ try {
             if (!$id || !$targetId) throw new Exception('IDs requis');
 
             // Fonction pour trouver l'étape en remontant la chaîne des parents
-            $findEtapeId = function($pdo, $itemId) use (&$findEtapeId) {
+            $findEtapeId = function($pdo, $itemId, $depth = 0) use (&$findEtapeId) {
+                if ($depth > 10) return null;
                 $stmt = $pdo->prepare("SELECT parent_id, etape_id FROM catalogue_items WHERE id = ?");
                 $stmt->execute([$itemId]);
                 $item = $stmt->fetch();
 
                 if (!$item) return null;
                 if ($item['etape_id']) return $item['etape_id'];
-                if ($item['parent_id']) return $findEtapeId($pdo, $item['parent_id']);
+                if ($item['parent_id']) return $findEtapeId($pdo, $item['parent_id'], $depth + 1);
                 return null;
             };
 
@@ -628,13 +644,14 @@ try {
             if (!$id) throw new Exception('ID requis');
 
             // Supprimer récursivement les enfants d'abord
-            $deleteChildren = function($pdo, $parentId) use (&$deleteChildren) {
+            $deleteChildren = function($pdo, $parentId, $depth = 0) use (&$deleteChildren) {
+                if ($depth > 10) return;
                 $stmt = $pdo->prepare("SELECT id FROM budget_items WHERE parent_budget_id = ?");
                 $stmt->execute([$parentId]);
                 $children = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
                 foreach ($children as $childId) {
-                    $deleteChildren($pdo, $childId);
+                    $deleteChildren($pdo, $childId, $depth + 1);
                     $stmt = $pdo->prepare("DELETE FROM budget_items WHERE id = ?");
                     $stmt->execute([$childId]);
                 }
@@ -896,7 +913,8 @@ try {
 
         case 'get_catalogue_by_etape':
             // Fonction récursive pour récupérer les enfants d'un dossier
-            $getChildren = function($pdo, $parentId) use (&$getChildren) {
+            $getChildren = function($pdo, $parentId, $depth = 0) use (&$getChildren) {
+                if ($depth > 10) return [];
                 $stmt = $pdo->prepare("
                     SELECT * FROM catalogue_items
                     WHERE parent_id = ? AND actif = 1
@@ -907,7 +925,7 @@ try {
 
                 foreach ($children as &$child) {
                     if ($child['type'] === 'folder') {
-                        $child['children'] = $getChildren($pdo, $child['id']);
+                        $child['children'] = $getChildren($pdo, $child['id'], $depth + 1);
                     }
                 }
                 return $children;
@@ -916,7 +934,10 @@ try {
             // Fonction pour récupérer le chemin du dossier parent (pour items sans dossier parent avec étape)
             $getParentPath = function($pdo, $parentId) {
                 $path = [];
-                while ($parentId) {
+                $maxIterations = 10;
+                $iterations = 0;
+                while ($parentId && $iterations < $maxIterations) {
+                    $iterations++;
                     $stmt = $pdo->prepare("SELECT id, nom, parent_id FROM catalogue_items WHERE id = ?");
                     $stmt->execute([$parentId]);
                     $parent = $stmt->fetch();

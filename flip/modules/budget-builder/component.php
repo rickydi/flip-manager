@@ -94,6 +94,22 @@ try {
     ");
 }
 
+// ============================================
+// AUTO-MIGRATION: Table budget_etapes
+// ============================================
+try {
+    $pdo->query("SELECT 1 FROM budget_etapes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE budget_etapes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(255) NOT NULL,
+            ordre INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 /**
  * Migration des anciennes données (categories/sous_categories/materiaux)
  */
@@ -266,7 +282,12 @@ function getCatalogueBySection($pdo) {
 /**
  * Récupérer l'arbre du catalogue (ancienne méthode, gardée pour compatibilité)
  */
-function getCatalogueTree($pdo, $parentId = null) {
+function getCatalogueTree($pdo, $parentId = null, $depth = 0) {
+    // Protection contre récursion infinie
+    if ($depth > 10) {
+        return [];
+    }
+
     if ($parentId === null) {
         $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id IS NULL AND actif = 1 ORDER BY type DESC, ordre, nom");
         $stmt->execute();
@@ -279,7 +300,7 @@ function getCatalogueTree($pdo, $parentId = null) {
 
     foreach ($items as &$item) {
         if ($item['type'] === 'folder') {
-            $item['children'] = getCatalogueTree($pdo, $item['id']);
+            $item['children'] = getCatalogueTree($pdo, $item['id'], $depth + 1);
         }
     }
 
