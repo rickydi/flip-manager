@@ -855,6 +855,8 @@ const BudgetBuilder = {
             } else {
                 html += `
                     <div class="panier-item" data-id="${item.id}" data-prix="${item.prix || 0}">
+                        <span class="folder-toggle invisible"></span>
+                        <i class="bi bi-box-seam text-primary me-1"></i>
                         <span class="item-nom">${this.escapeHtml(item.nom)}</span>
                         <div class="item-qte-controls">
                             <button type="button" class="qte-btn qte-minus" data-id="${item.id}">−</button>
