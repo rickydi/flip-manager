@@ -1496,7 +1496,24 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
     if (elCont) elCont.textContent = formatMoneyBase(reno.contingence);
     if (elTPS) elTPS.textContent = formatMoneyBase(reno.tps);
     if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
-    if (elTotal) elTotal.textContent = formatMoneyBase(reno.total_ttc);
+
+    // ✅ Recalcul complet du Sous-total Rénovation (incluant main-d'œuvre)
+    let moBudget = 0;
+    let moReel = 0;
+
+    const moRow = document.querySelector('.labor-row');
+    if (moRow) {
+        const cells = moRow.querySelectorAll('td');
+        if (cells.length >= 4) {
+            moBudget = parseFloat(cells[1].textContent.replace(/[^0-9.-]+/g, '')) || 0;
+            moReel = parseFloat(cells[3].textContent.replace(/[^0-9.-]+/g, '')) || 0;
+        }
+    }
+
+    const totalBudgetReno = (reno.total_ttc || 0) + moBudget;
+    const totalReelReno = (reno.reel_ttc || 0) + moReel;
+
+    if (elTotal) elTotal.textContent = formatMoneyBase(totalBudgetReno);
 };
 
 // Fonctions globales pour les onclick
