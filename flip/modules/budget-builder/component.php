@@ -849,8 +849,9 @@ function renderPanierTree($items, $level = 0) {
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Fournisseur</label>
-                    <input type="text" class="form-control" id="item-modal-fournisseur" list="fournisseurs-list" placeholder="Choisir ou saisir...">
-                    <datalist id="fournisseurs-list"></datalist>
+                    <select class="form-select" id="item-modal-fournisseur">
+                        <option value="">-- Aucun fournisseur --</option>
+                    </select>
                 </div>
                 <div class="mb-3">
                     <label class="form-label d-flex justify-content-between align-items-center">
@@ -1004,12 +1005,13 @@ function renderPanierTree($items, $level = 0) {
             BudgetBuilder.ajax('get_etapes', {}),
             BudgetBuilder.ajax('get_item', { id: itemId })
         ]).then(([fournisseursResp, etapesResp, itemResp]) => {
-            // Remplir la datalist des fournisseurs
+            // Remplir le select des fournisseurs
             if (fournisseursResp.success && fournisseursResp.fournisseurs) {
-                const datalist = document.getElementById('fournisseurs-list');
-                datalist.innerHTML = fournisseursResp.fournisseurs
-                    .map(f => `<option value="${f}">`)
-                    .join('');
+                const select = document.getElementById('item-modal-fournisseur');
+                select.innerHTML = '<option value="">-- Aucun fournisseur --</option>' +
+                    fournisseursResp.fournisseurs
+                        .map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`)
+                        .join('');
             }
 
             // Remplir le select des étapes
