@@ -331,10 +331,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     exit;
 }
 
-// ========================================
-// AJAX: Obtenir les indicateurs (refresh sans sauvegarder)
-// ========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'get_indicateurs') {
+/**
+ * ========================================
+ * AJAX: Obtenir les indicateurs (refresh sans sauvegarder)
+ * Utilisé par l’onglet Base
+ * ========================================
+ */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && in_array($_POST['ajax_action'], ['get_indicateurs', 'get_project_totals'])) {
     header('Content-Type: application/json');
 
     if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
@@ -354,19 +357,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 'valeur_potentielle' => $indicateurs['valeur_potentielle'],
                 'equite_potentielle' => $indicateurs['equite_potentielle'],
                 'equite_reelle' => $indicateurs['equite_reelle'],
-                'roi_leverage' => $indicateurs['roi_leverage']
+                'roi_leverage' => $indicateurs['roi_leverage'],
+                'cout_total_projet' => $indicateurs['cout_total_projet']
             ],
-            'renovation' => [
-                'budget_ht' => $indicateurs['renovation']['budget'],
-                'contingence' => $indicateurs['renovation']['contingence'],
-                'sous_total' => $indicateurs['renovation']['sous_total_avant_taxes'],
-                'tps' => $indicateurs['renovation']['tps'],
-                'tvq' => $indicateurs['renovation']['tvq'],
-                'total_ttc' => $indicateurs['renovation']['total_ttc'],
-                'reel_tps' => $indicateurs['renovation']['reel_tps'],
-                'reel_tvq' => $indicateurs['renovation']['reel_tvq'],
-                'reel_ttc' => $indicateurs['renovation']['reel_ttc']
-            ],
+            'renovation' => $indicateurs['renovation'],
             'budget_par_etape' => $budgetParEtape,
             'depenses_par_etape' => $depensesParEtape
         ]);

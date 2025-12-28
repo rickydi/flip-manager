@@ -991,28 +991,35 @@ const BudgetBuilder = {
 
     // Rafraîchir les indicateurs du projet (Base tab) après changement du budget
     refreshIndicateurs: function() {
-        // Vérifier si on est sur la page detail avec les fonctions exposées
-        if (typeof window.updateIndicateurs === 'function' && window.baseFormCsrfToken) {
+        // Rafraîchissement temps réel complet depuis le serveur (source de vérité PHP)
+        if (typeof window.updateIndicateurs === 'function'
+            && typeof window.updateRenovation === 'function'
+            && window.baseFormCsrfToken) {
+
             const formData = new FormData();
-            formData.set('ajax_action', 'get_indicateurs');
+            formData.set('ajax_action', 'get_project_totals');
             formData.set('csrf_token', window.baseFormCsrfToken);
 
             fetch(window.location.href, {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.indicateurs) {
-                        window.updateIndicateurs(data.indicateurs);
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    if (res.indicateurs) {
+                        window.updateIndicateurs(res.indicateurs);
                     }
-                    if (data.renovation && typeof window.updateRenovation === 'function') {
-                        window.updateRenovation(data.renovation, data.budget_par_etape, data.depenses_par_etape);
+                    if (res.renovation) {
+                        window.updateRenovation(
+                            res.renovation,
+                            res.budget_par_etape || {},
+                            res.depenses_par_etape || {}
+                        );
                     }
                 }
             })
-            .catch(err => console.log('Refresh indicateurs skipped:', err));
+            .catch(err => console.log('Refresh temps réel skipped:', err));
         }
     },
 
