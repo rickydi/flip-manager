@@ -999,72 +999,64 @@ try {
                 throw new Exception('URL invalide');
             }
 
-            // Extraire le domaine pour le Referer
+            // Fonction helper pour faire une requête curl
+            $fetchPage = function($url, $userAgent, $referer = null) {
+                $ch = curl_init();
+                $opts = [
+                    CURLOPT_URL => $url,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_MAXREDIRS => 5,
+                    CURLOPT_TIMEOUT => 15,
+                    CURLOPT_CONNECTTIMEOUT => 10,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_SSL_VERIFYHOST => false,
+                    CURLOPT_ENCODING => 'gzip, deflate',
+                    CURLOPT_USERAGENT => $userAgent,
+                    CURLOPT_HTTPHEADER => [
+                        'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language: fr-CA,fr;q=0.9,en;q=0.8',
+                        'Accept-Encoding: gzip, deflate',
+                        'Connection: keep-alive',
+                        'DNT: 1'
+                    ]
+                ];
+                if ($referer) {
+                    $opts[CURLOPT_REFERER] = $referer;
+                }
+                curl_setopt_array($ch, $opts);
+                $html = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                return ['html' => $html, 'code' => $httpCode];
+            };
+
+            // User agents à essayer
+            $userAgents = [
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+            ];
+
             $parsedUrl = parse_url($url);
             $baseUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
-            $cookieFile = '/tmp/curl_cookies_' . md5($parsedUrl['host']) . '.txt';
+            $html = null;
+            $httpCode = 0;
 
-            // Première requête: visiter la page d'accueil pour obtenir les cookies
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL => $baseUrl,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 3,
-                CURLOPT_TIMEOUT => 10,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false,
-                CURLOPT_ENCODING => 'gzip, deflate',
-                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                CURLOPT_COOKIEJAR => $cookieFile,
-                CURLOPT_COOKIEFILE => $cookieFile
-            ]);
-            curl_exec($ch);
-            curl_close($ch);
-
-            // Deuxième requête: la vraie page avec cookies et Referer
-            $ch = curl_init();
-            curl_setopt_array($ch, [
-                CURLOPT_URL => $url,
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 5,
-                CURLOPT_TIMEOUT => 20,
-                CURLOPT_CONNECTTIMEOUT => 10,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false,
-                CURLOPT_ENCODING => 'gzip, deflate',
-                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                CURLOPT_REFERER => $baseUrl . '/',
-                CURLOPT_HTTPHEADER => [
-                    'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Language: fr-CA,fr;q=0.9,en-US;q=0.8,en;q=0.7',
-                    'Accept-Encoding: gzip, deflate',
-                    'Connection: keep-alive',
-                    'Upgrade-Insecure-Requests: 1',
-                    'Sec-Fetch-Dest: document',
-                    'Sec-Fetch-Mode: navigate',
-                    'Sec-Fetch-Site: same-origin',
-                    'Sec-Fetch-User: ?1',
-                    'Cache-Control: max-age=0',
-                    'sec-ch-ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-                    'sec-ch-ua-mobile: ?0',
-                    'sec-ch-ua-platform: "Windows"',
-                    'Origin: ' . $baseUrl
-                ],
-                CURLOPT_COOKIEJAR => $cookieFile,
-                CURLOPT_COOKIEFILE => $cookieFile
-            ]);
-            $html = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlError = curl_error($ch);
-            curl_close($ch);
+            // Essayer chaque User-Agent jusqu'à succès
+            foreach ($userAgents as $ua) {
+                $result = $fetchPage($url, $ua, $baseUrl . '/');
+                if ($result['code'] === 200 && !empty($result['html'])) {
+                    $html = $result['html'];
+                    $httpCode = $result['code'];
+                    break;
+                }
+                $httpCode = $result['code'];
+                usleep(500000); // 0.5 seconde entre les tentatives
+            }
 
             if ($httpCode !== 200 || empty($html)) {
-                $errorMsg = 'Impossible de charger la page (code: ' . $httpCode . ')';
-                if ($curlError) $errorMsg .= ' - ' . $curlError;
-                throw new Exception($errorMsg);
+                throw new Exception('Impossible de charger la page (code: ' . $httpCode . '). Ce site bloque probablement les requêtes automatisées.');
             }
 
             $price = null;
