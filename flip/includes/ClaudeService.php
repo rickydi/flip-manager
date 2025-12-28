@@ -302,4 +302,130 @@ class ClaudeService {
 
         throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé).");
     }
+
+    /**
+     * Extrait le prix d'un produit depuis le contenu HTML d'une page web
+     * @param string $html Contenu HTML de la page
+     * @param string $url URL de la page (pour contexte)
+     * @return array ['success' => bool, 'price' => float|null, 'message' => string]
+     */
+    public function extractPriceFromHtml($html, $url) {
+        if (empty($this->apiKey)) {
+            return ['success' => false, 'price' => null, 'message' => 'Clé API Claude non configurée'];
+        }
+
+        // Limiter le HTML pour ne pas dépasser les limites de l'API
+        // Extraire seulement les parties pertinentes (body, scripts JSON-LD, meta tags)
+        $relevantHtml = $this->extractRelevantHtml($html);
+
+        $systemPrompt = "Tu es un assistant spécialisé dans l'extraction de prix de produits depuis des pages web de magasins. " .
+                       "Tu dois analyser le HTML fourni et trouver le prix de vente actuel du produit. " .
+                       "Ignore les prix barrés (anciens prix) et trouve le prix actuel en dollars canadiens. " .
+                       "Réponds UNIQUEMENT en JSON valide avec cette structure: {\"price\": 123.45, \"found\": true} ou {\"price\": null, \"found\": false, \"reason\": \"explication\"}";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 200,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => "Extrait le prix du produit de cette page web.\n\nURL: {$url}\n\nHTML (extrait):\n{$relevantHtml}"
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+            if (isset($result['found']) && $result['found'] && isset($result['price'])) {
+                return ['success' => true, 'price' => (float)$result['price'], 'message' => 'Prix trouvé par IA'];
+            }
+            return ['success' => false, 'price' => null, 'message' => $result['reason'] ?? 'Prix non trouvé'];
+        } catch (Exception $e) {
+            return ['success' => false, 'price' => null, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Extrait les parties pertinentes du HTML pour l'analyse de prix
+     */
+    private function extractRelevantHtml($html) {
+        $relevant = '';
+
+        // Extraire les JSON-LD (structured data)
+        if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/is', $html, $matches)) {
+            $relevant .= "=== JSON-LD Data ===\n" . implode("\n", $matches[1]) . "\n\n";
+        }
+
+        // Extraire les meta tags de prix
+        if (preg_match_all('/<meta[^>]*(price|amount|product)[^>]*>/i', $html, $matches)) {
+            $relevant .= "=== Meta Tags ===\n" . implode("\n", $matches[0]) . "\n\n";
+        }
+
+        // Extraire les éléments avec classes de prix courantes
+        $pricePatterns = [
+            '/<[^>]*(class|id)=["\'][^"\']*price[^"\']*["\'][^>]*>.*?<\/[^>]+>/is',
+            '/<[^>]*(class|id)=["\'][^"\']*prix[^"\']*["\'][^>]*>.*?<\/[^>]+>/is',
+            '/<[^>]*data-price[^>]*>/i'
+        ];
+
+        foreach ($pricePatterns as $pattern) {
+            if (preg_match_all($pattern, $html, $matches)) {
+                $relevant .= "=== Price Elements ===\n" . implode("\n", array_slice($matches[0], 0, 10)) . "\n\n";
+            }
+        }
+
+        // Si on n'a pas trouvé grand chose, prendre un extrait du body
+        if (strlen($relevant) < 500) {
+            if (preg_match('/<body[^>]*>(.*?)<\/body>/is', $html, $match)) {
+                // Nettoyer le HTML
+                $body = strip_tags($match[1], '<span><div><p><strong><b>');
+                $body = preg_replace('/\s+/', ' ', $body);
+                $relevant .= "=== Body Extract ===\n" . substr($body, 0, 3000);
+            }
+        }
+
+        // Limiter la taille totale
+        return substr($relevant, 0, 8000);
+    }
+
+    /**
+     * Appel API simplifié pour extraction de prix
+     */
+    private function callApiSimple($payload) {
+        $ch = curl_init($this->apiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'x-api-key: ' . $this->apiKey,
+            'anthropic-version: 2023-06-01',
+            'content-type: application/json'
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if (curl_errno($ch)) {
+            throw new Exception('Erreur Curl: ' . curl_error($ch));
+        }
+        curl_close($ch);
+
+        if ($httpCode !== 200) {
+            $error = json_decode($response, true);
+            throw new Exception('Erreur API Claude (' . $httpCode . '): ' . ($error['error']['message'] ?? $response));
+        }
+
+        $data = json_decode($response, true);
+        $content = $data['content'][0]['text'] ?? '';
+
+        // Extraire le JSON de la réponse
+        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
+            $json = json_decode($matches[0], true);
+            if ($json) return $json;
+        }
+
+        throw new Exception("Réponse invalide de l'IA");
+    }
 }

@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../includes/auth.php';
+require_once __DIR__ . '/../../includes/ClaudeService.php';
 
 header('Content-Type: application/json');
 
@@ -1021,45 +1022,60 @@ try {
             }
 
             $price = null;
+            $method = 'regex';
 
-            // Patterns pour trouver les prix (sites canadiens courants)
-            $patterns = [
-                // JSON-LD structured data (très fiable)
-                '/"price"\s*:\s*"?(\d+(?:[.,]\d{1,2})?)"?/i',
-                '/"lowPrice"\s*:\s*"?(\d+(?:[.,]\d{1,2})?)"?/i',
-                // Meta tags
-                '/property="product:price:amount"\s+content="(\d+(?:[.,]\d{1,2})?)"/i',
-                '/content="(\d+(?:[.,]\d{1,2})?)"\s+property="product:price:amount"/i',
-                '/name="product:price:amount"\s+content="(\d+(?:[.,]\d{1,2})?)"/i',
-                // Canac, Patrick Morin et autres sites québécois
-                '/(\d{1,3}(?:\s?\d{3})*[.,]\d{2})\s*\$\s*(?:\/|<)/i',
-                '/class="[^"]*(?:price|prix)[^"]*"[^>]*>[\s\n]*(\d{1,3}(?:[\s,]\d{3})*[.,]\d{2})\s*\$/im',
-                '/>(\d{1,3}[.,]\d{2})\s*\$\s*</i',
-                // Home Depot, Rona, etc.
-                '/data-price="(\d+(?:[.,]\d{1,2})?)"/i',
-                '/data-product-price="(\d+(?:[.,]\d{1,2})?)"/i',
-                // Prix avec $ canadien (format: 149,99 $ ou 1 234,56 $)
-                '/(\d{1,3}(?:[\s\x{00a0}]\d{3})*[.,]\d{2})\s*\$/u',
-                '/\$\s*(\d{1,3}(?:[\s\x{00a0}]\d{3})*[.,]\d{2})/u',
-                // Prix génériques avec classes
-                '/<[^>]*class="[^"]*(?:price|prix|cost|amount|regular-price|sale-price)[^"]*"[^>]*>[\s\S]*?(\d{1,3}(?:[\s,]\d{3})*[.,]\d{2})/i',
-                '/itemprop="price"[^>]*content="(\d+(?:[.,]\d{1,2})?)"/i',
-                // Dernier recours - tout nombre suivi de $
-                '/(\d{1,3}[.,]\d{2})\s*\$/i',
-            ];
+            // Essayer d'abord avec l'IA Claude si configurée
+            try {
+                $claude = new ClaudeService($pdo);
+                $aiResult = $claude->extractPriceFromHtml($html, $url);
+                if ($aiResult['success'] && $aiResult['price']) {
+                    $price = $aiResult['price'];
+                    $method = 'ia';
+                }
+            } catch (Exception $e) {
+                // IA non disponible, continuer avec regex
+            }
 
-            foreach ($patterns as $pattern) {
-                if (preg_match($pattern, $html, $matches)) {
-                    $priceStr = $matches[1];
-                    // Nettoyer le prix
-                    $priceStr = preg_replace('/\s/', '', $priceStr);
-                    $priceStr = str_replace(',', '.', $priceStr);
-                    $priceFloat = (float)$priceStr;
+            // Fallback: Patterns regex pour trouver les prix (sites canadiens courants)
+            if ($price === null) {
+                $patterns = [
+                    // JSON-LD structured data (très fiable)
+                    '/"price"\s*:\s*"?(\d+(?:[.,]\d{1,2})?)"?/i',
+                    '/"lowPrice"\s*:\s*"?(\d+(?:[.,]\d{1,2})?)"?/i',
+                    // Meta tags
+                    '/property="product:price:amount"\s+content="(\d+(?:[.,]\d{1,2})?)"/i',
+                    '/content="(\d+(?:[.,]\d{1,2})?)"\s+property="product:price:amount"/i',
+                    '/name="product:price:amount"\s+content="(\d+(?:[.,]\d{1,2})?)"/i',
+                    // Canac, Patrick Morin et autres sites québécois
+                    '/(\d{1,3}(?:\s?\d{3})*[.,]\d{2})\s*\$\s*(?:\/|<)/i',
+                    '/class="[^"]*(?:price|prix)[^"]*"[^>]*>[\s\n]*(\d{1,3}(?:[\s,]\d{3})*[.,]\d{2})\s*\$/im',
+                    '/>(\d{1,3}[.,]\d{2})\s*\$\s*</i',
+                    // Home Depot, Rona, etc.
+                    '/data-price="(\d+(?:[.,]\d{1,2})?)"/i',
+                    '/data-product-price="(\d+(?:[.,]\d{1,2})?)"/i',
+                    // Prix avec $ canadien (format: 149,99 $ ou 1 234,56 $)
+                    '/(\d{1,3}(?:[\s\x{00a0}]\d{3})*[.,]\d{2})\s*\$/u',
+                    '/\$\s*(\d{1,3}(?:[\s\x{00a0}]\d{3})*[.,]\d{2})/u',
+                    // Prix génériques avec classes
+                    '/<[^>]*class="[^"]*(?:price|prix|cost|amount|regular-price|sale-price)[^"]*"[^>]*>[\s\S]*?(\d{1,3}(?:[\s,]\d{3})*[.,]\d{2})/i',
+                    '/itemprop="price"[^>]*content="(\d+(?:[.,]\d{1,2})?)"/i',
+                    // Dernier recours - tout nombre suivi de $
+                    '/(\d{1,3}[.,]\d{2})\s*\$/i',
+                ];
 
-                    // Vérifier que c'est un prix raisonnable (entre 0.01 et 100000)
-                    if ($priceFloat >= 0.01 && $priceFloat <= 100000) {
-                        $price = $priceFloat;
-                        break;
+                foreach ($patterns as $pattern) {
+                    if (preg_match($pattern, $html, $matches)) {
+                        $priceStr = $matches[1];
+                        // Nettoyer le prix
+                        $priceStr = preg_replace('/\s/', '', $priceStr);
+                        $priceStr = str_replace(',', '.', $priceStr);
+                        $priceFloat = (float)$priceStr;
+
+                        // Vérifier que c'est un prix raisonnable (entre 0.01 et 100000)
+                        if ($priceFloat >= 0.01 && $priceFloat <= 100000) {
+                            $price = $priceFloat;
+                            break;
+                        }
                     }
                 }
             }
