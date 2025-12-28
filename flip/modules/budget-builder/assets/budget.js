@@ -1060,17 +1060,22 @@ const BudgetBuilder = {
     refreshIndicateurs: function(retryCount = 0) {
         // ⚠️ Le tab Base n’est pas monté tant qu’il n’a jamais été ouvert
         // → on force son chargement une fois
-        const baseTab = document.getElementById('tab-base');
-        if (baseTab && !baseTab.dataset.loaded) {
-            baseTab.dataset.loaded = '1';
-            fetch(baseTab.dataset.url, { credentials: 'same-origin' })
-                .then(r => r.text())
-                .then(html => {
-                    baseTab.innerHTML = html;
-                    // relancer après montage réel
-                    setTimeout(() => this.refreshIndicateurs(), 100);
-                });
-            return;
+        // ✅ ID réel du tab = "base" (Bootstrap tab-pane)
+        const baseTab = document.getElementById('base');
+
+        // Le contenu est déjà présent en HTML (PHP rendu côté serveur)
+        // → le vrai problème n’est PAS le chargement, mais l’exécution JS
+        if (baseTab && !baseTab.dataset.jsReady) {
+            baseTab.dataset.jsReady = '1';
+
+            // Forcer l’exécution des scripts dépendants du tab Base
+            // (charts / indicateurs / rénovation)
+            setTimeout(() => {
+                if (typeof window.initBaseCharts === 'function') {
+                    window.initBaseCharts();
+                }
+                this.refreshIndicateurs();
+            }, 50);
         }
 
         // Token pas encore prêt → retry automatique
