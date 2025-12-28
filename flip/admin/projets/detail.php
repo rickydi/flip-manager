@@ -14,6 +14,33 @@ requireAdmin();
 $projetId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 // ========================================
+// MODE PARTIEL (AJAX) — retour d’un seul tab
+// ========================================
+if (isset($_GET['_partial']) && $_GET['_partial'] === 'base') {
+    // Charger le projet et les données nécessaires au tab Base
+    $projet = getProjetById($pdo, $projetId);
+    if (!$projet) {
+        http_response_code(404);
+        exit;
+    }
+
+    // Synchroniser budgets AVANT calcul
+    syncBudgetsFromProjetItems($pdo, $projetId);
+
+    // Calculs nécessaires au tab Base
+    $indicateurs = calculerIndicateursProjet($pdo, $projet);
+    $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
+    $depensesParEtape = calculerDepensesParEtape($pdo, $projetId);
+
+    // Données utilisées par tab-base.php
+    $recurrentsReels = calculerCoutsRecurrentsReels($projet);
+
+    // Retourner UNIQUEMENT le HTML du tab Base
+    include 'partials/tab-base.php';
+    exit;
+}
+
+// ========================================
 // AUTO-MIGRATION: Créer tables si manquantes
 // ========================================
 try {

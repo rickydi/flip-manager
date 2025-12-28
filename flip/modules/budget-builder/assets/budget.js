@@ -1105,16 +1105,27 @@ const BudgetBuilder = {
         .then(res => {
             if (!res || !res.success) return;
 
-            if (res.indicateurs) {
+            // ✅ Mise à jour indicateurs simples
+            if (res.indicateurs && typeof window.updateIndicateurs === 'function') {
                 window.updateIndicateurs(res.indicateurs);
             }
 
-            if (res.renovation) {
-                window.updateRenovation(
-                    res.renovation,
-                    res.budget_par_etape || {},
-                    res.depenses_par_etape || {}
-                );
+            // ✅ FALLBACK DURABLE :
+            // Le tableau Rénovation est 100% rendu côté PHP
+            // → on recharge uniquement le contenu du tab Base sans reload page
+            const baseTab = document.getElementById('base');
+            if (baseTab) {
+                fetch(window.location.href + '&_partial=base')
+                    .then(r => r.text())
+                    .then(html => {
+                        // Extraire uniquement le tab Base
+                        const tmp = document.createElement('div');
+                        tmp.innerHTML = html;
+                        const newBase = tmp.querySelector('#base');
+                        if (newBase) {
+                            baseTab.innerHTML = newBase.innerHTML;
+                        }
+                    });
             }
         })
         .catch(() => {});
