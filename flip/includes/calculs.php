@@ -985,7 +985,9 @@ function calculerIndicateursProjet($pdo, $projet) {
         'total_interets_reel' => $coutsVente['interets_reel'],
         'mise_fonds_totale' => $dataFinancement['mise_totale'],
         'mois_prevu' => $moisPrevu,
-        'mois_reel' => $moisReel
+        'mois_reel' => $moisReel,
+        'main_doeuvre' => $mainDoeuvreReelle,
+        'main_doeuvre_extrapole' => $mainDoeuvreExtrapole
     ];
 }
 
