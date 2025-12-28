@@ -2907,11 +2907,14 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
 
 <!-- Auto-save pour l'onglet Base -->
 <script>
+/* CSRF global pour synchronisation Budget → Détail (même hors onglet Base) */
+window.baseFormCsrfToken = '<?= generateCSRFToken() ?>';
+
 (function() {
     const formBase = document.getElementById('formBase');
     if (!formBase) return;
 
-    const csrfToken = '<?= generateCSRFToken() ?>';
+    const csrfToken = window.baseFormCsrfToken;
     let baseSaveTimeout = null;
 
     function formatMoneyBase(val) {
