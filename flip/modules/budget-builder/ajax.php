@@ -1056,6 +1056,37 @@ try {
             }
 
             if ($httpCode !== 200 || empty($html)) {
+                // Fallback: utiliser un service de capture d'écran + Claude Vision
+                $screenshotUrl = 'https://image.thum.io/get/width/1200/crop/800/' . urlencode($url);
+
+                $ch = curl_init();
+                curl_setopt_array($ch, [
+                    CURLOPT_URL => $screenshotUrl,
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_FOLLOWLOCATION => true,
+                    CURLOPT_TIMEOUT => 30,
+                    CURLOPT_SSL_VERIFYPEER => false,
+                    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+                ]);
+                $imageData = curl_exec($ch);
+                $imageHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+                curl_close($ch);
+
+                if ($imageHttpCode === 200 && !empty($imageData) && strpos($contentType, 'image') !== false) {
+                    // Analyser la capture avec Claude Vision
+                    require_once __DIR__ . '/../../includes/ClaudeService.php';
+                    $claude = new ClaudeService($pdo);
+                    $base64Image = base64_encode($imageData);
+                    $mimeType = strpos($contentType, 'png') !== false ? 'image/png' : 'image/jpeg';
+
+                    $result = $claude->extractPriceFromImage($base64Image, $mimeType);
+                    if ($result['success'] && $result['price']) {
+                        echo json_encode(['success' => true, 'price' => $result['price'], 'method' => 'screenshot']);
+                        break;
+                    }
+                }
+
                 throw new Exception('Impossible de charger la page (code: ' . $httpCode . '). Ce site bloque probablement les requêtes automatisées.');
             }
 
