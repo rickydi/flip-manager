@@ -291,7 +291,7 @@ const BudgetBuilder = {
             new_parent_id: newParentId
         }).then(response => {
             if (response.success) {
-                self.refreshAll();
+                self.refreshAfterBudgetChange();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec du déplacement'));
             }
@@ -305,7 +305,7 @@ const BudgetBuilder = {
             etape_id: etapeId
         }).then(response => {
             if (response.success) {
-                self.refreshAll();
+                self.refreshAfterBudgetChange();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec du déplacement'));
             }
@@ -537,17 +537,21 @@ const BudgetBuilder = {
 
     deleteItem: function(itemId) {
         const self = this;
-        // Supprimer sans confirmation - on peut annuler avec undo
-        this.ajax('delete_catalogue_item', { id: itemId })
-            .then(response => {
-                if (response.success) {
-                    self.lastDeletedItem = { id: itemId, type: 'catalogue' };
-                    self.loadCatalogueByEtape();
-                    self.showUndoToast('Élément supprimé');
-                } else {
-                    alert('Erreur: ' + (response.message || 'Échec'));
-                }
-            });
+        const el = document.querySelector('.catalogue-item[data-id="' + itemId + '"]');
+
+        this.animateRemove(el, () => {
+            // Supprimer sans confirmation - on peut annuler avec undo
+            self.ajax('delete_catalogue_item', { id: itemId })
+                .then(response => {
+                    if (response.success) {
+                        self.lastDeletedItem = { id: itemId, type: 'catalogue' };
+                        self.loadCatalogueByEtape();
+                        self.showUndoToast('Élément supprimé');
+                    } else {
+                        alert('Erreur: ' + (response.message || 'Échec'));
+                    }
+                });
+        });
     },
 
     restoreLastDeleted: function() {
@@ -677,16 +681,20 @@ const BudgetBuilder = {
 
     removeFromPanier: function(panierItemId) {
         const self = this;
-        // Sauvegarder l'état AVANT la suppression
-        this.saveStateForUndo().then(() => {
-            self.ajax('remove_from_panier', { id: panierItemId })
-                .then(response => {
-                    if (response.success) {
-                        self.loadPanier();
-                    } else {
-                        alert('Erreur: ' + (response.message || 'Échec'));
-                    }
-                });
+        const el = document.querySelector('.panier-item[data-id="' + panierItemId + '"]');
+
+        this.animateRemove(el, () => {
+            // Sauvegarder l'état AVANT la suppression
+            self.saveStateForUndo().then(() => {
+                self.ajax('remove_from_panier', { id: panierItemId })
+                    .then(response => {
+                        if (response.success) {
+                            self.loadPanier();
+                        } else {
+                            alert('Erreur: ' + (response.message || 'Échec'));
+                        }
+                    });
+            });
         });
     },
 
@@ -967,8 +975,57 @@ const BudgetBuilder = {
     },
 
     // ================================
+    // ANIMATIONS UI (ajout / suppression)
+    // ================================
+
+    injectAnimationStyles: function() {
+        if (document.getElementById('bb-animations')) return;
+
+        const style = document.createElement('style');
+        style.id = 'bb-animations';
+        style.textContent = `
+            .bb-animate-add {
+                animation: bbFadeIn 250ms ease-out;
+            }
+            .bb-animate-remove {
+                animation: bbFadeOut 200ms ease-in forwards;
+            }
+            @keyframes bbFadeIn {
+                from { opacity: 0; transform: translateY(-6px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            @keyframes bbFadeOut {
+                from { opacity: 1; transform: translateY(0); }
+                to { opacity: 0; transform: translateY(-6px); }
+            }
+        `;
+        document.head.appendChild(style);
+    },
+
+    animateAdd: function(el) {
+        if (!el) return;
+        this.injectAnimationStyles();
+        el.classList.add('bb-animate-add');
+        setTimeout(() => el.classList.remove('bb-animate-add'), 300);
+    },
+
+    animateRemove: function(el, callback) {
+        if (!el) return;
+        this.injectAnimationStyles();
+        el.classList.add('bb-animate-remove');
+        setTimeout(() => {
+            if (typeof callback === 'function') callback();
+        }, 220);
+    },
+
+    // ================================
     // REFRESH SANS RELOAD
     // ================================
+
+    // Point central après toute modification du budget
+    refreshAfterBudgetChange: function() {
+        this.loadPanier();
+    },
 
     refreshAll: function() {
         this.loadCatalogueByEtape();
