@@ -866,12 +866,18 @@ const BudgetBuilder = {
                     <span class="folder-toggle ${hasChildren ? '' : 'invisible'}" onclick="toggleFolder(this)">
                         <i class="bi bi-caret-down-fill"></i>
                     </span>
-                    <i class="bi bi-folder-fill text-warning me-1"></i>
+                    <i class="bi bi-folder-fill text-warning me-1 icon-add-to-cart"
+                       ondblclick="addFolderToPanier(${item.id})"
+                       title="Double-clic pour ajouter au panier"
+                       style="cursor: pointer;"></i>
                 `;
             } else {
                 html += `
                     <span class="folder-toggle invisible"></span>
-                    <i class="bi bi-box-seam text-primary me-1"></i>
+                    <i class="bi bi-box-seam text-primary me-1 icon-add-to-cart"
+                       ondblclick="addToPanier(${item.id})"
+                       title="Double-clic pour ajouter au panier"
+                       style="cursor: pointer;"></i>
                 `;
             }
 
