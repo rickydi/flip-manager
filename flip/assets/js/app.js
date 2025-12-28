@@ -405,58 +405,6 @@ function printPage() {
 }
 
 /**
- * Gestion de la taille du texte (zoom)
- */
-let currentTextSize = parseInt(localStorage.getItem('textSize')) || 100;
-const MIN_TEXT_SIZE = 70;
-const MAX_TEXT_SIZE = 150;
-const TEXT_SIZE_STEP = 10;
-
-// Appliquer la taille sauvegardée au chargement
-document.addEventListener('DOMContentLoaded', function() {
-    applyTextSize();
-    updateTextSizeIndicator();
-});
-
-function changeTextSize(direction) {
-    currentTextSize += direction * TEXT_SIZE_STEP;
-    
-    // Limiter entre min et max
-    if (currentTextSize < MIN_TEXT_SIZE) currentTextSize = MIN_TEXT_SIZE;
-    if (currentTextSize > MAX_TEXT_SIZE) currentTextSize = MAX_TEXT_SIZE;
-    
-    applyTextSize();
-    updateTextSizeIndicator();
-    
-    // Sauvegarder la préférence
-    localStorage.setItem('textSize', currentTextSize);
-}
-
-function applyTextSize() {
-    document.documentElement.style.fontSize = currentTextSize + '%';
-}
-
-function updateTextSizeIndicator() {
-    // Mettre à jour les deux indicateurs (navbar et menu déroulant)
-    const indicator = document.getElementById('textSizeIndicator');
-    const indicator2 = document.getElementById('textSizeIndicator2');
-    
-    if (indicator) {
-        indicator.textContent = currentTextSize + '%';
-    }
-    if (indicator2) {
-        indicator2.textContent = currentTextSize + '%';
-    }
-}
-
-function resetTextSize() {
-    currentTextSize = 100;
-    applyTextSize();
-    updateTextSizeIndicator();
-    localStorage.setItem('textSize', currentTextSize);
-}
-
-/**
  * =============================================
  * DARK MODE - Activé par défaut
  * =============================================
