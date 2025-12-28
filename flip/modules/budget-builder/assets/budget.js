@@ -705,9 +705,8 @@ const BudgetBuilder = {
             quantite: quantite
         }).then(response => {
             if (response.success) {
-                self.updateTotals();
-                // Rafraîchir les indicateurs après changement de quantité
-                self.refreshIndicateurs();
+                // Recharger le panier pour mettre à jour les totaux par section
+                self.loadPanier();
             }
         });
     },

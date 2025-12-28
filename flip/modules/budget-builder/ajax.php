@@ -957,12 +957,39 @@ try {
                 return ($a['etape_ordre'] ?? 999) - ($b['etape_ordre'] ?? 999);
             });
 
-            // Calculer le total
-            $total = 0;
-            foreach ($items as $item) {
-                if ($item['type'] !== 'folder') {
-                    $total += ($item['prix'] ?? 0) * ($item['quantite'] ?? 1);
+            // Fonction récursive pour calculer le total d'un item (et ses enfants)
+            $calcItemTotal = function($item, $parentQty = 1) use (&$calcItemTotal) {
+                $total = 0;
+                $qty = ($item['quantite'] ?? 1) * $parentQty;
+
+                if ($item['type'] === 'folder') {
+                    // Dossier: calculer récursivement les enfants avec la quantité du dossier
+                    if (!empty($item['children'])) {
+                        foreach ($item['children'] as $child) {
+                            $total += $calcItemTotal($child, $qty);
+                        }
+                    }
+                } else {
+                    // Item: prix * quantité * quantité parent
+                    $total = ($item['prix'] ?? 0) * $qty;
                 }
+                return $total;
+            };
+
+            // Calculer le total par section
+            foreach ($etapeMap as &$section) {
+                $sectionTotal = 0;
+                foreach ($section['items'] as $item) {
+                    $sectionTotal += $calcItemTotal($item);
+                }
+                $section['total'] = $sectionTotal;
+            }
+            unset($section);
+
+            // Calculer le total global
+            $total = 0;
+            foreach ($etapeMap as $section) {
+                $total += $section['total'];
             }
 
             echo json_encode([
