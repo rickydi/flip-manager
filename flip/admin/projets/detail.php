@@ -2984,15 +2984,17 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
             }
         }
 
-        // Mettre à jour les dépenses sans étape (Non classé)
+        // Mettre à jour les dépenses sans budget (étapes qui ont des factures mais pas de budget)
         if (depensesParEtape) {
             for (const [etapeId, dep] of Object.entries(depensesParEtape)) {
                 if (!budgetParEtape || !budgetParEtape[etapeId]) {
                     const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
                     if (row) {
                         const depense = dep.total || 0;
+                        const budgetCell = row.querySelector('.detail-etape-budget');
                         const reelCell = row.querySelector('.detail-etape-reel');
                         const diffCell = row.querySelector('.detail-etape-diff');
+                        if (budgetCell) budgetCell.textContent = '-';
                         if (reelCell) reelCell.textContent = formatMoneyBase(depense);
                         if (diffCell) {
                             diffCell.textContent = formatMoneyBase(-depense);
