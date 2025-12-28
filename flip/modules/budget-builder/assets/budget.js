@@ -263,6 +263,7 @@ const BudgetBuilder = {
     },
 
     moveItem: function(itemId, targetId, position, newParentId) {
+        const self = this;
         this.ajax('move_catalogue_item', {
             id: itemId,
             target_id: targetId,
@@ -270,7 +271,7 @@ const BudgetBuilder = {
             new_parent_id: newParentId
         }).then(response => {
             if (response.success) {
-                location.reload();
+                self.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec du déplacement'));
             }
@@ -278,12 +279,13 @@ const BudgetBuilder = {
     },
 
     moveToSection: function(itemId, etapeId) {
+        const self = this;
         this.ajax('move_to_section', {
             id: itemId,
             etape_id: etapeId
         }).then(response => {
             if (response.success) {
-                location.reload();
+                self.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec du déplacement'));
             }
@@ -291,6 +293,7 @@ const BudgetBuilder = {
     },
 
     addFolderToPanier: function(folderId) {
+        const self = this;
         console.log('addFolderToPanier called with folderId:', folderId, 'projetId:', this.projetId);
 
         if (!this.projetId) {
@@ -304,7 +307,7 @@ const BudgetBuilder = {
         }).then(response => {
             console.log('add_folder_to_panier response:', response);
             if (response.success) {
-                location.reload();
+                self.loadPanier();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
@@ -383,10 +386,11 @@ const BudgetBuilder = {
     deleteItem: function(itemId) {
         if (!confirm('Supprimer cet élément et tout son contenu?')) return;
 
+        const self = this;
         this.ajax('delete_catalogue_item', { id: itemId })
             .then(response => {
                 if (response.success) {
-                    location.reload();
+                    self.loadCatalogueByEtape();
                 } else {
                     alert('Erreur: ' + (response.message || 'Échec'));
                 }
@@ -477,7 +481,7 @@ const BudgetBuilder = {
                 quantite: quantite
             }).then(response => {
                 if (response.success) {
-                    location.reload();
+                    self.loadPanier();
                 } else {
                     alert('Erreur: ' + (response.message || 'Échec'));
                 }
@@ -500,10 +504,11 @@ const BudgetBuilder = {
     },
 
     removeFromPanier: function(panierItemId) {
+        const self = this;
         this.ajax('remove_from_panier', { id: panierItemId })
             .then(response => {
                 if (response.success) {
-                    location.reload();
+                    self.loadPanier();
                 } else {
                     alert('Erreur: ' + (response.message || 'Échec'));
                 }
@@ -749,6 +754,140 @@ const BudgetBuilder = {
         const div = document.createElement('div');
         div.textContent = text || '';
         return div.innerHTML;
+    },
+
+    // ================================
+    // REFRESH SANS RELOAD
+    // ================================
+
+    refreshAll: function() {
+        this.loadCatalogueByEtape();
+        this.loadPanier();
+    },
+
+    loadPanier: function() {
+        const self = this;
+        const container = document.getElementById('panier-items');
+        if (!container || !this.projetId) return;
+
+        this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
+            if (response.success) {
+                self.renderPanier(response.sections, response.total);
+            }
+        });
+    },
+
+    renderPanier: function(sections, total) {
+        const container = document.getElementById('panier-items');
+
+        if (!sections || sections.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4" id="panier-empty">
+                    <i class="bi bi-cart" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">Panier vide</p>
+                    <small>Glissez des items depuis le Magasin</small>
+                </div>
+            `;
+        } else {
+            let html = '';
+            sections.forEach(section => {
+                const etapeLabel = section.etape_num
+                    ? `N.${section.etape_num} ${this.escapeHtml(section.etape_nom)}`
+                    : this.escapeHtml(section.etape_nom);
+                const sectionTotal = this.calculateSectionTotal(section.items);
+
+                html += `
+                    <div class="panier-section" data-etape-id="${section.etape_id || 'null'}">
+                        <div class="panier-section-header d-flex align-items-center justify-content-between"
+                             style="background: rgba(13, 110, 253, 0.1); border-left: 3px solid var(--bs-primary, #0d6efd); cursor: pointer; padding: 2px 8px;"
+                             onclick="togglePanierSection(this)">
+                            <span>
+                                <i class="bi bi-caret-down-fill section-toggle me-1"></i>
+                                <i class="bi bi-list-ol text-primary me-1"></i>
+                                <strong>${etapeLabel}</strong>
+                                <span class="badge bg-secondary ms-1">${section.items.length}</span>
+                            </span>
+                            <span class="badge bg-success">${this.formatMoney(sectionTotal)}</span>
+                        </div>
+                        <div class="panier-section-content">
+                            ${this.renderPanierItems(section.items)}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Mettre à jour les totaux
+        const totalEl = document.getElementById('panier-total');
+        const totalFooter = document.getElementById('panier-total-footer');
+        const formatted = this.formatMoney(total);
+        if (totalEl) totalEl.textContent = formatted;
+        if (totalFooter) totalFooter.textContent = formatted;
+
+        // Réinitialiser les événements
+        this.initQuantityChange();
+    },
+
+    renderPanierItems: function(items) {
+        let html = '';
+        items.forEach(item => {
+            const isFolder = item.type === 'folder';
+            const hasChildren = item.children && item.children.length > 0;
+            const itemTotal = (item.prix || 0) * (item.quantite || 1);
+
+            if (isFolder) {
+                html += `
+                    <div class="panier-item is-folder" data-id="${item.id}">
+                        <span class="folder-toggle ${hasChildren ? '' : 'invisible'}" onclick="togglePanierFolder(this)">
+                            <i class="bi bi-caret-down-fill"></i>
+                        </span>
+                        <i class="bi bi-folder-fill text-warning me-1"></i>
+                        <span class="item-nom">${this.escapeHtml(item.nom)}</span>
+                        <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-auto" onclick="removeFromPanier(${item.id})" title="Supprimer">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+                if (hasChildren) {
+                    html += `<div class="panier-folder-children" data-parent="${item.id}">${this.renderPanierItems(item.children)}</div>`;
+                }
+            } else {
+                html += `
+                    <div class="panier-item" data-id="${item.id}" data-prix="${item.prix || 0}">
+                        <span class="item-nom">${this.escapeHtml(item.nom)}</span>
+                        <div class="item-qte-controls">
+                            <button type="button" class="qte-btn qte-minus" data-id="${item.id}">−</button>
+                            <span class="item-qte">${item.quantite || 1}</span>
+                            <button type="button" class="qte-btn qte-plus" data-id="${item.id}">+</button>
+                        </div>
+                        <span class="item-prix badge bg-secondary">${this.formatMoney(item.prix || 0)}</span>
+                        <span class="item-total badge bg-info">${this.formatMoney(itemTotal)}</span>
+                        <button type="button" class="btn btn-sm btn-link p-0 text-danger ms-1" onclick="removeFromPanier(${item.id})" title="Supprimer">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+            }
+        });
+        return html;
+    },
+
+    calculateSectionTotal: function(items) {
+        let total = 0;
+        items.forEach(item => {
+            if (item.type !== 'folder') {
+                total += (item.prix || 0) * (item.quantite || 1);
+            }
+            if (item.children) {
+                total += this.calculateSectionTotal(item.children);
+            }
+        });
+        return total;
+    },
+
+    formatMoney: function(amount) {
+        return new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount || 0);
     },
 
     // ================================

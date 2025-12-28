@@ -638,6 +638,93 @@ try {
             echo json_encode(['success' => true]);
             break;
 
+        case 'get_panier':
+            $projetId = (int)($input['projet_id'] ?? 0);
+            if (!$projetId) throw new Exception('Projet requis');
+
+            // Récupérer les items du panier avec leur étape
+            $stmt = $pdo->prepare("
+                SELECT
+                    bi.id, bi.nom, bi.prix, bi.quantite, bi.type, bi.parent_budget_id,
+                    bi.catalogue_item_id, bi.ordre,
+                    COALESCE(ci.etape_id, 0) as etape_id,
+                    COALESCE(be.nom, 'Sans étape') as etape_nom,
+                    be.ordre as etape_ordre
+                FROM budget_items bi
+                LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
+                LEFT JOIN budget_etapes be ON ci.etape_id = be.id
+                WHERE bi.projet_id = ?
+                ORDER BY COALESCE(be.ordre, 999), bi.parent_budget_id, bi.ordre
+            ");
+            $stmt->execute([$projetId]);
+            $items = $stmt->fetchAll();
+
+            // Construire l'arbre hiérarchique par étape
+            $itemsById = [];
+            foreach ($items as &$item) {
+                $item['children'] = [];
+                $itemsById[$item['id']] = &$item;
+            }
+            unset($item);
+
+            $rootItems = [];
+            foreach ($items as &$item) {
+                if ($item['parent_budget_id'] && isset($itemsById[$item['parent_budget_id']])) {
+                    $itemsById[$item['parent_budget_id']]['children'][] = &$item;
+                } else {
+                    $rootItems[] = &$item;
+                }
+            }
+            unset($item);
+
+            // Grouper par étape
+            $sections = [];
+            $etapeMap = [];
+
+            // Récupérer les numéros d'étapes
+            $etapesStmt = $pdo->query("SELECT id, nom, ordre FROM budget_etapes ORDER BY ordre");
+            $etapes = $etapesStmt->fetchAll();
+            $etapeNums = [];
+            foreach ($etapes as $idx => $e) {
+                $etapeNums[$e['id']] = $idx + 1;
+            }
+
+            foreach ($rootItems as $item) {
+                $etapeId = $item['etape_id'] ?: 0;
+                $etapeKey = 'etape_' . $etapeId;
+
+                if (!isset($etapeMap[$etapeKey])) {
+                    $etapeMap[$etapeKey] = [
+                        'etape_id' => $etapeId ?: null,
+                        'etape_nom' => $item['etape_nom'],
+                        'etape_num' => isset($etapeNums[$etapeId]) ? $etapeNums[$etapeId] : null,
+                        'etape_ordre' => $item['etape_ordre'] ?? 999,
+                        'items' => []
+                    ];
+                }
+                $etapeMap[$etapeKey]['items'][] = $item;
+            }
+
+            // Trier par ordre d'étape
+            usort($etapeMap, function($a, $b) {
+                return ($a['etape_ordre'] ?? 999) - ($b['etape_ordre'] ?? 999);
+            });
+
+            // Calculer le total
+            $total = 0;
+            foreach ($items as $item) {
+                if ($item['type'] !== 'folder') {
+                    $total += ($item['prix'] ?? 0) * ($item['quantite'] ?? 1);
+                }
+            }
+
+            echo json_encode([
+                'success' => true,
+                'sections' => array_values($etapeMap),
+                'total' => $total
+            ]);
+            break;
+
         // ================================
         // COMMANDE
         // ================================

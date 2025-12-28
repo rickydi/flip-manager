@@ -1108,7 +1108,7 @@ function renderPanierTree($items, $level = 0) {
         BudgetBuilder.ajax('update_item', data).then(response => {
             if (response.success) {
                 itemModal.hide();
-                location.reload();
+                BudgetBuilder.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
@@ -1119,7 +1119,7 @@ function renderPanierTree($items, $level = 0) {
     function duplicateItem(itemId) {
         BudgetBuilder.ajax('duplicate_item', { id: itemId }).then(response => {
             if (response.success) {
-                location.reload();
+                BudgetBuilder.loadCatalogueByEtape();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
@@ -1170,7 +1170,7 @@ function renderPanierTree($items, $level = 0) {
         BudgetBuilder.ajax('update_folder', data).then(response => {
             if (response.success) {
                 folderModal.hide();
-                location.reload();
+                BudgetBuilder.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
@@ -1514,7 +1514,7 @@ function renderPanierTree($items, $level = 0) {
 
         BudgetBuilder.ajax('clear_panier', { projet_id: BudgetBuilder.projetId }).then(response => {
             if (response.success) {
-                location.reload();
+                BudgetBuilder.loadPanier();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
@@ -1577,7 +1577,7 @@ function renderPanierTree($items, $level = 0) {
 
         BudgetBuilder.ajax('remove_from_panier', { id: itemId }).then(response => {
             if (response.success) {
-                location.reload();
+                BudgetBuilder.loadPanier();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
@@ -1909,7 +1909,7 @@ function renderPanierTree($items, $level = 0) {
         BudgetBuilder.ajax('add_catalogue_item', data).then(response => {
             if (response.success) {
                 addItemModal.hide();
-                location.reload();
+                BudgetBuilder.loadCatalogueByEtape();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
