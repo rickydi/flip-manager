@@ -180,14 +180,19 @@ function migrateMaterials($pdo, $oldScId, $newParentId) {
 /**
  * Récupérer les enfants d'un élément (récursif)
  */
-function getChildren($pdo, $parentId) {
+function getChildren($pdo, $parentId, $depth = 0) {
+    // Protection contre récursion infinie
+    if ($depth > 10) {
+        return [];
+    }
+
     $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
     $stmt->execute([$parentId]);
     $items = $stmt->fetchAll();
 
     foreach ($items as &$item) {
         if ($item['type'] === 'folder') {
-            $item['children'] = getChildren($pdo, $item['id']);
+            $item['children'] = getChildren($pdo, $item['id'], $depth + 1);
         }
     }
 
