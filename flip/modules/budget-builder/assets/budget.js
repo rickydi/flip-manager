@@ -1008,7 +1008,7 @@ const BudgetBuilder = {
                         window.updateIndicateurs(data.indicateurs);
                     }
                     if (data.renovation && typeof window.updateRenovation === 'function') {
-                        window.updateRenovation(data.renovation, data.budget_par_etape);
+                        window.updateRenovation(data.renovation, data.budget_par_etape, data.depenses_par_etape);
                     }
                 }
             })

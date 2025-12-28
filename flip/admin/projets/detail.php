@@ -346,6 +346,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $projet = getProjetById($pdo, $projetId);
         $indicateurs = calculerIndicateursProjet($pdo, $projet);
         $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
+        $depensesParEtape = calculerDepensesParEtape($pdo, $projetId);
 
         echo json_encode([
             'success' => true,
@@ -361,9 +362,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 'sous_total' => $indicateurs['renovation']['sous_total_avant_taxes'],
                 'tps' => $indicateurs['renovation']['tps'],
                 'tvq' => $indicateurs['renovation']['tvq'],
-                'total_ttc' => $indicateurs['renovation']['total_ttc']
+                'total_ttc' => $indicateurs['renovation']['total_ttc'],
+                'reel_tps' => $indicateurs['renovation']['reel_tps'],
+                'reel_tvq' => $indicateurs['renovation']['reel_tvq'],
+                'reel_ttc' => $indicateurs['renovation']['reel_ttc']
             ],
-            'budget_par_etape' => $budgetParEtape
+            'budget_par_etape' => $budgetParEtape,
+            'depenses_par_etape' => $depensesParEtape
         ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -2942,7 +2947,7 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         if (elRoi) elRoi.textContent = formatPercentBase(ind.roi_leverage);
     }
 
-    function updateRenovation(reno, budgetParEtape) {
+    function updateRenovation(reno, budgetParEtape, depensesParEtape) {
         // Mettre à jour les totaux de la section rénovation
         const elContingence = document.getElementById('detailContingence');
         const elTPS = document.getElementById('detailTPS');
@@ -2954,13 +2959,47 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
         if (elRenoTotal) elRenoTotal.textContent = formatMoneyBase(reno.total_ttc);
 
-        // Mettre à jour chaque ligne d'étape
+        // Mettre à jour chaque ligne d'étape (Budget, Diff, Réel)
         if (budgetParEtape) {
             for (const [etapeId, etape] of Object.entries(budgetParEtape)) {
                 const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
                 if (row) {
+                    const budgetHT = etape.total || 0;
+                    const depense = depensesParEtape && depensesParEtape[etapeId] ? (depensesParEtape[etapeId].total || 0) : 0;
+                    const ecart = budgetHT - depense;
+
                     const budgetCell = row.querySelector('.detail-etape-budget');
-                    if (budgetCell) budgetCell.textContent = formatMoneyBase(etape.total);
+                    const diffCell = row.querySelector('.detail-etape-diff');
+                    const reelCell = row.querySelector('.detail-etape-reel');
+
+                    if (budgetCell) budgetCell.textContent = formatMoneyBase(budgetHT);
+                    if (reelCell) reelCell.textContent = formatMoneyBase(depense);
+                    if (diffCell) {
+                        diffCell.textContent = ecart !== 0 ? formatMoneyBase(ecart) : '-';
+                        diffCell.classList.remove('positive', 'negative');
+                        if (ecart > 0) diffCell.classList.add('positive');
+                        else if (ecart < 0) diffCell.classList.add('negative');
+                    }
+                }
+            }
+        }
+
+        // Mettre à jour les dépenses sans étape (Non classé)
+        if (depensesParEtape) {
+            for (const [etapeId, dep] of Object.entries(depensesParEtape)) {
+                if (!budgetParEtape || !budgetParEtape[etapeId]) {
+                    const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
+                    if (row) {
+                        const depense = dep.total || 0;
+                        const reelCell = row.querySelector('.detail-etape-reel');
+                        const diffCell = row.querySelector('.detail-etape-diff');
+                        if (reelCell) reelCell.textContent = formatMoneyBase(depense);
+                        if (diffCell) {
+                            diffCell.textContent = formatMoneyBase(-depense);
+                            diffCell.classList.remove('positive');
+                            diffCell.classList.add('negative');
+                        }
+                    }
                 }
             }
         }
@@ -3720,7 +3759,7 @@ document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(ta
                         window.updateIndicateurs(data.indicateurs);
                     }
                     if (data.renovation && window.updateRenovation) {
-                        window.updateRenovation(data.renovation, data.budget_par_etape);
+                        window.updateRenovation(data.renovation, data.budget_par_etape, data.depenses_par_etape);
                     }
                 }
             })
