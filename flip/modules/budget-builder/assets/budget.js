@@ -719,6 +719,10 @@ const BudgetBuilder = {
                                 onclick="openItemModal(${item.id})" title="Modifier">
                             <i class="bi bi-pencil"></i>
                         </button>
+                        <button type="button" class="btn btn-sm btn-link p-0 text-secondary me-1"
+                                onclick="duplicateItem(${item.id})" title="Dupliquer">
+                            <i class="bi bi-files"></i>
+                        </button>
                         <button type="button" class="btn btn-sm btn-link p-0 text-success add-to-panier"
                                 onclick="addToPanier(${item.id})" title="Ajouter au panier">
                             <i class="bi bi-plus-circle-fill"></i>
