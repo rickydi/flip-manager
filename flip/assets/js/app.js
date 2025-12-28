@@ -3,7 +3,11 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
-    
+
+    // Nettoyer l'ancien système de zoom texte
+    localStorage.removeItem('textSize');
+    document.documentElement.style.fontSize = '';
+
     // Initialisation des tooltips Bootstrap
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {

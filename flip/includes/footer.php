@@ -31,7 +31,7 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/fr.js"></script>
     
     <!-- Custom JS -->
-    <script src="<?= BASE_PATH ?>/assets/js/app.js"></script>
+    <script src="<?= BASE_PATH ?>/assets/js/app.js?v=<?= date('YmdHi') ?>"></script>
     
     <?php if (isset($extraJs)): ?>
         <?= $extraJs ?>
