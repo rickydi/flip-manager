@@ -1508,11 +1508,16 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
             moBudget = parseFloat(cells[1].textContent.replace(/[^0-9.-]+/g, '')) || 0;
             moReel = parseFloat(cells[3].textContent.replace(/[^0-9.-]+/g, '')) || 0;
         }
+    } else {
+        // ✅ Panier vidé → plus de MO
+        moBudget = 0;
+        moReel = 0;
     }
 
     const totalBudgetReno = (reno.total_ttc || 0) + moBudget;
     const totalReelReno = (reno.reel_ttc || 0) + moReel;
 
+    // ✅ Toujours forcer la mise à jour (même après delete panier)
     if (elTotal) elTotal.textContent = formatMoneyBase(totalBudgetReno);
 };
 
