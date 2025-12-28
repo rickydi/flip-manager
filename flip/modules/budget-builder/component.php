@@ -953,6 +953,37 @@ function renderPanierTree($items, $level = 0) {
     </div>
 </div>
 
+<!-- Modal ajout item/dossier -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addItemModalTitle"><i class="bi bi-plus-circle me-2"></i>Ajouter</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="add-item-parent-id">
+                <input type="hidden" id="add-item-type">
+                <input type="hidden" id="add-item-etape-id">
+                <div class="mb-3">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" id="add-item-nom" placeholder="Entrez le nom...">
+                </div>
+                <div class="mb-3" id="add-item-prix-group" style="display: none;">
+                    <label class="form-label">Prix</label>
+                    <input type="number" class="form-control" id="add-item-prix" value="0" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveAddItemModal()">
+                    <i class="bi bi-check-lg me-1"></i>Ajouter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
     // Initialiser avec l'ID du projet
@@ -1748,4 +1779,79 @@ function renderPanierTree($items, $level = 0) {
         `);
         printWindow.document.close();
     }
+
+    // ================================
+    // MODAL AJOUT ITEM/DOSSIER
+    // ================================
+
+    let addItemModal = null;
+
+    function openAddItemModal(parentId, type, etapeId = null) {
+        if (!addItemModal) {
+            addItemModal = new bootstrap.Modal(document.getElementById('addItemModal'));
+        }
+
+        // Réinitialiser les champs
+        document.getElementById('add-item-parent-id').value = parentId || '';
+        document.getElementById('add-item-type').value = type;
+        document.getElementById('add-item-etape-id').value = etapeId || '';
+        document.getElementById('add-item-nom').value = '';
+        document.getElementById('add-item-prix').value = '0';
+
+        // Mettre à jour le titre et afficher/cacher le prix
+        const titleEl = document.getElementById('addItemModalTitle');
+        const prixGroup = document.getElementById('add-item-prix-group');
+
+        if (type === 'folder') {
+            titleEl.innerHTML = '<i class="bi bi-folder-plus me-2 text-warning"></i>Nouveau dossier';
+            prixGroup.style.display = 'none';
+        } else {
+            titleEl.innerHTML = '<i class="bi bi-box-seam me-2 text-primary"></i>Nouvel item';
+            prixGroup.style.display = 'block';
+        }
+
+        addItemModal.show();
+
+        // Focus sur le champ nom
+        setTimeout(() => document.getElementById('add-item-nom').focus(), 300);
+    }
+
+    function saveAddItemModal() {
+        const parentId = document.getElementById('add-item-parent-id').value || null;
+        const type = document.getElementById('add-item-type').value;
+        const etapeId = document.getElementById('add-item-etape-id').value || null;
+        const nom = document.getElementById('add-item-nom').value.trim();
+        const prix = parseFloat(document.getElementById('add-item-prix').value) || 0;
+
+        if (!nom) {
+            alert('Veuillez entrer un nom');
+            document.getElementById('add-item-nom').focus();
+            return;
+        }
+
+        BudgetBuilder.ajax('add_catalogue_item', {
+            parent_id: parentId,
+            type: type,
+            nom: nom,
+            prix: prix,
+            etape_id: etapeId
+        }).then(response => {
+            if (response.success) {
+                addItemModal.hide();
+                location.reload();
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec'));
+            }
+        });
+    }
+
+    // Enter pour enregistrer
+    document.querySelectorAll('#addItemModal input').forEach(el => {
+        el.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveAddItemModal();
+            }
+        });
+    });
 </script>

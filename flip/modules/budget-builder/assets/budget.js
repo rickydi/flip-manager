@@ -334,52 +334,13 @@ const BudgetBuilder = {
     // ================================
 
     addItem: function(parentId, type) {
-        const nom = prompt(type === 'folder' ? 'Nom du dossier:' : 'Nom de l\'item:');
-        if (!nom || !nom.trim()) return;
-
-        let prix = 0;
-        if (type === 'item') {
-            const prixStr = prompt('Prix:', '0');
-            prix = parseFloat(prixStr) || 0;
-        }
-
-        this.ajax('add_catalogue_item', {
-            parent_id: parentId,
-            type: type,
-            nom: nom.trim(),
-            prix: prix
-        }).then(response => {
-            if (response.success) {
-                location.reload();
-            } else {
-                alert('Erreur: ' + (response.message || 'Échec'));
-            }
-        });
+        // Utiliser le modal au lieu de prompt()
+        openAddItemModal(parentId, type, null);
     },
 
     addItemToSection: function(etapeId, type) {
-        const nom = prompt(type === 'folder' ? 'Nom du dossier:' : 'Nom de l\'item:');
-        if (!nom || !nom.trim()) return;
-
-        let prix = 0;
-        if (type === 'item') {
-            const prixStr = prompt('Prix:', '0');
-            prix = parseFloat(prixStr) || 0;
-        }
-
-        this.ajax('add_catalogue_item', {
-            parent_id: null,
-            type: type,
-            nom: nom.trim(),
-            prix: prix,
-            etape_id: etapeId
-        }).then(response => {
-            if (response.success) {
-                location.reload();
-            } else {
-                alert('Erreur: ' + (response.message || 'Échec'));
-            }
-        });
+        // Utiliser le modal au lieu de prompt()
+        openAddItemModal(null, type, etapeId);
     },
 
     editItemName: function(element, itemId) {
