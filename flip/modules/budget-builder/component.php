@@ -208,13 +208,13 @@ function getCatalogueBySection($pdo) {
     foreach ($etapes as $etape) {
         $etapeNum++;
 
-        // Récupérer les éléments de premier niveau avec cette étape
+        // Récupérer seulement les éléments RACINE de cette étape
         $stmt = $pdo->prepare("
             SELECT * FROM catalogue_items
-            WHERE etape_id = ? AND actif = 1 AND (parent_id IS NULL OR parent_id IN (SELECT id FROM catalogue_items WHERE etape_id != ? OR etape_id IS NULL))
+            WHERE etape_id = ? AND actif = 1 AND parent_id IS NULL
             ORDER BY type DESC, ordre, nom
         ");
-        $stmt->execute([$etape['id'], $etape['id']]);
+        $stmt->execute([$etape['id']]);
         $items = $stmt->fetchAll();
 
         // Récupérer les enfants pour chaque dossier
