@@ -1049,37 +1049,47 @@ const BudgetBuilder = {
     },
 
     // Rafraîchir les indicateurs du projet (Base tab) après changement du budget
-    refreshIndicateurs: function() {
-        // Rafraîchissement temps réel complet depuis le serveur (source de vérité PHP)
-        if (typeof window.updateIndicateurs === 'function'
-            && typeof window.updateRenovation === 'function'
-            && window.baseFormCsrfToken) {
-
-            const formData = new FormData();
-            formData.set('ajax_action', 'get_project_totals');
-            formData.set('csrf_token', window.baseFormCsrfToken);
-
-            fetch(window.location.href, {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    if (res.indicateurs) {
-                        window.updateIndicateurs(res.indicateurs);
-                    }
-                    if (res.renovation) {
-                        window.updateRenovation(
-                            res.renovation,
-                            res.budget_par_etape || {},
-                            res.depenses_par_etape || {}
-                        );
-                    }
-                }
-            })
-            .catch(err => console.log('Refresh temps réel skipped:', err));
+    refreshIndicateurs: function(retryCount = 0) {
+        // Token pas encore prêt → retry automatique
+        if (!window.baseFormCsrfToken) {
+            if (retryCount < 10) {
+                setTimeout(() => {
+                    this.refreshIndicateurs(retryCount + 1);
+                }, 150);
+            }
+            return;
         }
+
+        if (typeof window.updateIndicateurs !== 'function'
+            || typeof window.updateRenovation !== 'function') {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.set('ajax_action', 'get_project_totals');
+        formData.set('csrf_token', window.baseFormCsrfToken);
+
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (!res || !res.success) return;
+
+            if (res.indicateurs) {
+                window.updateIndicateurs(res.indicateurs);
+            }
+
+            if (res.renovation) {
+                window.updateRenovation(
+                    res.renovation,
+                    res.budget_par_etape || {},
+                    res.depenses_par_etape || {}
+                );
+            }
+        })
+        .catch(() => {});
     },
 
     renderPanier: function(sections, total) {
