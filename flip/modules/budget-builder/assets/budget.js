@@ -1000,8 +1000,13 @@ const BudgetBuilder = {
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.indicateurs) {
-                    window.updateIndicateurs(data.indicateurs);
+                if (data.success) {
+                    if (data.indicateurs) {
+                        window.updateIndicateurs(data.indicateurs);
+                    }
+                    if (data.renovation && typeof window.updateRenovation === 'function') {
+                        window.updateRenovation(data.renovation, data.budget_par_etape);
+                    }
                 }
             })
             .catch(err => console.log('Refresh indicateurs skipped:', err));

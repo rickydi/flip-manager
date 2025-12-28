@@ -345,6 +345,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     try {
         $projet = getProjetById($pdo, $projetId);
         $indicateurs = calculerIndicateursProjet($pdo, $projet);
+        $budgetParEtape = calculerBudgetParEtape($pdo, $projetId);
 
         echo json_encode([
             'success' => true,
@@ -353,7 +354,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
                 'equite_potentielle' => $indicateurs['equite_potentielle'],
                 'equite_reelle' => $indicateurs['equite_reelle'],
                 'roi_leverage' => $indicateurs['roi_leverage']
-            ]
+            ],
+            'renovation' => [
+                'budget_ht' => $indicateurs['renovation']['budget'],
+                'contingence' => $indicateurs['renovation']['contingence'],
+                'sous_total' => $indicateurs['renovation']['sous_total_avant_taxes'],
+                'tps' => $indicateurs['renovation']['tps'],
+                'tvq' => $indicateurs['renovation']['tvq'],
+                'total_ttc' => $indicateurs['renovation']['total_ttc']
+            ],
+            'budget_par_etape' => $budgetParEtape
         ]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -2934,6 +2944,30 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
         if (elRoi) elRoi.textContent = formatPercentBase(ind.roi_leverage);
     }
 
+    function updateRenovation(reno, budgetParEtape) {
+        // Mettre à jour les totaux de la section rénovation
+        const elContingence = document.getElementById('detailContingence');
+        const elTPS = document.getElementById('detailTPS');
+        const elTVQ = document.getElementById('detailTVQ');
+        const elRenoTotal = document.getElementById('detailRenoTotal');
+
+        if (elContingence) elContingence.textContent = formatMoneyBase(reno.contingence);
+        if (elTPS) elTPS.textContent = formatMoneyBase(reno.tps);
+        if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
+        if (elRenoTotal) elRenoTotal.textContent = formatMoneyBase(reno.total_ttc);
+
+        // Mettre à jour chaque ligne d'étape
+        if (budgetParEtape) {
+            for (const [etapeId, etape] of Object.entries(budgetParEtape)) {
+                const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
+                if (row) {
+                    const budgetCell = row.querySelector('.detail-etape-budget');
+                    if (budgetCell) budgetCell.textContent = formatMoneyBase(etape.total);
+                }
+            }
+        }
+    }
+
     function autoSaveBase() {
         if (baseSaveTimeout) clearTimeout(baseSaveTimeout);
 
@@ -2990,6 +3024,7 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
 
     // Exposer certaines fonctions globalement pour le refresh des indicateurs
     window.updateIndicateurs = updateIndicateurs;
+    window.updateRenovation = updateRenovation;
     window.formatMoneyBase = formatMoneyBase;
     window.formatPercentBase = formatPercentBase;
     window.baseFormCsrfToken = csrfToken;
@@ -3670,7 +3705,7 @@ document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(ta
         url.searchParams.set('tab', tabId);
         window.history.replaceState({}, '', url);
 
-        // Rafraîchir les indicateurs quand on arrive sur l'onglet Base
+        // Rafraîchir les indicateurs et rénovation quand on arrive sur l'onglet Base
         if (tabId === 'base' && window.baseFormCsrfToken && window.updateIndicateurs) {
             const formData = new FormData();
             formData.set('ajax_action', 'get_indicateurs');
@@ -3682,8 +3717,13 @@ document.querySelectorAll('#projetTabs button[data-bs-toggle="tab"]').forEach(ta
             })
             .then(response => response.json())
             .then(data => {
-                if (data.success && data.indicateurs) {
-                    window.updateIndicateurs(data.indicateurs);
+                if (data.success) {
+                    if (data.indicateurs) {
+                        window.updateIndicateurs(data.indicateurs);
+                    }
+                    if (data.renovation && window.updateRenovation) {
+                        window.updateRenovation(data.renovation, data.budget_par_etape);
+                    }
                 }
             })
             .catch(err => console.error('Erreur refresh indicateurs:', err));
