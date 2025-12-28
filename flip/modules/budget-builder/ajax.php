@@ -999,7 +999,31 @@ try {
                 throw new Exception('URL invalide');
             }
 
-            // Récupérer le contenu de la page avec headers complets pour éviter les blocages
+            // Extraire le domaine pour le Referer
+            $parsedUrl = parse_url($url);
+            $baseUrl = $parsedUrl['scheme'] . '://' . $parsedUrl['host'];
+            $cookieFile = '/tmp/curl_cookies_' . md5($parsedUrl['host']) . '.txt';
+
+            // Première requête: visiter la page d'accueil pour obtenir les cookies
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => $baseUrl,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 3,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_ENCODING => 'gzip, deflate',
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_COOKIEJAR => $cookieFile,
+                CURLOPT_COOKIEFILE => $cookieFile
+            ]);
+            curl_exec($ch);
+            curl_close($ch);
+
+            // Deuxième requête: la vraie page avec cookies et Referer
             $ch = curl_init();
             curl_setopt_array($ch, [
                 CURLOPT_URL => $url,
@@ -1012,6 +1036,7 @@ try {
                 CURLOPT_SSL_VERIFYHOST => false,
                 CURLOPT_ENCODING => 'gzip, deflate',
                 CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_REFERER => $baseUrl . '/',
                 CURLOPT_HTTPHEADER => [
                     'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                     'Accept-Language: fr-CA,fr;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -1020,15 +1045,16 @@ try {
                     'Upgrade-Insecure-Requests: 1',
                     'Sec-Fetch-Dest: document',
                     'Sec-Fetch-Mode: navigate',
-                    'Sec-Fetch-Site: none',
+                    'Sec-Fetch-Site: same-origin',
                     'Sec-Fetch-User: ?1',
                     'Cache-Control: max-age=0',
                     'sec-ch-ua: "Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
                     'sec-ch-ua-mobile: ?0',
-                    'sec-ch-ua-platform: "Windows"'
+                    'sec-ch-ua-platform: "Windows"',
+                    'Origin: ' . $baseUrl
                 ],
-                CURLOPT_COOKIEJAR => '/tmp/curl_cookies_' . md5($url) . '.txt',
-                CURLOPT_COOKIEFILE => '/tmp/curl_cookies_' . md5($url) . '.txt'
+                CURLOPT_COOKIEJAR => $cookieFile,
+                CURLOPT_COOKIEFILE => $cookieFile
             ]);
             $html = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
