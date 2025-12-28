@@ -977,15 +977,15 @@ const BudgetBuilder = {
 
     // Point central après toute modification du budget
     refreshAfterBudgetChange: function() {
-        // ✅ Attendre que le panier soit réellement rechargé
-        this.loadPanier().then(() => {
-            // Calculs fiables même lors du PREMIER ajout
-            this.refreshIndicateurs();
+        const self = this;
 
-            // Sécurité supplémentaire (charts / DOM)
-            setTimeout(() => {
-                this.refreshIndicateurs();
-            }, 200);
+        // ✅ Recharger le panier et FORCER le repaint immédiat des totaux d’étape
+        this.loadPanier().then(() => {
+            requestAnimationFrame(() => {
+                self.loadPanier().then(() => {
+                    self.refreshIndicateurs();
+                });
+            });
         });
     },
 
