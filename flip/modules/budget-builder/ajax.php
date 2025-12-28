@@ -948,26 +948,25 @@ try {
 
             $grouped = [];
 
-            // Pour chaque étape, récupérer les dossiers ET items avec cette étape
+            // Pour chaque étape, récupérer SEULEMENT les éléments racine (sans parent)
             $etapeNum = 0;
             foreach ($etapes as $etape) {
                 $etapeNum++;
 
-                // Récupérer tous les éléments (dossiers ET items) qui ont cette étape
+                // Récupérer seulement les éléments RACINE de cette étape (parent_id IS NULL)
+                // Les enfants seront chargés via getChildren()
                 $stmt = $pdo->prepare("
                     SELECT * FROM catalogue_items
-                    WHERE etape_id = ? AND (actif = 1 OR actif IS NULL)
+                    WHERE etape_id = ? AND (actif = 1 OR actif IS NULL) AND parent_id IS NULL
                     ORDER BY type DESC, ordre, nom
                 ");
                 $stmt->execute([$etape['id']]);
                 $items = $stmt->fetchAll();
 
-                // Pour chaque élément, ajouter les enfants si c'est un dossier, ou le chemin si c'est un item
+                // Pour chaque élément racine, ajouter les enfants si c'est un dossier
                 foreach ($items as &$item) {
                     if ($item['type'] === 'folder') {
                         $item['children'] = $getChildren($pdo, $item['id']);
-                    } else {
-                        $item['folder_path'] = $getParentPath($pdo, $item['parent_id']);
                     }
                 }
 
