@@ -402,13 +402,53 @@
             </div>
         </div>
 
-        <div class="text-end mt-2">
-            <div id="baseStatusSave" class="text-muted small">
-                <span id="baseIdle"><i class="bi bi-cloud-check me-1"></i>Sauvegarde auto</span>
-                <span id="baseSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Enregistrement...</span>
-                <span id="baseSaved" class="d-none text-success"><i class="bi bi-check-circle me-1"></i>Enregistré!</span>
-            </div>
+    <div class="text-end mt-2">
+        <div id="baseStatusSave" class="text-muted small">
+            <span id="baseIdle"><i class="bi bi-cloud-check me-1"></i>Sauvegarde auto</span>
+            <span id="baseSaving" class="d-none"><i class="bi bi-arrow-repeat spin me-1"></i>Enregistrement...</span>
+            <span id="baseSaved" class="d-none text-success"><i class="bi bi-check-circle me-1"></i>Enregistré!</span>
         </div>
+    </div>
+
+    <script>
+    (function () {
+        const form = document.getElementById('formBase');
+        if (!form) return;
+
+        let timeout = null;
+
+        const idle = document.getElementById('baseIdle');
+        const saving = document.getElementById('baseSaving');
+        const saved = document.getElementById('baseSaved');
+
+        function setState(state) {
+            idle.classList.add('d-none');
+            saving.classList.add('d-none');
+            saved.classList.add('d-none');
+            state.classList.remove('d-none');
+        }
+
+        function autoSave() {
+            setState(saving);
+
+            fetch(location.href, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(() => {
+                setState(saved);
+                setTimeout(() => setState(idle), 1500);
+            });
+        }
+
+        form.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('change', () => {
+                clearTimeout(timeout);
+                timeout = setTimeout(autoSave, 400);
+            });
+        });
+    })();
+    </script>
     </form>
     </div><!-- Fin col-xxl-6 -->
 
