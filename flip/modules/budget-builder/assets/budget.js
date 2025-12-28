@@ -1514,11 +1514,23 @@ window.renderRenovationFromJson = function (reno, budgetParEtape, depensesParEta
         moReel = 0;
     }
 
-    const totalBudgetReno = (reno.total_ttc || 0) + moBudget;
-    const totalReelReno = (reno.reel_ttc || 0) + moReel;
+    // ✅ Recalcul TTC robuste (budget + taxes + MO)
+    const budgetHT = reno.total_ht || 0;
+    const tps = reno.tps || 0;
+    const tvq = reno.tvq || 0;
 
-    // ✅ Toujours forcer la mise à jour (même après delete panier)
-    if (elTotal) elTotal.textContent = formatMoneyBase(totalBudgetReno);
+    // Budget TTC rénovation (sans MO) + MO planifiée
+    const totalBudgetReno =
+        (reno.total_ttc ?? (budgetHT + tps + tvq)) + moBudget;
+
+    // Réel TTC rénovation (sans MO) + MO réelle
+    const totalReelReno =
+        (reno.reel_ttc ?? (budgetHT + tps + tvq)) + moReel;
+
+    // ✅ Mise à jour du Sous‑total Rénovation (avec taxes)
+    if (elTotal) {
+        elTotal.textContent = formatMoneyBase(totalBudgetReno);
+    }
 };
 
 // Fonctions globales pour les onclick
