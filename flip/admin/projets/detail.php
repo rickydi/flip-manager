@@ -2910,6 +2910,87 @@ document.querySelectorAll('.section-header[data-section]').forEach(header => {
 /* CSRF global pour synchronisation Budget → Détail (même hors onglet Base) */
 window.baseFormCsrfToken = '<?= generateCSRFToken() ?>';
 
+/* Fonctions globales TOUJOURS disponibles pour le refresh des indicateurs depuis Budget Builder */
+window.formatMoneyBase = function(val) {
+    return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+};
+
+window.formatPercentBase = function(val) {
+    return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' %';
+};
+
+window.updateIndicateurs = function(ind) {
+    const elValeur = document.getElementById('indValeurPotentielle');
+    const elEquiteBudget = document.getElementById('indEquiteBudget');
+    const elEquiteReelle = document.getElementById('indEquiteReelle');
+    const elRoi = document.getElementById('indRoiLeverage');
+
+    if (elValeur) elValeur.textContent = window.formatMoneyBase(ind.valeur_potentielle);
+    if (elEquiteBudget) elEquiteBudget.textContent = window.formatMoneyBase(ind.equite_potentielle);
+    if (elEquiteReelle) elEquiteReelle.textContent = window.formatMoneyBase(ind.equite_reelle);
+    if (elRoi) elRoi.textContent = window.formatPercentBase(ind.roi_leverage);
+};
+
+window.updateRenovation = function(reno, budgetParEtape, depensesParEtape) {
+    // Mettre à jour les totaux de la section rénovation
+    const elContingence = document.getElementById('detailContingence');
+    const elTPS = document.getElementById('detailTPS');
+    const elTVQ = document.getElementById('detailTVQ');
+    const elRenoTotal = document.getElementById('detailRenoTotal');
+
+    if (elContingence) elContingence.textContent = window.formatMoneyBase(reno.contingence);
+    if (elTPS) elTPS.textContent = window.formatMoneyBase(reno.tps);
+    if (elTVQ) elTVQ.textContent = window.formatMoneyBase(reno.tvq);
+    if (elRenoTotal) elRenoTotal.textContent = window.formatMoneyBase(reno.total_ttc);
+
+    // Mettre à jour chaque ligne d'étape (Budget, Diff, Réel)
+    if (budgetParEtape) {
+        for (const [etapeId, etape] of Object.entries(budgetParEtape)) {
+            const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
+            if (row) {
+                const budgetHT = etape.total || 0;
+                const depense = depensesParEtape && depensesParEtape[etapeId] ? (depensesParEtape[etapeId].total || 0) : 0;
+                const ecart = budgetHT - depense;
+
+                const budgetCell = row.querySelector('.detail-etape-budget');
+                const diffCell = row.querySelector('.detail-etape-diff');
+                const reelCell = row.querySelector('.detail-etape-reel');
+
+                if (budgetCell) budgetCell.textContent = window.formatMoneyBase(budgetHT);
+                if (reelCell) reelCell.textContent = window.formatMoneyBase(depense);
+                if (diffCell) {
+                    diffCell.textContent = ecart !== 0 ? window.formatMoneyBase(ecart) : '-';
+                    diffCell.classList.remove('positive', 'negative');
+                    if (ecart > 0) diffCell.classList.add('positive');
+                    else if (ecart < 0) diffCell.classList.add('negative');
+                }
+            }
+        }
+    }
+
+    // Mettre à jour les dépenses sans budget (étapes qui ont des factures mais pas de budget)
+    if (depensesParEtape) {
+        for (const [etapeId, dep] of Object.entries(depensesParEtape)) {
+            if (!budgetParEtape || !budgetParEtape[etapeId]) {
+                const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
+                if (row) {
+                    const depense = dep.total || 0;
+                    const budgetCell = row.querySelector('.detail-etape-budget');
+                    const reelCell = row.querySelector('.detail-etape-reel');
+                    const diffCell = row.querySelector('.detail-etape-diff');
+                    if (budgetCell) budgetCell.textContent = '-';
+                    if (reelCell) reelCell.textContent = window.formatMoneyBase(depense);
+                    if (diffCell) {
+                        diffCell.textContent = window.formatMoneyBase(-depense);
+                        diffCell.classList.remove('positive');
+                        diffCell.classList.add('negative');
+                    }
+                }
+            }
+        }
+    }
+};
+
 (function() {
     const formBase = document.getElementById('formBase');
     if (!formBase) return;
@@ -2917,91 +2998,11 @@ window.baseFormCsrfToken = '<?= generateCSRFToken() ?>';
     const csrfToken = window.baseFormCsrfToken;
     let baseSaveTimeout = null;
 
-    function formatMoneyBase(val) {
-        return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
-    }
-
-    function formatPercentBase(val) {
-        return val.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' %';
-    }
-
     function showBaseSaveStatus(status) {
         document.getElementById('baseIdle').classList.add('d-none');
         document.getElementById('baseSaving').classList.add('d-none');
         document.getElementById('baseSaved').classList.add('d-none');
         document.getElementById('base' + status.charAt(0).toUpperCase() + status.slice(1)).classList.remove('d-none');
-    }
-
-    function updateIndicateurs(ind) {
-        const elValeur = document.getElementById('indValeurPotentielle');
-        const elEquiteBudget = document.getElementById('indEquiteBudget');
-        const elEquiteReelle = document.getElementById('indEquiteReelle');
-        const elRoi = document.getElementById('indRoiLeverage');
-
-        if (elValeur) elValeur.textContent = formatMoneyBase(ind.valeur_potentielle);
-        if (elEquiteBudget) elEquiteBudget.textContent = formatMoneyBase(ind.equite_potentielle);
-        if (elEquiteReelle) elEquiteReelle.textContent = formatMoneyBase(ind.equite_reelle);
-        if (elRoi) elRoi.textContent = formatPercentBase(ind.roi_leverage);
-    }
-
-    function updateRenovation(reno, budgetParEtape, depensesParEtape) {
-        // Mettre à jour les totaux de la section rénovation
-        const elContingence = document.getElementById('detailContingence');
-        const elTPS = document.getElementById('detailTPS');
-        const elTVQ = document.getElementById('detailTVQ');
-        const elRenoTotal = document.getElementById('detailRenoTotal');
-
-        if (elContingence) elContingence.textContent = formatMoneyBase(reno.contingence);
-        if (elTPS) elTPS.textContent = formatMoneyBase(reno.tps);
-        if (elTVQ) elTVQ.textContent = formatMoneyBase(reno.tvq);
-        if (elRenoTotal) elRenoTotal.textContent = formatMoneyBase(reno.total_ttc);
-
-        // Mettre à jour chaque ligne d'étape (Budget, Diff, Réel)
-        if (budgetParEtape) {
-            for (const [etapeId, etape] of Object.entries(budgetParEtape)) {
-                const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
-                if (row) {
-                    const budgetHT = etape.total || 0;
-                    const depense = depensesParEtape && depensesParEtape[etapeId] ? (depensesParEtape[etapeId].total || 0) : 0;
-                    const ecart = budgetHT - depense;
-
-                    const budgetCell = row.querySelector('.detail-etape-budget');
-                    const diffCell = row.querySelector('.detail-etape-diff');
-                    const reelCell = row.querySelector('.detail-etape-reel');
-
-                    if (budgetCell) budgetCell.textContent = formatMoneyBase(budgetHT);
-                    if (reelCell) reelCell.textContent = formatMoneyBase(depense);
-                    if (diffCell) {
-                        diffCell.textContent = ecart !== 0 ? formatMoneyBase(ecart) : '-';
-                        diffCell.classList.remove('positive', 'negative');
-                        if (ecart > 0) diffCell.classList.add('positive');
-                        else if (ecart < 0) diffCell.classList.add('negative');
-                    }
-                }
-            }
-        }
-
-        // Mettre à jour les dépenses sans budget (étapes qui ont des factures mais pas de budget)
-        if (depensesParEtape) {
-            for (const [etapeId, dep] of Object.entries(depensesParEtape)) {
-                if (!budgetParEtape || !budgetParEtape[etapeId]) {
-                    const row = document.querySelector(`tr.detail-etape-row[data-etape-id="${etapeId}"]`);
-                    if (row) {
-                        const depense = dep.total || 0;
-                        const budgetCell = row.querySelector('.detail-etape-budget');
-                        const reelCell = row.querySelector('.detail-etape-reel');
-                        const diffCell = row.querySelector('.detail-etape-diff');
-                        if (budgetCell) budgetCell.textContent = '-';
-                        if (reelCell) reelCell.textContent = formatMoneyBase(depense);
-                        if (diffCell) {
-                            diffCell.textContent = formatMoneyBase(-depense);
-                            diffCell.classList.remove('positive');
-                            diffCell.classList.add('negative');
-                        }
-                    }
-                }
-            }
-        }
     }
 
     function autoSaveBase() {
@@ -3058,12 +3059,8 @@ window.baseFormCsrfToken = '<?= generateCSRFToken() ?>';
         autoSaveBase();
     });
 
-    // Exposer certaines fonctions globalement pour le refresh des indicateurs
-    window.updateIndicateurs = updateIndicateurs;
-    window.updateRenovation = updateRenovation;
-    window.formatMoneyBase = formatMoneyBase;
-    window.formatPercentBase = formatPercentBase;
-    window.baseFormCsrfToken = csrfToken;
+    // Les fonctions updateIndicateurs, updateRenovation, formatMoneyBase, formatPercentBase
+    // sont maintenant définies globalement en dehors de cette IIFE pour être toujours disponibles
 })();
 </script>
 
