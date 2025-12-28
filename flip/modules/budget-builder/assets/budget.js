@@ -1024,17 +1024,16 @@ const BudgetBuilder = {
 
     // Point central après toute modification du budget
     refreshAfterBudgetChange: function() {
-        this.loadPanier();
-
-        // Synchroniser automatiquement le détail du projet (onglet Base)
-        // Double sécurité : refresh immédiat + refresh différé
-        this.refreshIndicateurs();
-
-        // Cas réel observé : l’onglet Base n’est pas encore monté
-        // → on force un second refresh différé
-        setTimeout(() => {
+        // ✅ Attendre que le panier soit réellement rechargé
+        this.loadPanier().then(() => {
+            // Calculs fiables même lors du PREMIER ajout
             this.refreshIndicateurs();
-        }, 300);
+
+            // Sécurité supplémentaire (charts / DOM)
+            setTimeout(() => {
+                this.refreshIndicateurs();
+            }, 200);
+        });
     },
 
     refreshAll: function() {
@@ -1045,13 +1044,12 @@ const BudgetBuilder = {
     loadPanier: function() {
         const self = this;
         const container = document.getElementById('panier-items');
-        if (!container || !this.projetId) return;
+        if (!container || !this.projetId) return Promise.resolve();
 
-        this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
+        // ✅ retourner la Promise pour chaînage
+        return this.ajax('get_panier', { projet_id: this.projetId }).then(response => {
             if (response.success) {
                 self.renderPanier(response.sections, response.total);
-                // Rafraîchir les indicateurs du projet après chaque changement du panier
-                self.refreshIndicateurs();
             }
         });
     },
