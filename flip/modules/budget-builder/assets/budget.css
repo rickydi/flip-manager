@@ -27,7 +27,7 @@
     padding: 2px 8px;
     border-radius: 4px;
     cursor: grab;
-    gap: 6px;
+    gap: 0.5em;
     color: var(--text-primary);
     font-size: 0.95rem;
 }
@@ -37,8 +37,8 @@
 }
 
 .catalogue-item .folder-toggle {
-    width: 20px;
-    min-width: 20px;
+    width: 1.5em;
+    min-width: 1.5em;
     text-align: center;
     cursor: pointer;
     color: var(--text-muted);
@@ -155,7 +155,7 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
     align-items: center;
     padding: 2px 8px;
     border-radius: 4px;
-    gap: 6px;
+    gap: 0.5em;
     color: var(--text-primary);
     font-size: 0.95rem;
 }
@@ -165,8 +165,8 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 }
 
 .panier-item .folder-toggle {
-    width: 20px;
-    min-width: 20px;
+    width: 1.5em;
+    min-width: 1.5em;
     text-align: center;
     cursor: pointer;
     color: var(--text-muted);
