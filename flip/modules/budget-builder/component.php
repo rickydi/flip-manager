@@ -54,6 +54,22 @@ try {
     $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN sans_taxe TINYINT(1) DEFAULT 0");
 }
 
+// Ajouter colonne actif si manquante (pour soft-delete/undo)
+try {
+    $pdo->query("SELECT actif FROM catalogue_items LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1");
+}
+// S'assurer que tous les items existants ont actif défini
+$pdo->exec("UPDATE catalogue_items SET actif = 1 WHERE actif IS NULL");
+
+// Ajouter colonne etape_id si manquante
+try {
+    $pdo->query("SELECT etape_id FROM catalogue_items LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN etape_id INT DEFAULT NULL");
+}
+
 // ============================================
 // AUTO-MIGRATION: Table budget_items (panier)
 // ============================================
