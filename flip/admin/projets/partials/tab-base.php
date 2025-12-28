@@ -1,4 +1,13 @@
+<?php
+$isPartialBase = isset($_GET['partial']) && $_GET['partial'] === 'base';
+if ($isPartialBase) {
+    ob_start();
+}
+?>
     <div class="tab-pane fade <?= $tab === 'base' ? 'show active' : '' ?>" id="base" role="tabpanel">
+
+    <!-- CONTENU DYNAMIQUE BASE -->
+    <div id="base-dynamic-content">
 
     <!-- Indicateurs en haut -->
     <?php
@@ -436,12 +445,17 @@
                 body: new FormData(form),
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             }).then(() => {
+                return fetch(location.href + '&partial=base', {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+            }).then(res => res.text())
+              .then(html => {
+                const target = document.getElementById('base-dynamic-content');
+                if (target) {
+                    target.innerHTML = html;
+                }
                 setState(saved);
-
-                // ✅ Recalcul serveur → refresh automatique
-                setTimeout(() => {
-                    location.reload();
-                }, 300);
+                setTimeout(() => setState(idle), 1200);
             });
         }
 
@@ -1004,4 +1018,16 @@ if ($moExtrapole['heures'] > 0 || $moReel['heures'] > 0):
     </div><!-- Fin card Vente -->
     </div><!-- Fin col-xxl-3 -->
     </div><!-- Fin row xxl -->
+    </div><!-- Fin base-dynamic-content -->
     </div><!-- Fin TAB BASE -->
+<?php
+if ($isPartialBase) {
+    $html = ob_get_clean();
+
+    // extraire uniquement le contenu dynamique
+    if (preg_match('/<div id="base-dynamic-content">(.+?)<\/div><!-- Fin base-dynamic-content -->/s', $html, $m)) {
+        echo $m[1];
+    }
+    exit;
+}
+?>
