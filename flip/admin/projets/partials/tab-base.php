@@ -554,7 +554,6 @@ if ($isPartialBase) {
 
                     foreach ($recurrentsTypes as $type):
                         $montant = $projetRecurrents[$type['id']] ?? 0;
-                        if ($montant == 0) continue; // Ne pas afficher les types sans valeur
 
                         // Calculer extrapolé et réel selon la fréquence
                         if ($type['frequence'] === 'mensuel') {
