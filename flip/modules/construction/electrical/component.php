@@ -425,15 +425,15 @@ if (isset($projetId)) {
 }
 
 .floor-card {
-    border: 1px solid var(--border-color, #dee2e6);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     margin-bottom: 1rem;
-    background: var(--bg-card, #fff);
+    background: transparent;
 }
 
 .floor-header {
-    background: rgba(13, 110, 253, 0.1);
-    border-bottom: 1px solid var(--border-color, #dee2e6);
+    background: rgba(13, 110, 253, 0.15);
+    border-bottom: 1px solid var(--border-color);
     padding: 0.75rem 1rem;
     display: flex;
     justify-content: space-between;
@@ -451,10 +451,10 @@ if (isset($projetId)) {
 }
 
 .room-card {
-    border: 1px solid var(--border-color, #dee2e6);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
     margin-bottom: 0.75rem;
-    background: var(--bg-table-alt, #f8f9fa);
+    background: rgba(100, 116, 139, 0.08);
 }
 
 .room-header {
@@ -462,8 +462,8 @@ if (isset($projetId)) {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--border-color, #dee2e6);
-    background: rgba(100, 116, 139, 0.1);
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(100, 116, 139, 0.15);
     border-radius: 6px 6px 0 0;
 }
 
@@ -474,6 +474,7 @@ if (isset($projetId)) {
 
 .room-body {
     padding: 0.5rem 0.75rem;
+    background: transparent;
 }
 
 .component-item {
@@ -482,7 +483,7 @@ if (isset($projetId)) {
     align-items: center;
     padding: 0.25rem 0;
     font-size: 0.85rem;
-    border-bottom: 1px dashed var(--border-color, #dee2e6);
+    border-bottom: 1px dashed var(--border-color);
 }
 
 .component-item:last-child {
@@ -505,13 +506,14 @@ if (isset($projetId)) {
 }
 
 .add-room-btn {
-    border: 2px dashed var(--border-color, #dee2e6);
+    border: 2px dashed var(--border-color);
     border-radius: 6px;
     padding: 1rem;
     text-align: center;
     cursor: pointer;
     color: var(--text-muted);
     transition: all 0.2s;
+    background: transparent;
 }
 
 .add-room-btn:hover {
