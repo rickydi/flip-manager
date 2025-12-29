@@ -1,0 +1,802 @@
+<?php
+/**
+ * Module Construction - Plan Électrique
+ * Générateur de plans électriques détaillés par pièce
+ */
+
+// S'assurer que les dépendances sont chargées
+if (!isset($pdo)) {
+    require_once __DIR__ . '/../../../config.php';
+}
+if (!function_exists('e')) {
+    require_once __DIR__ . '/../../../includes/functions.php';
+}
+
+// ============================================
+// AUTO-MIGRATION: Tables pour plans électriques
+// ============================================
+
+// Table des plans électriques (un par projet)
+try {
+    $pdo->query("SELECT 1 FROM electrical_plans LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE electrical_plans (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            projet_id INT NOT NULL UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX idx_projet (projet_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// Table des étages
+try {
+    $pdo->query("SELECT 1 FROM electrical_floors LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE electrical_floors (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            plan_id INT NOT NULL,
+            nom VARCHAR(100) NOT NULL,
+            ordre INT DEFAULT 0,
+            INDEX idx_plan (plan_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// Table des pièces
+try {
+    $pdo->query("SELECT 1 FROM electrical_rooms LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE electrical_rooms (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            floor_id INT NOT NULL,
+            nom VARCHAR(100) NOT NULL,
+            type VARCHAR(50) DEFAULT 'custom',
+            ordre INT DEFAULT 0,
+            INDEX idx_floor (floor_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// Table des composants par pièce
+try {
+    $pdo->query("SELECT 1 FROM electrical_components LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE electrical_components (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            room_id INT NOT NULL,
+            nom VARCHAR(255) NOT NULL,
+            quantite INT DEFAULT 1,
+            wattage VARCHAR(50) DEFAULT NULL,
+            notes TEXT DEFAULT NULL,
+            ordre INT DEFAULT 0,
+            INDEX idx_room (room_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
+// ============================================
+// TEMPLATES DE PIÈCES
+// ============================================
+
+$roomTemplates = [
+    'chambre' => [
+        'label' => 'Chambre',
+        'icon' => 'bi-door-closed',
+        'components' => [
+            ['nom' => 'Prise murale', 'quantite' => 2],
+            ['nom' => 'Lumière au plafond plafonnier', 'quantite' => 1],
+            ['nom' => 'Interrupteur plafonnier', 'quantite' => 1],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '1500w'],
+        ]
+    ],
+    'chambre_garde_robe' => [
+        'label' => 'Chambre avec garde-robe',
+        'icon' => 'bi-door-closed',
+        'components' => [
+            ['nom' => 'Prise murale', 'quantite' => 2],
+            ['nom' => 'Lumière garde-robe', 'quantite' => 1],
+            ['nom' => 'Interrupteur garde-robe', 'quantite' => 1],
+            ['nom' => 'Lumière au plafond plafonnier', 'quantite' => 1],
+            ['nom' => 'Interrupteur plafonnier', 'quantite' => 1],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '1500w'],
+        ]
+    ],
+    'sdb' => [
+        'label' => 'Salle de bain',
+        'icon' => 'bi-droplet',
+        'components' => [
+            ['nom' => 'Plancher chauffant 240v', 'quantite' => 1],
+            ['nom' => 'Thermostat plancher', 'quantite' => 1],
+            ['nom' => 'Interrupteur puck light', 'quantite' => 1],
+            ['nom' => 'Interrupteur lumière intime et miroir', 'quantite' => 1],
+            ['nom' => 'Prise GFI toilette', 'quantite' => 1],
+            ['nom' => 'Prise vanité', 'quantite' => 1],
+            ['nom' => 'Prise ventilateur', 'quantite' => 1],
+        ]
+    ],
+    'sdb_plinthe' => [
+        'label' => 'Salle de bain avec plinthe',
+        'icon' => 'bi-droplet',
+        'components' => [
+            ['nom' => 'Plinthe chauffante', 'wattage' => '750w'],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Interrupteur puck light', 'quantite' => 1],
+            ['nom' => 'Interrupteur lumière intime et miroir', 'quantite' => 1],
+            ['nom' => 'Prise GFI toilette', 'quantite' => 1],
+            ['nom' => 'Prise vanité', 'quantite' => 1],
+            ['nom' => 'Prise ventilateur', 'quantite' => 1],
+        ]
+    ],
+    'cuisine' => [
+        'label' => 'Cuisine',
+        'icon' => 'bi-cup-hot',
+        'components' => [
+            ['nom' => 'Interrupteur LED carré', 'quantite' => 1],
+            ['nom' => 'Interrupteur lumière îlot', 'quantite' => 1],
+            ['nom' => 'Interrupteur lumière table', 'quantite' => 1],
+            ['nom' => 'Interrupteur LED sous cabinet', 'quantite' => 1],
+            ['nom' => 'Transfo LED sous armoire', 'quantite' => 1],
+            ['nom' => 'Prise lave-vaisselle', 'quantite' => 1],
+            ['nom' => 'Prise frigo', 'quantite' => 1],
+            ['nom' => 'Prise four encastré', 'quantite' => 1],
+            ['nom' => 'Prise plaque de cuisson', 'quantite' => 1],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '2000w'],
+            ['nom' => 'Lumière ext et interrupteur', 'quantite' => 1],
+            ['nom' => 'Prise ext GFI', 'quantite' => 1],
+        ]
+    ],
+    'salon' => [
+        'label' => 'Salon',
+        'icon' => 'bi-lamp',
+        'components' => [
+            ['nom' => 'Prise murale', 'quantite' => 3],
+            ['nom' => 'Lumière entrée', 'quantite' => 1],
+            ['nom' => 'Interrupteur puck light entrée', 'quantite' => 1],
+            ['nom' => 'Interrupteur puck light salon', 'quantite' => 4],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '2000w'],
+            ['nom' => 'Interrupteur lumière ext', 'quantite' => 1],
+        ]
+    ],
+    'couloir' => [
+        'label' => 'Couloir',
+        'icon' => 'bi-arrows-expand',
+        'components' => [
+            ['nom' => 'Interrupteur puck light', 'quantite' => 1],
+            ['nom' => 'Puck light', 'quantite' => 2],
+        ]
+    ],
+    'escalier' => [
+        'label' => 'Escalier',
+        'icon' => 'bi-stairs',
+        'components' => [
+            ['nom' => 'Lumière puck light', 'quantite' => 2],
+            ['nom' => 'Interrupteur puck light', 'quantite' => 1],
+            ['nom' => 'Prise transfo LED détecteur mouvement', 'quantite' => 1],
+        ]
+    ],
+    'buanderie' => [
+        'label' => 'Buanderie',
+        'icon' => 'bi-water',
+        'components' => [
+            ['nom' => 'Prise sécheuse', 'quantite' => 1],
+            ['nom' => 'Prise laveuse', 'quantite' => 1],
+            ['nom' => 'Interrupteur puck light', 'quantite' => 1],
+            ['nom' => 'Puck light', 'quantite' => 2],
+            ['nom' => 'Réservoir eau chaude', 'quantite' => 1],
+            ['nom' => 'Prise aspirateur central', 'quantite' => 1],
+            ['nom' => 'Thermostat', 'wattage' => '500w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '500w'],
+        ]
+    ],
+    'bureau' => [
+        'label' => 'Bureau',
+        'icon' => 'bi-briefcase',
+        'components' => [
+            ['nom' => 'Prise murale', 'quantite' => 3],
+            ['nom' => 'Lumière au plafond plafonnier', 'quantite' => 2],
+            ['nom' => 'Interrupteur plafonnier', 'quantite' => 1],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '1500w'],
+        ]
+    ],
+    'sejour' => [
+        'label' => 'Salle de séjour',
+        'icon' => 'bi-tv',
+        'components' => [
+            ['nom' => 'Prise murale', 'quantite' => 3],
+            ['nom' => 'Puck light', 'quantite' => 6],
+            ['nom' => 'Interrupteur puck light', 'quantite' => 1],
+            ['nom' => 'Thermostat', 'wattage' => '2000w'],
+            ['nom' => 'Plinthe chauffante', 'wattage' => '2000w'],
+        ]
+    ],
+    'custom' => [
+        'label' => 'Pièce personnalisée',
+        'icon' => 'bi-plus-square',
+        'components' => []
+    ]
+];
+
+// ============================================
+// CHARGER LE PLAN DU PROJET
+// ============================================
+
+$planId = null;
+$floors = [];
+
+if (isset($projetId)) {
+    // Récupérer ou créer le plan
+    $stmt = $pdo->prepare("SELECT id FROM electrical_plans WHERE projet_id = ?");
+    $stmt->execute([$projetId]);
+    $plan = $stmt->fetch();
+
+    if ($plan) {
+        $planId = $plan['id'];
+    }
+
+    // Charger les étages et pièces
+    if ($planId) {
+        $stmt = $pdo->prepare("
+            SELECT f.*,
+                   r.id as room_id, r.nom as room_nom, r.type as room_type, r.ordre as room_ordre
+            FROM electrical_floors f
+            LEFT JOIN electrical_rooms r ON r.floor_id = f.id
+            WHERE f.plan_id = ?
+            ORDER BY f.ordre, r.ordre
+        ");
+        $stmt->execute([$planId]);
+        $rows = $stmt->fetchAll();
+
+        foreach ($rows as $row) {
+            if (!isset($floors[$row['id']])) {
+                $floors[$row['id']] = [
+                    'id' => $row['id'],
+                    'nom' => $row['nom'],
+                    'ordre' => $row['ordre'],
+                    'rooms' => []
+                ];
+            }
+            if ($row['room_id']) {
+                // Charger les composants de la pièce
+                $stmtComp = $pdo->prepare("SELECT * FROM electrical_components WHERE room_id = ? ORDER BY ordre");
+                $stmtComp->execute([$row['room_id']]);
+                $components = $stmtComp->fetchAll();
+
+                $floors[$row['id']]['rooms'][] = [
+                    'id' => $row['room_id'],
+                    'nom' => $row['room_nom'],
+                    'type' => $row['room_type'],
+                    'ordre' => $row['room_ordre'],
+                    'components' => $components
+                ];
+            }
+        }
+        $floors = array_values($floors);
+    }
+}
+?>
+
+<div class="electrical-plan-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>Plan Électrique Détaillé</h5>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addFloor()">
+                <i class="bi bi-plus-lg me-1"></i>Ajouter étage
+            </button>
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="exportElectricalPlan()">
+                <i class="bi bi-download me-1"></i>Exporter
+            </button>
+        </div>
+    </div>
+
+    <div id="electrical-floors">
+        <?php if (empty($floors)): ?>
+            <div class="text-center text-muted py-5" id="electrical-empty">
+                <i class="bi bi-lightning" style="font-size: 3rem;"></i>
+                <p class="mt-3 mb-2">Aucun plan électrique</p>
+                <p class="small">Commencez par ajouter un étage (RDC, Sous-sol, etc.)</p>
+                <button type="button" class="btn btn-primary mt-2" onclick="addFloor()">
+                    <i class="bi bi-plus-lg me-1"></i>Ajouter un étage
+                </button>
+            </div>
+        <?php else: ?>
+            <?php foreach ($floors as $floor): ?>
+                <?php renderFloor($floor, $roomTemplates); ?>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Modal Ajouter Étage -->
+<div class="modal fade" id="addFloorModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter un étage</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nom de l'étage</label>
+                    <input type="text" class="form-control" id="floor-name" placeholder="Ex: RDC, Sous-sol, Étage">
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setFloorName('RDC')">RDC</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setFloorName('Sous-sol')">Sous-sol</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setFloorName('Étage')">Étage</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveFloor()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajouter Pièce -->
+<div class="modal fade" id="addRoomModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter une pièce</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="room-floor-id">
+                <div class="mb-3">
+                    <label class="form-label">Nom de la pièce</label>
+                    <input type="text" class="form-control" id="room-name" placeholder="Ex: Chambre principale">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Type (template)</label>
+                    <div class="row g-2">
+                        <?php foreach ($roomTemplates as $key => $template): ?>
+                        <div class="col-6 col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="room-type" id="room-type-<?= $key ?>" value="<?= $key ?>">
+                                <label class="form-check-label" for="room-type-<?= $key ?>">
+                                    <i class="bi <?= $template['icon'] ?> me-1"></i><?= $template['label'] ?>
+                                </label>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveRoom()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ajouter Composant -->
+<div class="modal fade" id="addComponentModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ajouter composant</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="component-room-id">
+                <div class="mb-3">
+                    <label class="form-label">Nom</label>
+                    <input type="text" class="form-control" id="component-name" placeholder="Ex: Prise murale">
+                </div>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="form-label">Quantité</label>
+                            <input type="number" class="form-control" id="component-qty" value="1" min="1">
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <label class="form-label">Wattage</label>
+                            <input type="text" class="form-control" id="component-wattage" placeholder="Ex: 2000w">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" onclick="saveComponent()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.electrical-plan-container {
+    max-width: 100%;
+}
+
+.floor-card {
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    background: var(--bg-card, #fff);
+}
+
+.floor-header {
+    background: rgba(13, 110, 253, 0.1);
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 8px 8px 0 0;
+}
+
+.floor-header h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.floor-body {
+    padding: 1rem;
+}
+
+.room-card {
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+    background: var(--bg-table-alt, #f8f9fa);
+}
+
+.room-header {
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+    background: rgba(100, 116, 139, 0.1);
+    border-radius: 6px 6px 0 0;
+}
+
+.room-header h6 {
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.room-body {
+    padding: 0.5rem 0.75rem;
+}
+
+.component-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px dashed var(--border-color, #dee2e6);
+}
+
+.component-item:last-child {
+    border-bottom: none;
+}
+
+.component-name {
+    flex: 1;
+}
+
+.component-details {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.component-qty, .component-wattage {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.add-room-btn {
+    border: 2px dashed var(--border-color, #dee2e6);
+    border-radius: 6px;
+    padding: 1rem;
+    text-align: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s;
+}
+
+.add-room-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(13, 110, 253, 0.05);
+}
+</style>
+
+<script>
+const PROJET_ID = <?= $projetId ?? 'null' ?>;
+const ROOM_TEMPLATES = <?= json_encode($roomTemplates) ?>;
+
+function addFloor() {
+    document.getElementById('floor-name').value = '';
+    new bootstrap.Modal(document.getElementById('addFloorModal')).show();
+}
+
+function setFloorName(name) {
+    document.getElementById('floor-name').value = name;
+}
+
+function saveFloor() {
+    const nom = document.getElementById('floor-name').value.trim();
+    if (!nom) {
+        alert('Veuillez entrer un nom');
+        return;
+    }
+
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'add_floor',
+            projet_id: PROJET_ID,
+            nom: nom
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Erreur');
+        }
+    });
+}
+
+function addRoom(floorId) {
+    document.getElementById('room-floor-id').value = floorId;
+    document.getElementById('room-name').value = '';
+    document.querySelectorAll('input[name="room-type"]').forEach(r => r.checked = false);
+    new bootstrap.Modal(document.getElementById('addRoomModal')).show();
+}
+
+function saveRoom() {
+    const floorId = document.getElementById('room-floor-id').value;
+    const nom = document.getElementById('room-name').value.trim();
+    const type = document.querySelector('input[name="room-type"]:checked')?.value || 'custom';
+
+    if (!nom) {
+        alert('Veuillez entrer un nom');
+        return;
+    }
+
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'add_room',
+            floor_id: floorId,
+            nom: nom,
+            type: type
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Erreur');
+        }
+    });
+}
+
+function addComponent(roomId) {
+    document.getElementById('component-room-id').value = roomId;
+    document.getElementById('component-name').value = '';
+    document.getElementById('component-qty').value = 1;
+    document.getElementById('component-wattage').value = '';
+    new bootstrap.Modal(document.getElementById('addComponentModal')).show();
+}
+
+function saveComponent() {
+    const roomId = document.getElementById('component-room-id').value;
+    const nom = document.getElementById('component-name').value.trim();
+    const quantite = parseInt(document.getElementById('component-qty').value) || 1;
+    const wattage = document.getElementById('component-wattage').value.trim();
+
+    if (!nom) {
+        alert('Veuillez entrer un nom');
+        return;
+    }
+
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'add_component',
+            room_id: roomId,
+            nom: nom,
+            quantite: quantite,
+            wattage: wattage
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Erreur');
+        }
+    });
+}
+
+function deleteFloor(floorId) {
+    if (!confirm('Supprimer cet étage et toutes ses pièces?')) return;
+
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'delete_floor',
+            floor_id: floorId
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function deleteRoom(roomId) {
+    if (!confirm('Supprimer cette pièce?')) return;
+
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'delete_room',
+            room_id: roomId
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+function deleteComponent(componentId) {
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'delete_component',
+            component_id: componentId
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.querySelector(`[data-component-id="${componentId}"]`)?.remove();
+        }
+    });
+}
+
+function exportElectricalPlan() {
+    // Générer le texte formaté
+    let text = 'Détail Électrique\n';
+    text += '=================\n\n';
+
+    document.querySelectorAll('.floor-card').forEach(floor => {
+        const floorName = floor.querySelector('.floor-header h6').textContent;
+        text += floorName + '\n';
+        text += '-'.repeat(floorName.length) + '\n\n';
+
+        floor.querySelectorAll('.room-card').forEach(room => {
+            const roomName = room.querySelector('.room-header h6').textContent;
+            text += roomName + '\n\n';
+
+            room.querySelectorAll('.component-item').forEach(comp => {
+                const name = comp.querySelector('.component-name').textContent.trim();
+                const qty = comp.querySelector('.component-qty')?.textContent || '';
+                const wattage = comp.querySelector('.component-wattage')?.textContent || '';
+                text += '• ' + name;
+                if (qty) text += ' ' + qty;
+                if (wattage) text += ' ' + wattage;
+                text += '\n';
+            });
+            text += '\n';
+        });
+        text += '\n';
+    });
+
+    // Copier dans le presse-papiers
+    navigator.clipboard.writeText(text).then(() => {
+        alert('Plan copié dans le presse-papiers!');
+    });
+}
+</script>
+
+<?php
+function renderFloor($floor, $roomTemplates) {
+?>
+<div class="floor-card" data-floor-id="<?= $floor['id'] ?>">
+    <div class="floor-header">
+        <h6><i class="bi bi-building me-2"></i><?= e($floor['nom']) ?></h6>
+        <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="addRoom(<?= $floor['id'] ?>)">
+                <i class="bi bi-plus-lg"></i> Pièce
+            </button>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteFloor(<?= $floor['id'] ?>)">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+    <div class="floor-body">
+        <?php if (empty($floor['rooms'])): ?>
+            <div class="add-room-btn" onclick="addRoom(<?= $floor['id'] ?>)">
+                <i class="bi bi-plus-lg"></i> Ajouter une pièce
+            </div>
+        <?php else: ?>
+            <?php foreach ($floor['rooms'] as $room): ?>
+                <?php renderRoom($room); ?>
+            <?php endforeach; ?>
+            <div class="add-room-btn mt-2" onclick="addRoom(<?= $floor['id'] ?>)">
+                <i class="bi bi-plus-lg"></i> Ajouter une pièce
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+<?php
+}
+
+function renderRoom($room) {
+?>
+<div class="room-card" data-room-id="<?= $room['id'] ?>">
+    <div class="room-header">
+        <h6><?= e($room['nom']) ?></h6>
+        <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-link btn-sm p-0 text-primary" onclick="addComponent(<?= $room['id'] ?>)" title="Ajouter composant">
+                <i class="bi bi-plus-circle"></i>
+            </button>
+            <button type="button" class="btn btn-link btn-sm p-0 text-danger ms-2" onclick="deleteRoom(<?= $room['id'] ?>)" title="Supprimer">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+    <div class="room-body">
+        <?php if (empty($room['components'])): ?>
+            <div class="text-muted small text-center py-2">Aucun composant</div>
+        <?php else: ?>
+            <?php foreach ($room['components'] as $comp): ?>
+            <div class="component-item" data-component-id="<?= $comp['id'] ?>">
+                <span class="component-name"><?= e($comp['nom']) ?></span>
+                <span class="component-details">
+                    <?php if ($comp['quantite'] > 1): ?>
+                        <span class="component-qty badge bg-secondary"><?= $comp['quantite'] ?>x</span>
+                    <?php endif; ?>
+                    <?php if ($comp['wattage']): ?>
+                        <span class="component-wattage badge bg-warning text-dark"><?= e($comp['wattage']) ?></span>
+                    <?php endif; ?>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-danger" onclick="deleteComponent(<?= $comp['id'] ?>)">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </span>
+            </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+</div>
+<?php
+}
+?>

@@ -2304,6 +2304,11 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     <i class="bi bi-table me-1"></i>Google Sheet
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link <?= $tab === 'construction' ? 'active' : '' ?>" id="construction-tab" data-bs-toggle="tab" data-bs-target="#construction" type="button" role="tab">
+                    <i class="bi bi-hammer me-1"></i>Construction
+                </button>
+            </li>
         </ul>
     </div>
 
@@ -2459,6 +2464,9 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <?php include 'partials/tab-documents.php'; ?>
     <!-- TAB GOOGLE SHEET -->
     <?php include 'partials/tab-googlesheet.php'; ?>
+
+    <!-- TAB CONSTRUCTION -->
+    <?php include 'partials/tab-construction.php'; ?>
 
     </div><!-- Fin tab-content -->
 
