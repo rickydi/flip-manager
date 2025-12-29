@@ -293,11 +293,8 @@ if (isset($projetId)) {
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="addFloor()">
                 <i class="bi bi-plus-lg me-1"></i>Ajouter étage
             </button>
-            <button type="button" class="btn btn-outline-info btn-sm" onclick="showShoppingList()">
-                <i class="bi bi-cart me-1"></i>Liste d'achat
-            </button>
             <button type="button" class="btn btn-outline-success btn-sm" onclick="printElectricalPlan()">
-                <i class="bi bi-printer me-1"></i>Imprimer
+                <i class="bi bi-printer me-1"></i>Imprimer plan
             </button>
         </div>
     </div>
@@ -317,6 +314,19 @@ if (isset($projetId)) {
                 <?php renderFloor($floor, $roomTemplates); ?>
             <?php endforeach; ?>
         <?php endif; ?>
+    </div>
+
+    <!-- Liste d'achat en bas -->
+    <div class="shopping-list-section mt-4" id="shoppingListSection">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0"><i class="bi bi-cart me-2"></i>Liste d'achat</h6>
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="printShoppingList()">
+                <i class="bi bi-printer me-1"></i>Imprimer liste
+            </button>
+        </div>
+        <div class="shopping-list-content" id="shoppingListContent">
+            <div class="text-muted small text-center py-3">Aucun composant</div>
+        </div>
     </div>
 </div>
 
@@ -593,6 +603,50 @@ if (isset($projetId)) {
     color: var(--primary-color);
     background: rgba(13, 110, 253, 0.05);
 }
+
+.shopping-list-section {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    background: rgba(25, 135, 84, 0.08);
+}
+
+.shopping-list-content {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.shopping-list-table {
+    width: 100%;
+    font-size: 0.85rem;
+}
+
+.shopping-list-table th {
+    border-bottom: 2px solid var(--border-color);
+    padding: 0.5rem;
+    font-weight: 600;
+}
+
+.shopping-list-table td {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.shopping-list-table tr:last-child td {
+    border-bottom: none;
+}
+
+.shopping-list-table .qty-cell {
+    text-align: center;
+    width: 60px;
+}
+
+.shopping-list-total {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 2px solid var(--border-color);
+    font-weight: 600;
+}
 </style>
 
 <script>
@@ -775,6 +829,7 @@ function deleteComponent(componentId) {
     .then(data => {
         if (data.success) {
             document.querySelector(`[data-component-id="${componentId}"]`)?.remove();
+            updateShoppingList();
         }
     });
 }
@@ -809,6 +864,7 @@ function updateComponentQty(componentId, delta) {
         if (data.success) {
             qtyEl.dataset.qty = newQty;
             qtyEl.textContent = newQty;
+            updateShoppingList();
         }
     });
 }
@@ -837,59 +893,32 @@ function getShoppingList() {
     return Object.values(items).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function showShoppingList() {
+function updateShoppingList() {
     const items = getShoppingList();
+    const container = document.getElementById('shoppingListContent');
 
     if (items.length === 0) {
-        alert('Aucun composant dans le plan');
+        container.innerHTML = '<div class="text-muted small text-center py-3">Aucun composant</div>';
         return;
     }
 
-    let html = '<div class="shopping-list-modal">';
-    html += '<h5 class="mb-3"><i class="bi bi-cart me-2"></i>Liste d\'achat</h5>';
-    html += '<table class="table table-sm table-striped">';
-    html += '<thead><tr><th>Composant</th><th class="text-center" style="width:80px">Qté</th></tr></thead>';
+    let html = '<table class="shopping-list-table">';
+    html += '<thead><tr><th>Composant</th><th class="qty-cell">Qté</th></tr></thead>';
     html += '<tbody>';
 
     items.forEach(item => {
         const displayName = item.wattage ? `${item.name} (${item.wattage})` : item.name;
-        html += `<tr><td>${displayName}</td><td class="text-center"><strong>${item.qty}</strong></td></tr>`;
+        html += `<tr><td>${displayName}</td><td class="qty-cell"><strong>${item.qty}</strong></td></tr>`;
     });
 
     html += '</tbody></table>';
-    html += `<div class="text-muted small">Total: ${items.reduce((sum, i) => sum + i.qty, 0)} items</div>`;
-    html += '</div>';
+    html += `<div class="shopping-list-total">Total: ${items.reduce((sum, i) => sum + i.qty, 0)} items</div>`;
 
-    // Créer modal dynamique
-    const modalId = 'shoppingListModal';
-    let modal = document.getElementById(modalId);
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = modalId;
-        modal.className = 'modal fade';
-        modal.innerHTML = `
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Liste d'achat</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body" id="shoppingListContent"></div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                        <button type="button" class="btn btn-success" onclick="printShoppingList()">
-                            <i class="bi bi-printer me-1"></i>Imprimer
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    }
-
-    document.getElementById('shoppingListContent').innerHTML = html;
-    new bootstrap.Modal(modal).show();
+    container.innerHTML = html;
 }
+
+// Mettre à jour la liste au chargement
+document.addEventListener('DOMContentLoaded', updateShoppingList);
 
 function printShoppingList() {
     const items = getShoppingList();
