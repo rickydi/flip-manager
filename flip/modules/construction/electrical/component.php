@@ -293,8 +293,8 @@ if (isset($projetId)) {
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="addFloor()">
                 <i class="bi bi-plus-lg me-1"></i>Ajouter étage
             </button>
-            <button type="button" class="btn btn-outline-success btn-sm" onclick="exportElectricalPlan()">
-                <i class="bi bi-download me-1"></i>Exporter
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="printElectricalPlan()">
+                <i class="bi bi-printer me-1"></i>Imprimer
             </button>
         </div>
     </div>
@@ -761,38 +761,80 @@ function deleteComponent(componentId) {
     });
 }
 
-function exportElectricalPlan() {
-    // Générer le texte formaté
-    let text = 'Détail Électrique\n';
-    text += '=================\n\n';
+function printElectricalPlan() {
+    // Générer le HTML pour impression
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Plan Électrique</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+            h1 { font-size: 18px; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+            .date { font-size: 10px; color: #666; margin-bottom: 15px; }
+            .floor { margin-bottom: 20px; page-break-inside: avoid; }
+            .floor-title { font-size: 14px; font-weight: bold; background: #e0e0e0; padding: 5px 10px; margin-bottom: 10px; }
+            .room { margin-bottom: 15px; margin-left: 10px; page-break-inside: avoid; }
+            .room-title { font-size: 12px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 3px; margin-bottom: 8px; }
+            .component { display: flex; align-items: center; padding: 4px 0; border-bottom: 1px dotted #ddd; }
+            .component:last-child { border-bottom: none; }
+            .checkbox { width: 14px; height: 14px; border: 1px solid #333; margin-right: 10px; flex-shrink: 0; }
+            .comp-name { flex: 1; }
+            .comp-details { font-size: 11px; color: #666; margin-left: 10px; }
+            @media print {
+                body { padding: 10px; }
+                .floor { page-break-inside: avoid; }
+                .room { page-break-inside: avoid; }
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Plan Électrique Détaillé</h1>
+        <div class="date">Généré le ${new Date().toLocaleDateString('fr-CA')} à ${new Date().toLocaleTimeString('fr-CA')}</div>
+    `;
 
     document.querySelectorAll('.floor-card').forEach(floor => {
-        const floorName = floor.querySelector('.floor-header h6').textContent;
-        text += floorName + '\n';
-        text += '-'.repeat(floorName.length) + '\n\n';
+        const floorName = floor.querySelector('.floor-header h6').textContent.trim();
+        html += `<div class="floor"><div class="floor-title">${floorName}</div>`;
 
         floor.querySelectorAll('.room-card').forEach(room => {
-            const roomName = room.querySelector('.room-header h6').textContent;
-            text += roomName + '\n\n';
+            const roomName = room.querySelector('.room-header h6').textContent.trim();
+            html += `<div class="room"><div class="room-title">${roomName}</div>`;
 
             room.querySelectorAll('.component-item').forEach(comp => {
                 const name = comp.querySelector('.component-name').textContent.trim();
-                const qty = comp.querySelector('.component-qty')?.textContent || '';
-                const wattage = comp.querySelector('.component-wattage')?.textContent || '';
-                text += '• ' + name;
-                if (qty) text += ' ' + qty;
-                if (wattage) text += ' ' + wattage;
-                text += '\n';
+                const qtyEl = comp.querySelector('.component-qty');
+                const wattageEl = comp.querySelector('.component-wattage');
+                const qty = qtyEl ? qtyEl.textContent.trim() : '';
+                const wattage = wattageEl ? wattageEl.textContent.trim() : '';
+
+                let details = '';
+                if (qty) details += qty;
+                if (wattage) details += (details ? ' • ' : '') + wattage;
+
+                html += `<div class="component">
+                    <div class="checkbox"></div>
+                    <span class="comp-name">${name}</span>
+                    ${details ? `<span class="comp-details">${details}</span>` : ''}
+                </div>`;
             });
-            text += '\n';
+
+            html += `</div>`;
         });
-        text += '\n';
+
+        html += `</div>`;
     });
 
-    // Copier dans le presse-papiers
-    navigator.clipboard.writeText(text).then(() => {
-        alert('Plan copié dans le presse-papiers!');
-    });
+    html += `</body></html>`;
+
+    // Ouvrir dans une nouvelle fenêtre et imprimer
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = function() {
+        printWindow.print();
+    };
 }
 </script>
 
