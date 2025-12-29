@@ -24,12 +24,13 @@
 .catalogue-item {
     display: flex;
     align-items: center;
-    padding: 2px 8px;
+    padding: 4px 8px;
     border-radius: 4px;
     cursor: grab;
     gap: 0.5em;
     color: var(--text-primary);
     font-size: 0.85rem;
+    min-height: 32px;
 }
 
 .catalogue-item:hover {
@@ -154,11 +155,12 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 .panier-item {
     display: flex;
     align-items: center;
-    padding: 2px 8px;
+    padding: 4px 8px;
     border-radius: 4px;
     gap: 0.5em;
     color: var(--text-primary);
     font-size: 0.85rem;
+    min-height: 32px;
 }
 
 .panier-item:hover {
