@@ -307,6 +307,8 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 .catalogue-item.is-section-header,
 .panier-section-header {
     font-size: 0.85rem;
+    min-height: 32px;
+    padding: 4px 8px !important;
 }
 
 .catalogue-item.is-section-header .item-nom,
