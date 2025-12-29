@@ -293,6 +293,9 @@ if (isset($projetId)) {
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="addFloor()">
                 <i class="bi bi-plus-lg me-1"></i>Ajouter étage
             </button>
+            <button type="button" class="btn btn-outline-info btn-sm" onclick="showShoppingList()">
+                <i class="bi bi-cart me-1"></i>Liste d'achat
+            </button>
             <button type="button" class="btn btn-outline-success btn-sm" onclick="printElectricalPlan()">
                 <i class="bi bi-printer me-1"></i>Imprimer
             </button>
@@ -559,6 +562,21 @@ if (isset($projetId)) {
     color: var(--text-muted);
 }
 
+.qty-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.qty-controls .btn {
+    line-height: 1;
+}
+
+.qty-controls .component-qty {
+    min-width: 24px;
+    text-align: center;
+}
+
 .add-room-btn {
     border: 2px dashed var(--border-color);
     border-radius: 6px;
@@ -761,6 +779,179 @@ function deleteComponent(componentId) {
     });
 }
 
+function updateComponentQty(componentId, delta) {
+    const qtyEl = document.querySelector(`[data-component-id="${componentId}"] .component-qty`);
+    if (!qtyEl) return;
+
+    let currentQty = parseInt(qtyEl.dataset.qty) || 1;
+    let newQty = currentQty + delta;
+
+    if (newQty < 1) {
+        // Supprimer si quantité tombe à 0
+        if (confirm('Supprimer ce composant?')) {
+            deleteComponent(componentId);
+        }
+        return;
+    }
+
+    fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            action: 'update_component',
+            component_id: componentId,
+            field: 'quantite',
+            value: newQty
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            qtyEl.dataset.qty = newQty;
+            qtyEl.textContent = newQty;
+        }
+    });
+}
+
+function getShoppingList() {
+    const items = {};
+
+    document.querySelectorAll('.component-item').forEach(comp => {
+        const name = comp.querySelector('.component-name').textContent.trim();
+        const qtyEl = comp.querySelector('.component-qty');
+        const qty = parseInt(qtyEl?.dataset.qty || qtyEl?.textContent) || 1;
+        const wattageEl = comp.querySelector('.component-wattage');
+        const wattage = wattageEl ? wattageEl.textContent.trim() : '';
+
+        // Clé unique: nom + wattage
+        const key = wattage ? `${name}|${wattage}` : name;
+
+        if (items[key]) {
+            items[key].qty += qty;
+        } else {
+            items[key] = { name, qty, wattage };
+        }
+    });
+
+    // Convertir en array et trier par nom
+    return Object.values(items).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function showShoppingList() {
+    const items = getShoppingList();
+
+    if (items.length === 0) {
+        alert('Aucun composant dans le plan');
+        return;
+    }
+
+    let html = '<div class="shopping-list-modal">';
+    html += '<h5 class="mb-3"><i class="bi bi-cart me-2"></i>Liste d\'achat</h5>';
+    html += '<table class="table table-sm table-striped">';
+    html += '<thead><tr><th>Composant</th><th class="text-center" style="width:80px">Qté</th></tr></thead>';
+    html += '<tbody>';
+
+    items.forEach(item => {
+        const displayName = item.wattage ? `${item.name} (${item.wattage})` : item.name;
+        html += `<tr><td>${displayName}</td><td class="text-center"><strong>${item.qty}</strong></td></tr>`;
+    });
+
+    html += '</tbody></table>';
+    html += `<div class="text-muted small">Total: ${items.reduce((sum, i) => sum + i.qty, 0)} items</div>`;
+    html += '</div>';
+
+    // Créer modal dynamique
+    const modalId = 'shoppingListModal';
+    let modal = document.getElementById(modalId);
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = modalId;
+        modal.className = 'modal fade';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Liste d'achat</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="shoppingListContent"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                        <button type="button" class="btn btn-success" onclick="printShoppingList()">
+                            <i class="bi bi-printer me-1"></i>Imprimer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.getElementById('shoppingListContent').innerHTML = html;
+    new bootstrap.Modal(modal).show();
+}
+
+function printShoppingList() {
+    const items = getShoppingList();
+
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Liste d'achat - Électrique</title>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+            h1 { font-size: 18px; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+            .date { font-size: 10px; color: #666; margin-bottom: 15px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+            th { background: #e0e0e0; }
+            .qty { text-align: center; width: 60px; }
+            .checkbox { width: 30px; text-align: center; }
+            .checkbox-box { display: inline-block; width: 14px; height: 14px; border: 1px solid #333; }
+            .total { margin-top: 15px; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <h1>Liste d'achat - Matériel Électrique</h1>
+        <div class="date">Généré le ${new Date().toLocaleDateString('fr-CA')} à ${new Date().toLocaleTimeString('fr-CA')}</div>
+        <table>
+            <thead>
+                <tr>
+                    <th class="checkbox">✓</th>
+                    <th>Composant</th>
+                    <th class="qty">Qté</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    items.forEach(item => {
+        const displayName = item.wattage ? `${item.name} (${item.wattage})` : item.name;
+        html += `<tr>
+            <td class="checkbox"><div class="checkbox-box"></div></td>
+            <td>${displayName}</td>
+            <td class="qty">${item.qty}</td>
+        </tr>`;
+    });
+
+    html += `
+            </tbody>
+        </table>
+        <div class="total">Total: ${items.reduce((sum, i) => sum + i.qty, 0)} items</div>
+    </body>
+    </html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.onload = function() {
+        printWindow.print();
+    };
+}
+
 function printElectricalPlan() {
     // Générer le HTML pour impression
     let html = `
@@ -893,9 +1084,15 @@ function renderRoom($room) {
             <div class="component-item" data-component-id="<?= $comp['id'] ?>">
                 <span class="component-name"><?= e($comp['nom']) ?></span>
                 <span class="component-details">
-                    <?php if ($comp['quantite'] > 1): ?>
-                        <span class="component-qty badge bg-secondary"><?= $comp['quantite'] ?>x</span>
-                    <?php endif; ?>
+                    <span class="qty-controls">
+                        <button type="button" class="btn btn-link btn-sm p-0" onclick="updateComponentQty(<?= $comp['id'] ?>, -1)">
+                            <i class="bi bi-dash-circle text-secondary"></i>
+                        </button>
+                        <span class="component-qty badge bg-secondary" data-qty="<?= $comp['quantite'] ?>"><?= $comp['quantite'] ?></span>
+                        <button type="button" class="btn btn-link btn-sm p-0" onclick="updateComponentQty(<?= $comp['id'] ?>, 1)">
+                            <i class="bi bi-plus-circle text-secondary"></i>
+                        </button>
+                    </span>
                     <?php if ($comp['wattage']): ?>
                         <span class="component-wattage badge bg-warning text-dark"><?= e($comp['wattage']) ?></span>
                     <?php endif; ?>
