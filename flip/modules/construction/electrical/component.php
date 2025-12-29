@@ -355,16 +355,12 @@ if (isset($projetId)) {
             <div class="modal-body">
                 <input type="hidden" id="room-floor-id">
                 <div class="mb-3">
-                    <label class="form-label">Nom de la pièce</label>
-                    <input type="text" class="form-control" id="room-name" placeholder="Ex: Chambre principale">
-                </div>
-                <div class="mb-3">
                     <label class="form-label">Type (template)</label>
                     <div class="row g-2">
                         <?php foreach ($roomTemplates as $key => $template): ?>
                         <div class="col-6 col-md-4">
                             <div class="form-check">
-                                <input class="form-check-input" type="radio" name="room-type" id="room-type-<?= $key ?>" value="<?= $key ?>">
+                                <input class="form-check-input" type="radio" name="room-type" id="room-type-<?= $key ?>" value="<?= $key ?>" onchange="updateRoomNamePlaceholder()">
                                 <label class="form-check-label" for="room-type-<?= $key ?>">
                                     <i class="bi <?= $template['icon'] ?> me-1"></i><?= $template['label'] ?>
                                 </label>
@@ -372,6 +368,10 @@ if (isset($projetId)) {
                         </div>
                         <?php endforeach; ?>
                     </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nom personnalisé <small class="text-muted">(optionnel)</small></label>
+                    <input type="text" class="form-control" id="room-name" placeholder="Auto: Chambre 1, Chambre 2...">
                 </div>
             </div>
             <div class="modal-footer">
@@ -384,7 +384,7 @@ if (isset($projetId)) {
 
 <!-- Modal Ajouter Composant -->
 <div class="modal fade" id="addComponentModal" tabindex="-1">
-    <div class="modal-dialog modal-sm">
+    <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Ajouter composant</h5>
@@ -393,7 +393,61 @@ if (isset($projetId)) {
             <div class="modal-body">
                 <input type="hidden" id="component-room-id">
                 <div class="mb-3">
-                    <label class="form-label">Nom</label>
+                    <label class="form-label">Sélection rapide</label>
+                    <select class="form-select" id="component-preset" onchange="applyComponentPreset()">
+                        <option value="">-- Choisir un composant --</option>
+                        <optgroup label="Prises">
+                            <option value="Prise murale|1|">Prise murale</option>
+                            <option value="Prise GFI|1|">Prise GFI</option>
+                            <option value="Prise ext GFI|1|">Prise ext GFI</option>
+                            <option value="Prise vanité|1|">Prise vanité</option>
+                            <option value="Prise ventilateur|1|">Prise ventilateur</option>
+                            <option value="Prise lave-vaisselle|1|">Prise lave-vaisselle</option>
+                            <option value="Prise frigo|1|">Prise frigo</option>
+                            <option value="Prise four encastré|1|">Prise four encastré</option>
+                            <option value="Prise plaque de cuisson|1|">Prise plaque de cuisson</option>
+                            <option value="Prise sécheuse|1|">Prise sécheuse</option>
+                            <option value="Prise laveuse|1|">Prise laveuse</option>
+                            <option value="Prise aspirateur central|1|">Prise aspirateur central</option>
+                        </optgroup>
+                        <optgroup label="Lumières">
+                            <option value="Lumière au plafond plafonnier|1|">Plafonnier</option>
+                            <option value="Puck light|1|">Puck light</option>
+                            <option value="Lumière garde-robe|1|">Lumière garde-robe</option>
+                            <option value="Lumière entrée|1|">Lumière entrée</option>
+                            <option value="LED sous cabinet|1|">LED sous cabinet</option>
+                            <option value="Lumière ext|1|">Lumière ext</option>
+                        </optgroup>
+                        <optgroup label="Interrupteurs">
+                            <option value="Interrupteur plafonnier|1|">Interrupteur plafonnier</option>
+                            <option value="Interrupteur puck light|1|">Interrupteur puck light</option>
+                            <option value="Interrupteur garde-robe|1|">Interrupteur garde-robe</option>
+                            <option value="Interrupteur LED carré|1|">Interrupteur LED carré</option>
+                            <option value="Interrupteur lumière îlot|1|">Interrupteur lumière îlot</option>
+                            <option value="Interrupteur lumière table|1|">Interrupteur lumière table</option>
+                            <option value="Interrupteur lumière ext|1|">Interrupteur lumière ext</option>
+                            <option value="Interrupteur lumière intime et miroir|1|">Interrupteur lumière/miroir</option>
+                        </optgroup>
+                        <optgroup label="Chauffage">
+                            <option value="Thermostat|1|2000w">Thermostat 2000w</option>
+                            <option value="Thermostat|1|500w">Thermostat 500w</option>
+                            <option value="Thermostat plancher|1|">Thermostat plancher</option>
+                            <option value="Plinthe chauffante|1|2000w">Plinthe 2000w</option>
+                            <option value="Plinthe chauffante|1|1500w">Plinthe 1500w</option>
+                            <option value="Plinthe chauffante|1|750w">Plinthe 750w</option>
+                            <option value="Plinthe chauffante|1|500w">Plinthe 500w</option>
+                            <option value="Plancher chauffant 240v|1|">Plancher chauffant 240v</option>
+                        </optgroup>
+                        <optgroup label="Autres">
+                            <option value="Transfo LED sous armoire|1|">Transfo LED sous armoire</option>
+                            <option value="Prise transfo LED détecteur mouvement|1|">Transfo LED détecteur mouvement</option>
+                            <option value="Réservoir eau chaude|1|">Réservoir eau chaude</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <hr class="my-2">
+                <div class="mb-3">
+                    <label class="form-label">Nom <small class="text-muted">(ou personnalisé)</small></label>
                     <input type="text" class="form-control" id="component-name" placeholder="Ex: Prise murale">
                 </div>
                 <div class="row">
@@ -569,16 +623,18 @@ function addRoom(floorId) {
     new bootstrap.Modal(document.getElementById('addRoomModal')).show();
 }
 
+function updateRoomNamePlaceholder() {
+    const type = document.querySelector('input[name="room-type"]:checked')?.value;
+    const label = ROOM_TEMPLATES[type]?.label || 'Pièce';
+    document.getElementById('room-name').placeholder = `Auto: ${label} 1, ${label} 2...`;
+}
+
 function saveRoom() {
     const floorId = document.getElementById('room-floor-id').value;
     const nom = document.getElementById('room-name').value.trim();
     const type = document.querySelector('input[name="room-type"]:checked')?.value || 'custom';
 
-    if (!nom) {
-        alert('Veuillez entrer un nom');
-        return;
-    }
-
+    // Nom optionnel - sera généré automatiquement côté serveur
     fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -601,10 +657,21 @@ function saveRoom() {
 
 function addComponent(roomId) {
     document.getElementById('component-room-id').value = roomId;
+    document.getElementById('component-preset').value = '';
     document.getElementById('component-name').value = '';
     document.getElementById('component-qty').value = 1;
     document.getElementById('component-wattage').value = '';
     new bootstrap.Modal(document.getElementById('addComponentModal')).show();
+}
+
+function applyComponentPreset() {
+    const preset = document.getElementById('component-preset').value;
+    if (!preset) return;
+
+    const [nom, qty, wattage] = preset.split('|');
+    document.getElementById('component-name').value = nom || '';
+    document.getElementById('component-qty').value = qty || 1;
+    document.getElementById('component-wattage').value = wattage || '';
 }
 
 function saveComponent() {

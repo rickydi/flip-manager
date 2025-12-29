@@ -175,9 +175,42 @@ try {
             $nom = trim($input['nom'] ?? '');
             $type = $input['type'] ?? 'custom';
 
-            if (!$floorId || !$nom) {
+            if (!$floorId) {
                 echo json_encode(['success' => false, 'error' => 'Données manquantes']);
                 exit;
+            }
+
+            // Labels pour les types de pièces
+            $typeLabels = [
+                'chambre' => 'Chambre',
+                'chambre_garde_robe' => 'Chambre',
+                'sdb' => 'Salle de bain',
+                'sdb_plinthe' => 'Salle de bain',
+                'cuisine' => 'Cuisine',
+                'salon' => 'Salon',
+                'couloir' => 'Couloir',
+                'escalier' => 'Escalier',
+                'buanderie' => 'Buanderie',
+                'bureau' => 'Bureau',
+                'sejour' => 'Salle de séjour',
+                'custom' => 'Pièce'
+            ];
+
+            // Auto-générer le nom si vide
+            if (empty($nom)) {
+                $label = $typeLabels[$type] ?? 'Pièce';
+                // Compter les pièces existantes avec ce type dans tout le plan
+                $stmt = $pdo->prepare("
+                    SELECT COUNT(*) as cnt FROM electrical_rooms r
+                    INNER JOIN electrical_floors f ON r.floor_id = f.id
+                    WHERE f.plan_id = (SELECT plan_id FROM electrical_floors WHERE id = ?)
+                    AND r.type LIKE ?
+                ");
+                $typePattern = ($type === 'chambre' || $type === 'chambre_garde_robe') ? 'chambre%' :
+                              (($type === 'sdb' || $type === 'sdb_plinthe') ? 'sdb%' : $type);
+                $stmt->execute([$floorId, $typePattern]);
+                $count = (int)$stmt->fetch()['cnt'] + 1;
+                $nom = $label . ' ' . $count;
             }
 
             // Ajouter la pièce
