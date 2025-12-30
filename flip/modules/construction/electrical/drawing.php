@@ -500,9 +500,10 @@ if (empty($circuits)) {
 </style>
 
 <script>
-const PROJET_ID = <?= $projetId ?? 'null' ?>;
-const DRAWING_ID = <?= $drawing ? $drawing['id'] : 'null' ?>;
-const SAVED_CANVAS = <?= $drawing && $drawing['canvas_data'] ? $drawing['canvas_data'] : 'null' ?>;
+// Variables pour le module dessin (éviter conflits avec component.php)
+var DRAW_PROJET_ID = <?= $projetId ?? 'null' ?>;
+var DRAW_DRAWING_ID = <?= $drawing ? $drawing['id'] : 'null' ?>;
+var DRAW_SAVED_CANVAS = <?= $drawing && $drawing['canvas_data'] ? $drawing['canvas_data'] : 'null' ?>;
 
 let canvas;
 let currentTool = 'select';
@@ -577,8 +578,8 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!canvasInitialized) {
                 setTimeout(() => {
                     initCanvas();
-                    if (SAVED_CANVAS) {
-                        loadCanvasData(SAVED_CANVAS);
+                    if (DRAW_SAVED_CANVAS) {
+                        loadCanvasData(DRAW_SAVED_CANVAS);
                     }
                     canvasInitialized = true;
                 }, 100);
@@ -592,8 +593,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const drawingContent = document.getElementById('drawing-content');
     if (drawingContent && drawingContent.classList.contains('active')) {
         initCanvas();
-        if (SAVED_CANVAS) {
-            loadCanvasData(SAVED_CANVAS);
+        if (DRAW_SAVED_CANVAS) {
+            loadCanvasData(DRAW_SAVED_CANVAS);
         }
         canvasInitialized = true;
     }
@@ -717,8 +718,10 @@ function initTools() {
             this.classList.add('active');
             currentTool = this.dataset.tool;
 
-            canvas.isDrawingMode = false;
-            canvas.selection = currentTool === 'select';
+            if (canvas) {
+                canvas.isDrawingMode = false;
+                canvas.selection = currentTool === 'select';
+            }
 
             updateStatus();
         });
@@ -733,6 +736,7 @@ function initDragDrop() {
     });
 
     const canvasEl = document.querySelector('.canvas-container');
+    if (!canvasEl) return;
 
     canvasEl.addEventListener('dragover', function(e) {
         e.preventDefault();
@@ -740,6 +744,8 @@ function initDragDrop() {
 
     canvasEl.addEventListener('drop', function(e) {
         e.preventDefault();
+        if (!canvas) return;
+
         const symbol = e.dataTransfer.getData('symbol');
         if (!symbol) return;
 
@@ -1065,8 +1071,8 @@ function saveDrawing() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             action: 'save',
-            projet_id: PROJET_ID,
-            drawing_id: DRAWING_ID,
+            projet_id: DRAW_PROJET_ID,
+            drawing_id: DRAW_DRAWING_ID,
             canvas_data: canvasData,
             circuits: getCircuitsData()
         })
