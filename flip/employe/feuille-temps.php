@@ -409,11 +409,25 @@ include '../includes/header.php';
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label"><?= __('arrival') ?></label>
-                                    <input type="time" class="form-control time-input-clickable" id="heureDebutAdd" value="07:00" step="900">
+                                    <select class="form-select" id="heureDebutAdd">
+                                        <?php for ($h = 5; $h <= 12; $h++): ?>
+                                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 7 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                                            <option value="<?= sprintf('%02d:15', $h) ?>"><?= sprintf('%02d:15', $h) ?></option>
+                                            <option value="<?= sprintf('%02d:30', $h) ?>"><?= sprintf('%02d:30', $h) ?></option>
+                                            <option value="<?= sprintf('%02d:45', $h) ?>"><?= sprintf('%02d:45', $h) ?></option>
+                                        <?php endfor; ?>
+                                    </select>
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label"><?= __('departure') ?></label>
-                                    <input type="time" class="form-control time-input-clickable" id="heureFinAdd" value="16:00" step="900">
+                                    <select class="form-select" id="heureFinAdd">
+                                        <?php for ($h = 12; $h <= 22; $h++): ?>
+                                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 16 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                                            <option value="<?= sprintf('%02d:15', $h) ?>"><?= sprintf('%02d:15', $h) ?></option>
+                                            <option value="<?= sprintf('%02d:30', $h) ?>"><?= sprintf('%02d:30', $h) ?></option>
+                                            <option value="<?= sprintf('%02d:45', $h) ?>"><?= sprintf('%02d:45', $h) ?></option>
+                                        <?php endfor; ?>
+                                    </select>
                                 </div>
                             </div>
 
