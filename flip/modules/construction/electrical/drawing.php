@@ -737,14 +737,18 @@ function initToolsDrawing() {
             container.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             currentTool = this.dataset.tool;
-            selectedSymbol = null; // Désélectionner le symbole
+            selectedSymbol = null;
+
+            // Désélectionner les symboles dans la palette
+            container.querySelectorAll('.palette-item').forEach(p => p.classList.remove('selected'));
 
             if (canvas) {
                 canvas.isDrawingMode = false;
                 canvas.selection = currentTool === 'select';
+                // Activer/désactiver la sélection des objets
+                setObjectsSelectable(currentTool === 'select');
             }
 
-            // Reset le dernier point si on change d'outil
             if (currentTool !== 'wire' && currentTool !== 'wall') {
                 lastEndPoint = null;
             }
@@ -752,6 +756,17 @@ function initToolsDrawing() {
             updateStatus();
         });
     });
+}
+
+// Rendre tous les objets sélectionnables ou non
+function setObjectsSelectable(selectable) {
+    canvas.getObjects().forEach(obj => {
+        if (!obj.isGrid) {
+            obj.selectable = selectable;
+            obj.evented = selectable;
+        }
+    });
+    canvas.renderAll();
 }
 
 function initPaletteDrawing() {
@@ -866,16 +881,18 @@ function addSymbol(symbolType, x, y) {
             circuitIndex: currentCircuit,
             hasControls: true,
             hasBorders: true,
-            // Petits contrôles de redimensionnement
             cornerSize: 8,
             transparentCorners: false,
             cornerColor: '#0d6efd',
-            borderColor: '#0d6efd'
+            borderColor: '#0d6efd',
+            // Non-sélectionnable pendant le placement
+            selectable: false,
+            evented: false
         });
 
         canvas.add(group);
+        canvas.discardActiveObject();
         canvas.renderAll();
-        // Ne pas sélectionner l'objet pour permettre placement continu
     });
 }
 
@@ -1007,10 +1024,11 @@ function onMouseUp(opt) {
             stroke: '#333',
             strokeWidth: 6,
             strokeLineCap: 'round',
-            objectType: 'wall'
+            objectType: 'wall',
+            selectable: false,
+            evented: false
         });
         canvas.add(wall);
-        // Sauvegarder le point de fin pour chaîner
         lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'room') {
         const room = new fabric.Rect({
@@ -1021,12 +1039,12 @@ function onMouseUp(opt) {
             fill: 'rgba(240, 240, 240, 0.5)',
             stroke: '#333',
             strokeWidth: 4,
-            objectType: 'room'
+            objectType: 'room',
+            selectable: false,
+            evented: false
         });
         canvas.add(room);
         canvas.sendToBack(room);
-
-        // Remettre la grille en arrière
         canvas.getObjects().filter(o => o.isGrid).forEach(g => canvas.sendToBack(g));
         lastEndPoint = null;
     } else if (currentTool === 'wire') {
@@ -1035,10 +1053,11 @@ function onMouseUp(opt) {
             stroke: color,
             strokeWidth: 2,
             objectType: 'wire',
-            circuitIndex: currentCircuit
+            circuitIndex: currentCircuit,
+            selectable: false,
+            evented: false
         });
         canvas.add(wire);
-        // Sauvegarder le point de fin pour chaîner les fils
         lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'text') {
         const text = prompt('Entrez le texte:');
@@ -1048,13 +1067,16 @@ function onMouseUp(opt) {
                 top: startPoint.y,
                 fontSize: 14,
                 fill: '#333',
-                objectType: 'text'
+                objectType: 'text',
+                selectable: false,
+                evented: false
             });
             canvas.add(textObj);
         }
         lastEndPoint = null;
     }
 
+    canvas.discardActiveObject();
     canvas.renderAll();
     startPoint = null;
 }
