@@ -652,7 +652,7 @@ include '../../includes/header.php';
                                     <span class="text-muted">-</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-end fw-bold" style="background:#e8f5e9;">
+                            <td class="text-end fw-bold" style="background:#e8f5e9;color:#198754;">
                                 <?= formatMoney($employe['montant_net']) ?>
                             </td>
                         </tr>
