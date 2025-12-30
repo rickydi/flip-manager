@@ -107,7 +107,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         setFlashMessage('success', 'Heures enregistrées pour ' . $nomsAjoutes[0] . ' (' . $heures . 'h)');
                     }
                 } else {
-                    setFlashMessage('success', 'Heures enregistrées pour ' . $nbAjoutes . ' employés (' . $heures . 'h chacun)');
+                    // Afficher chaque employé séparément
+                    $listeEmployes = '<ul class="mb-0 mt-2">';
+                    foreach ($nomsAjoutes as $nom) {
+                        $listeEmployes .= '<li>' . e($nom) . ' - ' . $heures . 'h</li>';
+                    }
+                    $listeEmployes .= '</ul>';
+                    setFlashMessage('success', 'Heures enregistrées pour ' . $nbAjoutes . ' employés:' . $listeEmployes);
                 }
                 redirect('/employe/feuille-temps.php');
             }
