@@ -749,11 +749,13 @@ function initToolsDrawing() {
                     canvas.selection = true;
                     canvas.skipTargetFind = false;
                     setObjectsSelectable(true);
+                    updateEndpointVisibility(true); // Montrer les points d'extrémité
                 } else {
                     canvas.selection = false;
                     canvas.skipTargetFind = true; // Ignorer les objets sous le curseur
                     canvas.discardActiveObject();
                     setObjectsSelectable(false);
+                    updateEndpointVisibility(false); // Cacher les points d'extrémité
                 }
                 canvas.renderAll();
             }
@@ -852,15 +854,95 @@ function initCircuitsDrawing() {
     });
 }
 
+// Ajouter des contrôles aux extrémités d'une ligne
+function addEndpointControls(line) {
+    const color = line.stroke || '#333';
+
+    // Point de départ (x1, y1)
+    const startCircle = new fabric.Circle({
+        left: line.x1,
+        top: line.y1,
+        radius: 6,
+        fill: '#fff',
+        stroke: color,
+        strokeWidth: 2,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        visible: false, // Caché par défaut
+        hasControls: false,
+        hasBorders: false,
+        isEndpoint: true,
+        linkedLine: line,
+        endpointType: 'start'
+    });
+
+    // Point de fin (x2, y2)
+    const endCircle = new fabric.Circle({
+        left: line.x2,
+        top: line.y2,
+        radius: 6,
+        fill: '#fff',
+        stroke: color,
+        strokeWidth: 2,
+        originX: 'center',
+        originY: 'center',
+        selectable: false,
+        evented: false,
+        visible: false, // Caché par défaut
+        hasControls: false,
+        hasBorders: false,
+        isEndpoint: true,
+        linkedLine: line,
+        endpointType: 'end'
+    });
+
+    // Stocker les références
+    line.startCircle = startCircle;
+    line.endCircle = endCircle;
+
+    // Event: quand on déplace le cercle, mettre à jour la ligne
+    startCircle.on('moving', function() {
+        const snap = getSmartSnapPoint(this.left, this.top, this);
+        this.set({ left: snap.x, top: snap.y });
+        line.set({ x1: snap.x, y1: snap.y });
+        line.setCoords();
+        canvas.renderAll();
+    });
+
+    endCircle.on('moving', function() {
+        const snap = getSmartSnapPoint(this.left, this.top, this);
+        this.set({ left: snap.x, top: snap.y });
+        line.set({ x2: snap.x, y2: snap.y });
+        line.setCoords();
+        canvas.renderAll();
+    });
+
+    canvas.add(startCircle);
+    canvas.add(endCircle);
+}
+
+// Mettre à jour les cercles d'extrémité quand on active le mode sélection
+function updateEndpointVisibility(visible) {
+    canvas.getObjects().forEach(obj => {
+        if (obj.isEndpoint) {
+            obj.set({ visible: visible, evented: visible, selectable: visible });
+        }
+    });
+    canvas.renderAll();
+}
+
 // Trouver le point d'extrémité le plus proche pour snap
-function findNearestEndpoint(x, y) {
+function findNearestEndpoint(x, y, excludeObj) {
     if (!snapEnabled) return null;
 
     let nearest = null;
     let minDist = SNAP_THRESHOLD;
 
     canvas.getObjects().forEach(obj => {
-        if (obj.isGrid) return;
+        if (obj.isGrid || obj.isEndpoint) return; // Ignorer grille et cercles d'extrémité
+        if (excludeObj && (obj === excludeObj || obj === excludeObj.linkedLine)) return;
 
         // Pour les lignes (murs et fils)
         if (obj.type === 'line') {
@@ -921,9 +1003,9 @@ function getCircuitColor(index) {
     return item ? item.dataset.color : '#333';
 }
 
-function getSmartSnapPoint(rawX, rawY) {
+function getSmartSnapPoint(rawX, rawY, excludeObj) {
     // D'abord essayer snap aux extrémités existantes
-    const endpoint = findNearestEndpoint(rawX, rawY);
+    const endpoint = findNearestEndpoint(rawX, rawY, excludeObj);
     if (endpoint) {
         return { x: endpoint.x, y: endpoint.y, snappedTo: 'endpoint' };
     }
@@ -1046,9 +1128,13 @@ function onMouseUp(opt) {
             strokeLineCap: 'round',
             objectType: 'wall',
             selectable: false,
-            evented: false
+            evented: false,
+            hasControls: false,
+            hasBorders: false
         });
         canvas.add(wall);
+        // Ajouter les points de contrôle aux extrémités
+        addEndpointControls(wall);
         lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'room') {
         const room = new fabric.Rect({
@@ -1075,9 +1161,13 @@ function onMouseUp(opt) {
             objectType: 'wire',
             circuitIndex: currentCircuit,
             selectable: false,
-            evented: false
+            evented: false,
+            hasControls: false,
+            hasBorders: false
         });
         canvas.add(wire);
+        // Ajouter les points de contrôle aux extrémités
+        addEndpointControls(wire);
         lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'text') {
         const text = prompt('Entrez le texte:');
