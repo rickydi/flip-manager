@@ -779,8 +779,6 @@ function saveComponent() {
 }
 
 function deleteFloor(floorId) {
-    if (!confirm('Supprimer cet étage et toutes ses pièces?')) return;
-
     fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -798,8 +796,6 @@ function deleteFloor(floorId) {
 }
 
 function deleteRoom(roomId) {
-    if (!confirm('Supprimer cette pièce?')) return;
-
     fetch('<?= url('/modules/construction/electrical/ajax.php') ?>', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -842,10 +838,7 @@ function updateComponentQty(componentId, delta) {
     let newQty = currentQty + delta;
 
     if (newQty < 1) {
-        // Supprimer si quantité tombe à 0
-        if (confirm('Supprimer ce composant?')) {
-            deleteComponent(componentId);
-        }
+        deleteComponent(componentId);
         return;
     }
 
