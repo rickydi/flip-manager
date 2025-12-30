@@ -744,9 +744,18 @@ function initToolsDrawing() {
 
             if (canvas) {
                 canvas.isDrawingMode = false;
-                canvas.selection = currentTool === 'select';
-                // Activer/désactiver la sélection des objets
-                setObjectsSelectable(currentTool === 'select');
+                // En mode dessin, ignorer complètement les objets
+                if (currentTool === 'select') {
+                    canvas.selection = true;
+                    canvas.skipTargetFind = false;
+                    setObjectsSelectable(true);
+                } else {
+                    canvas.selection = false;
+                    canvas.skipTargetFind = true; // Ignorer les objets sous le curseur
+                    canvas.discardActiveObject();
+                    setObjectsSelectable(false);
+                }
+                canvas.renderAll();
             }
 
             if (currentTool !== 'wire' && currentTool !== 'wall') {
@@ -756,6 +765,12 @@ function initToolsDrawing() {
             updateStatus();
         });
     });
+
+    // Activer le mode dessin par défaut au démarrage (outil sélection actif)
+    if (canvas) {
+        canvas.selection = true;
+        canvas.skipTargetFind = false;
+    }
 }
 
 // Rendre tous les objets sélectionnables ou non
@@ -784,7 +799,12 @@ function initPaletteDrawing() {
             currentTool = 'symbol'; // Mode placement de symbole
 
             container.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
-            if (canvas) canvas.selection = false;
+            if (canvas) {
+                canvas.selection = false;
+                canvas.skipTargetFind = true; // Ignorer les objets
+                canvas.discardActiveObject();
+                canvas.renderAll();
+            }
 
             updateStatus();
         });
