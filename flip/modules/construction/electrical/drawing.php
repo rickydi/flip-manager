@@ -280,17 +280,17 @@ if (empty($circuits)) {
         </div>
 
         <!-- Canvas -->
-        <div class="canvas-container">
+        <div class="canvas-container" id="drawingCanvasContainer">
             <canvas id="electricalCanvas"></canvas>
         </div>
     </div>
 
     <!-- Barre d'info -->
     <div class="drawing-status-bar mt-2">
-        <span id="statusText">Prêt</span>
+        <span id="drawingStatusText">Prêt</span>
         <span class="float-end">
-            <span id="zoomLevel">100%</span> |
-            <span id="canvasSize"><?= $drawing ? $drawing['width'] : 1200 ?>x<?= $drawing ? $drawing['height'] : 800 ?></span>
+            <span id="drawingZoomLevel">100%</span> |
+            <span id="drawingCanvasSize"><?= $drawing ? $drawing['width'] : 1200 ?>x<?= $drawing ? $drawing['height'] : 800 ?></span>
         </span>
     </div>
 </div>
@@ -430,6 +430,12 @@ if (empty($circuits)) {
     border-color: var(--bs-primary);
 }
 
+.palette-item.selected {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: white;
+}
+
 .palette-item svg {
     width: 28px;
     height: 28px;
@@ -565,24 +571,27 @@ const SYMBOL_LABELS = {
 
 // Initialisation
 let canvasInitialized = false;
+let selectedSymbol = null; // Symbole sélectionné pour placement par clic
+let lastEndPoint = null; // Dernier point de fin pour chaîner les lignes
 
 document.addEventListener('DOMContentLoaded', function() {
-    initTools();
-    initDragDrop();
-    initCircuits();
-
     // Initialiser quand l'onglet devient visible
     const drawingTab = document.getElementById('drawing-tab');
     if (drawingTab) {
         drawingTab.addEventListener('shown.bs.tab', function() {
+            console.log('Tab Plan 2D visible');
             if (!canvasInitialized) {
                 setTimeout(() => {
                     initCanvas();
+                    initToolsDrawing();
+                    initPaletteDrawing();
+                    initCircuitsDrawing();
                     if (DRAW_SAVED_CANVAS) {
                         loadCanvasData(DRAW_SAVED_CANVAS);
                     }
                     canvasInitialized = true;
-                }, 100);
+                    console.log('Canvas initialisé');
+                }, 150);
             } else {
                 resizeCanvas();
             }
@@ -591,17 +600,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Si l'onglet est déjà visible, initialiser directement
     const drawingContent = document.getElementById('drawing-content');
-    if (drawingContent && drawingContent.classList.contains('active')) {
-        initCanvas();
-        if (DRAW_SAVED_CANVAS) {
-            loadCanvasData(DRAW_SAVED_CANVAS);
-        }
-        canvasInitialized = true;
+    if (drawingContent && drawingContent.classList.contains('show')) {
+        setTimeout(() => {
+            initCanvas();
+            initToolsDrawing();
+            initPaletteDrawing();
+            initCircuitsDrawing();
+            if (DRAW_SAVED_CANVAS) {
+                loadCanvasData(DRAW_SAVED_CANVAS);
+            }
+            canvasInitialized = true;
+        }, 150);
     }
 });
 
 function initCanvas() {
-    const container = document.querySelector('.canvas-container');
+    const container = document.getElementById('drawingCanvasContainer');
+    if (!container) {
+        console.error('Container canvas non trouvé');
+        return;
+    }
+
     const CANVAS_WIDTH = <?= $drawing ? $drawing['width'] : 1200 ?>;
     const CANVAS_HEIGHT = <?= $drawing ? $drawing['height'] : 800 ?>;
 
@@ -619,12 +638,7 @@ function initCanvas() {
     // Dessiner la grille
     drawGrid();
 
-    // Events
-    canvas.on('object:modified', saveState);
-    canvas.on('object:added', function(e) {
-        if (!e.target.isGrid) saveState();
-    });
-
+    // Events souris
     canvas.on('mouse:down', onMouseDown);
     canvas.on('mouse:move', onMouseMove);
     canvas.on('mouse:up', onMouseUp);
@@ -632,6 +646,8 @@ function initCanvas() {
     // Resize après initialisation
     setTimeout(() => resizeCanvas(), 50);
     window.addEventListener('resize', resizeCanvas);
+
+    console.log('Canvas Fabric.js créé:', canvas);
 }
 
 function drawGrid() {
@@ -692,7 +708,7 @@ function snapToGrid(value) {
 function resizeCanvas() {
     if (!canvas) return;
 
-    const container = document.querySelector('.canvas-container');
+    const container = document.getElementById('drawingCanvasContainer');
     if (!container || container.clientWidth === 0) return;
 
     const canvasWidth = window.CANVAS_ORIGINAL_WIDTH || 1200;
@@ -711,16 +727,26 @@ function resizeCanvas() {
     updateZoomDisplay();
 }
 
-function initTools() {
-    document.querySelectorAll('[data-tool]').forEach(btn => {
+function initToolsDrawing() {
+    // Boutons d'outils dans la toolbar du dessin
+    const container = document.querySelector('.electrical-drawing-container');
+    if (!container) return;
+
+    container.querySelectorAll('[data-tool]').forEach(btn => {
         btn.addEventListener('click', function() {
-            document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+            container.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             currentTool = this.dataset.tool;
+            selectedSymbol = null; // Désélectionner le symbole
 
             if (canvas) {
                 canvas.isDrawingMode = false;
                 canvas.selection = currentTool === 'select';
+            }
+
+            // Reset le dernier point si on change d'outil
+            if (currentTool !== 'wire' && currentTool !== 'wall') {
+                lastEndPoint = null;
             }
 
             updateStatus();
@@ -728,14 +754,34 @@ function initTools() {
     });
 }
 
-function initDragDrop() {
-    document.querySelectorAll('.palette-item').forEach(item => {
+function initPaletteDrawing() {
+    const container = document.querySelector('.electrical-drawing-container');
+    if (!container) return;
+
+    // Clic sur un symbole pour le sélectionner
+    container.querySelectorAll('.palette-item').forEach(item => {
+        // Clic pour sélectionner le symbole
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            container.querySelectorAll('.palette-item').forEach(p => p.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedSymbol = this.dataset.symbol;
+            currentTool = 'symbol'; // Mode placement de symbole
+
+            container.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
+            if (canvas) canvas.selection = false;
+
+            updateStatus();
+        });
+
+        // Drag & drop aussi
         item.addEventListener('dragstart', function(e) {
             e.dataTransfer.setData('symbol', this.dataset.symbol);
         });
     });
 
-    const canvasEl = document.querySelector('.canvas-container');
+    // Drop sur le canvas
+    const canvasEl = document.getElementById('drawingCanvasContainer');
     if (!canvasEl) return;
 
     canvasEl.addEventListener('dragover', function(e) {
@@ -758,14 +804,46 @@ function initDragDrop() {
     });
 }
 
-function initCircuits() {
-    document.querySelectorAll('.circuit-item').forEach((item, index) => {
+function initCircuitsDrawing() {
+    const container = document.querySelector('.electrical-drawing-container');
+    if (!container) return;
+
+    container.querySelectorAll('.circuit-item').forEach((item, index) => {
         item.addEventListener('click', function() {
-            document.querySelectorAll('.circuit-item').forEach(i => i.classList.remove('active'));
+            container.querySelectorAll('.circuit-item').forEach(i => i.classList.remove('active'));
             this.classList.add('active');
             currentCircuit = index;
         });
     });
+}
+
+// Trouver le point d'extrémité le plus proche pour snap
+function findNearestEndpoint(x, y) {
+    if (!snapEnabled) return null;
+
+    let nearest = null;
+    let minDist = SNAP_THRESHOLD;
+
+    canvas.getObjects().forEach(obj => {
+        if (obj.isGrid) return;
+
+        // Pour les lignes (murs et fils)
+        if (obj.type === 'line') {
+            const points = [
+                { x: obj.x1, y: obj.y1 },
+                { x: obj.x2, y: obj.y2 }
+            ];
+            points.forEach(p => {
+                const dist = Math.sqrt(Math.pow(x - p.x, 2) + Math.pow(y - p.y, 2));
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = p;
+                }
+            });
+        }
+    });
+
+    return nearest;
 }
 
 function addSymbol(symbolType, x, y) {
@@ -815,23 +893,48 @@ function getCircuitColor(index) {
     return item ? item.dataset.color : '#333';
 }
 
+function getSmartSnapPoint(rawX, rawY) {
+    // D'abord essayer snap aux extrémités existantes
+    const endpoint = findNearestEndpoint(rawX, rawY);
+    if (endpoint) {
+        return { x: endpoint.x, y: endpoint.y, snappedTo: 'endpoint' };
+    }
+    // Sinon snap à la grille
+    return { x: snapToGrid(rawX), y: snapToGrid(rawY), snappedTo: 'grid' };
+}
+
 function onMouseDown(opt) {
+    const pointer = canvas.getPointer(opt.e);
+
+    // Mode placement de symbole par clic
+    if (currentTool === 'symbol' && selectedSymbol) {
+        const snap = getSmartSnapPoint(pointer.x, pointer.y);
+        addSymbol(selectedSymbol, snap.x, snap.y);
+        return;
+    }
+
     if (currentTool === 'select') return;
 
-    const pointer = canvas.getPointer(opt.e);
-    startPoint = {
-        x: snapToGrid(pointer.x),
-        y: snapToGrid(pointer.y)
-    };
+    // Pour les outils de dessin, utiliser le dernier point si disponible
+    let snapPoint = getSmartSnapPoint(pointer.x, pointer.y);
+
+    // Si on a un lastEndPoint et qu'on dessine une ligne, l'utiliser comme départ
+    if (lastEndPoint && (currentTool === 'wire' || currentTool === 'wall')) {
+        startPoint = { x: lastEndPoint.x, y: lastEndPoint.y };
+    } else {
+        startPoint = { x: snapPoint.x, y: snapPoint.y };
+    }
+
     isDrawing = true;
 }
 
 function onMouseMove(opt) {
-    if (!isDrawing || currentTool === 'select') return;
+    if (!isDrawing || currentTool === 'select' || currentTool === 'symbol') return;
 
     const pointer = canvas.getPointer(opt.e);
-    const x = snapToGrid(pointer.x);
-    const y = snapToGrid(pointer.y);
+    const snap = getSmartSnapPoint(pointer.x, pointer.y);
+    const x = snap.x;
+    const y = snap.y;
 
     // Supprimer l'objet temporaire
     if (canvas.tempObject) {
@@ -844,7 +947,8 @@ function onMouseMove(opt) {
         tempObj = new fabric.Line([startPoint.x, startPoint.y, x, y], {
             stroke: '#333',
             strokeWidth: 6,
-            selectable: false
+            selectable: false,
+            evented: false
         });
     } else if (currentTool === 'room') {
         tempObj = new fabric.Rect({
@@ -855,7 +959,8 @@ function onMouseMove(opt) {
             fill: 'rgba(200, 200, 200, 0.3)',
             stroke: '#333',
             strokeWidth: 4,
-            selectable: false
+            selectable: false,
+            evented: false
         });
     } else if (currentTool === 'wire') {
         const color = getCircuitColor(currentCircuit);
@@ -863,7 +968,8 @@ function onMouseMove(opt) {
             stroke: color,
             strokeWidth: 2,
             strokeDashArray: [5, 3],
-            selectable: false
+            selectable: false,
+            evented: false
         });
     }
 
@@ -875,16 +981,24 @@ function onMouseMove(opt) {
 }
 
 function onMouseUp(opt) {
-    if (!isDrawing || currentTool === 'select') return;
+    if (!isDrawing || currentTool === 'select' || currentTool === 'symbol') return;
     isDrawing = false;
 
     if (canvas.tempObject) {
         canvas.remove(canvas.tempObject);
+        canvas.tempObject = null;
     }
 
     const pointer = canvas.getPointer(opt.e);
-    const x = snapToGrid(pointer.x);
-    const y = snapToGrid(pointer.y);
+    const snap = getSmartSnapPoint(pointer.x, pointer.y);
+    const x = snap.x;
+    const y = snap.y;
+
+    // Ignorer si le point de fin est le même que le départ
+    if (startPoint.x === x && startPoint.y === y) {
+        startPoint = null;
+        return;
+    }
 
     if (currentTool === 'wall') {
         const wall = new fabric.Line([startPoint.x, startPoint.y, x, y], {
@@ -894,6 +1008,8 @@ function onMouseUp(opt) {
             objectType: 'wall'
         });
         canvas.add(wall);
+        // Sauvegarder le point de fin pour chaîner
+        lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'room') {
         const room = new fabric.Rect({
             left: Math.min(startPoint.x, x),
@@ -910,6 +1026,7 @@ function onMouseUp(opt) {
 
         // Remettre la grille en arrière
         canvas.getObjects().filter(o => o.isGrid).forEach(g => canvas.sendToBack(g));
+        lastEndPoint = null;
     } else if (currentTool === 'wire') {
         const color = getCircuitColor(currentCircuit);
         const wire = new fabric.Line([startPoint.x, startPoint.y, x, y], {
@@ -919,6 +1036,8 @@ function onMouseUp(opt) {
             circuitIndex: currentCircuit
         });
         canvas.add(wire);
+        // Sauvegarder le point de fin pour chaîner les fils
+        lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'text') {
         const text = prompt('Entrez le texte:');
         if (text) {
@@ -931,6 +1050,7 @@ function onMouseUp(opt) {
             });
             canvas.add(textObj);
         }
+        lastEndPoint = null;
     }
 
     canvas.renderAll();
@@ -951,10 +1071,6 @@ function zoomOut() {
 
 function resetZoom() {
     resizeCanvas();
-}
-
-function updateZoomDisplay() {
-    document.getElementById('zoomLevel').textContent = Math.round(canvas.getZoom() * 100) + '%';
 }
 
 function deleteSelected() {
@@ -1010,13 +1126,20 @@ function loadCanvasData(data) {
 
 function updateStatus() {
     const toolNames = {
-        'select': 'Sélection',
-        'wall': 'Dessiner mur',
-        'room': 'Dessiner pièce',
-        'wire': 'Dessiner fil',
-        'text': 'Ajouter texte'
+        'select': 'Sélection - cliquer pour sélectionner',
+        'wall': 'Mur - cliquer-glisser pour dessiner',
+        'room': 'Pièce - cliquer-glisser pour dessiner',
+        'wire': 'Fil - cliquer-glisser pour dessiner',
+        'text': 'Texte - cliquer pour placer',
+        'symbol': 'Symbole - cliquer pour placer: ' + (SYMBOL_LABELS[selectedSymbol] || selectedSymbol || '')
     };
-    document.getElementById('statusText').textContent = toolNames[currentTool] || 'Prêt';
+    const el = document.getElementById('drawingStatusText');
+    if (el) el.textContent = toolNames[currentTool] || 'Prêt';
+}
+
+function updateZoomDisplay() {
+    const el = document.getElementById('drawingZoomLevel');
+    if (el && canvas) el.textContent = Math.round(canvas.getZoom() * 100) + '%';
 }
 
 function togglePaletteSection(el) {
