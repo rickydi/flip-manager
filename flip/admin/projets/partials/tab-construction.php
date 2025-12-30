@@ -7,6 +7,11 @@
                             <i class="bi bi-lightning-charge me-1"></i>Électrique
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="drawing-tab" data-bs-toggle="tab" data-bs-target="#drawing-content" type="button" role="tab">
+                            <i class="bi bi-pencil-square me-1"></i>Plan 2D
+                        </button>
+                    </li>
                     <!-- Futurs onglets: Plomberie, etc. -->
                 </ul>
             </div>
@@ -15,6 +20,10 @@
                     <!-- Onglet Électrique -->
                     <div class="tab-pane fade show active" id="electrical-content" role="tabpanel">
                         <?php include __DIR__ . '/../../../modules/construction/electrical/component.php'; ?>
+                    </div>
+                    <!-- Onglet Plan 2D -->
+                    <div class="tab-pane fade" id="drawing-content" role="tabpanel">
+                        <?php include __DIR__ . '/../../../modules/construction/electrical/drawing.php'; ?>
                     </div>
                     <!-- Futurs contenus: Plomberie, etc. -->
                 </div>
