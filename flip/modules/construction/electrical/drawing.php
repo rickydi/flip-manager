@@ -563,25 +563,54 @@ const SYMBOL_LABELS = {
 };
 
 // Initialisation
+let canvasInitialized = false;
+
 document.addEventListener('DOMContentLoaded', function() {
-    initCanvas();
     initTools();
     initDragDrop();
     initCircuits();
 
-    if (SAVED_CANVAS) {
-        loadCanvasData(SAVED_CANVAS);
+    // Initialiser quand l'onglet devient visible
+    const drawingTab = document.getElementById('drawing-tab');
+    if (drawingTab) {
+        drawingTab.addEventListener('shown.bs.tab', function() {
+            if (!canvasInitialized) {
+                setTimeout(() => {
+                    initCanvas();
+                    if (SAVED_CANVAS) {
+                        loadCanvasData(SAVED_CANVAS);
+                    }
+                    canvasInitialized = true;
+                }, 100);
+            } else {
+                resizeCanvas();
+            }
+        });
+    }
+
+    // Si l'onglet est déjà visible, initialiser directement
+    const drawingContent = document.getElementById('drawing-content');
+    if (drawingContent && drawingContent.classList.contains('active')) {
+        initCanvas();
+        if (SAVED_CANVAS) {
+            loadCanvasData(SAVED_CANVAS);
+        }
+        canvasInitialized = true;
     }
 });
 
 function initCanvas() {
     const container = document.querySelector('.canvas-container');
-    const width = <?= $drawing ? $drawing['width'] : 1200 ?>;
-    const height = <?= $drawing ? $drawing['height'] : 800 ?>;
+    const CANVAS_WIDTH = <?= $drawing ? $drawing['width'] : 1200 ?>;
+    const CANVAS_HEIGHT = <?= $drawing ? $drawing['height'] : 800 ?>;
+
+    // Stocker les dimensions originales pour le zoom
+    window.CANVAS_ORIGINAL_WIDTH = CANVAS_WIDTH;
+    window.CANVAS_ORIGINAL_HEIGHT = CANVAS_HEIGHT;
 
     canvas = new fabric.Canvas('electricalCanvas', {
-        width: width,
-        height: height,
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
         backgroundColor: '#ffffff',
         selection: true
     });
@@ -599,16 +628,16 @@ function initCanvas() {
     canvas.on('mouse:move', onMouseMove);
     canvas.on('mouse:up', onMouseUp);
 
-    // Resize
+    // Resize après initialisation
+    setTimeout(() => resizeCanvas(), 50);
     window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
 }
 
 function drawGrid() {
     if (!gridVisible) return;
 
-    const width = canvas.width;
-    const height = canvas.height;
+    const width = window.CANVAS_ORIGINAL_WIDTH || 1200;
+    const height = window.CANVAS_ORIGINAL_HEIGHT || 800;
 
     // Lignes verticales
     for (let x = 0; x <= width; x += GRID_SIZE) {
@@ -660,19 +689,23 @@ function snapToGrid(value) {
 }
 
 function resizeCanvas() {
+    if (!canvas) return;
+
     const container = document.querySelector('.canvas-container');
-    const ratio = canvas.width / canvas.height;
+    if (!container || container.clientWidth === 0) return;
+
+    const canvasWidth = window.CANVAS_ORIGINAL_WIDTH || 1200;
+    const canvasHeight = window.CANVAS_ORIGINAL_HEIGHT || 800;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
-    let zoom = Math.min(containerWidth / canvas.width, containerHeight / canvas.height);
+    let zoom = Math.min(containerWidth / canvasWidth, containerHeight / canvasHeight);
     zoom = Math.min(zoom, 1); // Max 100%
 
     canvas.setZoom(zoom);
-    canvas.setDimensions({
-        width: canvas.width * zoom,
-        height: canvas.height * zoom
-    });
+    canvas.setWidth(canvasWidth * zoom);
+    canvas.setHeight(canvasHeight * zoom);
+    canvas.renderAll();
 
     updateZoomDisplay();
 }
