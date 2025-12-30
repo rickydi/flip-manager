@@ -853,25 +853,11 @@ function addSymbol(symbolType, x, y) {
     fabric.loadSVGFromString(svg, function(objects, options) {
         const group = fabric.util.groupSVGElements(objects, options);
 
+        // Taille fixe pour le symbole (40x40)
+        group.scaleToWidth(40);
+        group.scaleToHeight(40);
+
         group.set({
-            left: x,
-            top: y,
-            originX: 'center',
-            originY: 'center',
-            symbolType: symbolType,
-            circuitIndex: currentCircuit
-        });
-
-        // Ajouter label
-        const circuitColor = getCircuitColor(currentCircuit);
-        const label = new fabric.Text(SYMBOL_LABELS[symbolType] || symbolType, {
-            fontSize: 10,
-            fill: '#666',
-            originX: 'center',
-            top: group.height / 2 + 5
-        });
-
-        const finalGroup = new fabric.Group([group, label], {
             left: x,
             top: y,
             originX: 'center',
@@ -879,12 +865,17 @@ function addSymbol(symbolType, x, y) {
             symbolType: symbolType,
             circuitIndex: currentCircuit,
             hasControls: true,
-            hasBorders: true
+            hasBorders: true,
+            // Petits contrôles de redimensionnement
+            cornerSize: 8,
+            transparentCorners: false,
+            cornerColor: '#0d6efd',
+            borderColor: '#0d6efd'
         });
 
-        canvas.add(finalGroup);
-        canvas.setActiveObject(finalGroup);
+        canvas.add(group);
         canvas.renderAll();
+        // Ne pas sélectionner l'objet pour permettre placement continu
     });
 }
 
@@ -915,12 +906,23 @@ function onMouseDown(opt) {
 
     if (currentTool === 'select') return;
 
-    // Pour les outils de dessin, utiliser le dernier point si disponible
+    // Pour les outils de dessin
     let snapPoint = getSmartSnapPoint(pointer.x, pointer.y);
 
-    // Si on a un lastEndPoint et qu'on dessine une ligne, l'utiliser comme départ
+    // Si on a un lastEndPoint, vérifier si on clique près de lui
     if (lastEndPoint && (currentTool === 'wire' || currentTool === 'wall')) {
-        startPoint = { x: lastEndPoint.x, y: lastEndPoint.y };
+        const distToLast = Math.sqrt(
+            Math.pow(pointer.x - lastEndPoint.x, 2) +
+            Math.pow(pointer.y - lastEndPoint.y, 2)
+        );
+        // Si on clique près du dernier point (< 30px), chaîner
+        if (distToLast < 30) {
+            startPoint = { x: lastEndPoint.x, y: lastEndPoint.y };
+        } else {
+            // Sinon, commencer une nouvelle ligne
+            startPoint = { x: snapPoint.x, y: snapPoint.y };
+            lastEndPoint = null;
+        }
     } else {
         startPoint = { x: snapPoint.x, y: snapPoint.y };
     }
