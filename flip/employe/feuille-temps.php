@@ -261,13 +261,15 @@ include '../includes/header.php';
                        value="<?= date('Y-m-d') ?>" required>
             </div>
 
-            <div class="row g-3 mb-4">
+            <div class="row g-3 mb-3">
                 <div class="col-6">
                     <label class="form-label"><?= __('arrival') ?></label>
                     <select class="form-select form-select-lg text-center" id="heureDebutAddMobile">
                         <?php for ($h = 5; $h <= 12; $h++): ?>
-                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 8 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 7 && 0 == 0 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                            <option value="<?= sprintf('%02d:15', $h) ?>"><?= sprintf('%02d:15', $h) ?></option>
                             <option value="<?= sprintf('%02d:30', $h) ?>"><?= sprintf('%02d:30', $h) ?></option>
+                            <option value="<?= sprintf('%02d:45', $h) ?>"><?= sprintf('%02d:45', $h) ?></option>
                         <?php endfor; ?>
                     </select>
                 </div>
@@ -275,14 +277,21 @@ include '../includes/header.php';
                     <label class="form-label"><?= __('departure') ?></label>
                     <select class="form-select form-select-lg text-center" id="heureFinAddMobile">
                         <?php for ($h = 12; $h <= 22; $h++): ?>
-                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 16 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                            <option value="<?= sprintf('%02d:00', $h) ?>" <?= $h == 16 && 0 == 0 ? 'selected' : '' ?>><?= sprintf('%02d:00', $h) ?></option>
+                            <option value="<?= sprintf('%02d:15', $h) ?>"><?= sprintf('%02d:15', $h) ?></option>
                             <option value="<?= sprintf('%02d:30', $h) ?>"><?= sprintf('%02d:30', $h) ?></option>
+                            <option value="<?= sprintf('%02d:45', $h) ?>"><?= sprintf('%02d:45', $h) ?></option>
                         <?php endfor; ?>
                     </select>
                 </div>
             </div>
 
-            <input type="hidden" name="heures" id="heuresDirectAddMobile" value="8">
+            <!-- Recap heures mobile -->
+            <div class="alert alert-info mb-3 text-center" id="heuresRecapMobile">
+                <strong><i class="bi bi-clock me-1"></i>Total: <span id="heuresDisplayMobile">9</span>h</strong>
+            </div>
+
+            <input type="hidden" name="heures" id="heuresDirectAddMobile" value="9">
 
             <button type="submit" class="btn btn-success btn-lg w-100 py-4 mobile-entry-btn">
                 <i class="bi bi-box-arrow-in-right" style="font-size: 2rem;"></i>
@@ -400,16 +409,21 @@ include '../includes/header.php';
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <label class="form-label"><?= __('arrival') ?></label>
-                                    <input type="time" class="form-control time-input-clickable" id="heureDebutAdd" value="08:00">
+                                    <input type="time" class="form-control time-input-clickable" id="heureDebutAdd" value="07:00" step="900">
                                 </div>
                                 <div class="col-6">
                                     <label class="form-label"><?= __('departure') ?></label>
-                                    <input type="time" class="form-control time-input-clickable" id="heureFinAdd" value="16:00">
+                                    <input type="time" class="form-control time-input-clickable" id="heureFinAdd" value="16:00" step="900">
                                 </div>
                             </div>
 
+                            <!-- Recap heures desktop -->
+                            <div class="alert alert-info mb-3 text-center" id="heuresRecapDesktop">
+                                <strong><i class="bi bi-clock me-1"></i>Total: <span id="heuresDisplayDesktop">9</span>h</strong>
+                            </div>
+
                             <!-- Heures calculées (caché) -->
-                            <input type="hidden" name="heures" id="heuresDirectAdd" value="8">
+                            <input type="hidden" name="heures" id="heuresDirectAdd" value="9">
 
                             <button type="submit" class="btn btn-success btn-lg w-100">
                                 <i class="bi bi-box-arrow-in-right me-2"></i><?= __('entry') ?>
@@ -479,12 +493,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var heureDebutAdd = document.getElementById('heureDebutAdd');
     var heureFinAdd = document.getElementById('heureFinAdd');
     var heuresDirectAdd = document.getElementById('heuresDirectAdd');
+    var heuresDisplayDesktop = document.getElementById('heuresDisplayDesktop');
 
     if (heureDebutAdd && heureFinAdd && heuresDirectAdd) {
         function updateHeuresAdd() {
             var heures = calculerHeures(heureDebutAdd.value, heureFinAdd.value);
             if (heures > 0) {
                 heuresDirectAdd.value = heures;
+                if (heuresDisplayDesktop) {
+                    heuresDisplayDesktop.textContent = heures;
+                }
             }
         }
         heureDebutAdd.addEventListener('change', updateHeuresAdd);
@@ -495,12 +513,16 @@ document.addEventListener('DOMContentLoaded', function() {
     var heureDebutMobile = document.getElementById('heureDebutAddMobile');
     var heureFinMobile = document.getElementById('heureFinAddMobile');
     var heuresDirectMobile = document.getElementById('heuresDirectAddMobile');
+    var heuresDisplayMobile = document.getElementById('heuresDisplayMobile');
 
     if (heureDebutMobile && heureFinMobile && heuresDirectMobile) {
         function updateHeuresMobile() {
             var heures = calculerHeures(heureDebutMobile.value, heureFinMobile.value);
             if (heures > 0) {
                 heuresDirectMobile.value = heures;
+                if (heuresDisplayMobile) {
+                    heuresDisplayMobile.textContent = heures;
+                }
             }
         }
         heureDebutMobile.addEventListener('change', updateHeuresMobile);
