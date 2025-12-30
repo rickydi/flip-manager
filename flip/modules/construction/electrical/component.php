@@ -982,6 +982,9 @@ function printShoppingList() {
 }
 
 function printElectricalPlan() {
+    // Récupérer la liste d'achat
+    const shoppingItems = getShoppingList();
+
     // Générer le HTML pour impression
     let html = `
     <!DOCTYPE html>
@@ -992,6 +995,7 @@ function printElectricalPlan() {
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
             h1 { font-size: 18px; margin-bottom: 5px; border-bottom: 2px solid #000; padding-bottom: 5px; }
+            h2 { font-size: 16px; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #000; padding-bottom: 5px; }
             .date { font-size: 10px; color: #666; margin-bottom: 15px; }
             .floor { margin-bottom: 20px; page-break-inside: avoid; }
             .floor-title { font-size: 14px; font-weight: bold; background: #e0e0e0; padding: 5px 10px; margin-bottom: 10px; }
@@ -1002,6 +1006,14 @@ function printElectricalPlan() {
             .checkbox { width: 14px; height: 14px; border: 1px solid #333; margin-right: 10px; flex-shrink: 0; }
             .comp-name { flex: 1; }
             .comp-details { font-size: 11px; color: #666; margin-left: 10px; }
+            .shopping-list { margin-top: 30px; page-break-before: always; }
+            .shopping-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .shopping-table th, .shopping-table td { border: 1px solid #333; padding: 6px 10px; text-align: left; }
+            .shopping-table th { background: #e0e0e0; }
+            .shopping-table .qty { text-align: center; width: 60px; }
+            .shopping-table .check { width: 30px; text-align: center; }
+            .shopping-table .checkbox-box { display: inline-block; width: 14px; height: 14px; border: 1px solid #333; }
+            .total { margin-top: 10px; font-weight: bold; }
             @media print {
                 body { padding: 10px; }
                 .floor { page-break-inside: avoid; }
@@ -1045,6 +1057,39 @@ function printElectricalPlan() {
 
         html += `</div>`;
     });
+
+    // Ajouter la liste d'achat à la fin
+    if (shoppingItems.length > 0) {
+        html += `
+        <div class="shopping-list">
+            <h2>Liste d'achat</h2>
+            <table class="shopping-table">
+                <thead>
+                    <tr>
+                        <th class="check">✓</th>
+                        <th>Composant</th>
+                        <th class="qty">Qté</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        shoppingItems.forEach(item => {
+            const displayName = item.wattage ? `${item.name} (${item.wattage})` : item.name;
+            html += `<tr>
+                <td class="check"><div class="checkbox-box"></div></td>
+                <td>${displayName}</td>
+                <td class="qty">${item.qty}</td>
+            </tr>`;
+        });
+
+        html += `
+                </tbody>
+            </table>
+            <div class="total">Total: ${shoppingItems.reduce((sum, i) => sum + i.qty, 0)} items</div>
+        </div>
+        `;
+    }
 
     html += `</body></html>`;
 
