@@ -217,7 +217,7 @@ include '../includes/header.php';
                 <!-- Pagination -->
                 <?php if ($totalPages > 1): ?>
                     <div class="card-footer">
-                        <?= generatePagination($page, $totalPages, url('/employe/mes-factures.php')) ?>
+                        <?= generatePagination($page, $totalPages, '/employe/mes-factures.php') ?>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
