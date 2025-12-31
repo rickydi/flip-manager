@@ -1232,6 +1232,7 @@ function duplicateSelected() {
 }
 
 function saveState() {
+    if (!canvas) return; // Canvas pas encore initialisé
     const json = JSON.stringify(canvas.toJSON(['symbolType', 'circuitIndex', 'objectType', 'isGrid']));
     undoStack.push(json);
     if (undoStack.length > 50) undoStack.shift();
