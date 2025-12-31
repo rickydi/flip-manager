@@ -995,12 +995,114 @@ function addSymbol(symbolType, x, y) {
         canvas.add(group);
         canvas.discardActiveObject();
         canvas.renderAll();
+
+        // Mettre à jour les compteurs de circuits
+        updateCircuitCounts();
     });
 }
 
 function getCircuitColor(index) {
     const item = document.querySelectorAll('.circuit-item')[index];
     return item ? item.dataset.color : '#333';
+}
+
+// Créer un arc (courbe) entre deux points
+function createArcPath(x1, y1, x2, y2, curvature = 0.2) {
+    // Calculer le point milieu
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    // Calculer la direction perpendiculaire
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const len = Math.sqrt(dx * dx + dy * dy);
+
+    // Point de contrôle perpendiculaire au milieu
+    const perpX = -dy / len;
+    const perpY = dx / len;
+
+    // Décalage pour la courbe
+    const offset = len * curvature;
+    const ctrlX = midX + perpX * offset;
+    const ctrlY = midY + perpY * offset;
+
+    // Créer le path SVG avec courbe quadratique
+    return `M ${x1} ${y1} Q ${ctrlX} ${ctrlY} ${x2} ${y2}`;
+}
+
+// Trouver un symbole proche d'un point
+function findNearbySymbol(x, y, threshold = 25) {
+    const objects = canvas.getObjects();
+    for (const obj of objects) {
+        if (obj.symbolType) {
+            const centerX = obj.left;
+            const centerY = obj.top;
+            const dist = Math.sqrt(Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2));
+            if (dist < threshold) {
+                return obj;
+            }
+        }
+    }
+    return null;
+}
+
+// Connecter un fil à un symbole
+function connectWireToSymbol(wire, symbol, endpoint) {
+    if (!wire.connections) wire.connections = { start: null, end: null };
+    if (!symbol.connectedWires) symbol.connectedWires = [];
+
+    wire.connections[endpoint] = symbol;
+    if (!symbol.connectedWires.includes(wire)) {
+        symbol.connectedWires.push(wire);
+    }
+}
+
+// Compter les appareils connectés par circuit
+function countDevicesPerCircuit() {
+    const counts = {};
+    const circuits = document.querySelectorAll('.circuit-item');
+
+    circuits.forEach((item, index) => {
+        counts[index] = { prises: 0, interrupteurs: 0, lumieres: 0, autres: 0 };
+    });
+
+    canvas.getObjects().forEach(obj => {
+        if (obj.symbolType && obj.circuitIndex !== undefined) {
+            const circuit = obj.circuitIndex;
+            if (!counts[circuit]) counts[circuit] = { prises: 0, interrupteurs: 0, lumieres: 0, autres: 0 };
+
+            if (obj.symbolType.includes('prise') || obj.symbolType.includes('outlet')) {
+                counts[circuit].prises++;
+            } else if (obj.symbolType.includes('switch') || obj.symbolType.includes('interrupteur')) {
+                counts[circuit].interrupteurs++;
+            } else if (obj.symbolType.includes('light') || obj.symbolType.includes('lumiere') || obj.symbolType.includes('plafonnier')) {
+                counts[circuit].lumieres++;
+            } else {
+                counts[circuit].autres++;
+            }
+        }
+    });
+
+    return counts;
+}
+
+// Mettre à jour l'affichage des compteurs de circuits
+function updateCircuitCounts() {
+    const counts = countDevicesPerCircuit();
+
+    document.querySelectorAll('.circuit-item').forEach((item, index) => {
+        let countSpan = item.querySelector('.circuit-count');
+        if (!countSpan) {
+            countSpan = document.createElement('span');
+            countSpan.className = 'circuit-count badge bg-secondary ms-2';
+            item.appendChild(countSpan);
+        }
+
+        const c = counts[index] || { prises: 0, interrupteurs: 0, lumieres: 0 };
+        const total = c.prises + c.interrupteurs + c.lumieres + c.autres;
+        countSpan.textContent = total > 0 ? total : '';
+        countSpan.title = `Prises: ${c.prises}, Inter: ${c.interrupteurs}, Lumières: ${c.lumieres}`;
+    });
 }
 
 function getSmartSnapPoint(rawX, rawY, excludeObj) {
@@ -1085,10 +1187,12 @@ function onMouseMove(opt) {
         });
     } else if (currentTool === 'wire') {
         const color = getCircuitColor(currentCircuit);
-        tempObj = new fabric.Line([startPoint.x, startPoint.y, x, y], {
+        const pathData = createArcPath(startPoint.x, startPoint.y, x, y, 0.15);
+        tempObj = new fabric.Path(pathData, {
             stroke: color,
             strokeWidth: 2,
             strokeDashArray: [5, 3],
+            fill: 'transparent',
             selectable: false,
             evented: false
         });
@@ -1155,19 +1259,36 @@ function onMouseUp(opt) {
         lastEndPoint = null;
     } else if (currentTool === 'wire') {
         const color = getCircuitColor(currentCircuit);
-        const wire = new fabric.Line([startPoint.x, startPoint.y, x, y], {
+        const pathData = createArcPath(startPoint.x, startPoint.y, x, y, 0.15);
+        const wire = new fabric.Path(pathData, {
             stroke: color,
             strokeWidth: 2,
+            fill: 'transparent',
             objectType: 'wire',
             circuitIndex: currentCircuit,
+            wireStart: { x: startPoint.x, y: startPoint.y },
+            wireEnd: { x: x, y: y },
             selectable: false,
             evented: false,
             hasControls: false,
             hasBorders: false
         });
         canvas.add(wire);
-        // Ajouter les points de contrôle aux extrémités
-        addEndpointControls(wire);
+
+        // Vérifier connexion aux symboles
+        const startSymbol = findNearbySymbol(startPoint.x, startPoint.y);
+        const endSymbol = findNearbySymbol(x, y);
+
+        if (startSymbol) {
+            connectWireToSymbol(wire, startSymbol, 'start');
+        }
+        if (endSymbol) {
+            connectWireToSymbol(wire, endSymbol, 'end');
+        }
+
+        // Mettre à jour les compteurs
+        updateCircuitCounts();
+
         lastEndPoint = { x: x, y: y };
     } else if (currentTool === 'text') {
         const text = prompt('Entrez le texte:');
@@ -1233,7 +1354,7 @@ function duplicateSelected() {
 
 function saveState() {
     if (!canvas) return; // Canvas pas encore initialisé
-    const json = JSON.stringify(canvas.toJSON(['symbolType', 'circuitIndex', 'objectType', 'isGrid']));
+    const json = JSON.stringify(canvas.toJSON(['symbolType', 'circuitIndex', 'objectType', 'isGrid', 'wireStart', 'wireEnd']));
     undoStack.push(json);
     if (undoStack.length > 50) undoStack.shift();
     redoStack = [];
