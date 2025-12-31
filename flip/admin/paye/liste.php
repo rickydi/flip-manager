@@ -88,6 +88,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             redirect('/admin/paye/liste.php');
         }
+
+        if ($action === 'modifier_avance') {
+            $avanceId = (int)($_POST['avance_id'] ?? 0);
+            $montant = parseNumber($_POST['montant'] ?? 0);
+            $dateAvance = $_POST['date_avance'] ?? date('Y-m-d');
+            $raison = trim($_POST['raison'] ?? '');
+
+            if ($avanceId > 0 && $montant > 0) {
+                $stmt = $pdo->prepare("
+                    UPDATE avances_employes
+                    SET montant = ?, date_avance = ?, raison = ?
+                    WHERE id = ? AND statut = 'active'
+                ");
+                $stmt->execute([$montant, $dateAvance, $raison, $avanceId]);
+                setFlashMessage('success', 'Avance modifiée avec succès!');
+            } else {
+                setFlashMessage('danger', 'Montant invalide.');
+            }
+            redirect('/admin/paye/liste.php');
+        }
     }
 }
 
@@ -290,6 +310,11 @@ include '../../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary me-1"
+                                                onclick="ouvrirEditAvance(<?= $av['id'] ?>, '<?= e($av['employe_nom']) ?>', <?= $av['montant'] ?>, '<?= $av['date_avance'] ?>', '<?= e(addslashes($av['raison'] ?? '')) ?>')"
+                                                title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
                                         <form method="POST" class="d-inline"
                                               onsubmit="return confirm('Annuler cette avance?');">
                                             <?php csrfField(); ?>
@@ -370,6 +395,58 @@ include '../../includes/header.php';
     </div>
 </div>
 
+<!-- Modal Modifier Avance -->
+<div class="modal fade" id="modalEditAvance" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <?php csrfField(); ?>
+                <input type="hidden" name="action" value="modifier_avance">
+                <input type="hidden" name="avance_id" id="editAvanceId">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier l'avance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Employé</label>
+                        <input type="text" class="form-control" id="editAvanceEmploye" readonly disabled>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Montant *</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="montant" id="editAvanceMontant"
+                                   placeholder="0.00" required>
+                            <span class="input-group-text">$</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" class="form-control" name="date_avance" id="editAvanceDate">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Raison / Note</label>
+                        <textarea class="form-control" name="raison" id="editAvanceRaison" rows="2"
+                                  placeholder="Optionnel..."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check me-1"></i>Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 function ouvrirAvance(userId, nomEmploye) {
     document.getElementById('avanceUserId').value = userId;
@@ -378,6 +455,19 @@ function ouvrirAvance(userId, nomEmploye) {
     modal.show();
     setTimeout(function() {
         document.getElementById('avanceMontant').focus();
+    }, 500);
+}
+
+function ouvrirEditAvance(id, employe, montant, date, raison) {
+    document.getElementById('editAvanceId').value = id;
+    document.getElementById('editAvanceEmploye').value = employe;
+    document.getElementById('editAvanceMontant').value = montant;
+    document.getElementById('editAvanceDate').value = date;
+    document.getElementById('editAvanceRaison').value = raison;
+    var modal = new bootstrap.Modal(document.getElementById('modalEditAvance'));
+    modal.show();
+    setTimeout(function() {
+        document.getElementById('editAvanceMontant').focus();
     }, 500);
 }
 </script>
