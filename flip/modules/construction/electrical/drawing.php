@@ -716,12 +716,12 @@ function resizeCanvas() {
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
+    // Calculer le zoom pour remplir le conteneur (sans limiter à 100%)
     let zoom = Math.min(containerWidth / canvasWidth, containerHeight / canvasHeight);
-    zoom = Math.min(zoom, 1); // Max 100%
 
     canvas.setZoom(zoom);
-    canvas.setWidth(canvasWidth * zoom);
-    canvas.setHeight(canvasHeight * zoom);
+    canvas.setWidth(containerWidth);
+    canvas.setHeight(containerHeight);
     canvas.renderAll();
 
     updateZoomDisplay();
