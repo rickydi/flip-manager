@@ -24,8 +24,8 @@ try {
             projet_id INT NOT NULL,
             nom VARCHAR(100) DEFAULT 'Plan principal',
             canvas_data LONGTEXT,
-            width INT DEFAULT 1200,
-            height INT DEFAULT 800,
+            width INT DEFAULT 2400,
+            height INT DEFAULT 1600,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             INDEX idx_projet (projet_id)
@@ -290,7 +290,7 @@ if (empty($circuits)) {
         <span id="drawingStatusText">Prêt</span>
         <span class="float-end">
             <span id="drawingZoomLevel">100%</span> |
-            <span id="drawingCanvasSize"><?= $drawing ? $drawing['width'] : 1200 ?>x<?= $drawing ? $drawing['height'] : 800 ?></span>
+            <span id="drawingCanvasSize"><?= $drawing ? $drawing['width'] : 2400 ?>x<?= $drawing ? $drawing['height'] : 1600 ?></span>
         </span>
     </div>
 </div>
@@ -621,8 +621,8 @@ function initCanvas() {
         return;
     }
 
-    const CANVAS_WIDTH = <?= $drawing ? $drawing['width'] : 1200 ?>;
-    const CANVAS_HEIGHT = <?= $drawing ? $drawing['height'] : 800 ?>;
+    const CANVAS_WIDTH = <?= $drawing ? $drawing['width'] : 2400 ?>;
+    const CANVAS_HEIGHT = <?= $drawing ? $drawing['height'] : 1600 ?>;
 
     // Stocker les dimensions originales pour le zoom
     window.CANVAS_ORIGINAL_WIDTH = CANVAS_WIDTH;
@@ -653,8 +653,8 @@ function initCanvas() {
 function drawGrid() {
     if (!gridVisible) return;
 
-    const width = window.CANVAS_ORIGINAL_WIDTH || 1200;
-    const height = window.CANVAS_ORIGINAL_HEIGHT || 800;
+    const width = window.CANVAS_ORIGINAL_WIDTH || 2400;
+    const height = window.CANVAS_ORIGINAL_HEIGHT || 1600;
 
     // Lignes verticales
     for (let x = 0; x <= width; x += GRID_SIZE) {
@@ -711,8 +711,8 @@ function resizeCanvas() {
     const container = document.getElementById('drawingCanvasContainer');
     if (!container || container.clientWidth === 0) return;
 
-    const canvasWidth = window.CANVAS_ORIGINAL_WIDTH || 1200;
-    const canvasHeight = window.CANVAS_ORIGINAL_HEIGHT || 800;
+    const canvasWidth = window.CANVAS_ORIGINAL_WIDTH || 2400;
+    const canvasHeight = window.CANVAS_ORIGINAL_HEIGHT || 1600;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
 
@@ -1487,12 +1487,113 @@ function showToast(msg) {
     setTimeout(() => toast.remove(), 2000);
 }
 
+// Générer la liste des items à acheter
+function getShoppingList() {
+    const items = {};
+    const symbolNames = {
+        'outlet': 'Prise standard 120V',
+        'outlet-double': 'Prise double',
+        'outlet-gfci': 'Prise GFCI',
+        'outlet-220': 'Prise 220V',
+        'switch': 'Interrupteur simple',
+        'switch-3way': 'Interrupteur 3-voies',
+        'switch-dimmer': 'Gradateur',
+        'light-ceiling': 'Plafonnier',
+        'light-recessed': 'Spot encastré',
+        'light-wall': 'Applique murale',
+        'light-exterior': 'Lumière extérieure',
+        'fan': 'Ventilateur de plafond',
+        'smoke-detector': 'Détecteur de fumée',
+        'thermostat': 'Thermostat',
+        'panel': 'Panneau électrique',
+        'junction-box': 'Boîte de jonction'
+    };
+
+    canvas.getObjects().forEach(obj => {
+        if (obj.symbolType) {
+            const name = symbolNames[obj.symbolType] || obj.symbolType;
+            items[name] = (items[name] || 0) + 1;
+        }
+    });
+
+    // Compter aussi le fil (estimation en mètres basée sur les arcs)
+    let totalWireLength = 0;
+    canvas.getObjects().forEach(obj => {
+        if (obj.objectType === 'wire' && obj.wireStart && obj.wireEnd) {
+            const dx = obj.wireEnd.x - obj.wireStart.x;
+            const dy = obj.wireEnd.y - obj.wireStart.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            totalWireLength += length;
+        }
+    });
+
+    // Convertir pixels en mètres approximatif (20 pixels = 1 pied = 0.3m)
+    const wireMeters = Math.ceil((totalWireLength / 20) * 0.3);
+    if (wireMeters > 0) {
+        items['Fil électrique (mètres approx.)'] = wireMeters;
+    }
+
+    return items;
+}
+
 function printDrawing() {
     const dataUrl = canvas.toDataURL({
         format: 'png',
         quality: 1,
         multiplier: 2
     });
+
+    // Générer la liste d'achats
+    const shoppingList = getShoppingList();
+    let shoppingHtml = '';
+    if (Object.keys(shoppingList).length > 0) {
+        shoppingHtml = `
+            <div class="shopping-list">
+                <h3>📋 Liste des items à acheter</h3>
+                <table>
+                    <thead>
+                        <tr><th>Item</th><th>Quantité</th></tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(shoppingList).map(([name, qty]) =>
+                            `<tr><td>${name}</td><td><strong>${qty}</strong></td></tr>`
+                        ).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    // Compter les appareils par circuit
+    const counts = countDevicesPerCircuit();
+    let circuitDetailsHtml = '';
+    const circuitsData = getCircuitsData();
+    if (circuitsData.length > 0) {
+        circuitDetailsHtml = `
+            <div class="circuit-details">
+                <h3>⚡ Détail par circuit</h3>
+                <table>
+                    <thead>
+                        <tr><th>Circuit</th><th>Ampérage</th><th>Prises</th><th>Inter.</th><th>Lumières</th><th>Total</th></tr>
+                    </thead>
+                    <tbody>
+                        ${circuitsData.map((c, i) => {
+                            const ct = counts[i] || { prises: 0, interrupteurs: 0, lumieres: 0, autres: 0 };
+                            const total = ct.prises + ct.interrupteurs + ct.lumieres + ct.autres;
+                            return `<tr>
+                                <td><span style="color:${c.color}">●</span> ${c.nom}</td>
+                                <td>${c.amperage}A</td>
+                                <td>${ct.prises}</td>
+                                <td>${ct.interrupteurs}</td>
+                                <td>${ct.lumieres}</td>
+                                <td><strong>${total}</strong></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
@@ -1501,23 +1602,33 @@ function printDrawing() {
         <head>
             <title>Plan Électrique</title>
             <style>
-                body { margin: 0; padding: 20px; }
-                h1 { font-size: 18px; margin-bottom: 10px; }
-                .date { font-size: 10px; color: #666; margin-bottom: 20px; }
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; }
+                h1 { font-size: 20px; margin-bottom: 5px; }
+                h3 { font-size: 14px; margin: 15px 0 10px 0; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+                .date { font-size: 11px; color: #666; margin-bottom: 15px; }
                 img { max-width: 100%; border: 1px solid #ccc; }
-                .legend { margin-top: 20px; font-size: 12px; }
-                .legend-item { display: inline-flex; align-items: center; margin-right: 20px; margin-bottom: 5px; }
-                .legend-color { width: 20px; height: 10px; margin-right: 5px; }
+                .legend { margin-top: 15px; font-size: 11px; }
+                .legend-item { display: inline-flex; align-items: center; margin-right: 15px; margin-bottom: 5px; }
+                .legend-color { width: 15px; height: 8px; margin-right: 5px; }
+                .shopping-list, .circuit-details { margin-top: 20px; page-break-inside: avoid; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th, td { border: 1px solid #ddd; padding: 6px 10px; text-align: left; }
+                th { background: #f5f5f5; }
+                @media print {
+                    .shopping-list, .circuit-details { page-break-inside: avoid; }
+                }
             </style>
         </head>
         <body>
             <h1>Plan Électrique</h1>
-            <div class="date">Généré le ${new Date().toLocaleDateString('fr-CA')}</div>
+            <div class="date">Généré le ${new Date().toLocaleDateString('fr-CA')} à ${new Date().toLocaleTimeString('fr-CA')}</div>
             <img src="${dataUrl}">
             <div class="legend">
-                <strong>Circuits:</strong><br>
-                ${getCircuitsData().map(c => `<span class="legend-item"><span class="legend-color" style="background:${c.color}"></span>${c.nom} (${c.amperage}A)</span>`).join('')}
+                <strong>Circuits:</strong>
+                ${circuitsData.map(c => `<span class="legend-item"><span class="legend-color" style="background:${c.color}"></span>${c.nom} (${c.amperage}A)</span>`).join('')}
             </div>
+            ${circuitDetailsHtml}
+            ${shoppingHtml}
         </body>
         </html>
     `);
