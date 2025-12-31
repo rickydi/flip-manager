@@ -348,8 +348,8 @@ if (empty($circuits)) {
 .electrical-drawing-container {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 300px);
-    min-height: 500px;
+    height: calc(100vh - 150px);
+    min-height: 600px;
 }
 
 .drawing-toolbar {
