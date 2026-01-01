@@ -327,6 +327,18 @@ include '../includes/header.php';
     text-transform: uppercase;
 }
 
+.gauge-percent {
+    font-size: 0.7rem;
+    color: #10b981;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.gauge-item:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
+}
+
 .gauge-label {
     font-size: 0.8rem;
     color: #94a3b8;
@@ -1027,87 +1039,128 @@ include '../includes/header.php';
             </svg>
 
             <!-- Jauge Seconde -->
-            <div class="gauge-item second">
+            <div class="gauge-item second" onclick="openGaugeModal('second', 'Par seconde', <?= $profitParSeconde ?>, 0.05, 3)" style="cursor:pointer">
                 <div class="gauge-speedometer">
                     <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
                         <path class="gauge-bg"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="0"/>
-                        <path class="gauge-progress"
+                        <path class="gauge-progress" id="gauge-progress-second"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke="url(#secondGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
-                              stroke-dashoffset="<?= $offsetSecond ?>"/>
+                              stroke-dashoffset="<?= $offsetSecond ?>"
+                              data-circumference="<?= $arcCircum ?>"/>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParSeconde, 3, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-percent" id="gauge-percent-second"><?= number_format($pctSecond, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par seconde</div>
             </div>
 
             <!-- Jauge Heure -->
-            <div class="gauge-item hour">
+            <div class="gauge-item hour" onclick="openGaugeModal('hour', 'Par heure', <?= $profitParHeure ?>, 150, 0)" style="cursor:pointer">
                 <div class="gauge-speedometer">
                     <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
                         <path class="gauge-bg"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="0"/>
-                        <path class="gauge-progress"
+                        <path class="gauge-progress" id="gauge-progress-hour"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke="url(#hourGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
-                              stroke-dashoffset="<?= $offsetHour ?>"/>
+                              stroke-dashoffset="<?= $offsetHour ?>"
+                              data-circumference="<?= $arcCircum ?>"/>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParHeure, 0, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-percent" id="gauge-percent-hour"><?= number_format($pctHour, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par heure</div>
             </div>
 
             <!-- Jauge Semaine -->
-            <div class="gauge-item week">
+            <div class="gauge-item week" onclick="openGaugeModal('week', 'Par semaine', <?= $profitParSemaine ?>, 5000, 0)" style="cursor:pointer">
                 <div class="gauge-speedometer">
                     <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
                         <path class="gauge-bg"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="0"/>
-                        <path class="gauge-progress"
+                        <path class="gauge-progress" id="gauge-progress-week"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke="url(#weekGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
-                              stroke-dashoffset="<?= $offsetWeek ?>"/>
+                              stroke-dashoffset="<?= $offsetWeek ?>"
+                              data-circumference="<?= $arcCircum ?>"/>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-percent" id="gauge-percent-week"><?= number_format($pctWeek, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par semaine</div>
             </div>
 
             <!-- Jauge Mois -->
-            <div class="gauge-item month">
+            <div class="gauge-item month" onclick="openGaugeModal('month', 'Par mois', <?= $profitParMois ?>, 20000, 0)" style="cursor:pointer">
                 <div class="gauge-speedometer">
                     <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
                         <path class="gauge-bg"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="0"/>
-                        <path class="gauge-progress"
+                        <path class="gauge-progress" id="gauge-progress-month"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke="url(#monthGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
-                              stroke-dashoffset="<?= $offsetMonth ?>"/>
+                              stroke-dashoffset="<?= $offsetMonth ?>"
+                              data-circumference="<?= $arcCircum ?>"/>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParMois, 0, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-percent" id="gauge-percent-month"><?= number_format($pctMonth, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par mois</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour objectif jauge -->
+    <div class="modal fade" id="gaugeModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content" style="background: #1a2744; border: 1px solid rgba(255,255,255,0.1);">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title text-white" id="gaugeModalTitle">Objectif</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="text-center mb-3">
+                        <div class="text-muted small">Valeur actuelle</div>
+                        <div class="text-white fs-4 fw-bold" id="gaugeCurrentValue">0$</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Objectif visé (100%)</label>
+                        <div class="input-group">
+                            <input type="number" step="any" class="form-control bg-dark text-white border-secondary" id="gaugeTargetInput">
+                            <span class="input-group-text bg-dark text-white border-secondary">$</span>
+                        </div>
+                    </div>
+                    <div class="text-center p-3 rounded" style="background: rgba(255,255,255,0.05);">
+                        <div class="text-muted small">Pourcentage atteint</div>
+                        <div class="text-success fs-2 fw-bold" id="gaugePercentDisplay">0%</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-light btn-sm" data-bs-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="saveGaugeTarget()">Sauvegarder</button>
+                </div>
             </div>
         </div>
     </div>
@@ -1579,7 +1632,126 @@ document.addEventListener('DOMContentLoaded', function() {
 
         requestAnimationFrame(updateCounter);
     });
+
+    // Charger les objectifs sauvegardés et mettre à jour les jauges
+    loadSavedTargets();
 });
+
+// Variables globales pour le modal jauge
+let currentGaugeType = '';
+let currentGaugeValue = 0;
+let currentGaugeDecimals = 0;
+
+// Objectifs par défaut
+const defaultTargets = {
+    second: 0.05,
+    hour: 150,
+    week: 5000,
+    month: 20000
+};
+
+function openGaugeModal(type, label, value, defaultTarget, decimals) {
+    currentGaugeType = type;
+    currentGaugeValue = value;
+    currentGaugeDecimals = decimals;
+
+    // Récupérer l'objectif sauvegardé ou utiliser le défaut
+    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+    const target = savedTargets[type] || defaultTarget;
+
+    // Mettre à jour le modal
+    document.getElementById('gaugeModalTitle').textContent = 'Objectif ' + label;
+    document.getElementById('gaugeCurrentValue').textContent = formatGaugeValue(value, decimals) + '$';
+    document.getElementById('gaugeTargetInput').value = target;
+
+    // Calculer et afficher le pourcentage
+    updatePercentDisplay(value, target);
+
+    // Ouvrir le modal
+    const modal = new bootstrap.Modal(document.getElementById('gaugeModal'));
+    modal.show();
+
+    // Mettre à jour en temps réel quand l'utilisateur tape
+    document.getElementById('gaugeTargetInput').oninput = function() {
+        const newTarget = parseFloat(this.value) || 0;
+        updatePercentDisplay(value, newTarget);
+    };
+}
+
+function updatePercentDisplay(value, target) {
+    let percent = 0;
+    if (target > 0) {
+        percent = Math.min(100, (value / target) * 100);
+    }
+    const percentEl = document.getElementById('gaugePercentDisplay');
+    percentEl.textContent = percent.toFixed(0) + '%';
+
+    // Changer la couleur selon le pourcentage
+    if (percent >= 100) {
+        percentEl.className = 'text-success fs-2 fw-bold';
+    } else if (percent >= 50) {
+        percentEl.className = 'text-warning fs-2 fw-bold';
+    } else {
+        percentEl.className = 'text-danger fs-2 fw-bold';
+    }
+}
+
+function formatGaugeValue(value, decimals) {
+    return value.toLocaleString('fr-CA', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+
+function saveGaugeTarget() {
+    const target = parseFloat(document.getElementById('gaugeTargetInput').value) || 0;
+
+    // Sauvegarder dans localStorage
+    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+    savedTargets[currentGaugeType] = target;
+    localStorage.setItem('gaugeTargets', JSON.stringify(savedTargets));
+
+    // Mettre à jour la jauge visuellement
+    updateGaugeVisual(currentGaugeType, currentGaugeValue, target);
+
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('gaugeModal')).hide();
+}
+
+function updateGaugeVisual(type, value, target) {
+    const progressEl = document.getElementById('gauge-progress-' + type);
+    const percentEl = document.getElementById('gauge-percent-' + type);
+
+    if (progressEl && percentEl) {
+        const circumference = parseFloat(progressEl.dataset.circumference);
+        let percent = 0;
+        if (target > 0) {
+            percent = Math.min(100, (value / target) * 100);
+        }
+        const offset = circumference - (circumference * percent / 100);
+
+        progressEl.style.strokeDashoffset = offset;
+        percentEl.textContent = percent.toFixed(0) + '%';
+    }
+}
+
+function loadSavedTargets() {
+    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+
+    // Récupérer les valeurs actuelles depuis les attributs onclick
+    const gauges = {
+        second: { value: <?= $profitParSeconde ?>, default: 0.05 },
+        hour: { value: <?= $profitParHeure ?>, default: 150 },
+        week: { value: <?= $profitParSemaine ?>, default: 5000 },
+        month: { value: <?= $profitParMois ?>, default: 20000 }
+    };
+
+    // Mettre à jour chaque jauge avec l'objectif sauvegardé
+    for (const [type, data] of Object.entries(gauges)) {
+        const target = savedTargets[type] || data.default;
+        updateGaugeVisual(type, data.value, target);
+    }
+}
 </script>
 
 <?php include '../includes/footer.php'; ?>
