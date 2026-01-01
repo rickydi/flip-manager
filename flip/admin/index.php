@@ -415,10 +415,12 @@ include '../includes/header.php';
 .fiscal-header {
     background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
     color: white;
-    padding: 1.25rem 1.5rem;
+    padding: 1rem 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 .fiscal-header h5 {
@@ -427,6 +429,7 @@ include '../includes/header.php';
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .fiscal-header select {
@@ -441,6 +444,51 @@ include '../includes/header.php';
 .fiscal-header select option {
     background: #1e3a5f;
     color: white;
+}
+
+.fiscal-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.fiscal-dpe {
+    text-align: right;
+    line-height: 1.2;
+}
+
+.fiscal-dpe-label {
+    font-size: 0.7rem;
+    opacity: 0.8;
+}
+
+.fiscal-dpe-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+/* Mobile responsive */
+@media (max-width: 576px) {
+    .fiscal-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .fiscal-header h5 {
+        justify-content: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .fiscal-header-right {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .fiscal-dpe {
+        text-align: center;
+    }
 }
 
 .fiscal-body {
@@ -656,16 +704,16 @@ include '../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </h5>
-                    <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div class="fiscal-header-right">
                         <a href="<?= url('/admin/rapports/fiscal-pdf.php?annee=' . $anneeFiscale) ?>"
                            class="btn btn-sm"
                            style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white;"
                            title="Télécharger le rapport PDF">
                             <i class="bi bi-file-pdf"></i> PDF
                         </a>
-                        <div style="text-align: right;">
-                            <div style="font-size: 0.75rem; opacity: 0.8;">Seuil DPE utilisé</div>
-                            <div style="font-size: 1.5rem; font-weight: 700;"><?= number_format($resumeFiscal['pourcentage_utilise'], 0) ?>%</div>
+                        <div class="fiscal-dpe">
+                            <div class="fiscal-dpe-label">Seuil DPE utilisé</div>
+                            <div class="fiscal-dpe-value"><?= number_format($resumeFiscal['pourcentage_utilise'], 0) ?>%</div>
                         </div>
                     </div>
                 </div>
