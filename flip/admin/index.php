@@ -327,11 +327,17 @@ include '../includes/header.php';
     text-transform: uppercase;
 }
 
-.gauge-percent {
-    font-size: 0.7rem;
-    color: #10b981;
-    font-weight: 600;
-    margin-top: 2px;
+.gauge-percent-arc {
+    font-size: 0.55rem;
+    font-weight: 700;
+    fill: #fff;
+    text-anchor: middle;
+    dominant-baseline: middle;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.8));
+}
+
+.gauge-percent-dot {
+    filter: drop-shadow(0 0 4px currentColor);
 }
 
 .gauge-item:hover {
@@ -1001,6 +1007,19 @@ include '../includes/header.php';
     $offsetHour = $arcCircum - ($arcCircum * $pctHour / 100);
     $offsetWeek = $arcCircum - ($arcCircum * $pctWeek / 100);
     $offsetMonth = $arcCircum - ($arcCircum * $pctMonth / 100);
+
+    // Fonction pour calculer position du % sur l'arc
+    function getArcEndPosition($pct, $centerX = 70, $centerY = 75, $radius = 60) {
+        $angle = M_PI * (1 - $pct / 100); // 0% = gauche (π), 100% = droite (0)
+        return [
+            'x' => $centerX + $radius * cos($angle),
+            'y' => $centerY - $radius * sin($angle)
+        ];
+    }
+    $posSecond = getArcEndPosition($pctSecond);
+    $posHour = getArcEndPosition($pctHour);
+    $posWeek = getArcEndPosition($pctWeek);
+    $posMonth = getArcEndPosition($pctMonth);
     ?>
     <div class="profit-velocity">
         <div class="velocity-header">
@@ -1051,11 +1070,14 @@ include '../includes/header.php';
                               stroke="url(#secondGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="<?= $offsetSecond ?>"
-                              data-circumference="<?= $arcCircum ?>"/>
+                              data-circumference="<?= $arcCircum ?>"
+                              data-centerx="70" data-centery="75" data-radius="60"/>
+                        <!-- Point % sur l'arc -->
+                        <circle class="gauge-percent-dot" cx="<?= $posSecond['x'] ?>" cy="<?= $posSecond['y'] ?>" r="12" fill="#ef4444" id="gauge-dot-second"/>
+                        <text class="gauge-percent-arc" x="<?= $posSecond['x'] ?>" y="<?= $posSecond['y'] ?>" id="gauge-percent-second"><?= number_format($pctSecond, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParSeconde, 3, ',', ' ') ?><sup>$</sup></div>
-                        <div class="gauge-percent" id="gauge-percent-second"><?= number_format($pctSecond, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par seconde</div>
@@ -1074,11 +1096,13 @@ include '../includes/header.php';
                               stroke="url(#hourGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="<?= $offsetHour ?>"
-                              data-circumference="<?= $arcCircum ?>"/>
+                              data-circumference="<?= $arcCircum ?>"
+                              data-centerx="70" data-centery="75" data-radius="60"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posHour['x'] ?>" cy="<?= $posHour['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-hour"/>
+                        <text class="gauge-percent-arc" x="<?= $posHour['x'] ?>" y="<?= $posHour['y'] ?>" id="gauge-percent-hour"><?= number_format($pctHour, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParHeure, 0, ',', ' ') ?><sup>$</sup></div>
-                        <div class="gauge-percent" id="gauge-percent-hour"><?= number_format($pctHour, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par heure</div>
@@ -1097,11 +1121,13 @@ include '../includes/header.php';
                               stroke="url(#weekGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="<?= $offsetWeek ?>"
-                              data-circumference="<?= $arcCircum ?>"/>
+                              data-circumference="<?= $arcCircum ?>"
+                              data-centerx="70" data-centery="75" data-radius="60"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posWeek['x'] ?>" cy="<?= $posWeek['y'] ?>" r="12" fill="#10b981" id="gauge-dot-week"/>
+                        <text class="gauge-percent-arc" x="<?= $posWeek['x'] ?>" y="<?= $posWeek['y'] ?>" id="gauge-percent-week"><?= number_format($pctWeek, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
-                        <div class="gauge-percent" id="gauge-percent-week"><?= number_format($pctWeek, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par semaine</div>
@@ -1120,11 +1146,13 @@ include '../includes/header.php';
                               stroke="url(#monthGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="<?= $offsetMonth ?>"
-                              data-circumference="<?= $arcCircum ?>"/>
+                              data-circumference="<?= $arcCircum ?>"
+                              data-centerx="70" data-centery="75" data-radius="60"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posMonth['x'] ?>" cy="<?= $posMonth['y'] ?>" r="12" fill="#8b5cf6" id="gauge-dot-month"/>
+                        <text class="gauge-percent-arc" x="<?= $posMonth['x'] ?>" y="<?= $posMonth['y'] ?>" id="gauge-percent-month"><?= number_format($pctMonth, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-value"><?= number_format($profitParMois, 0, ',', ' ') ?><sup>$</sup></div>
-                        <div class="gauge-percent" id="gauge-percent-month"><?= number_format($pctMonth, 0) ?>%</div>
                     </div>
                 </div>
                 <div class="gauge-label">Par mois</div>
@@ -1721,16 +1749,33 @@ function saveGaugeTarget() {
 function updateGaugeVisual(type, value, target) {
     const progressEl = document.getElementById('gauge-progress-' + type);
     const percentEl = document.getElementById('gauge-percent-' + type);
+    const dotEl = document.getElementById('gauge-dot-' + type);
 
-    if (progressEl && percentEl) {
+    if (progressEl && percentEl && dotEl) {
         const circumference = parseFloat(progressEl.dataset.circumference);
+        const centerX = parseFloat(progressEl.dataset.centerx);
+        const centerY = parseFloat(progressEl.dataset.centery);
+        const radius = parseFloat(progressEl.dataset.radius);
+
         let percent = 0;
         if (target > 0) {
             percent = Math.min(100, (value / target) * 100);
         }
         const offset = circumference - (circumference * percent / 100);
 
+        // Mettre à jour l'arc
         progressEl.style.strokeDashoffset = offset;
+
+        // Calculer nouvelle position du point sur l'arc
+        const angle = Math.PI * (1 - percent / 100);
+        const newX = centerX + radius * Math.cos(angle);
+        const newY = centerY - radius * Math.sin(angle);
+
+        // Déplacer le point et le texte
+        dotEl.setAttribute('cx', newX);
+        dotEl.setAttribute('cy', newY);
+        percentEl.setAttribute('x', newX);
+        percentEl.setAttribute('y', newY);
         percentEl.textContent = percent.toFixed(0) + '%';
     }
 }
