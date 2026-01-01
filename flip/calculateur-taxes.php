@@ -259,6 +259,7 @@
 
         <div class="rates-info">
             TPS: 5% | TVQ: 9.975% | Total: 14.975%
+            <br><small style="opacity:0.7">Tab = changer mode | Esc = effacer</small>
         </div>
 
         <button class="install-btn" id="installBtn">
@@ -324,6 +325,24 @@
 
         // Input handler
         document.getElementById('amount').addEventListener('input', calculate);
+
+        // Keyboard support for desktop
+        document.getElementById('amount').addEventListener('keydown', function(e) {
+            // Tab to switch mode
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                currentMode = currentMode === 'add' ? 'remove' : 'add';
+                document.querySelectorAll('.mode-btn').forEach(b => {
+                    b.classList.toggle('active', b.dataset.mode === currentMode);
+                });
+                calculate();
+            }
+            // Escape to clear
+            if (e.key === 'Escape') {
+                this.value = '';
+                calculate();
+            }
+        });
 
         // PWA Install
         window.addEventListener('beforeinstallprompt', (e) => {
