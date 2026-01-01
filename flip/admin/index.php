@@ -1734,13 +1734,47 @@ function formatGaugeValue(value, decimals) {
 function saveGaugeTarget() {
     const target = parseFloat(document.getElementById('gaugeTargetInput').value) || 0;
 
-    // Sauvegarder dans localStorage
-    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
-    savedTargets[currentGaugeType] = target;
-    localStorage.setItem('gaugeTargets', JSON.stringify(savedTargets));
+    // Calculer les objectifs proportionnels pour toutes les jauges
+    // Basé sur 40h/semaine, 52 semaines/an, 12 mois/an
+    let targets = {};
 
-    // Mettre à jour la jauge visuellement
-    updateGaugeVisual(currentGaugeType, currentGaugeValue, target);
+    if (currentGaugeType === 'second') {
+        targets.second = target;
+        targets.hour = target * 3600;
+        targets.week = target * 3600 * 40;
+        targets.month = target * 3600 * 40 * 52 / 12;
+    } else if (currentGaugeType === 'hour') {
+        targets.second = target / 3600;
+        targets.hour = target;
+        targets.week = target * 40;
+        targets.month = target * 40 * 52 / 12;
+    } else if (currentGaugeType === 'week') {
+        targets.second = target / 40 / 3600;
+        targets.hour = target / 40;
+        targets.week = target;
+        targets.month = target * 52 / 12;
+    } else if (currentGaugeType === 'month') {
+        targets.second = target / (52 / 12) / 40 / 3600;
+        targets.hour = target / (52 / 12) / 40;
+        targets.week = target / (52 / 12);
+        targets.month = target;
+    }
+
+    // Sauvegarder tous les objectifs dans localStorage
+    localStorage.setItem('gaugeTargets', JSON.stringify(targets));
+
+    // Récupérer les valeurs actuelles
+    const gaugeValues = {
+        second: <?= $profitParSeconde ?>,
+        hour: <?= $profitParHeure ?>,
+        week: <?= $profitParSemaine ?>,
+        month: <?= $profitParMois ?>
+    };
+
+    // Mettre à jour toutes les jauges visuellement
+    for (const [type, targetVal] of Object.entries(targets)) {
+        updateGaugeVisual(type, gaugeValues[type], targetVal);
+    }
 
     // Fermer le modal
     bootstrap.Modal.getInstance(document.getElementById('gaugeModal')).hide();
