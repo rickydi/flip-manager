@@ -203,8 +203,28 @@ $refreshInterval = 15; // secondes
 include '../../includes/header.php';
 ?>
 
-<!-- Auto-refresh simple via meta tag -->
-<meta http-equiv="refresh" content="<?= $refreshInterval ?>">
+<!-- Auto-refresh intelligent: pause si modal ouvert -->
+<script>
+(function() {
+    var refreshTime = <?= $refreshInterval * 1000 ?>; // millisecondes
+    var timer;
+
+    function scheduleRefresh() {
+        timer = setTimeout(function() {
+            // Ne pas rafraîchir si un modal est ouvert
+            var modalOpen = document.querySelector('.modal.show');
+            if (!modalOpen) {
+                window.location.reload();
+            } else {
+                // Réessayer dans 5 secondes
+                scheduleRefresh();
+            }
+        }, refreshTime);
+    }
+
+    scheduleRefresh();
+})();
+</script>
 
 <div class="container-fluid">
     <!-- En-tête -->
