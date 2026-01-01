@@ -175,7 +175,7 @@ $isAdmin = isAdmin();
 
                     <!-- Calculateur de taxes QC -->
                     <li class="nav-item">
-                        <a class="nav-link px-2" href="#" data-bs-toggle="modal" data-bs-target="#taxCalculatorModal" title="Calculateur TPS/TVQ">
+                        <a class="nav-link px-2" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#taxCalculatorModal" title="Calculateur TPS/TVQ">
                             <i class="bi bi-calculator"></i>
                         </a>
                     </li>
@@ -340,6 +340,13 @@ $isAdmin = isAdmin();
                 <!-- Taux de référence -->
                 <div class="text-center mt-2">
                     <small class="text-muted">TPS: 5% | TVQ: 9.975% | Total: 14.975%</small>
+                </div>
+
+                <!-- Lien pour installer -->
+                <div class="text-center mt-3 pt-2 border-top">
+                    <a href="<?= url('/calculateur-taxes.php') ?>" target="_blank" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir / Installer sur mobile
+                    </a>
                 </div>
             </div>
         </div>
