@@ -182,44 +182,33 @@ include '../includes/header.php';
 /* === TACHYMÈTRE PROFIT - SPEEDOMETER DESIGN === */
 .profit-velocity {
     background: linear-gradient(180deg, #0c1929 0%, #132743 100%);
-    border-radius: 1.5rem;
-    padding: 1.5rem;
-    margin-bottom: 1.25rem;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    border-radius: 1rem;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     border: 1px solid rgba(255,255,255,0.08);
-    position: relative;
-    overflow: hidden;
-}
-
-.profit-velocity::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 200px;
-    height: 100px;
-    background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
-    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
 }
 
 .velocity-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    padding: 0 0.5rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .velocity-title {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 1px;
+    white-space: nowrap;
 }
 
 .velocity-title i {
@@ -230,9 +219,9 @@ include '../includes/header.php';
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.15);
     color: #fff;
-    padding: 0.4rem 0.75rem;
+    padding: 0.35rem 0.6rem;
     border-radius: 0.5rem;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
 }
 
@@ -246,9 +235,8 @@ include '../includes/header.php';
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 2rem;
-    padding: 1rem 0;
-    width: 100%;
+    gap: 3rem;
+    flex: 1;
 }
 
 /* Side Gauges */
@@ -365,51 +353,39 @@ include '../includes/header.php';
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 992px) {
+    .profit-velocity {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+    .velocity-header {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
     .speedometer-container {
-        gap: 1.5rem;
-    }
-    .side-gauge-circle {
-        width: 80px;
-        height: 80px;
-    }
-    .main-speedometer {
-        width: 180px;
-        height: 110px;
+        gap: 2rem;
     }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 576px) {
     .speedometer-container {
-        flex-wrap: nowrap;
-        gap: 0.75rem;
-    }
-    .side-gauge {
-        flex: 1;
-        min-width: 70px;
+        gap: 1rem;
     }
     .side-gauge-circle {
-        width: 65px;
-        height: 65px;
+        width: 70px;
+        height: 70px;
     }
     .side-gauge-value {
         font-size: 1rem;
     }
-    .side-gauge-unit {
-        font-size: 0.6rem;
-    }
     .main-speedometer {
-        width: 140px;
-        height: 90px;
-        flex: 0 0 auto;
+        width: 160px;
+        height: 100px;
     }
     .speedometer-value {
-        font-size: 1.5rem;
-    }
-    .velocity-header {
-        flex-direction: column;
-        gap: 0.75rem;
-        text-align: center;
+        font-size: 1.75rem;
     }
 }
 
