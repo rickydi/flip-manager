@@ -594,8 +594,57 @@
 
         // Register service worker for offline support
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw-taxes.js').catch(() => {});
+            // Force update service worker
+            navigator.serviceWorker.register('sw-taxes.js?v=2', { updateViaCache: 'none' })
+                .then((reg) => {
+                    // Check for updates
+                    reg.update();
+                })
+                .catch((err) => {
+                    console.log('SW registration failed:', err);
+                });
+
+            // Clear old caches on load
+            if ('caches' in window) {
+                caches.keys().then((names) => {
+                    names.forEach((name) => {
+                        if (name.startsWith('taxes-qc-v1')) {
+                            caches.delete(name);
+                        }
+                    });
+                });
+            }
         }
+
+        // Triple tap to reset cache (troubleshooting)
+        let tapCount = 0;
+        let tapTimer;
+        document.querySelector('.logo').addEventListener('click', () => {
+            tapCount++;
+            clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => tapCount = 0, 500);
+
+            if (tapCount >= 5) {
+                tapCount = 0;
+                if (confirm('Vider le cache et recharger?')) {
+                    // Unregister all service workers
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then((registrations) => {
+                            registrations.forEach((reg) => reg.unregister());
+                        });
+                    }
+                    // Clear all caches
+                    if ('caches' in window) {
+                        caches.keys().then((names) => {
+                            Promise.all(names.map((name) => caches.delete(name)))
+                                .then(() => location.reload(true));
+                        });
+                    } else {
+                        location.reload(true);
+                    }
+                }
+            }
+        });
 
         // Focus input on load
         setTimeout(() => amountInput.focus(), 100);
