@@ -169,11 +169,208 @@ if (!in_array($anneeFiscale, $anneesDisponibles)) {
 }
 $resumeFiscal = obtenirResumeAnneeFiscale($pdo, $anneeFiscale);
 
+// Calcul de la vélocité du profit (basé sur 40h/semaine, 52 semaines)
+$profitNetAnnuel = $resumeFiscal['profit_net_realise'] ?? 0;
+$profitParMois = $profitNetAnnuel / 12;
+$profitParSemaine = $profitNetAnnuel / 52;
+$profitParHeure = $profitNetAnnuel / (52 * 40); // 40h/semaine
+
 include '../includes/header.php';
 ?>
 
 <style>
-/* Stats cards cliquables */
+/* === TACHYMÈTRE PROFIT === */
+.profit-velocity {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 1.25rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+.velocity-header {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.velocity-header h4 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.velocity-header .year-badge {
+    display: inline-block;
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+
+.velocity-gauges {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.velocity-item {
+    text-align: center;
+    min-width: 100px;
+}
+
+.velocity-item.main {
+    min-width: 140px;
+}
+
+.velocity-circle {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    margin: 0 auto 0.75rem;
+}
+
+.velocity-item.main .velocity-circle {
+    width: 120px;
+    height: 120px;
+}
+
+.velocity-circle svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+}
+
+.velocity-circle .bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.05);
+    stroke-width: 8;
+}
+
+.velocity-circle .progress {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease-out;
+}
+
+.velocity-circle .progress.hour { stroke: #f59e0b; }
+.velocity-circle .progress.week { stroke: #10b981; }
+.velocity-circle .progress.month { stroke: #6366f1; }
+
+.velocity-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.velocity-value .amount {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+}
+
+.velocity-item.main .velocity-value .amount {
+    font-size: 1.35rem;
+}
+
+.velocity-value .unit {
+    font-size: 0.65rem;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.velocity-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+}
+
+.velocity-label span {
+    display: block;
+    font-size: 0.7rem;
+    color: #64748b;
+}
+
+/* === MINI STATS CARDS === */
+.mini-stats {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.mini-stat-link {
+    flex: 1;
+    min-width: 140px;
+    text-decoration: none;
+    color: inherit;
+}
+
+.mini-stat-link:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+.mini-stat {
+    background: var(--bg-card);
+    border-radius: 0.75rem;
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    transition: all 0.2s;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.mini-stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px var(--shadow-color);
+    border-color: var(--primary-color, #4a90a4);
+}
+
+.mini-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.mini-stat-icon.primary { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.mini-stat-icon.warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.mini-stat-icon.success { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.mini-stat-icon.info { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
+
+.mini-stat-content h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.mini-stat-content p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Stats cards cliquables - legacy */
 .stat-card-link {
     display: block;
     text-decoration: none;
@@ -208,6 +405,34 @@ include '../includes/header.php';
     transform: translateY(-4px);
     box-shadow: 0 12px 20px var(--shadow-color);
     border-color: var(--primary-color, #4a90a4);
+}
+
+/* Responsive velocity */
+@media (max-width: 576px) {
+    .velocity-gauges {
+        gap: 1rem;
+    }
+    .velocity-item {
+        min-width: 80px;
+    }
+    .velocity-circle {
+        width: 70px;
+        height: 70px;
+    }
+    .velocity-item.main .velocity-circle {
+        width: 90px;
+        height: 90px;
+    }
+    .velocity-value .amount {
+        font-size: 0.85rem;
+    }
+    .velocity-item.main .velocity-value .amount {
+        font-size: 1.1rem;
+    }
+    .mini-stat-link {
+        min-width: calc(50% - 0.375rem);
+        flex: none;
+    }
 }
 
 .stat-icon {
@@ -659,61 +884,123 @@ include '../includes/header.php';
 
 <div class="container-fluid">
     <?php displayFlashMessage(); ?>
-    
-    <!-- Statistiques -->
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 mb-3">
-            <a href="<?= url('/admin/projets/liste.php') ?>" class="stat-card-link">
-                <div class="stat-card-modern">
-                    <div class="stat-icon primary">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="counter" data-target="<?= $totalProjets ?>">0</h3>
-                        <p>Projets actifs</p>
+
+    <!-- Tachymètre Vélocité Profit -->
+    <?php
+    // Calcul des circumferences pour les cercles SVG
+    $radiusSmall = 37; // Pour les petits cercles (90px / 2 - stroke)
+    $radiusLarge = 52; // Pour le grand cercle (120px / 2 - stroke)
+    $circumSmall = 2 * M_PI * $radiusSmall;
+    $circumLarge = 2 * M_PI * $radiusLarge;
+
+    // Animation: on utilise un pourcentage basé sur un objectif de 100$/h, 4000$/sem, 16000$/mois
+    $pctHour = min(100, ($profitParHeure / 100) * 100);
+    $pctWeek = min(100, ($profitParSemaine / 4000) * 100);
+    $pctMonth = min(100, ($profitParMois / 16000) * 100);
+
+    $offsetHour = $circumSmall - ($circumSmall * $pctHour / 100);
+    $offsetWeek = $circumLarge - ($circumLarge * $pctWeek / 100);
+    $offsetMonth = $circumSmall - ($circumSmall * $pctMonth / 100);
+    ?>
+    <div class="profit-velocity">
+        <div class="velocity-header">
+            <h4>
+                <i class="bi bi-speedometer2 me-2"></i>Vélocité Profit Net
+                <span class="year-badge"><?= $anneeFiscale ?></span>
+            </h4>
+        </div>
+        <div class="velocity-gauges">
+            <!-- Par Heure -->
+            <div class="velocity-item">
+                <div class="velocity-circle">
+                    <svg viewBox="0 0 90 90">
+                        <circle class="bg" cx="45" cy="45" r="<?= $radiusSmall ?>"/>
+                        <circle class="progress hour" cx="45" cy="45" r="<?= $radiusSmall ?>"
+                                stroke-dasharray="<?= $circumSmall ?>"
+                                stroke-dashoffset="<?= $offsetHour ?>"/>
+                    </svg>
+                    <div class="velocity-value">
+                        <div class="amount"><?= number_format($profitParHeure, 0, ',', ' ') ?>$</div>
+                        <div class="unit">/heure</div>
                     </div>
                 </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-3">
-            <a href="<?= url('/admin/factures/approuver.php') ?>" class="stat-card-link">
-                <div class="stat-card-modern">
-                    <div class="stat-icon warning">
-                        <i class="bi bi-clock-history"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="counter" data-target="<?= $facturesEnAttente ?>">0</h3>
-                        <p>Factures en attente</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-3">
-            <a href="<?= url('/admin/factures/liste.php?statut=approuve') ?>" class="stat-card-link">
-                <div class="stat-card-modern">
-                    <div class="stat-icon success">
-                        <i class="bi bi-check-circle"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="counter" data-target="<?= $facturesApprouvees ?>">0</h3>
-                        <p>Factures approuvées</p>
+                <div class="velocity-label">Par heure<span>40h/sem</span></div>
+            </div>
+
+            <!-- Par Semaine (principal) -->
+            <div class="velocity-item main">
+                <div class="velocity-circle">
+                    <svg viewBox="0 0 120 120">
+                        <circle class="bg" cx="60" cy="60" r="<?= $radiusLarge ?>"/>
+                        <circle class="progress week" cx="60" cy="60" r="<?= $radiusLarge ?>"
+                                stroke-dasharray="<?= $circumLarge ?>"
+                                stroke-dashoffset="<?= $offsetWeek ?>"/>
+                    </svg>
+                    <div class="velocity-value">
+                        <div class="amount"><?= number_format($profitParSemaine, 0, ',', ' ') ?>$</div>
+                        <div class="unit">/semaine</div>
                     </div>
                 </div>
-            </a>
-        </div>
-        <div class="col-lg-3 col-md-6 mb-3">
-            <a href="<?= url('/admin/factures/liste.php') ?>" class="stat-card-link">
-                <div class="stat-card-modern">
-                    <div class="stat-icon info">
-                        <i class="bi bi-cash-stack"></i>
-                    </div>
-                    <div class="stat-content">
-                        <h3 class="counter-money" data-target="<?= $totalDepenses ?>">0,00 $</h3>
-                        <p>Total dépensé</p>
+                <div class="velocity-label">Par semaine<span>52 sem/an</span></div>
+            </div>
+
+            <!-- Par Mois -->
+            <div class="velocity-item">
+                <div class="velocity-circle">
+                    <svg viewBox="0 0 90 90">
+                        <circle class="bg" cx="45" cy="45" r="<?= $radiusSmall ?>"/>
+                        <circle class="progress month" cx="45" cy="45" r="<?= $radiusSmall ?>"
+                                stroke-dasharray="<?= $circumSmall ?>"
+                                stroke-dashoffset="<?= $offsetMonth ?>"/>
+                    </svg>
+                    <div class="velocity-value">
+                        <div class="amount"><?= number_format($profitParMois, 0, ',', ' ') ?>$</div>
+                        <div class="unit">/mois</div>
                     </div>
                 </div>
-            </a>
+                <div class="velocity-label">Par mois<span>12 mois/an</span></div>
+            </div>
         </div>
+    </div>
+
+    <!-- Mini Stats Cards -->
+    <div class="mini-stats mb-4">
+        <a href="<?= url('/admin/projets/liste.php') ?>" class="mini-stat-link">
+            <div class="mini-stat">
+                <div class="mini-stat-icon primary"><i class="bi bi-building"></i></div>
+                <div class="mini-stat-content">
+                    <h4><?= $totalProjets ?></h4>
+                    <p>Projets actifs</p>
+                </div>
+            </div>
+        </a>
+        <a href="<?= url('/admin/factures/approuver.php') ?>" class="mini-stat-link">
+            <div class="mini-stat">
+                <div class="mini-stat-icon warning"><i class="bi bi-clock-history"></i></div>
+                <div class="mini-stat-content">
+                    <h4><?= $facturesEnAttente ?></h4>
+                    <p>Factures en attente</p>
+                </div>
+            </div>
+        </a>
+        <a href="<?= url('/admin/factures/liste.php?statut=approuve') ?>" class="mini-stat-link">
+            <div class="mini-stat">
+                <div class="mini-stat-icon success"><i class="bi bi-check-circle"></i></div>
+                <div class="mini-stat-content">
+                    <h4><?= $facturesApprouvees ?></h4>
+                    <p>Factures approuvées</p>
+                </div>
+            </div>
+        </a>
+        <a href="<?= url('/admin/factures/liste.php') ?>" class="mini-stat-link">
+            <div class="mini-stat">
+                <div class="mini-stat-icon info"><i class="bi bi-cash-stack"></i></div>
+                <div class="mini-stat-content">
+                    <h4><?= formatMoney($totalDepenses) ?></h4>
+                    <p>Total dépensé</p>
+                </div>
+            </div>
+        </a>
     </div>
 
     <!-- Section Fiscalité -->
