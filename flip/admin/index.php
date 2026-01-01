@@ -179,127 +179,218 @@ include '../includes/header.php';
 ?>
 
 <style>
-/* === TACHYMÈTRE PROFIT === */
+/* === TACHYMÈTRE PROFIT - SPEEDOMETER DESIGN === */
 .profit-velocity {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border-radius: 1.25rem;
+    background: linear-gradient(180deg, #0c1929 0%, #132743 100%);
+    border-radius: 1.5rem;
     padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    border: 1px solid rgba(255,255,255,0.05);
+    margin-bottom: 1.25rem;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    border: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.profit-velocity::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 100px;
+    background: radial-gradient(ellipse at center, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .velocity-header {
-    text-align: center;
-    margin-bottom: 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 0 0.5rem;
 }
 
-.velocity-header h4 {
-    margin: 0;
-    font-size: 1rem;
+.velocity-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
     font-weight: 600;
-    color: #94a3b8;
+    color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
 }
 
-.velocity-header .year-badge {
-    display: inline-block;
-    background: rgba(99, 102, 241, 0.2);
-    color: #818cf8;
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
-    font-size: 0.8rem;
-    margin-left: 0.5rem;
+.velocity-title i {
+    color: #10b981;
 }
 
-.velocity-gauges {
+.velocity-year-select {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.velocity-year-select option {
+    background: #1a2744;
+    color: #fff;
+}
+
+/* Speedometer Container */
+.speedometer-container {
     display: flex;
     justify-content: center;
-    align-items: flex-end;
-    gap: 2rem;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.5rem 0;
 }
 
-.velocity-item {
+/* Side Gauges */
+.side-gauge {
     text-align: center;
-    min-width: 100px;
+    flex: 0 0 80px;
 }
 
-.velocity-item.main {
-    min-width: 140px;
-}
-
-.velocity-circle {
+.side-gauge-circle {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.3);
+    border: 3px solid rgba(255,255,255,0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.5rem;
     position: relative;
-    width: 90px;
-    height: 90px;
-    margin: 0 auto 0.75rem;
 }
 
-.velocity-item.main .velocity-circle {
-    width: 120px;
-    height: 120px;
-}
-
-.velocity-circle svg {
-    transform: rotate(-90deg);
-    width: 100%;
-    height: 100%;
-}
-
-.velocity-circle .bg {
-    fill: none;
-    stroke: rgba(255,255,255,0.05);
-    stroke-width: 8;
-}
-
-.velocity-circle .progress {
-    fill: none;
-    stroke-width: 8;
-    stroke-linecap: round;
-    transition: stroke-dashoffset 1s ease-out;
-}
-
-.velocity-circle .progress.hour { stroke: #f59e0b; }
-.velocity-circle .progress.week { stroke: #10b981; }
-.velocity-circle .progress.month { stroke: #6366f1; }
-
-.velocity-value {
+.side-gauge-circle::before {
+    content: '';
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
+    inset: -3px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--gauge-color);
+    border-right-color: var(--gauge-color);
+    transform: rotate(var(--gauge-rotation, 0deg));
 }
 
-.velocity-value .amount {
+.side-gauge.hour .side-gauge-circle { --gauge-color: #f59e0b; }
+.side-gauge.month .side-gauge-circle { --gauge-color: #8b5cf6; }
+
+.side-gauge-value {
     font-size: 1rem;
     font-weight: 700;
     color: #fff;
-    line-height: 1.2;
+    line-height: 1;
 }
 
-.velocity-item.main .velocity-value .amount {
-    font-size: 1.35rem;
-}
-
-.velocity-value .unit {
-    font-size: 0.65rem;
+.side-gauge-unit {
+    font-size: 0.6rem;
     color: #64748b;
     text-transform: uppercase;
+    margin-top: 2px;
 }
 
-.velocity-label {
-    font-size: 0.8rem;
+.side-gauge-label {
+    font-size: 0.7rem;
     color: #94a3b8;
     font-weight: 500;
 }
 
-.velocity-label span {
-    display: block;
+/* Main Speedometer */
+.main-speedometer {
+    position: relative;
+    width: 160px;
+    height: 100px;
+    flex: 0 0 160px;
+}
+
+.speedometer-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.speedometer-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 12;
+    stroke-linecap: round;
+}
+
+.speedometer-progress {
+    fill: none;
+    stroke: url(#speedGradient);
+    stroke-width: 12;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+    transition: stroke-dashoffset 1s ease-out;
+}
+
+.speedometer-center {
+    position: absolute;
+    bottom: 5px;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+}
+
+.speedometer-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+    text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+}
+
+.speedometer-value sup {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.speedometer-label {
     font-size: 0.7rem;
-    color: #64748b;
+    color: #10b981;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .speedometer-container {
+        flex-wrap: nowrap;
+        gap: 0.5rem;
+    }
+    .side-gauge {
+        flex: 0 0 65px;
+    }
+    .side-gauge-circle {
+        width: 55px;
+        height: 55px;
+    }
+    .side-gauge-value {
+        font-size: 0.85rem;
+    }
+    .main-speedometer {
+        width: 130px;
+        height: 85px;
+        flex: 0 0 130px;
+    }
+    .speedometer-value {
+        font-size: 1.4rem;
+    }
+    .velocity-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
 }
 
 /* === MINI STATS CARDS === */
@@ -887,78 +978,73 @@ include '../includes/header.php';
 
     <!-- Tachymètre Vélocité Profit -->
     <?php
-    // Calcul des circumferences pour les cercles SVG
-    $radiusSmall = 37; // Pour les petits cercles (90px / 2 - stroke)
-    $radiusLarge = 52; // Pour le grand cercle (120px / 2 - stroke)
-    $circumSmall = 2 * M_PI * $radiusSmall;
-    $circumLarge = 2 * M_PI * $radiusLarge;
+    // Calcul pour le demi-cercle (arc de 180 degrés)
+    $arcRadius = 65;
+    $arcCircum = M_PI * $arcRadius; // Demi-circonférence
+    $pctWeek = min(100, max(0, ($profitParSemaine / 5000) * 100)); // Objectif 5000$/semaine
+    $arcOffset = $arcCircum - ($arcCircum * $pctWeek / 100);
 
-    // Animation: on utilise un pourcentage basé sur un objectif de 100$/h, 4000$/sem, 16000$/mois
-    $pctHour = min(100, ($profitParHeure / 100) * 100);
-    $pctWeek = min(100, ($profitParSemaine / 4000) * 100);
-    $pctMonth = min(100, ($profitParMois / 16000) * 100);
-
-    $offsetHour = $circumSmall - ($circumSmall * $pctHour / 100);
-    $offsetWeek = $circumLarge - ($circumLarge * $pctWeek / 100);
-    $offsetMonth = $circumSmall - ($circumSmall * $pctMonth / 100);
+    // Rotations pour les petits indicateurs (en degrés, 0-180 mapped to gauge)
+    $rotHour = min(180, max(0, ($profitParHeure / 150) * 180)); // Objectif 150$/h
+    $rotMonth = min(180, max(0, ($profitParMois / 20000) * 180)); // Objectif 20000$/mois
     ?>
     <div class="profit-velocity">
         <div class="velocity-header">
-            <h4>
-                <i class="bi bi-speedometer2 me-2"></i>Vélocité Profit Net
-                <span class="year-badge"><?= $anneeFiscale ?></span>
-            </h4>
+            <div class="velocity-title">
+                <i class="bi bi-speedometer2"></i>
+                Vélocité Profit Net
+            </div>
+            <select class="velocity-year-select" onchange="window.location.href='?annee='+this.value">
+                <?php foreach ($anneesDisponibles as $annee): ?>
+                <option value="<?= $annee ?>" <?= $annee == $anneeFiscale ? 'selected' : '' ?>><?= $annee ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
-        <div class="velocity-gauges">
-            <!-- Par Heure -->
-            <div class="velocity-item">
-                <div class="velocity-circle">
-                    <svg viewBox="0 0 90 90">
-                        <circle class="bg" cx="45" cy="45" r="<?= $radiusSmall ?>"/>
-                        <circle class="progress hour" cx="45" cy="45" r="<?= $radiusSmall ?>"
-                                stroke-dasharray="<?= $circumSmall ?>"
-                                stroke-dashoffset="<?= $offsetHour ?>"/>
-                    </svg>
-                    <div class="velocity-value">
-                        <div class="amount"><?= number_format($profitParHeure, 0, ',', ' ') ?>$</div>
-                        <div class="unit">/heure</div>
-                    </div>
+
+        <div class="speedometer-container">
+            <!-- Jauge Heure (gauche) -->
+            <div class="side-gauge hour">
+                <div class="side-gauge-circle" style="--gauge-rotation: <?= $rotHour ?>deg">
+                    <div class="side-gauge-value"><?= number_format($profitParHeure, 0, ',', ' ') ?>$</div>
+                    <div class="side-gauge-unit">/heure</div>
                 </div>
-                <div class="velocity-label">Par heure<span>40h/sem</span></div>
+                <div class="side-gauge-label">Par heure</div>
             </div>
 
-            <!-- Par Semaine (principal) -->
-            <div class="velocity-item main">
-                <div class="velocity-circle">
-                    <svg viewBox="0 0 120 120">
-                        <circle class="bg" cx="60" cy="60" r="<?= $radiusLarge ?>"/>
-                        <circle class="progress week" cx="60" cy="60" r="<?= $radiusLarge ?>"
-                                stroke-dasharray="<?= $circumLarge ?>"
-                                stroke-dashoffset="<?= $offsetWeek ?>"/>
-                    </svg>
-                    <div class="velocity-value">
-                        <div class="amount"><?= number_format($profitParSemaine, 0, ',', ' ') ?>$</div>
-                        <div class="unit">/semaine</div>
-                    </div>
+            <!-- Speedometer Principal (centre) -->
+            <div class="main-speedometer">
+                <svg class="speedometer-svg" viewBox="0 0 160 100">
+                    <defs>
+                        <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" style="stop-color:#f59e0b"/>
+                            <stop offset="50%" style="stop-color:#10b981"/>
+                            <stop offset="100%" style="stop-color:#06b6d4"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Arc de fond -->
+                    <path class="speedometer-bg"
+                          d="M 15 85 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 145 85"
+                          stroke-dasharray="<?= $arcCircum ?>"
+                          stroke-dashoffset="0"/>
+                    <!-- Arc de progression -->
+                    <path class="speedometer-progress"
+                          d="M 15 85 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 145 85"
+                          stroke-dasharray="<?= $arcCircum ?>"
+                          stroke-dashoffset="<?= $arcOffset ?>"/>
+                </svg>
+                <div class="speedometer-center">
+                    <div class="speedometer-value"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
+                    <div class="speedometer-label">/ semaine</div>
                 </div>
-                <div class="velocity-label">Par semaine<span>52 sem/an</span></div>
             </div>
 
-            <!-- Par Mois -->
-            <div class="velocity-item">
-                <div class="velocity-circle">
-                    <svg viewBox="0 0 90 90">
-                        <circle class="bg" cx="45" cy="45" r="<?= $radiusSmall ?>"/>
-                        <circle class="progress month" cx="45" cy="45" r="<?= $radiusSmall ?>"
-                                stroke-dasharray="<?= $circumSmall ?>"
-                                stroke-dashoffset="<?= $offsetMonth ?>"/>
-                    </svg>
-                    <div class="velocity-value">
-                        <div class="amount"><?= number_format($profitParMois, 0, ',', ' ') ?>$</div>
-                        <div class="unit">/mois</div>
-                    </div>
+            <!-- Jauge Mois (droite) -->
+            <div class="side-gauge month">
+                <div class="side-gauge-circle" style="--gauge-rotation: <?= $rotMonth ?>deg">
+                    <div class="side-gauge-value"><?= number_format($profitParMois, 0, ',', ' ') ?>$</div>
+                    <div class="side-gauge-unit">/mois</div>
                 </div>
-                <div class="velocity-label">Par mois<span>12 mois/an</span></div>
+                <div class="side-gauge-label">Par mois</div>
             </div>
         </div>
     </div>
