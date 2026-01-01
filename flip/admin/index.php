@@ -239,117 +239,92 @@ include '../includes/header.php';
     flex: 1;
 }
 
-/* Side Gauges */
-.side-gauge {
+/* All Gauges Same Style */
+.speedometer-container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 2rem;
+    flex: 1;
+}
+
+.gauge-item {
     text-align: center;
     flex: 1;
-    max-width: 150px;
+    max-width: 200px;
 }
 
-.side-gauge-circle {
-    width: 90px;
+.gauge-speedometer {
+    position: relative;
+    width: 150px;
     height: 90px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.3);
-    border: 4px solid rgba(255,255,255,0.1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 0.75rem;
-    position: relative;
+    margin: 0 auto;
 }
 
-.side-gauge-circle::before {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    border: 4px solid transparent;
-    border-top-color: var(--gauge-color);
-    border-right-color: var(--gauge-color);
-    transform: rotate(var(--gauge-rotation, 0deg));
-}
-
-.side-gauge.hour .side-gauge-circle { --gauge-color: #f59e0b; }
-.side-gauge.month .side-gauge-circle { --gauge-color: #8b5cf6; }
-
-.side-gauge-value {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: #fff;
-    line-height: 1;
-}
-
-.side-gauge-unit {
-    font-size: 0.7rem;
-    color: #64748b;
-    text-transform: uppercase;
-    margin-top: 4px;
-}
-
-.side-gauge-label {
-    font-size: 0.85rem;
-    color: #94a3b8;
-    font-weight: 500;
-}
-
-/* Main Speedometer */
-.main-speedometer {
-    position: relative;
-    width: 220px;
-    height: 130px;
-    flex: 0 0 auto;
-}
-
-.speedometer-svg {
+.gauge-speedometer svg {
     width: 100%;
     height: 100%;
 }
 
-.speedometer-bg {
+.gauge-bg {
     fill: none;
     stroke: rgba(255,255,255,0.08);
-    stroke-width: 12;
+    stroke-width: 10;
     stroke-linecap: round;
 }
 
-.speedometer-progress {
+.gauge-progress {
     fill: none;
-    stroke: url(#speedGradient);
-    stroke-width: 12;
+    stroke-width: 10;
     stroke-linecap: round;
-    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+    filter: drop-shadow(0 0 6px var(--gauge-glow));
     transition: stroke-dashoffset 1s ease-out;
 }
 
-.speedometer-center {
+.gauge-item.hour .gauge-progress {
+    stroke: url(#hourGradient);
+    --gauge-glow: rgba(245, 158, 11, 0.5);
+}
+.gauge-item.week .gauge-progress {
+    stroke: url(#weekGradient);
+    --gauge-glow: rgba(16, 185, 129, 0.5);
+}
+.gauge-item.month .gauge-progress {
+    stroke: url(#monthGradient);
+    --gauge-glow: rgba(139, 92, 246, 0.5);
+}
+
+.gauge-center {
     position: absolute;
-    bottom: 10px;
+    bottom: 0;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
 }
 
-.speedometer-value {
-    font-size: 2.25rem;
+.gauge-value {
+    font-size: 1.5rem;
     font-weight: 800;
     color: #fff;
     line-height: 1;
-    text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
 }
 
-.speedometer-value sup {
-    font-size: 1rem;
+.gauge-value sup {
+    font-size: 0.75rem;
     font-weight: 600;
 }
 
-.speedometer-label {
-    font-size: 0.8rem;
-    color: #10b981;
+.gauge-unit {
+    font-size: 0.7rem;
+    color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 4px;
+}
+
+.gauge-label {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 500;
+    margin-top: 0.5rem;
 }
 
 /* Responsive */
@@ -365,27 +340,23 @@ include '../includes/header.php';
         width: 100%;
     }
     .speedometer-container {
-        gap: 2rem;
+        gap: 1.5rem;
     }
 }
 
 @media (max-width: 576px) {
     .speedometer-container {
-        gap: 1rem;
+        gap: 0.5rem;
     }
-    .side-gauge-circle {
-        width: 70px;
-        height: 70px;
+    .gauge-speedometer {
+        width: 100px;
+        height: 60px;
     }
-    .side-gauge-value {
-        font-size: 1rem;
+    .gauge-value {
+        font-size: 1.1rem;
     }
-    .main-speedometer {
-        width: 160px;
-        height: 100px;
-    }
-    .speedometer-value {
-        font-size: 1.75rem;
+    .gauge-label {
+        font-size: 0.7rem;
     }
 }
 
@@ -974,15 +945,19 @@ include '../includes/header.php';
 
     <!-- Tachymètre Vélocité Profit -->
     <?php
-    // Calcul pour le demi-cercle (arc de 180 degrés) - viewBox 220x130
-    $arcRadius = 90;
+    // Calcul pour les demi-cercles (arc de 180 degrés)
+    $arcRadius = 60;
     $arcCircum = M_PI * $arcRadius; // Demi-circonférence
-    $pctWeek = min(100, max(0, ($profitParSemaine / 5000) * 100)); // Objectif 5000$/semaine
-    $arcOffset = $arcCircum - ($arcCircum * $pctWeek / 100);
 
-    // Rotations pour les petits indicateurs (en degrés, 0-180 mapped to gauge)
-    $rotHour = min(180, max(0, ($profitParHeure / 150) * 180)); // Objectif 150$/h
-    $rotMonth = min(180, max(0, ($profitParMois / 20000) * 180)); // Objectif 20000$/mois
+    // Pourcentages pour chaque jauge
+    $pctHour = min(100, max(0, ($profitParHeure / 150) * 100)); // Objectif 150$/h
+    $pctWeek = min(100, max(0, ($profitParSemaine / 5000) * 100)); // Objectif 5000$/semaine
+    $pctMonth = min(100, max(0, ($profitParMois / 20000) * 100)); // Objectif 20000$/mois
+
+    // Offsets pour les arcs SVG
+    $offsetHour = $arcCircum - ($arcCircum * $pctHour / 100);
+    $offsetWeek = $arcCircum - ($arcCircum * $pctWeek / 100);
+    $offsetMonth = $arcCircum - ($arcCircum * $pctMonth / 100);
     ?>
     <div class="profit-velocity">
         <div class="velocity-header">
@@ -998,49 +973,85 @@ include '../includes/header.php';
         </div>
 
         <div class="speedometer-container">
-            <!-- Jauge Heure (gauche) -->
-            <div class="side-gauge hour">
-                <div class="side-gauge-circle" style="--gauge-rotation: <?= $rotHour ?>deg">
-                    <div class="side-gauge-value"><?= number_format($profitParHeure, 0, ',', ' ') ?>$</div>
-                    <div class="side-gauge-unit">/heure</div>
+            <!-- Defs pour les gradients -->
+            <svg style="position:absolute;width:0;height:0;">
+                <defs>
+                    <linearGradient id="hourGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
+                    </linearGradient>
+                    <linearGradient id="weekGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#10b981"/>
+                        <stop offset="100%" style="stop-color:#06b6d4"/>
+                    </linearGradient>
+                    <linearGradient id="monthGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#8b5cf6"/>
+                        <stop offset="100%" style="stop-color:#a78bfa"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+
+            <!-- Jauge Heure -->
+            <div class="gauge-item hour">
+                <div class="gauge-speedometer">
+                    <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
+                        <path class="gauge-bg"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="0"/>
+                        <path class="gauge-progress"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke="url(#hourGradient)"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="<?= $offsetHour ?>"/>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="gauge-value"><?= number_format($profitParHeure, 0, ',', ' ') ?><sup>$</sup></div>
+                    </div>
                 </div>
-                <div class="side-gauge-label">Par heure</div>
+                <div class="gauge-label">Par heure</div>
             </div>
 
-            <!-- Speedometer Principal (centre) -->
-            <div class="main-speedometer">
-                <svg class="speedometer-svg" viewBox="0 0 220 130" preserveAspectRatio="xMidYMid meet">
-                    <defs>
-                        <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" style="stop-color:#f59e0b"/>
-                            <stop offset="50%" style="stop-color:#10b981"/>
-                            <stop offset="100%" style="stop-color:#06b6d4"/>
-                        </linearGradient>
-                    </defs>
-                    <!-- Arc de fond -->
-                    <path class="speedometer-bg"
-                          d="M 20 115 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 200 115"
-                          stroke-dasharray="<?= $arcCircum ?>"
-                          stroke-dashoffset="0"/>
-                    <!-- Arc de progression -->
-                    <path class="speedometer-progress"
-                          d="M 20 115 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 200 115"
-                          stroke-dasharray="<?= $arcCircum ?>"
-                          stroke-dashoffset="<?= $arcOffset ?>"/>
-                </svg>
-                <div class="speedometer-center">
-                    <div class="speedometer-value"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
-                    <div class="speedometer-label">/ semaine</div>
+            <!-- Jauge Semaine -->
+            <div class="gauge-item week">
+                <div class="gauge-speedometer">
+                    <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
+                        <path class="gauge-bg"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="0"/>
+                        <path class="gauge-progress"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke="url(#weekGradient)"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="<?= $offsetWeek ?>"/>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="gauge-value"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
+                    </div>
                 </div>
+                <div class="gauge-label">Par semaine</div>
             </div>
 
-            <!-- Jauge Mois (droite) -->
-            <div class="side-gauge month">
-                <div class="side-gauge-circle" style="--gauge-rotation: <?= $rotMonth ?>deg">
-                    <div class="side-gauge-value"><?= number_format($profitParMois, 0, ',', ' ') ?>$</div>
-                    <div class="side-gauge-unit">/mois</div>
+            <!-- Jauge Mois -->
+            <div class="gauge-item month">
+                <div class="gauge-speedometer">
+                    <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
+                        <path class="gauge-bg"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="0"/>
+                        <path class="gauge-progress"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke="url(#monthGradient)"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="<?= $offsetMonth ?>"/>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="gauge-value"><?= number_format($profitParMois, 0, ',', ' ') ?><sup>$</sup></div>
+                    </div>
                 </div>
-                <div class="side-gauge-label">Par mois</div>
+                <div class="gauge-label">Par mois</div>
             </div>
         </div>
     </div>
