@@ -246,36 +246,38 @@ include '../includes/header.php';
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 1rem;
-    padding: 0.5rem 0;
+    gap: 2rem;
+    padding: 1rem 0;
+    width: 100%;
 }
 
 /* Side Gauges */
 .side-gauge {
     text-align: center;
-    flex: 0 0 80px;
+    flex: 1;
+    max-width: 150px;
 }
 
 .side-gauge-circle {
-    width: 70px;
-    height: 70px;
+    width: 90px;
+    height: 90px;
     border-radius: 50%;
     background: rgba(0,0,0,0.3);
-    border: 3px solid rgba(255,255,255,0.1);
+    border: 4px solid rgba(255,255,255,0.1);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 0.5rem;
+    margin: 0 auto 0.75rem;
     position: relative;
 }
 
 .side-gauge-circle::before {
     content: '';
     position: absolute;
-    inset: -3px;
+    inset: -4px;
     border-radius: 50%;
-    border: 3px solid transparent;
+    border: 4px solid transparent;
     border-top-color: var(--gauge-color);
     border-right-color: var(--gauge-color);
     transform: rotate(var(--gauge-rotation, 0deg));
@@ -285,21 +287,21 @@ include '../includes/header.php';
 .side-gauge.month .side-gauge-circle { --gauge-color: #8b5cf6; }
 
 .side-gauge-value {
-    font-size: 1rem;
+    font-size: 1.25rem;
     font-weight: 700;
     color: #fff;
     line-height: 1;
 }
 
 .side-gauge-unit {
-    font-size: 0.6rem;
+    font-size: 0.7rem;
     color: #64748b;
     text-transform: uppercase;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 .side-gauge-label {
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     color: #94a3b8;
     font-weight: 500;
 }
@@ -307,9 +309,9 @@ include '../includes/header.php';
 /* Main Speedometer */
 .main-speedometer {
     position: relative;
-    width: 160px;
-    height: 100px;
-    flex: 0 0 160px;
+    width: 220px;
+    height: 130px;
+    flex: 0 0 auto;
 }
 
 .speedometer-svg {
@@ -335,14 +337,14 @@ include '../includes/header.php';
 
 .speedometer-center {
     position: absolute;
-    bottom: 5px;
+    bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
 }
 
 .speedometer-value {
-    font-size: 1.75rem;
+    font-size: 2.25rem;
     font-weight: 800;
     color: #fff;
     line-height: 1;
@@ -350,41 +352,59 @@ include '../includes/header.php';
 }
 
 .speedometer-value sup {
-    font-size: 0.9rem;
+    font-size: 1rem;
     font-weight: 600;
 }
 
 .speedometer-label {
-    font-size: 0.7rem;
+    font-size: 0.8rem;
     color: #10b981;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-top: 2px;
+    margin-top: 4px;
 }
 
 /* Responsive */
+@media (max-width: 768px) {
+    .speedometer-container {
+        gap: 1.5rem;
+    }
+    .side-gauge-circle {
+        width: 80px;
+        height: 80px;
+    }
+    .main-speedometer {
+        width: 180px;
+        height: 110px;
+    }
+}
+
 @media (max-width: 480px) {
     .speedometer-container {
         flex-wrap: nowrap;
-        gap: 0.5rem;
+        gap: 0.75rem;
     }
     .side-gauge {
-        flex: 0 0 65px;
+        flex: 1;
+        min-width: 70px;
     }
     .side-gauge-circle {
-        width: 55px;
-        height: 55px;
+        width: 65px;
+        height: 65px;
     }
     .side-gauge-value {
-        font-size: 0.85rem;
+        font-size: 1rem;
+    }
+    .side-gauge-unit {
+        font-size: 0.6rem;
     }
     .main-speedometer {
-        width: 130px;
-        height: 85px;
-        flex: 0 0 130px;
+        width: 140px;
+        height: 90px;
+        flex: 0 0 auto;
     }
     .speedometer-value {
-        font-size: 1.4rem;
+        font-size: 1.5rem;
     }
     .velocity-header {
         flex-direction: column;
@@ -978,8 +998,8 @@ include '../includes/header.php';
 
     <!-- Tachymètre Vélocité Profit -->
     <?php
-    // Calcul pour le demi-cercle (arc de 180 degrés)
-    $arcRadius = 65;
+    // Calcul pour le demi-cercle (arc de 180 degrés) - viewBox 220x130
+    $arcRadius = 90;
     $arcCircum = M_PI * $arcRadius; // Demi-circonférence
     $pctWeek = min(100, max(0, ($profitParSemaine / 5000) * 100)); // Objectif 5000$/semaine
     $arcOffset = $arcCircum - ($arcCircum * $pctWeek / 100);
@@ -1013,7 +1033,7 @@ include '../includes/header.php';
 
             <!-- Speedometer Principal (centre) -->
             <div class="main-speedometer">
-                <svg class="speedometer-svg" viewBox="0 0 160 100">
+                <svg class="speedometer-svg" viewBox="0 0 220 130" preserveAspectRatio="xMidYMid meet">
                     <defs>
                         <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                             <stop offset="0%" style="stop-color:#f59e0b"/>
@@ -1023,12 +1043,12 @@ include '../includes/header.php';
                     </defs>
                     <!-- Arc de fond -->
                     <path class="speedometer-bg"
-                          d="M 15 85 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 145 85"
+                          d="M 20 115 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 200 115"
                           stroke-dasharray="<?= $arcCircum ?>"
                           stroke-dashoffset="0"/>
                     <!-- Arc de progression -->
                     <path class="speedometer-progress"
-                          d="M 15 85 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 145 85"
+                          d="M 20 115 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 200 115"
                           stroke-dasharray="<?= $arcCircum ?>"
                           stroke-dashoffset="<?= $arcOffset ?>"/>
                 </svg>
