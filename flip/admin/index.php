@@ -439,34 +439,38 @@ include '../includes/header.php';
     }
 }
 
-@media (max-width: 400px) {
+@media (max-width: 480px) {
     .mini-stats {
-        gap: 0.5rem;
+        gap: 0.4rem;
     }
     .mini-stat {
-        padding: 0.65rem 0.75rem;
+        padding: 0.5rem;
+        min-height: 60px;
     }
     .mini-stat-icon {
-        width: 32px;
-        height: 32px;
-        font-size: 0.9rem;
+        width: 28px;
+        height: 28px;
+        font-size: 0.8rem;
+        border-radius: 0.4rem;
     }
     .mini-stat-content h4 {
-        font-size: 1rem;
+        font-size: 0.85rem;
     }
     .mini-stat-content p {
-        font-size: 0.65rem;
+        font-size: 0.55rem;
     }
 }
 
 .mini-stat {
     background: var(--bg-card);
     border-radius: 0.75rem;
-    padding: 0.875rem 1rem;
+    padding: 0.75rem;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
     box-shadow: 0 2px 8px var(--shadow-color);
+    height: 100%;
+    min-height: 70px;
     transition: all 0.2s;
     border: 1px solid transparent;
     cursor: pointer;
@@ -479,13 +483,13 @@ include '../includes/header.php';
 }
 
 .mini-stat-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 0.625rem;
+    width: 36px;
+    height: 36px;
+    border-radius: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1rem;
     flex-shrink: 0;
 }
 
@@ -494,17 +498,26 @@ include '../includes/header.php';
 .mini-stat-icon.success { background: rgba(16, 185, 129, 0.15); color: #10b981; }
 .mini-stat-icon.info { background: rgba(99, 102, 241, 0.15); color: #6366f1; }
 
+.mini-stat-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .mini-stat-content h4 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: clamp(0.85rem, 3vw, 1.1rem);
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .mini-stat-content p {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--text-secondary);
 }
 
