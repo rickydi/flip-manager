@@ -173,6 +173,23 @@ include '../includes/header.php';
 ?>
 
 <style>
+/* Stats cards cliquables */
+.stat-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    height: 100%;
+}
+
+.stat-card-link:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+.stat-card-link .stat-card-modern {
+    cursor: pointer;
+}
+
 /* Stats cards modernes */
 .stat-card-modern {
     background: var(--bg-card);
@@ -182,13 +199,15 @@ include '../includes/header.php';
     align-items: center;
     gap: 1rem;
     box-shadow: 0 4px 6px var(--shadow-color);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
     height: 100%;
+    border: 2px solid transparent;
 }
 
 .stat-card-modern:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 15px var(--shadow-color);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 20px var(--shadow-color);
+    border-color: var(--primary-color, #4a90a4);
 }
 
 .stat-icon {
@@ -644,48 +663,56 @@ include '../includes/header.php';
     <!-- Statistiques -->
     <div class="row mb-4">
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card-modern">
-                <div class="stat-icon primary">
-                    <i class="bi bi-building"></i>
+            <a href="<?= url('/admin/projets/liste.php') ?>" class="stat-card-link">
+                <div class="stat-card-modern">
+                    <div class="stat-icon primary">
+                        <i class="bi bi-building"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="counter" data-target="<?= $totalProjets ?>">0</h3>
+                        <p>Projets actifs</p>
+                    </div>
                 </div>
-                <div class="stat-content">
-                    <h3 class="counter" data-target="<?= $totalProjets ?>">0</h3>
-                    <p>Projets actifs</p>
-                </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card-modern">
-                <div class="stat-icon warning">
-                    <i class="bi bi-clock-history"></i>
+            <a href="<?= url('/admin/factures/approuver.php') ?>" class="stat-card-link">
+                <div class="stat-card-modern">
+                    <div class="stat-icon warning">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="counter" data-target="<?= $facturesEnAttente ?>">0</h3>
+                        <p>Factures en attente</p>
+                    </div>
                 </div>
-                <div class="stat-content">
-                    <h3 class="counter" data-target="<?= $facturesEnAttente ?>">0</h3>
-                    <p>Factures en attente</p>
-                </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card-modern">
-                <div class="stat-icon success">
-                    <i class="bi bi-check-circle"></i>
+            <a href="<?= url('/admin/factures/liste.php?statut=approuve') ?>" class="stat-card-link">
+                <div class="stat-card-modern">
+                    <div class="stat-icon success">
+                        <i class="bi bi-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="counter" data-target="<?= $facturesApprouvees ?>">0</h3>
+                        <p>Factures approuvées</p>
+                    </div>
                 </div>
-                <div class="stat-content">
-                    <h3 class="counter" data-target="<?= $facturesApprouvees ?>">0</h3>
-                    <p>Factures approuvées</p>
-                </div>
-            </div>
+            </a>
         </div>
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="stat-card-modern">
-                <div class="stat-icon info">
-                    <i class="bi bi-cash-stack"></i>
+            <a href="<?= url('/admin/factures/liste.php') ?>" class="stat-card-link">
+                <div class="stat-card-modern">
+                    <div class="stat-icon info">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3 class="counter-money" data-target="<?= $totalDepenses ?>">0,00 $</h3>
+                        <p>Total dépensé</p>
+                    </div>
                 </div>
-                <div class="stat-content">
-                    <h3 class="counter-money" data-target="<?= $totalDepenses ?>">0,00 $</h3>
-                    <p>Total dépensé</p>
-                </div>
-            </div>
+            </a>
         </div>
     </div>
 
