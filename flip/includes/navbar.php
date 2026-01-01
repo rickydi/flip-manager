@@ -344,9 +344,10 @@ $isAdmin = isAdmin();
 
                 <!-- Lien pour installer -->
                 <div class="text-center mt-3 pt-2 border-top">
-                    <a href="<?= url('/calculateur-taxes.php') ?>" target="_blank" class="btn btn-outline-primary btn-sm">
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Ouvrir / Installer sur mobile
+                    <a href="<?= url('/calculateur-taxes.php') ?>" target="_blank" class="btn btn-primary btn-sm w-100">
+                        <i class="bi bi-phone me-1"></i>Version mobile (installable)
                     </a>
+                    <small class="text-muted d-block mt-1">Ouvre sans refresh - installable sur téléphone</small>
                 </div>
             </div>
         </div>
