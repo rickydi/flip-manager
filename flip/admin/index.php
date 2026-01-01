@@ -252,13 +252,14 @@ include '../includes/header.php';
 .gauge-item {
     text-align: center;
     flex: 1;
-    max-width: 200px;
+    min-width: 160px;
+    max-width: 220px;
 }
 
 .gauge-speedometer {
     position: relative;
-    width: 150px;
-    height: 90px;
+    width: 160px;
+    height: 95px;
     margin: 0 auto;
 }
 
@@ -308,14 +309,15 @@ include '../includes/header.php';
 }
 
 .gauge-value {
-    font-size: 1.5rem;
-    font-weight: 800;
+    font-size: 1.1rem;
+    font-weight: 700;
     color: #fff;
     line-height: 1;
+    white-space: nowrap;
 }
 
 .gauge-value sup {
-    font-size: 0.75rem;
+    font-size: 0.6rem;
     font-weight: 600;
 }
 
@@ -349,19 +351,41 @@ include '../includes/header.php';
     }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
     .speedometer-container {
-        gap: 0.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    .gauge-item {
+        min-width: 140px;
+        max-width: 160px;
     }
     .gauge-speedometer {
-        width: 100px;
-        height: 60px;
+        width: 140px;
+        height: 85px;
     }
     .gauge-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .speedometer-container {
+        gap: 0.75rem;
+    }
+    .gauge-item {
+        min-width: 120px;
+        max-width: 140px;
+    }
+    .gauge-speedometer {
+        width: 120px;
+        height: 75px;
+    }
+    .gauge-value {
+        font-size: 0.9rem;
     }
     .gauge-label {
-        font-size: 0.7rem;
+        font-size: 0.65rem;
     }
 }
 
