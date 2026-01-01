@@ -1683,6 +1683,7 @@ document.addEventListener('DOMContentLoaded', function() {
 let currentGaugeType = '';
 let currentGaugeValue = 0;
 let currentGaugeDecimals = 0;
+const currentYear = <?= $anneeFiscale ?>;
 
 // Objectifs par défaut
 const defaultTargets = {
@@ -1692,13 +1693,18 @@ const defaultTargets = {
     month: 20000
 };
 
+// Clé localStorage avec l'année
+function getStorageKey() {
+    return 'gaugeTargets_' + currentYear;
+}
+
 function openGaugeModal(type, label, value, defaultTarget, decimals) {
     currentGaugeType = type;
     currentGaugeValue = value;
     currentGaugeDecimals = decimals;
 
-    // Récupérer l'objectif sauvegardé ou utiliser le défaut
-    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+    // Récupérer l'objectif sauvegardé ou utiliser le défaut (par année)
+    const savedTargets = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
     const target = savedTargets[type] || defaultTarget;
 
     // Mettre à jour le modal
@@ -1774,8 +1780,8 @@ function saveGaugeTarget() {
         targets.month = target;
     }
 
-    // Sauvegarder tous les objectifs dans localStorage
-    localStorage.setItem('gaugeTargets', JSON.stringify(targets));
+    // Sauvegarder tous les objectifs dans localStorage (par année)
+    localStorage.setItem(getStorageKey(), JSON.stringify(targets));
 
     // Récupérer les valeurs actuelles
     const gaugeValues = {
@@ -1829,7 +1835,7 @@ function updateGaugeVisual(type, value, target) {
 }
 
 function loadSavedTargets() {
-    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+    const savedTargets = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
 
     // Récupérer les valeurs actuelles depuis les attributs onclick
     const gauges = {
@@ -1848,7 +1854,7 @@ function loadSavedTargets() {
 }
 
 function animateGaugesOnLoad() {
-    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+    const savedTargets = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
     const types = ['second', 'hour', 'week', 'month'];
     const defaults = { second: 0.05, hour: 150, week: 5000, month: 20000 };
     const values = {
