@@ -173,6 +173,13 @@ $isAdmin = isAdmin();
                         </a>
                     </li>
 
+                    <!-- Calculateur de taxes QC -->
+                    <li class="nav-item">
+                        <a class="nav-link px-2" href="#" data-bs-toggle="modal" data-bs-target="#taxCalculatorModal" title="Calculateur TPS/TVQ">
+                            <i class="bi bi-calculator"></i>
+                        </a>
+                    </li>
+
                     <li class="nav-item">
                         <a class="nav-link px-2 <?= strpos($currentUri, '/admin/utilisateurs/') !== false || strpos($currentUri, '/admin/categories/') !== false || strpos($currentUri, '/admin/rapports/') !== false || strpos($currentUri, '/admin/configuration/') !== false ? 'active' : '' ?>"
                            href="<?= url('/admin/utilisateurs/liste.php') ?>" title="Administration">
@@ -280,3 +287,139 @@ $isAdmin = isAdmin();
         </div>
     </div>
 </nav>
+
+<!-- Modal Calculateur de taxes QC -->
+<div class="modal fade" id="taxCalculatorModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title"><i class="bi bi-calculator me-2"></i>Taxes Québec</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Mode selector -->
+                <div class="btn-group w-100 mb-3" role="group">
+                    <input type="radio" class="btn-check" name="taxMode" id="taxModeAdd" value="add" checked>
+                    <label class="btn btn-outline-primary btn-sm" for="taxModeAdd">+ Ajouter taxes</label>
+                    <input type="radio" class="btn-check" name="taxMode" id="taxModeRemove" value="remove">
+                    <label class="btn btn-outline-primary btn-sm" for="taxModeRemove">− Retirer taxes</label>
+                </div>
+
+                <!-- Montant input -->
+                <div class="mb-3">
+                    <label class="form-label small mb-1" id="taxInputLabel">Montant avant taxes</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control form-control-lg text-end" id="taxAmount"
+                               placeholder="0.00" inputmode="decimal" autocomplete="off">
+                        <span class="input-group-text">$</span>
+                    </div>
+                </div>
+
+                <!-- Résultats -->
+                <div class="bg-light rounded p-2">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 0.9rem;">
+                        <tr id="taxRowSubtotal" style="display:none;">
+                            <td>Sous-total</td>
+                            <td class="text-end fw-bold" id="taxSubtotal">0.00 $</td>
+                        </tr>
+                        <tr>
+                            <td>TPS <small class="text-muted">(5%)</small></td>
+                            <td class="text-end" id="taxTPS">0.00 $</td>
+                        </tr>
+                        <tr>
+                            <td>TVQ <small class="text-muted">(9.975%)</small></td>
+                            <td class="text-end" id="taxTVQ">0.00 $</td>
+                        </tr>
+                        <tr class="border-top">
+                            <td class="fw-bold" id="taxTotalLabel">Total avec taxes</td>
+                            <td class="text-end fw-bold text-primary fs-5" id="taxTotal">0.00 $</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Taux de référence -->
+                <div class="text-center mt-2">
+                    <small class="text-muted">TPS: 5% | TVQ: 9.975% | Total: 14.975%</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const TPS_RATE = 0.05;
+    const TVQ_RATE = 0.09975;
+
+    function formatMoney(num) {
+        return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' $';
+    }
+
+    function parseAmount(str) {
+        if (!str) return 0;
+        return parseFloat(str.replace(/[^\d.,\-]/g, '').replace(',', '.')) || 0;
+    }
+
+    function calculateTax() {
+        const amount = parseAmount(document.getElementById('taxAmount').value);
+        const mode = document.querySelector('input[name="taxMode"]:checked').value;
+
+        let subtotal, tps, tvq, total;
+
+        if (mode === 'add') {
+            // Ajouter taxes: amount est le sous-total
+            subtotal = amount;
+            tps = subtotal * TPS_RATE;
+            tvq = subtotal * TVQ_RATE;
+            total = subtotal + tps + tvq;
+
+            document.getElementById('taxInputLabel').textContent = 'Montant avant taxes';
+            document.getElementById('taxTotalLabel').textContent = 'Total avec taxes';
+            document.getElementById('taxRowSubtotal').style.display = 'none';
+        } else {
+            // Retirer taxes: amount est le total TTC
+            total = amount;
+            subtotal = total / (1 + TPS_RATE + TVQ_RATE);
+            tps = subtotal * TPS_RATE;
+            tvq = subtotal * TVQ_RATE;
+
+            document.getElementById('taxInputLabel').textContent = 'Montant avec taxes';
+            document.getElementById('taxTotalLabel').textContent = 'Montant avant taxes';
+            document.getElementById('taxRowSubtotal').style.display = 'none';
+        }
+
+        document.getElementById('taxSubtotal').textContent = formatMoney(subtotal);
+        document.getElementById('taxTPS').textContent = formatMoney(tps);
+        document.getElementById('taxTVQ').textContent = formatMoney(tvq);
+
+        if (mode === 'add') {
+            document.getElementById('taxTotal').textContent = formatMoney(total);
+        } else {
+            document.getElementById('taxTotal').textContent = formatMoney(subtotal);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const amountInput = document.getElementById('taxAmount');
+        const modeInputs = document.querySelectorAll('input[name="taxMode"]');
+
+        if (amountInput) {
+            amountInput.addEventListener('input', calculateTax);
+            amountInput.addEventListener('keyup', calculateTax);
+        }
+
+        modeInputs.forEach(function(input) {
+            input.addEventListener('change', calculateTax);
+        });
+
+        // Focus sur l'input quand le modal s'ouvre
+        var taxModal = document.getElementById('taxCalculatorModal');
+        if (taxModal) {
+            taxModal.addEventListener('shown.bs.modal', function() {
+                document.getElementById('taxAmount').focus();
+                document.getElementById('taxAmount').select();
+            });
+        }
+    });
+})();
+</script>
