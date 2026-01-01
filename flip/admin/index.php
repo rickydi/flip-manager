@@ -174,6 +174,7 @@ $profitNetAnnuel = $resumeFiscal['profit_net_realise'] ?? 0;
 $profitParMois = $profitNetAnnuel / 12;
 $profitParSemaine = $profitNetAnnuel / 52;
 $profitParHeure = $profitNetAnnuel / (52 * 40); // 40h/semaine
+$profitParSeconde = $profitNetAnnuel / (52 * 40 * 3600); // en secondes
 
 include '../includes/header.php';
 ?>
@@ -281,6 +282,10 @@ include '../includes/header.php';
     transition: stroke-dashoffset 1s ease-out;
 }
 
+.gauge-item.second .gauge-progress {
+    stroke: url(#secondGradient);
+    --gauge-glow: rgba(239, 68, 68, 0.5);
+}
 .gauge-item.hour .gauge-progress {
     stroke: url(#hourGradient);
     --gauge-glow: rgba(245, 158, 11, 0.5);
@@ -950,11 +955,13 @@ include '../includes/header.php';
     $arcCircum = M_PI * $arcRadius; // Demi-circonférence
 
     // Pourcentages pour chaque jauge
+    $pctSecond = min(100, max(0, ($profitParSeconde / 0.05) * 100)); // Objectif 0.05$/seconde
     $pctHour = min(100, max(0, ($profitParHeure / 150) * 100)); // Objectif 150$/h
     $pctWeek = min(100, max(0, ($profitParSemaine / 5000) * 100)); // Objectif 5000$/semaine
     $pctMonth = min(100, max(0, ($profitParMois / 20000) * 100)); // Objectif 20000$/mois
 
     // Offsets pour les arcs SVG
+    $offsetSecond = $arcCircum - ($arcCircum * $pctSecond / 100);
     $offsetHour = $arcCircum - ($arcCircum * $pctHour / 100);
     $offsetWeek = $arcCircum - ($arcCircum * $pctWeek / 100);
     $offsetMonth = $arcCircum - ($arcCircum * $pctMonth / 100);
@@ -976,6 +983,10 @@ include '../includes/header.php';
             <!-- Defs pour les gradients -->
             <svg style="position:absolute;width:0;height:0;">
                 <defs>
+                    <linearGradient id="secondGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:#ef4444"/>
+                        <stop offset="100%" style="stop-color:#f87171"/>
+                    </linearGradient>
                     <linearGradient id="hourGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:#f59e0b"/>
                         <stop offset="100%" style="stop-color:#fbbf24"/>
@@ -990,6 +1001,27 @@ include '../includes/header.php';
                     </linearGradient>
                 </defs>
             </svg>
+
+            <!-- Jauge Seconde -->
+            <div class="gauge-item second">
+                <div class="gauge-speedometer">
+                    <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
+                        <path class="gauge-bg"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="0"/>
+                        <path class="gauge-progress"
+                              d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
+                              stroke="url(#secondGradient)"
+                              stroke-dasharray="<?= $arcCircum ?>"
+                              stroke-dashoffset="<?= $offsetSecond ?>"/>
+                    </svg>
+                    <div class="gauge-center">
+                        <div class="gauge-value"><?= number_format($profitParSeconde, 3, ',', ' ') ?><sup>$</sup></div>
+                    </div>
+                </div>
+                <div class="gauge-label">Par seconde</div>
+            </div>
 
             <!-- Jauge Heure -->
             <div class="gauge-item hour">
