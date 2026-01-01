@@ -418,14 +418,12 @@ include '../includes/header.php';
 
 /* === MINI STATS CARDS === */
 .mini-stats {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
-    flex-wrap: wrap;
 }
 
 .mini-stat-link {
-    flex: 1;
-    min-width: 140px;
     text-decoration: none;
     color: inherit;
 }
@@ -433,6 +431,32 @@ include '../includes/header.php';
 .mini-stat-link:hover {
     text-decoration: none;
     color: inherit;
+}
+
+@media (max-width: 992px) {
+    .mini-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 400px) {
+    .mini-stats {
+        gap: 0.5rem;
+    }
+    .mini-stat {
+        padding: 0.65rem 0.75rem;
+    }
+    .mini-stat-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+    }
+    .mini-stat-content h4 {
+        font-size: 1rem;
+    }
+    .mini-stat-content p {
+        font-size: 0.65rem;
+    }
 }
 
 .mini-stat {
@@ -542,10 +566,6 @@ include '../includes/header.php';
     }
     .velocity-item.main .velocity-value .amount {
         font-size: 1.1rem;
-    }
-    .mini-stat-link {
-        min-width: calc(50% - 0.375rem);
-        flex: none;
     }
 }
 
