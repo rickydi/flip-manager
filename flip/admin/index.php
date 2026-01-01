@@ -340,6 +340,15 @@ include '../includes/header.php';
     filter: drop-shadow(0 0 4px currentColor);
 }
 
+.gauge-percent-dot, .gauge-percent-arc {
+    opacity: 0;
+}
+
+.gauge-percent-dot.visible, .gauge-percent-arc.visible {
+    opacity: 1;
+    transition: opacity 0.2s ease;
+}
+
 .gauge-item:hover {
     transform: scale(1.05);
     transition: transform 0.2s ease;
@@ -1663,6 +1672,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Charger les objectifs sauvegardés et mettre à jour les jauges
     loadSavedTargets();
+
+    // Animation d'entrée des jauges
+    setTimeout(() => {
+        animateGaugesOnLoad();
+    }, 300);
 });
 
 // Variables globales pour le modal jauge
@@ -1825,11 +1839,131 @@ function loadSavedTargets() {
         month: { value: <?= $profitParMois ?>, default: 20000 }
     };
 
-    // Mettre à jour chaque jauge avec l'objectif sauvegardé
+    // Mettre à jour chaque jauge avec l'objectif sauvegardé (sans animation initiale)
     for (const [type, data] of Object.entries(gauges)) {
         const target = savedTargets[type] || data.default;
-        updateGaugeVisual(type, data.value, target);
+        // Calculer les valeurs finales pour l'animation
+        window['gaugeTarget_' + type] = target;
     }
+}
+
+function animateGaugesOnLoad() {
+    const savedTargets = JSON.parse(localStorage.getItem('gaugeTargets') || '{}');
+    const types = ['second', 'hour', 'week', 'month'];
+    const defaults = { second: 0.05, hour: 150, week: 5000, month: 20000 };
+    const values = {
+        second: <?= $profitParSeconde ?>,
+        hour: <?= $profitParHeure ?>,
+        week: <?= $profitParSemaine ?>,
+        month: <?= $profitParMois ?>
+    };
+
+    types.forEach((type, index) => {
+        const progressEl = document.getElementById('gauge-progress-' + type);
+        const percentEl = document.getElementById('gauge-percent-' + type);
+        const dotEl = document.getElementById('gauge-dot-' + type);
+
+        if (progressEl && percentEl && dotEl) {
+            const target = savedTargets[type] || defaults[type];
+            const value = values[type];
+            const circumference = parseFloat(progressEl.dataset.circumference);
+            const centerX = parseFloat(progressEl.dataset.centerx);
+            const centerY = parseFloat(progressEl.dataset.centery);
+            const radius = parseFloat(progressEl.dataset.radius);
+
+            let percent = 0;
+            if (target > 0) {
+                percent = Math.min(100, (value / target) * 100);
+            }
+            const finalOffset = circumference - (circumference * percent / 100);
+
+            // Position finale du point
+            const angle = Math.PI * (1 - percent / 100);
+            const finalX = centerX + radius * Math.cos(angle);
+            const finalY = centerY - radius * Math.sin(angle);
+
+            // Délai progressif pour chaque jauge
+            setTimeout(() => {
+                // Activer la transition
+                progressEl.classList.add('animated');
+                progressEl.style.strokeDashoffset = finalOffset;
+
+                // Animer le point le long de l'arc
+                animateDotAlongArc(dotEl, percentEl, centerX, centerY, radius, percent, 1200);
+
+            }, index * 200);
+        }
+    });
+}
+
+function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPercent, duration) {
+    const startTime = performance.now();
+
+    function animate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Easing pour un mouvement fluide
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const currentPercent = easeOut * targetPercent;
+
+        // Calculer la position sur l'arc
+        const angle = Math.PI * (1 - currentPercent / 100);
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY - radius * Math.sin(angle);
+
+        // Mettre à jour la position
+        dotEl.setAttribute('cx', x);
+        dotEl.setAttribute('cy', y);
+        textEl.setAttribute('x', x);
+        textEl.setAttribute('y', y);
+        textEl.textContent = Math.round(currentPercent) + '%';
+
+        // Afficher progressivement
+        if (progress > 0.1) {
+            dotEl.classList.add('visible');
+            textEl.classList.add('visible');
+        }
+
+        if (progress < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            // Animation pop à la fin
+            animateDotPop(dotEl);
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+function animateDotPop(dotEl) {
+    const originalRadius = 12;
+    const maxRadius = 18;
+    const duration = 300;
+    const startTime = performance.now();
+
+    function popAnimate(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Effet bounce
+        let radius;
+        if (progress < 0.5) {
+            // Grossir
+            radius = originalRadius + (maxRadius - originalRadius) * (progress * 2);
+        } else {
+            // Rétrécir
+            radius = maxRadius - (maxRadius - originalRadius) * ((progress - 0.5) * 2);
+        }
+
+        dotEl.setAttribute('r', radius);
+
+        if (progress < 1) {
+            requestAnimationFrame(popAnimate);
+        }
+    }
+
+    requestAnimationFrame(popAnimate);
 }
 </script>
 
