@@ -2768,6 +2768,9 @@ if (canvasProfits) {
 }
 };
 
+// Initialiser les charts au chargement
+window.initDetailCharts();
+
 // Animation des cartes graphiques avec Motion
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof Motion !== 'undefined') {
