@@ -15,6 +15,7 @@ const BudgetBuilder = {
 
     init: function(projetId) {
         this.projetId = projetId;
+        const self = this;
 
         // Détecter l'URL de base pour l'AJAX
         const path = window.location.pathname;
@@ -34,6 +35,12 @@ const BudgetBuilder = {
         this.initCatalogueDrag(); // Initialiser le drag sur les éléments du catalogue
         this.initQuantityChange();
         this.initUndoRedoKeyboard(); // Raccourcis clavier Ctrl+Z / Ctrl+Y
+
+        // Charger et appliquer les états des dossiers au chargement de la page
+        loadFolderStatesFromDB().then(() => {
+            self.applyFolderStates();
+            applyStoredEtapeFilter();
+        });
 
         console.log('Budget Builder initialized', { projetId: this.projetId });
     },
