@@ -371,19 +371,21 @@ try {
                 $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN image MEDIUMTEXT DEFAULT NULL");
             }
 
-            // Vérifier si l'étape a changé
-            $stmtOld = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
+            // Vérifier si l'étape a changé et si l'item a un parent
+            $stmtOld = $pdo->prepare("SELECT etape_id, parent_id FROM catalogue_items WHERE id = ?");
             $stmtOld->execute([$id]);
             $oldItem = $stmtOld->fetch();
             $oldEtapeId = $oldItem ? (int)($oldItem['etape_id'] ?: 0) : 0;
+            $oldParentId = $oldItem ? $oldItem['parent_id'] : null;
             $newEtapeId = (int)($etapeId ?: 0);
 
-            // Si l'étape change, l'item devient racine dans la nouvelle étape
-            if ($newEtapeId !== $oldEtapeId) {
+            // Si l'étape change ET que l'item est racine (pas de parent), il devient racine dans la nouvelle étape
+            // Si l'item a déjà un parent, on ne touche pas au parent_id
+            if ($newEtapeId !== $oldEtapeId && $oldParentId === null) {
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
                 $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
             } else {
-                // Sinon, garder le parent_id intact
+                // Garder le parent_id intact
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, image = ? WHERE id = ?");
                 $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
             }
@@ -469,19 +471,21 @@ try {
             $nom = trim($input['nom'] ?? '');
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
 
-            // Vérifier si l'étape a changé
-            $stmtOld = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
+            // Vérifier si l'étape a changé et si le dossier a un parent
+            $stmtOld = $pdo->prepare("SELECT etape_id, parent_id FROM catalogue_items WHERE id = ?");
             $stmtOld->execute([$id]);
             $oldFolder = $stmtOld->fetch();
             $oldEtapeId = $oldFolder ? (int)($oldFolder['etape_id'] ?: 0) : 0;
+            $oldParentId = $oldFolder ? $oldFolder['parent_id'] : null;
             $newEtapeId = (int)($etapeId ?: 0);
 
-            // Si l'étape change, le dossier devient racine dans la nouvelle étape
-            if ($newEtapeId !== $oldEtapeId) {
+            // Si l'étape change ET que le dossier est racine (pas de parent), il devient racine dans la nouvelle étape
+            // Si le dossier a déjà un parent, on ne touche pas au parent_id
+            if ($newEtapeId !== $oldEtapeId && $oldParentId === null) {
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ?, parent_id = NULL WHERE id = ?");
                 $stmt->execute([$nom, $etapeId, $id]);
             } else {
-                // Sinon, garder le parent_id intact
+                // Garder le parent_id intact
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ? WHERE id = ?");
                 $stmt->execute([$nom, $etapeId, $id]);
             }
