@@ -174,7 +174,44 @@ $profitNetAnnuel = $resumeFiscal['profit_net_realise'] ?? 0;
 $profitParMois = $profitNetAnnuel / 12;
 $profitParSemaine = $profitNetAnnuel / 52;
 $profitParHeure = $profitNetAnnuel / (52 * 40); // 40h/semaine
-$profitParSeconde = $profitNetAnnuel / (52 * 40 * 3600); // en secondes
+$profitParMinute = $profitNetAnnuel / (52 * 40 * 60); // en minutes
+
+// Extrapolation annuelle basée sur les jours écoulés
+$premiereDateVente = null;
+$joursEcoules = 0;
+$profitExtrapolAnnuel = 0;
+
+if (!empty($resumeFiscal['projets_vendus'])) {
+    // Trouver la première date de vente de l'année
+    $stmtFirstDate = $pdo->prepare("
+        SELECT MIN(date_vente) as first_date
+        FROM projets
+        WHERE YEAR(date_vente) = ? AND date_vente IS NOT NULL
+    ");
+    $stmtFirstDate->execute([$anneeFiscale]);
+    $result = $stmtFirstDate->fetch();
+
+    if ($result && $result['first_date']) {
+        $premiereDateVente = $result['first_date'];
+        $dateDebut = new DateTime($premiereDateVente);
+        $dateFin = new DateTime(); // Aujourd'hui
+
+        // Si on regarde une année passée, utiliser le 31 décembre
+        if ($anneeFiscale < date('Y')) {
+            $dateFin = new DateTime($anneeFiscale . '-12-31');
+        }
+
+        $joursEcoules = max(1, $dateDebut->diff($dateFin)->days + 1);
+        $profitParJour = $profitNetAnnuel / $joursEcoules;
+        $profitExtrapolAnnuel = $profitParJour * 365;
+    }
+}
+
+// Valeurs extrapolées
+$profitExtrapolParMois = $profitExtrapolAnnuel / 12;
+$profitExtrapolParSemaine = $profitExtrapolAnnuel / 52;
+$profitExtrapolParHeure = $profitExtrapolAnnuel / (52 * 40);
+$profitExtrapolParMinute = $profitExtrapolAnnuel / (52 * 40 * 60);
 
 include '../includes/header.php';
 ?>
@@ -229,6 +266,53 @@ include '../includes/header.php';
 .velocity-year-select option {
     background: #1a2744;
     color: #fff;
+}
+
+.velocity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.velocity-toggle {
+    display: flex;
+    background: rgba(0,0,0,0.3);
+    border-radius: 0.5rem;
+    padding: 2px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.velocity-toggle .toggle-btn {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    border-radius: 0.4rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.velocity-toggle .toggle-btn:hover {
+    color: #94a3b8;
+}
+
+.velocity-toggle .toggle-btn.active {
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.velocity-extrapol-info {
+    margin-top: 0.25rem;
+}
+
+.velocity-extrapol-info small {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
 }
 
 /* Speedometer Container */
@@ -1038,14 +1122,14 @@ include '../includes/header.php';
     $arcRadius = 60;
     $arcCircum = M_PI * $arcRadius; // Demi-circonférence
 
-    // Pourcentages pour chaque jauge
-    $pctSecond = min(100, max(0, ($profitParSeconde / 0.05) * 100)); // Objectif 0.05$/seconde
+    // Pourcentages pour chaque jauge (réel)
+    $pctMinute = min(100, max(0, ($profitParMinute / 3) * 100)); // Objectif 3$/minute
     $pctHour = min(100, max(0, ($profitParHeure / 150) * 100)); // Objectif 150$/h
     $pctWeek = min(100, max(0, ($profitParSemaine / 5000) * 100)); // Objectif 5000$/semaine
     $pctMonth = min(100, max(0, ($profitParMois / 20000) * 100)); // Objectif 20000$/mois
 
     // Offsets pour les arcs SVG
-    $offsetSecond = $arcCircum - ($arcCircum * $pctSecond / 100);
+    $offsetMinute = $arcCircum - ($arcCircum * $pctMinute / 100);
     $offsetHour = $arcCircum - ($arcCircum * $pctHour / 100);
     $offsetWeek = $arcCircum - ($arcCircum * $pctWeek / 100);
     $offsetMonth = $arcCircum - ($arcCircum * $pctMonth / 100);
@@ -1058,7 +1142,7 @@ include '../includes/header.php';
             'y' => $centerY - $radius * sin($angle)
         ];
     }
-    $posSecond = getArcEndPosition($pctSecond);
+    $posMinute = getArcEndPosition($pctMinute);
     $posHour = getArcEndPosition($pctHour);
     $posWeek = getArcEndPosition($pctWeek);
     $posMonth = getArcEndPosition($pctMonth);
@@ -1069,18 +1153,32 @@ include '../includes/header.php';
                 <i class="bi bi-speedometer2"></i>
                 Vélocité Profit Net
             </div>
-            <select class="velocity-year-select" onchange="window.location.href='?annee='+this.value">
-                <?php foreach ($anneesDisponibles as $annee): ?>
-                <option value="<?= $annee ?>" <?= $annee == $anneeFiscale ? 'selected' : '' ?>><?= $annee ?></option>
-                <?php endforeach; ?>
-            </select>
+            <div class="velocity-controls">
+                <div class="velocity-toggle" id="velocityToggle">
+                    <button type="button" class="toggle-btn active" data-mode="reel">Réel</button>
+                    <button type="button" class="toggle-btn" data-mode="extrapole">Extrapolé</button>
+                </div>
+                <select class="velocity-year-select" onchange="window.location.href='?annee='+this.value">
+                    <?php foreach ($anneesDisponibles as $annee): ?>
+                    <option value="<?= $annee ?>" <?= $annee == $anneeFiscale ? 'selected' : '' ?>><?= $annee ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <?php if ($joursEcoules > 0): ?>
+            <div class="velocity-extrapol-info" id="extrapolInfo" style="display:none;">
+                <small class="text-info">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Basé sur <?= $joursEcoules ?> jours → <?= formatMoney($profitExtrapolAnnuel) ?>/an
+                </small>
+            </div>
+            <?php endif; ?>
         </div>
 
         <div class="speedometer-container">
             <!-- Defs pour les gradients -->
             <svg style="position:absolute;width:0;height:0;">
                 <defs>
-                    <linearGradient id="secondGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <linearGradient id="minuteGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:#ef4444"/>
                         <stop offset="100%" style="stop-color:#f87171"/>
                     </linearGradient>
@@ -1099,30 +1197,30 @@ include '../includes/header.php';
                 </defs>
             </svg>
 
-            <!-- Jauge Seconde -->
-            <div class="gauge-item second" onclick="openGaugeModal('second', 'Par seconde', <?= $profitParSeconde ?>, 0.05, 3)" style="cursor:pointer">
+            <!-- Jauge Minute -->
+            <div class="gauge-item minute" onclick="openGaugeModal('minute', 'Par minute', <?= $profitParMinute ?>, 3, 2)" style="cursor:pointer">
                 <div class="gauge-speedometer">
                     <svg viewBox="0 0 140 85" preserveAspectRatio="xMidYMid meet">
                         <path class="gauge-bg"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
                               stroke-dasharray="<?= $arcCircum ?>"
                               stroke-dashoffset="0"/>
-                        <path class="gauge-progress" id="gauge-progress-second"
+                        <path class="gauge-progress" id="gauge-progress-minute"
                               d="M 10 75 A <?= $arcRadius ?> <?= $arcRadius ?> 0 0 1 130 75"
-                              stroke="url(#secondGradient)"
+                              stroke="url(#minuteGradient)"
                               stroke-dasharray="<?= $arcCircum ?>"
-                              stroke-dashoffset="<?= $offsetSecond ?>"
+                              stroke-dashoffset="<?= $offsetMinute ?>"
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
                         <!-- Point % sur l'arc -->
-                        <circle class="gauge-percent-dot" cx="<?= $posSecond['x'] ?>" cy="<?= $posSecond['y'] ?>" r="12" fill="#ef4444" id="gauge-dot-second"/>
-                        <text class="gauge-percent-arc" x="<?= $posSecond['x'] ?>" y="<?= $posSecond['y'] ?>" id="gauge-percent-second"><?= number_format($pctSecond, 0) ?>%</text>
+                        <circle class="gauge-percent-dot" cx="<?= $posMinute['x'] ?>" cy="<?= $posMinute['y'] ?>" r="12" fill="#ef4444" id="gauge-dot-minute"/>
+                        <text class="gauge-percent-arc" x="<?= $posMinute['x'] ?>" y="<?= $posMinute['y'] ?>" id="gauge-percent-minute"><?= number_format($pctMinute, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
-                        <div class="gauge-value"><?= number_format($profitParSeconde, 3, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-value" id="gauge-value-minute"><?= number_format($profitParMinute, 2, ',', ' ') ?><sup>$</sup></div>
                     </div>
                 </div>
-                <div class="gauge-label">Par seconde</div>
+                <div class="gauge-label">Par minute</div>
             </div>
 
             <!-- Jauge Heure -->
@@ -1144,7 +1242,7 @@ include '../includes/header.php';
                         <text class="gauge-percent-arc" x="<?= $posHour['x'] ?>" y="<?= $posHour['y'] ?>" id="gauge-percent-hour"><?= number_format($pctHour, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
-                        <div class="gauge-value"><?= number_format($profitParHeure, 0, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-value" id="gauge-value-hour"><?= number_format($profitParHeure, 0, ',', ' ') ?><sup>$</sup></div>
                     </div>
                 </div>
                 <div class="gauge-label">Par heure</div>
@@ -1169,7 +1267,7 @@ include '../includes/header.php';
                         <text class="gauge-percent-arc" x="<?= $posWeek['x'] ?>" y="<?= $posWeek['y'] ?>" id="gauge-percent-week"><?= number_format($pctWeek, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
-                        <div class="gauge-value"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-value" id="gauge-value-week"><?= number_format($profitParSemaine, 0, ',', ' ') ?><sup>$</sup></div>
                     </div>
                 </div>
                 <div class="gauge-label">Par semaine</div>
@@ -1194,7 +1292,7 @@ include '../includes/header.php';
                         <text class="gauge-percent-arc" x="<?= $posMonth['x'] ?>" y="<?= $posMonth['y'] ?>" id="gauge-percent-month"><?= number_format($pctMonth, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
-                        <div class="gauge-value"><?= number_format($profitParMois, 0, ',', ' ') ?><sup>$</sup></div>
+                        <div class="gauge-value" id="gauge-value-month"><?= number_format($profitParMois, 0, ',', ' ') ?><sup>$</sup></div>
                     </div>
                 </div>
                 <div class="gauge-label">Par mois</div>
@@ -1791,23 +1889,23 @@ function saveGaugeTarget() {
     // Basé sur 40h/semaine, 52 semaines/an, 12 mois/an
     let targets = {};
 
-    if (currentGaugeType === 'second') {
-        targets.second = target;
-        targets.hour = target * 3600;
-        targets.week = target * 3600 * 40;
-        targets.month = target * 3600 * 40 * 52 / 12;
+    if (currentGaugeType === 'minute') {
+        targets.minute = target;
+        targets.hour = target * 60;
+        targets.week = target * 60 * 40;
+        targets.month = target * 60 * 40 * 52 / 12;
     } else if (currentGaugeType === 'hour') {
-        targets.second = target / 3600;
+        targets.minute = target / 60;
         targets.hour = target;
         targets.week = target * 40;
         targets.month = target * 40 * 52 / 12;
     } else if (currentGaugeType === 'week') {
-        targets.second = target / 40 / 3600;
+        targets.minute = target / 40 / 60;
         targets.hour = target / 40;
         targets.week = target;
         targets.month = target * 52 / 12;
     } else if (currentGaugeType === 'month') {
-        targets.second = target / (52 / 12) / 40 / 3600;
+        targets.minute = target / (52 / 12) / 40 / 60;
         targets.hour = target / (52 / 12) / 40;
         targets.week = target / (52 / 12);
         targets.month = target;
@@ -1816,13 +1914,9 @@ function saveGaugeTarget() {
     // Sauvegarder tous les objectifs dans localStorage (par année)
     localStorage.setItem(getStorageKey(), JSON.stringify(targets));
 
-    // Récupérer les valeurs actuelles
-    const gaugeValues = {
-        second: <?= $profitParSeconde ?>,
-        hour: <?= $profitParHeure ?>,
-        week: <?= $profitParSemaine ?>,
-        month: <?= $profitParMois ?>
-    };
+    // Récupérer les valeurs actuelles selon le mode
+    const isExtrapol = document.querySelector('.velocity-toggle .toggle-btn.active')?.dataset.mode === 'extrapole';
+    const gaugeValues = isExtrapol ? gaugeValuesExtrapol : gaugeValuesReel;
 
     // Mettre à jour toutes les jauges visuellement
     for (const [type, targetVal] of Object.entries(targets)) {
@@ -1867,43 +1961,46 @@ function updateGaugeVisual(type, value, target) {
     }
 }
 
+// Valeurs réelles et extrapolées
+const gaugeValuesReel = {
+    minute: <?= $profitParMinute ?>,
+    hour: <?= $profitParHeure ?>,
+    week: <?= $profitParSemaine ?>,
+    month: <?= $profitParMois ?>
+};
+
+const gaugeValuesExtrapol = {
+    minute: <?= $profitExtrapolParMinute ?>,
+    hour: <?= $profitExtrapolParHeure ?>,
+    week: <?= $profitExtrapolParSemaine ?>,
+    month: <?= $profitExtrapolParMois ?>
+};
+
+const gaugeDefaults = { minute: 3, hour: 150, week: 5000, month: 20000 };
+const gaugeTypes = ['minute', 'hour', 'week', 'month'];
+const gaugeColors = { minute: '#ef4444', hour: '#f59e0b', week: '#10b981', month: '#8b5cf6' };
+
 function loadSavedTargets() {
     const savedTargets = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
 
-    // Récupérer les valeurs actuelles depuis les attributs onclick
-    const gauges = {
-        second: { value: <?= $profitParSeconde ?>, default: 0.05 },
-        hour: { value: <?= $profitParHeure ?>, default: 150 },
-        week: { value: <?= $profitParSemaine ?>, default: 5000 },
-        month: { value: <?= $profitParMois ?>, default: 20000 }
-    };
-
     // Mettre à jour chaque jauge avec l'objectif sauvegardé (sans animation initiale)
-    for (const [type, data] of Object.entries(gauges)) {
-        const target = savedTargets[type] || data.default;
-        // Calculer les valeurs finales pour l'animation
+    for (const type of gaugeTypes) {
+        const target = savedTargets[type] || gaugeDefaults[type];
         window['gaugeTarget_' + type] = target;
     }
 }
 
 function animateGaugesOnLoad() {
     const savedTargets = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
-    const types = ['second', 'hour', 'week', 'month'];
-    const defaults = { second: 0.05, hour: 150, week: 5000, month: 20000 };
-    const values = {
-        second: <?= $profitParSeconde ?>,
-        hour: <?= $profitParHeure ?>,
-        week: <?= $profitParSemaine ?>,
-        month: <?= $profitParMois ?>
-    };
+    const values = gaugeValuesReel;
 
-    types.forEach((type, index) => {
+    gaugeTypes.forEach((type, index) => {
         const progressEl = document.getElementById('gauge-progress-' + type);
         const percentEl = document.getElementById('gauge-percent-' + type);
         const dotEl = document.getElementById('gauge-dot-' + type);
 
         if (progressEl && percentEl && dotEl) {
-            const target = savedTargets[type] || defaults[type];
+            const target = savedTargets[type] || gaugeDefaults[type];
             const value = values[type];
             const circumference = parseFloat(progressEl.dataset.circumference);
             const centerX = parseFloat(progressEl.dataset.centerx);
@@ -2004,6 +2101,57 @@ function animateDotPop(dotEl) {
 
     requestAnimationFrame(popAnimate);
 }
+
+// Toggle Réel / Extrapolé
+function initVelocityToggle() {
+    const toggle = document.getElementById('velocityToggle');
+    const extrapolInfo = document.getElementById('extrapolInfo');
+    if (!toggle) return;
+
+    toggle.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            toggle.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+
+            const mode = this.dataset.mode;
+            const isExtrapol = mode === 'extrapole';
+            const values = isExtrapol ? gaugeValuesExtrapol : gaugeValuesReel;
+
+            // Afficher/cacher info extrapolation
+            if (extrapolInfo) {
+                extrapolInfo.style.display = isExtrapol ? 'block' : 'none';
+            }
+
+            // Mettre à jour les valeurs affichées et les jauges
+            const savedTargets = JSON.parse(localStorage.getItem(getStorageKey()) || '{}');
+
+            gaugeTypes.forEach(type => {
+                const target = savedTargets[type] || gaugeDefaults[type];
+                const value = values[type];
+
+                // Mettre à jour la valeur affichée
+                const valueEl = document.getElementById('gauge-value-' + type);
+                if (valueEl) {
+                    if (type === 'minute') {
+                        valueEl.innerHTML = formatNumber(value, 2) + '<sup>$</sup>';
+                    } else {
+                        valueEl.innerHTML = formatNumber(value, 0) + '<sup>$</sup>';
+                    }
+                }
+
+                // Mettre à jour la jauge visuellement
+                updateGaugeVisual(type, value, target);
+            });
+        });
+    });
+}
+
+function formatNumber(num, decimals) {
+    return num.toLocaleString('fr-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+// Initialiser le toggle au chargement
+document.addEventListener('DOMContentLoaded', initVelocityToggle);
 </script>
 
 <?php include '../includes/footer.php'; ?>
