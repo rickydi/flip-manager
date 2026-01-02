@@ -314,7 +314,8 @@ const BudgetBuilder = {
             etape_id: etapeId
         }).then(response => {
             if (response.success) {
-                self.refreshAfterBudgetChange();
+                // Rafraîchir le catalogue ET le panier
+                self.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec du déplacement'));
             }
