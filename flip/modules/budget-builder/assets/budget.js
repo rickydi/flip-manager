@@ -1043,6 +1043,7 @@ const BudgetBuilder = {
     },
 
     refreshAll: function() {
+        console.log('refreshAll called');
         this.loadCatalogueByEtape();
         this.loadPanier();
     },

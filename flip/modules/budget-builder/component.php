@@ -1316,9 +1316,13 @@ function renderPanierTree($items, $level = 0) {
             etape_id: document.getElementById('folder-modal-etape').value
         };
 
+        console.log('saveFolderModal - sending:', data);
+
         BudgetBuilder.ajax('update_folder', data).then(response => {
+            console.log('saveFolderModal - response:', response);
             if (response.success) {
                 folderModal.hide();
+                console.log('saveFolderModal - calling refreshAll');
                 BudgetBuilder.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
