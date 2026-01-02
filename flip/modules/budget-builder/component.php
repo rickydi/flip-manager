@@ -468,7 +468,28 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 <style>
 /* Cacher le print-checkbox dans l'interface normale */
 .print-checkbox { display: none; }
+/* Popup d'aperçu d'image */
+#image-preview-popup {
+    position: fixed;
+    z-index: 9999;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    padding: 8px;
+    display: none;
+    pointer-events: none;
+}
+#image-preview-popup img {
+    max-width: 300px;
+    max-height: 300px;
+    border-radius: 4px;
+}
 </style>
+
+<!-- Popup aperçu image -->
+<div id="image-preview-popup">
+    <img id="image-preview-img" src="" alt="Aperçu">
+</div>
 
 <div class="budget-builder-container">
     <!-- Toolbar: Undo/Redo -->
@@ -798,6 +819,11 @@ function renderCatalogueTree($items, $level = 0) {
 
             <span class="item-actions">
                 <?php if (!$isFolder): ?>
+                    <?php if (!empty($item['image'])): ?>
+                    <span class="image-preview-trigger" data-image="<?= e($item['image']) ?>">
+                        <i class="bi bi-eye text-success" style="cursor: pointer;"></i>
+                    </span>
+                    <?php endif; ?>
                     <span class="badge bg-secondary item-prix-badge"><?= formatMoney($item['prix']) ?></span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info"
                             onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
@@ -1375,6 +1401,42 @@ function renderPanierTree($items, $level = 0) {
         // Initialiser les deux zones d'image
         initImagePasteZone('item-modal-image-zone', setItemModalImage);
         initImagePasteZone('add-item-image-zone', setAddItemImage);
+
+        // Aperçu d'image au hover sur l'icône œil
+        const popup = document.getElementById('image-preview-popup');
+        const popupImg = document.getElementById('image-preview-img');
+
+        document.addEventListener('mouseenter', function(e) {
+            const trigger = e.target.closest('.image-preview-trigger');
+            if (trigger && trigger.dataset.image) {
+                popupImg.src = trigger.dataset.image;
+                popup.style.display = 'block';
+                positionPopup(e);
+            }
+        }, true);
+
+        document.addEventListener('mouseleave', function(e) {
+            const trigger = e.target.closest('.image-preview-trigger');
+            if (trigger) {
+                popup.style.display = 'none';
+            }
+        }, true);
+
+        document.addEventListener('mousemove', function(e) {
+            if (popup.style.display === 'block') {
+                positionPopup(e);
+            }
+        });
+
+        function positionPopup(e) {
+            const x = e.clientX + 15;
+            const y = e.clientY + 15;
+            // Éviter que le popup sorte de l'écran
+            const maxX = window.innerWidth - popup.offsetWidth - 20;
+            const maxY = window.innerHeight - popup.offsetHeight - 20;
+            popup.style.left = Math.min(x, maxX) + 'px';
+            popup.style.top = Math.min(y, maxY) + 'px';
+        }
     });
 
     // Compresser une image base64
