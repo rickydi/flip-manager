@@ -137,11 +137,11 @@ if ($isPartialBase) {
             <div class="card chart-card h-100">
                 <div class="chart-header green">
                     <div class="chart-icon green">
-                        <i class="bi bi-wallet2"></i>
+                        <i class="bi bi-cart"></i>
                     </div>
                     <div>
-                        <div class="chart-title">Budget vs Dépensé</div>
-                        <div class="chart-subtitle">Suivi des dépenses</div>
+                        <div class="chart-title">Achats par jour</div>
+                        <div class="chart-subtitle">Montant des factures</div>
                     </div>
                 </div>
                 <div class="chart-body"><canvas id="chartProfits" height="150"></canvas></div>
