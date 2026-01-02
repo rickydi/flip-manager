@@ -353,6 +353,17 @@ try {
             echo json_encode(['success' => true, 'item' => $item]);
             break;
 
+        case 'get_item_image':
+            $id = (int)($input['id'] ?? 0);
+            if (!$id) throw new Exception('ID requis');
+
+            $stmt = $pdo->prepare("SELECT image FROM catalogue_items WHERE id = ?");
+            $stmt->execute([$id]);
+            $row = $stmt->fetch();
+
+            echo json_encode(['success' => true, 'image' => $row ? $row['image'] : null]);
+            break;
+
         case 'update_item':
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');

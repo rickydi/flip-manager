@@ -820,7 +820,7 @@ function renderCatalogueTree($items, $level = 0) {
             <span class="item-actions">
                 <?php if (!$isFolder): ?>
                     <?php if (!empty($item['image'])): ?>
-                    <span class="image-preview-trigger" data-image="<?= e($item['image']) ?>">
+                    <span class="image-preview-trigger" data-item-id="<?= $item['id'] ?>">
                         <i class="bi bi-eye text-success" style="cursor: pointer;"></i>
                     </span>
                     <?php endif; ?>
@@ -1405,22 +1405,41 @@ function renderPanierTree($items, $level = 0) {
         // Aperçu d'image au hover sur l'icône œil
         const popup = document.getElementById('image-preview-popup');
         const popupImg = document.getElementById('image-preview-img');
+        const imageCache = {}; // Cache pour éviter de recharger les images
+        let currentHoverItemId = null;
 
         document.addEventListener('mouseenter', function(e) {
-            if (!e.target.closest) return; // Ignorer les nœuds texte
+            if (!e.target.closest) return;
             const trigger = e.target.closest('.image-preview-trigger');
-            if (trigger && trigger.dataset.image) {
-                popupImg.src = trigger.dataset.image;
-                popup.style.display = 'block';
-                positionPopup(e);
+            if (trigger && trigger.dataset.itemId) {
+                const itemId = trigger.dataset.itemId;
+                currentHoverItemId = itemId;
+
+                // Si l'image est en cache, l'afficher directement
+                if (imageCache[itemId]) {
+                    popupImg.src = imageCache[itemId];
+                    popup.style.display = 'block';
+                    positionPopup(e);
+                } else {
+                    // Charger l'image via AJAX
+                    BudgetBuilder.ajax('get_item_image', { id: itemId }).then(resp => {
+                        if (resp.success && resp.image && currentHoverItemId == itemId) {
+                            imageCache[itemId] = resp.image;
+                            popupImg.src = resp.image;
+                            popup.style.display = 'block';
+                            positionPopup(e);
+                        }
+                    });
+                }
             }
         }, true);
 
         document.addEventListener('mouseleave', function(e) {
-            if (!e.target.closest) return; // Ignorer les nœuds texte
+            if (!e.target.closest) return;
             const trigger = e.target.closest('.image-preview-trigger');
             if (trigger) {
                 popup.style.display = 'none';
+                currentHoverItemId = null;
             }
         }, true);
 
@@ -1433,7 +1452,6 @@ function renderPanierTree($items, $level = 0) {
         function positionPopup(e) {
             const x = e.clientX + 15;
             const y = e.clientY + 15;
-            // Éviter que le popup sorte de l'écran
             const maxX = window.innerWidth - popup.offsetWidth - 20;
             const maxY = window.innerHeight - popup.offsetHeight - 20;
             popup.style.left = Math.min(x, maxX) + 'px';
