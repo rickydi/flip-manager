@@ -2212,6 +2212,11 @@ function renderPanierTree($items, $level = 0) {
         document.getElementById('add-item-etape').value = etapeId || '';
         document.getElementById('add-item-lien').value = '';
 
+        // Réinitialiser l'image
+        if (typeof removeAddItemImage === 'function') {
+            removeAddItemImage();
+        }
+
         // Mettre à jour le titre et afficher/cacher les champs item
         const titleEl = document.getElementById('addItemModalTitle');
         const itemFields = document.getElementById('add-item-fields');
