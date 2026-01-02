@@ -1191,14 +1191,13 @@ try {
                     }
                 }
 
-                if (!empty($items)) {
-                    $grouped[] = [
-                        'etape_id' => $etape['id'],
-                        'etape_nom' => $etape['nom'],
-                        'etape_num' => $etapeNum,
-                        'items' => $items
-                    ];
-                }
+                // Toujours inclure l'étape, même si elle est vide
+                $grouped[] = [
+                    'etape_id' => $etape['id'],
+                    'etape_nom' => $etape['nom'],
+                    'etape_num' => $etapeNum,
+                    'items' => $items
+                ];
             }
 
             // Éléments sans étape (qui n'ont pas de parent avec étape non plus)

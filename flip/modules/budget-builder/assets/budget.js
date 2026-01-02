@@ -1588,3 +1588,249 @@ function toggleSection(el) {
 function addItemToSection(etapeId, type) {
     BudgetBuilder.addItemToSection(etapeId, type);
 }
+
+// ========================================
+// COLLAPSE ALL / EXPAND ALL
+// ========================================
+function collapseAllMagasin() {
+    // Collapse toutes les sections
+    document.querySelectorAll('.etape-section').forEach(section => {
+        const toggle = section.querySelector('.folder-toggle');
+        const children = section.querySelector('.section-children');
+        if (toggle && !toggle.classList.contains('collapsed')) {
+            toggle.classList.add('collapsed');
+            saveFolderState('section_' + section.dataset.etapeId, true);
+        }
+        if (children) children.classList.add('collapsed');
+    });
+    // Collapse tous les dossiers
+    document.querySelectorAll('#catalogue-tree .catalogue-item.is-folder').forEach(folder => {
+        const toggle = folder.querySelector('.folder-toggle');
+        const children = folder.nextElementSibling;
+        if (toggle && !toggle.classList.contains('collapsed')) {
+            toggle.classList.add('collapsed');
+            saveFolderState('folder_' + folder.dataset.id, true);
+        }
+        if (children && children.classList.contains('folder-children')) {
+            children.classList.add('collapsed');
+        }
+    });
+}
+
+function expandAllMagasin() {
+    // Expand toutes les sections
+    document.querySelectorAll('.etape-section').forEach(section => {
+        const toggle = section.querySelector('.folder-toggle');
+        const children = section.querySelector('.section-children');
+        if (toggle && toggle.classList.contains('collapsed')) {
+            toggle.classList.remove('collapsed');
+            saveFolderState('section_' + section.dataset.etapeId, false);
+        }
+        if (children) children.classList.remove('collapsed');
+    });
+    // Expand tous les dossiers
+    document.querySelectorAll('#catalogue-tree .catalogue-item.is-folder').forEach(folder => {
+        const toggle = folder.querySelector('.folder-toggle');
+        const children = folder.nextElementSibling;
+        if (toggle && toggle.classList.contains('collapsed')) {
+            toggle.classList.remove('collapsed');
+            saveFolderState('folder_' + folder.dataset.id, false);
+        }
+        if (children && children.classList.contains('folder-children')) {
+            children.classList.remove('collapsed');
+        }
+    });
+}
+
+function collapseAllPanier() {
+    document.querySelectorAll('#panier-items .panier-section').forEach(section => {
+        const header = section.querySelector('.panier-section-header');
+        const content = section.querySelector('.panier-section-content');
+        const toggle = header?.querySelector('.section-toggle');
+        if (toggle) toggle.classList.add('collapsed');
+        if (content) content.classList.add('collapsed');
+    });
+    document.querySelectorAll('#panier-items .panier-item.is-folder').forEach(folder => {
+        const toggle = folder.querySelector('.folder-toggle');
+        const children = folder.nextElementSibling;
+        if (toggle) toggle.classList.add('collapsed');
+        if (children && children.classList.contains('panier-folder-children')) {
+            children.classList.add('collapsed');
+        }
+    });
+}
+
+function expandAllPanier() {
+    document.querySelectorAll('#panier-items .panier-section').forEach(section => {
+        const header = section.querySelector('.panier-section-header');
+        const content = section.querySelector('.panier-section-content');
+        const toggle = header?.querySelector('.section-toggle');
+        if (toggle) toggle.classList.remove('collapsed');
+        if (content) content.classList.remove('collapsed');
+    });
+    document.querySelectorAll('#panier-items .panier-item.is-folder').forEach(folder => {
+        const toggle = folder.querySelector('.folder-toggle');
+        const children = folder.nextElementSibling;
+        if (toggle) toggle.classList.remove('collapsed');
+        if (children && children.classList.contains('panier-folder-children')) {
+            children.classList.remove('collapsed');
+        }
+    });
+}
+
+// ========================================
+// SEARCH FUNCTIONS
+// ========================================
+function searchMagasin(query) {
+    query = query.toLowerCase().trim();
+    const container = document.getElementById('catalogue-tree');
+
+    if (!query) {
+        // Réinitialiser - tout montrer
+        container.querySelectorAll('.catalogue-item, .folder-children, .section-children, .etape-section').forEach(el => {
+            el.style.display = '';
+            el.classList.remove('search-match');
+        });
+        return;
+    }
+
+    // D'abord cacher tout
+    container.querySelectorAll('.catalogue-item').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('search-match');
+    });
+    container.querySelectorAll('.etape-section').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Chercher les items correspondants
+    container.querySelectorAll('.catalogue-item .item-nom').forEach(nomEl => {
+        const nom = nomEl.textContent.toLowerCase();
+        if (nom.includes(query)) {
+            const item = nomEl.closest('.catalogue-item');
+            item.style.display = '';
+            item.classList.add('search-match');
+
+            // Montrer les parents
+            let parent = item.parentElement;
+            while (parent && parent !== container) {
+                parent.style.display = '';
+                if (parent.classList.contains('folder-children') || parent.classList.contains('section-children')) {
+                    parent.classList.remove('collapsed');
+                }
+                if (parent.classList.contains('etape-section')) {
+                    parent.style.display = '';
+                    const sectionChildren = parent.querySelector('.section-children');
+                    if (sectionChildren) sectionChildren.classList.remove('collapsed');
+                }
+                parent = parent.parentElement;
+            }
+
+            // Montrer le header de section
+            const section = item.closest('.etape-section');
+            if (section) {
+                section.style.display = '';
+                const header = section.querySelector('.is-section-header');
+                if (header) header.style.display = '';
+            }
+        }
+    });
+}
+
+function clearMagasinSearch() {
+    document.getElementById('magasin-search').value = '';
+    searchMagasin('');
+}
+
+function searchPanier(query) {
+    query = query.toLowerCase().trim();
+    const container = document.getElementById('panier-items');
+
+    if (!query) {
+        container.querySelectorAll('.panier-item, .panier-section, .panier-section-content, .panier-folder-children').forEach(el => {
+            el.style.display = '';
+            el.classList.remove('search-match');
+        });
+        return;
+    }
+
+    // Cacher tout
+    container.querySelectorAll('.panier-item').forEach(el => {
+        el.style.display = 'none';
+        el.classList.remove('search-match');
+    });
+    container.querySelectorAll('.panier-section').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Chercher les items correspondants
+    container.querySelectorAll('.panier-item .item-nom').forEach(nomEl => {
+        const nom = nomEl.textContent.toLowerCase();
+        if (nom.includes(query)) {
+            const item = nomEl.closest('.panier-item');
+            item.style.display = '';
+            item.classList.add('search-match');
+
+            // Montrer les parents
+            let parent = item.parentElement;
+            while (parent && parent !== container) {
+                parent.style.display = '';
+                if (parent.classList.contains('panier-folder-children') || parent.classList.contains('panier-section-content')) {
+                    parent.classList.remove('collapsed');
+                }
+                if (parent.classList.contains('panier-section')) {
+                    parent.style.display = '';
+                }
+                parent = parent.parentElement;
+            }
+        }
+    });
+}
+
+function clearPanierSearch() {
+    document.getElementById('panier-search').value = '';
+    searchPanier('');
+}
+
+// ========================================
+// ÉTAPES FILTER
+// ========================================
+function applyEtapeFilter() {
+    const checkedEtapes = [];
+    document.querySelectorAll('.etape-filter-checkbox:checked').forEach(cb => {
+        checkedEtapes.push(cb.value);
+    });
+
+    document.querySelectorAll('.etape-section').forEach(section => {
+        const etapeId = section.dataset.etapeId;
+        if (checkedEtapes.includes(etapeId) || etapeId === 'null') {
+            section.style.display = '';
+        } else {
+            section.style.display = 'none';
+        }
+    });
+
+    // Sauvegarder le filtre dans localStorage
+    localStorage.setItem('magasinEtapeFilter', JSON.stringify(checkedEtapes));
+}
+
+function toggleAllEtapesFilter(checked) {
+    document.querySelectorAll('.etape-filter-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+    applyEtapeFilter();
+}
+
+// Appliquer le filtre sauvegardé au chargement
+document.addEventListener('DOMContentLoaded', function() {
+    const savedFilter = localStorage.getItem('magasinEtapeFilter');
+    if (savedFilter) {
+        try {
+            const checkedEtapes = JSON.parse(savedFilter);
+            document.querySelectorAll('.etape-filter-checkbox').forEach(cb => {
+                cb.checked = checkedEtapes.includes(cb.value);
+            });
+            applyEtapeFilter();
+        } catch(e) {}
+    }
+});

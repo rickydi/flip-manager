@@ -469,3 +469,10 @@ body.is-dragging .catalogue-item:not(.dragging):hover {
 #item-modal-etape {
     max-height: none;
 }
+
+/* Search highlight */
+.catalogue-item.search-match,
+.panier-item.search-match {
+    background-color: rgba(255, 193, 7, 0.2) !important;
+    border-left: 3px solid #ffc107 !important;
+}

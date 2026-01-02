@@ -479,23 +479,62 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
         <!-- MAGASIN (gauche) -->
         <div class="col-md-6">
             <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
-                    <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
-                    <div class="d-flex gap-1">
-                        <div class="dropdown">
-                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Import/Export CSV">
-                                <i class="bi bi-file-earmark-spreadsheet"></i>
+                <div class="card-header d-flex flex-column gap-2" style="min-height: 50px;">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
+                        <div class="d-flex gap-1">
+                            <!-- Boutons Collapse/Expand -->
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary" onclick="collapseAllMagasin()" title="Tout fermer">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="expandAllMagasin()" title="Tout ouvrir">
+                                    <i class="bi bi-arrows-expand"></i>
+                                </button>
+                            </div>
+                            <!-- Filtre Étapes -->
+                            <div class="dropdown">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Filtrer par étapes">
+                                    <i class="bi bi-funnel"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" id="etapes-filter-menu" style="min-width: 200px;">
+                                    <li><a class="dropdown-item" href="#" onclick="toggleAllEtapesFilter(true); return false;"><i class="bi bi-check-all me-2"></i>Tout sélectionner</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="toggleAllEtapesFilter(false); return false;"><i class="bi bi-x-lg me-2"></i>Tout désélectionner</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <?php foreach ($etapes as $etape): ?>
+                                    <li>
+                                        <label class="dropdown-item d-flex align-items-center">
+                                            <input type="checkbox" class="form-check-input me-2 etape-filter-checkbox" value="<?= $etape['id'] ?>" checked onchange="applyEtapeFilter()">
+                                            <?= e($etape['nom']) ?>
+                                        </label>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                            <!-- Import/Export CSV -->
+                            <div class="dropdown">
+                                <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Import/Export CSV">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li><a class="dropdown-item" href="#" onclick="exportCatalogue(); return false;"><i class="bi bi-download me-2"></i>Exporter CSV</a></li>
+                                    <li><a class="dropdown-item" href="#" onclick="document.getElementById('import-csv-file').click(); return false;"><i class="bi bi-upload me-2"></i>Importer CSV</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-muted small" href="#" onclick="return false;">Format: Google Sheets compatible</a></li>
+                                </ul>
+                            </div>
+                            <input type="file" id="import-csv-file" accept=".csv,.txt" style="display:none" onchange="importCatalogue(this)">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="openEtapesModal()" title="Gérer les sections/étapes">
+                                <i class="bi bi-list-ol me-1"></i>Sections
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#" onclick="exportCatalogue(); return false;"><i class="bi bi-download me-2"></i>Exporter CSV</a></li>
-                                <li><a class="dropdown-item" href="#" onclick="document.getElementById('import-csv-file').click(); return false;"><i class="bi bi-upload me-2"></i>Importer CSV</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item text-muted small" href="#" onclick="return false;">Format: Google Sheets compatible</a></li>
-                            </ul>
                         </div>
-                        <input type="file" id="import-csv-file" accept=".csv,.txt" style="display:none" onchange="importCatalogue(this)">
-                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openEtapesModal()" title="Gérer les sections/étapes">
-                            <i class="bi bi-list-ol me-1"></i>Sections
+                    </div>
+                    <!-- Barre de recherche Magasin -->
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="magasin-search" placeholder="Rechercher dans le magasin..." onkeyup="searchMagasin(this.value)">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearMagasinSearch()" title="Effacer">
+                            <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
                 </div>
@@ -517,23 +556,40 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
         <!-- PANIER (droite) -->
         <div class="col-md-6">
             <div class="card h-100" id="panier-card">
-                <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
-                    <span>
-                        <i class="bi bi-cart3 me-2"></i><strong>Panier</strong>
-                        <?php if (isset($projet)): ?>
-                            <span class="text-muted ms-1">- <?= e($projet['nom'] ?? 'Projet') ?></span>
-                        <?php endif; ?>
-                    </span>
-                    <div class="d-flex align-items-center gap-2">
-                        <?php if (!empty($panierSections)): ?>
-                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearPanier()" title="Vider le panier" style="height: 31px; width: 31px; padding: 0;">
-                            <i class="bi bi-trash"></i>
+                <div class="card-header d-flex flex-column gap-2" style="min-height: 50px;">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <span>
+                            <i class="bi bi-cart3 me-2"></i><strong>Panier</strong>
+                            <?php if (isset($projet)): ?>
+                                <span class="text-muted ms-1">- <?= e($projet['nom'] ?? 'Projet') ?></span>
+                            <?php endif; ?>
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <!-- Boutons Collapse/Expand Panier -->
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-secondary" onclick="collapseAllPanier()" title="Tout fermer">
+                                    <i class="bi bi-arrows-collapse"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="expandAllPanier()" title="Tout ouvrir">
+                                    <i class="bi bi-arrows-expand"></i>
+                                </button>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="clearPanier()" title="Vider le panier" style="height: 31px; width: 31px; padding: 0;">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="openOrderModal()" style="height: 31px;">
+                                <i class="bi bi-file-earmark-text me-1"></i>Commande
+                            </button>
+                            <span class="btn btn-primary disabled d-flex align-items-center justify-content-center fw-bold" id="panier-total" style="height: 31px; min-width: 110px; opacity: 1; font-size: 1rem;"><?= formatMoney($totalPanier) ?></span>
+                        </div>
+                    </div>
+                    <!-- Barre de recherche Panier -->
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="panier-search" placeholder="Rechercher dans le panier..." onkeyup="searchPanier(this.value)">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearPanierSearch()" title="Effacer">
+                            <i class="bi bi-x-lg"></i>
                         </button>
-                        <button type="button" class="btn btn-primary btn-sm" onclick="openOrderModal()" style="height: 31px;">
-                            <i class="bi bi-file-earmark-text me-1"></i>Commande
-                        </button>
-                        <?php endif; ?>
-                        <span class="btn btn-primary disabled d-flex align-items-center justify-content-center fw-bold" id="panier-total" style="height: 31px; min-width: 110px; opacity: 1; font-size: 1rem;"><?= formatMoney($totalPanier) ?></span>
                     </div>
                 </div>
                 <div class="card-body p-2">
