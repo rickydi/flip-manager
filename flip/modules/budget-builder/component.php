@@ -481,9 +481,23 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center" style="min-height: 50px;">
                     <span><i class="bi bi-shop me-2"></i><strong>Magasin</strong></span>
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="openEtapesModal()" title="Gérer les sections/étapes">
-                        <i class="bi bi-list-ol me-1"></i>Sections
-                    </button>
+                    <div class="d-flex gap-1">
+                        <div class="dropdown">
+                            <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" title="Import/Export CSV">
+                                <i class="bi bi-file-earmark-spreadsheet"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="exportCatalogue(); return false;"><i class="bi bi-download me-2"></i>Exporter CSV</a></li>
+                                <li><a class="dropdown-item" href="#" onclick="document.getElementById('import-csv-file').click(); return false;"><i class="bi bi-upload me-2"></i>Importer CSV</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-muted small" href="#" onclick="return false;">Format: Google Sheets compatible</a></li>
+                            </ul>
+                        </div>
+                        <input type="file" id="import-csv-file" accept=".csv,.txt" style="display:none" onchange="importCatalogue(this)">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openEtapesModal()" title="Gérer les sections/étapes">
+                            <i class="bi bi-list-ol me-1"></i>Sections
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-2">
                     <div id="catalogue-tree" class="catalogue-tree">
@@ -2111,4 +2125,89 @@ function renderPanierTree($items, $level = 0) {
         currentPriceInput = document.getElementById('add-item-prix');
         openPriceSelector(lien);
     });
+
+    // ==================== EXPORT / IMPORT CSV ====================
+
+    function exportCatalogue() {
+        BudgetBuilder.ajax('export_catalogue', {}).then(response => {
+            if (response.success && response.csv) {
+                // Convertir le tableau en CSV string
+                let csvContent = response.csv.map(row => {
+                    return row.map(cell => {
+                        // Échapper les guillemets et entourer de guillemets si nécessaire
+                        if (cell === null || cell === undefined) cell = '';
+                        cell = String(cell);
+                        if (cell.includes(',') || cell.includes('"') || cell.includes('\n')) {
+                            cell = '"' + cell.replace(/"/g, '""') + '"';
+                        }
+                        return cell;
+                    }).join(',');
+                }).join('\n');
+
+                // Ajouter BOM UTF-8 pour Excel/Google Sheets
+                const BOM = '\uFEFF';
+                const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+                // Télécharger
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                const date = new Date().toISOString().split('T')[0];
+                link.download = 'magasin_catalogue_' + date + '.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                alert('Export réussi! ' + response.count + ' items exportés.\n\nOuvrez le fichier dans Google Sheets pour l\'éditer.');
+            } else {
+                alert('Erreur: ' + (response.message || 'Échec de l\'export'));
+            }
+        });
+    }
+
+    function importCatalogue(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csvData = e.target.result;
+
+            // Compter les lignes (excluant l'en-tête)
+            const lines = csvData.split('\n').filter(l => l.trim()).length - 1;
+
+            if (confirm('Importer ' + lines + ' lignes depuis "' + file.name + '"?\n\nLes items existants avec le même ID seront mis à jour.\nLes nouveaux items seront ajoutés.')) {
+                BudgetBuilder.ajax('import_catalogue', {
+                    csv_data: csvData,
+                    mode: 'update'
+                }).then(response => {
+                    if (response.success) {
+                        let msg = 'Import terminé!\n\n';
+                        msg += '✓ ' + response.inserted + ' items ajoutés\n';
+                        msg += '✓ ' + response.updated + ' items mis à jour\n';
+
+                        if (response.errors && response.errors.length > 0) {
+                            msg += '\n⚠ Erreurs:\n' + response.errors.slice(0, 5).join('\n');
+                            if (response.errors.length > 5) {
+                                msg += '\n... et ' + (response.errors.length - 5) + ' autres erreurs';
+                            }
+                        }
+
+                        alert(msg);
+
+                        // Recharger le catalogue
+                        BudgetBuilder.loadCatalogueByEtape();
+                    } else {
+                        alert('Erreur: ' + (response.message || 'Échec de l\'import'));
+                    }
+                });
+            }
+
+            // Reset le input pour permettre de réimporter le même fichier
+            input.value = '';
+        };
+
+        reader.readAsText(file, 'UTF-8');
+    }
 </script>

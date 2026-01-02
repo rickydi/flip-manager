@@ -1611,6 +1611,206 @@ try {
             echo json_encode(['success' => true, 'items' => $items, 'count' => count($items)]);
             break;
 
+        case 'export_catalogue':
+            // Export du catalogue en CSV pour Google Sheets
+            $stmt = $pdo->query("
+                SELECT
+                    ci.id,
+                    ci.parent_id,
+                    ci.type,
+                    ci.nom,
+                    ci.prix,
+                    ci.quantite_defaut,
+                    ci.fournisseur,
+                    ci.lien_achat,
+                    ci.etape_id,
+                    ci.ordre,
+                    e.nom as etape_nom,
+                    parent.nom as parent_nom
+                FROM catalogue_items ci
+                LEFT JOIN budget_etapes e ON ci.etape_id = e.id
+                LEFT JOIN catalogue_items parent ON ci.parent_id = parent.id
+                WHERE ci.actif = 1
+                ORDER BY ci.etape_id, ci.parent_id, ci.ordre, ci.nom
+            ");
+            $items = $stmt->fetchAll();
+
+            // Construire le CSV
+            $csv = [];
+            // En-têtes
+            $csv[] = ['ID', 'Type', 'Nom', 'Prix', 'Quantité par défaut', 'Fournisseur', 'Lien achat', 'Étape', 'Catégorie parente', 'Parent ID', 'Ordre'];
+
+            foreach ($items as $item) {
+                $csv[] = [
+                    $item['id'],
+                    $item['type'] === 'folder' ? 'Dossier' : 'Article',
+                    $item['nom'],
+                    $item['type'] === 'item' ? number_format($item['prix'], 2, '.', '') : '',
+                    $item['type'] === 'item' ? $item['quantite_defaut'] : '',
+                    $item['fournisseur'] ?: '',
+                    $item['lien_achat'] ?: '',
+                    $item['etape_nom'] ?: '',
+                    $item['parent_nom'] ?: '',
+                    $item['parent_id'] ?: '',
+                    $item['ordre']
+                ];
+            }
+
+            echo json_encode(['success' => true, 'csv' => $csv, 'count' => count($items)]);
+            break;
+
+        case 'import_catalogue':
+            // Import du catalogue depuis CSV
+            $csvData = $_POST['csv_data'] ?? '';
+            $mode = $_POST['mode'] ?? 'update'; // 'update' ou 'replace'
+
+            if (empty($csvData)) {
+                throw new Exception('Aucune donnée CSV fournie');
+            }
+
+            // Parser le CSV
+            $lines = array_filter(explode("\n", $csvData));
+            if (count($lines) < 2) {
+                throw new Exception('Le fichier CSV doit contenir au moins un en-tête et une ligne de données');
+            }
+
+            // Ignorer l'en-tête
+            $header = str_getcsv(array_shift($lines));
+
+            $pdo->beginTransaction();
+
+            try {
+                $updated = 0;
+                $inserted = 0;
+                $errors = [];
+
+                // Map pour retrouver les étapes par nom
+                $stmtEtapes = $pdo->query("SELECT id, nom FROM budget_etapes");
+                $etapesMap = [];
+                foreach ($stmtEtapes->fetchAll() as $e) {
+                    $etapesMap[strtolower(trim($e['nom']))] = $e['id'];
+                }
+
+                // Map pour retrouver les parents par nom
+                $stmtParents = $pdo->query("SELECT id, nom FROM catalogue_items WHERE type = 'folder' AND actif = 1");
+                $parentsMap = [];
+                foreach ($stmtParents->fetchAll() as $p) {
+                    $parentsMap[strtolower(trim($p['nom']))] = $p['id'];
+                }
+
+                foreach ($lines as $lineNum => $line) {
+                    $row = str_getcsv($line);
+                    if (count($row) < 3) continue; // Ligne invalide
+
+                    // Mapper les colonnes (flexible selon l'ordre)
+                    $id = isset($row[0]) && is_numeric($row[0]) ? (int)$row[0] : null;
+                    $type = isset($row[1]) ? (stripos($row[1], 'dossier') !== false || $row[1] === 'folder' ? 'folder' : 'item') : 'item';
+                    $nom = trim($row[2] ?? '');
+                    $prix = isset($row[3]) ? floatval(str_replace(',', '.', $row[3])) : 0;
+                    $quantiteDefaut = isset($row[4]) && is_numeric($row[4]) ? (int)$row[4] : 1;
+                    $fournisseur = trim($row[5] ?? '');
+                    $lienAchat = trim($row[6] ?? '');
+                    $etapeNom = trim($row[7] ?? '');
+                    $parentNom = trim($row[8] ?? '');
+                    $parentId = isset($row[9]) && is_numeric($row[9]) ? (int)$row[9] : null;
+                    $ordre = isset($row[10]) && is_numeric($row[10]) ? (int)$row[10] : 0;
+
+                    if (empty($nom)) {
+                        $errors[] = "Ligne " . ($lineNum + 2) . ": Nom manquant";
+                        continue;
+                    }
+
+                    // Trouver l'étape par nom si spécifiée
+                    $etapeId = null;
+                    if (!empty($etapeNom)) {
+                        $etapeKey = strtolower($etapeNom);
+                        if (isset($etapesMap[$etapeKey])) {
+                            $etapeId = $etapesMap[$etapeKey];
+                        }
+                    }
+
+                    // Trouver le parent par nom si spécifié et pas de parent_id
+                    if (!$parentId && !empty($parentNom)) {
+                        $parentKey = strtolower($parentNom);
+                        if (isset($parentsMap[$parentKey])) {
+                            $parentId = $parentsMap[$parentKey];
+                        }
+                    }
+
+                    // Update ou Insert
+                    if ($id && $mode === 'update') {
+                        // Vérifier si l'item existe
+                        $stmtCheck = $pdo->prepare("SELECT id FROM catalogue_items WHERE id = ?");
+                        $stmtCheck->execute([$id]);
+
+                        if ($stmtCheck->fetch()) {
+                            // Update
+                            $stmtUpdate = $pdo->prepare("
+                                UPDATE catalogue_items SET
+                                    type = ?, nom = ?, prix = ?, quantite_defaut = ?,
+                                    fournisseur = ?, lien_achat = ?, etape_id = ?,
+                                    parent_id = ?, ordre = ?
+                                WHERE id = ?
+                            ");
+                            $stmtUpdate->execute([
+                                $type, $nom, $prix, $quantiteDefaut,
+                                $fournisseur ?: null, $lienAchat ?: null, $etapeId,
+                                $parentId, $ordre, $id
+                            ]);
+                            $updated++;
+                        } else {
+                            // Insert avec ID spécifique
+                            $stmtInsert = $pdo->prepare("
+                                INSERT INTO catalogue_items
+                                (id, type, nom, prix, quantite_defaut, fournisseur, lien_achat, etape_id, parent_id, ordre, actif)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                            ");
+                            $stmtInsert->execute([
+                                $id, $type, $nom, $prix, $quantiteDefaut,
+                                $fournisseur ?: null, $lienAchat ?: null, $etapeId, $parentId, $ordre
+                            ]);
+                            $inserted++;
+
+                            // Ajouter au map des parents si c'est un dossier
+                            if ($type === 'folder') {
+                                $parentsMap[strtolower($nom)] = $id;
+                            }
+                        }
+                    } else {
+                        // Insert sans ID (auto-increment)
+                        $stmtInsert = $pdo->prepare("
+                            INSERT INTO catalogue_items
+                            (type, nom, prix, quantite_defaut, fournisseur, lien_achat, etape_id, parent_id, ordre, actif)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                        ");
+                        $stmtInsert->execute([
+                            $type, $nom, $prix, $quantiteDefaut,
+                            $fournisseur ?: null, $lienAchat ?: null, $etapeId, $parentId, $ordre
+                        ]);
+                        $newId = $pdo->lastInsertId();
+                        $inserted++;
+
+                        // Ajouter au map des parents si c'est un dossier
+                        if ($type === 'folder') {
+                            $parentsMap[strtolower($nom)] = $newId;
+                        }
+                    }
+                }
+
+                $pdo->commit();
+                echo json_encode([
+                    'success' => true,
+                    'updated' => $updated,
+                    'inserted' => $inserted,
+                    'errors' => $errors
+                ]);
+
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+            break;
+
         default:
             throw new Exception('Action non reconnue: ' . $action);
     }
