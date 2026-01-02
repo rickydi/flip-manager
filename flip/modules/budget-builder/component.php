@@ -1157,6 +1157,20 @@ function renderPanierTree($items, $level = 0) {
                             <i class="bi bi-cursor-fill"></i> Ouvre le site ici pour sélectionner le prix
                         </small>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Image <small class="text-muted">(Ctrl+V pour coller)</small></label>
+                        <div id="add-item-image-zone" class="border rounded p-3 text-center" style="min-height: 80px; cursor: pointer; background: rgba(0,0,0,0.05);" tabindex="0">
+                            <div id="add-item-image-placeholder">
+                                <i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>
+                                <div class="small text-muted mt-1">Cliquez ici puis Ctrl+V pour coller une image</div>
+                            </div>
+                            <img id="add-item-image-preview" src="" alt="Aperçu" style="max-width: 100%; max-height: 150px; display: none; border-radius: 4px;">
+                            <input type="hidden" id="add-item-image-data">
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="add-item-image-remove" style="display: none;" onclick="removeAddItemImage()">
+                                <i class="bi bi-trash"></i> Supprimer
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1322,37 +1336,41 @@ function renderPanierTree($items, $level = 0) {
 
     // Gestion du Ctrl+V pour coller une image
     document.addEventListener('DOMContentLoaded', function() {
-        const imageZone = document.getElementById('item-modal-image-zone');
-        if (!imageZone) return;
+        // Helper pour initialiser une zone de paste d'image
+        function initImagePasteZone(zoneId, setImageFn) {
+            const zone = document.getElementById(zoneId);
+            if (!zone) return;
 
-        // Écouter paste sur la zone d'image
-        imageZone.addEventListener('paste', function(e) {
-            const items = e.clipboardData?.items;
-            if (!items) return;
+            zone.addEventListener('paste', function(e) {
+                const items = e.clipboardData?.items;
+                if (!items) return;
 
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    e.preventDefault();
-                    const blob = items[i].getAsFile();
-                    const reader = new FileReader();
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        e.preventDefault();
+                        const blob = items[i].getAsFile();
+                        const reader = new FileReader();
 
-                    reader.onload = function(event) {
-                        // Compresser l'image si elle est trop grande
-                        compressImage(event.target.result, 800, 0.7).then(compressed => {
-                            setItemModalImage(compressed);
-                        });
-                    };
+                        reader.onload = function(event) {
+                            compressImage(event.target.result, 800, 0.7).then(compressed => {
+                                setImageFn(compressed);
+                            });
+                        };
 
-                    reader.readAsDataURL(blob);
-                    break;
+                        reader.readAsDataURL(blob);
+                        break;
+                    }
                 }
-            }
-        });
+            });
 
-        // Focus sur la zone au clic
-        imageZone.addEventListener('click', function() {
-            this.focus();
-        });
+            zone.addEventListener('click', function() {
+                this.focus();
+            });
+        }
+
+        // Initialiser les deux zones d'image
+        initImagePasteZone('item-modal-image-zone', setItemModalImage);
+        initImagePasteZone('add-item-image-zone', setAddItemImage);
     });
 
     // Compresser une image base64
@@ -2265,6 +2283,7 @@ function renderPanierTree($items, $level = 0) {
             data.fournisseur = document.getElementById('add-item-fournisseur').value;
             data.etape_id = document.getElementById('add-item-etape').value || null;
             data.lien = document.getElementById('add-item-lien').value;
+            data.image = document.getElementById('add-item-image-data').value || null;
         } else {
             // Pour un dossier, utiliser l'étape du hidden field
             data.etape_id = document.getElementById('add-item-etape-id').value || null;
@@ -2278,6 +2297,32 @@ function renderPanierTree($items, $level = 0) {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
         });
+    }
+
+    // Fonctions pour l'image du modal d'ajout
+    function setAddItemImage(imageSrc) {
+        const preview = document.getElementById('add-item-image-preview');
+        const placeholder = document.getElementById('add-item-image-placeholder');
+        const removeBtn = document.getElementById('add-item-image-remove');
+        const dataInput = document.getElementById('add-item-image-data');
+
+        if (imageSrc) {
+            preview.src = imageSrc;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+            removeBtn.style.display = 'inline-block';
+            dataInput.value = imageSrc;
+        } else {
+            preview.src = '';
+            preview.style.display = 'none';
+            placeholder.style.display = 'block';
+            removeBtn.style.display = 'none';
+            dataInput.value = '';
+        }
+    }
+
+    function removeAddItemImage() {
+        setAddItemImage(null);
     }
 
     // Enter pour enregistrer

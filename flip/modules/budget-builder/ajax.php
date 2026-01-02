@@ -223,6 +223,7 @@ try {
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
             $fournisseur = trim($input['fournisseur'] ?? '');
             $lien = trim($input['lien'] ?? '');
+            $image = isset($input['image']) ? $input['image'] : null;
 
             if (empty($nom)) {
                 throw new Exception('Le nom est requis');
@@ -247,8 +248,8 @@ try {
             }
             $ordre = $stmt->fetchColumn();
 
-            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat, actif) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)");
-            $stmt->execute([$parentId, $type, $nom, $prix, $ordre, $etapeId, $fournisseur ?: null, $lien ?: null]);
+            $stmt = $pdo->prepare("INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat, image, actif) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)");
+            $stmt->execute([$parentId, $type, $nom, $prix, $ordre, $etapeId, $fournisseur ?: null, $lien ?: null, $image]);
 
             echo json_encode([
                 'success' => true,
@@ -374,10 +375,11 @@ try {
             $stmtOld = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
             $stmtOld->execute([$id]);
             $oldItem = $stmtOld->fetch();
-            $oldEtapeId = $oldItem ? ($oldItem['etape_id'] ?: null) : null;
+            $oldEtapeId = $oldItem ? (int)($oldItem['etape_id'] ?: 0) : 0;
+            $newEtapeId = (int)($etapeId ?: 0);
 
             // Si l'étape change, l'item devient racine dans la nouvelle étape
-            if ($etapeId !== $oldEtapeId) {
+            if ($newEtapeId !== $oldEtapeId) {
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
                 $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
             } else {
@@ -471,10 +473,11 @@ try {
             $stmtOld = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
             $stmtOld->execute([$id]);
             $oldFolder = $stmtOld->fetch();
-            $oldEtapeId = $oldFolder ? ($oldFolder['etape_id'] ?: null) : null;
+            $oldEtapeId = $oldFolder ? (int)($oldFolder['etape_id'] ?: 0) : 0;
+            $newEtapeId = (int)($etapeId ?: 0);
 
             // Si l'étape change, le dossier devient racine dans la nouvelle étape
-            if ($etapeId !== $oldEtapeId) {
+            if ($newEtapeId !== $oldEtapeId) {
                 $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ?, parent_id = NULL WHERE id = ?");
                 $stmt->execute([$nom, $etapeId, $id]);
             } else {
