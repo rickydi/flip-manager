@@ -2672,90 +2672,100 @@ window.initDetailCharts = function () {
     if (window.chartBudget && typeof window.chartBudget.destroy === 'function') window.chartBudget.destroy();
     if (window.chartProfits && typeof window.chartProfits.destroy === 'function') window.chartProfits.destroy();
 
+    var canvasCouts = document.getElementById('chartCouts');
+    var canvasBudget = document.getElementById('chartBudget');
+    var canvasProfits = document.getElementById('chartProfits');
+
     // Chart 1: Coûts vs Valeur
-    window.chartCouts = new Chart(document.getElementById('chartCouts'), {
-    type: 'line',
-    data: {
-        labels: <?= json_encode($labelsTimeline) ?>,
-        datasets: [
-            {
-                label: 'Coûts',
-                data: <?= json_encode($coutsTimeline) ?>,
-                borderColor: '#ef4444',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 4,
-                pointBackgroundColor: '#ef4444',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 6
-            },
-            {
-                label: 'Valeur cible',
-                data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>,
-                borderColor: '#22c55e',
-                borderDash: [8, 4],
-                borderWidth: 2,
-                pointRadius: 0,
-                fill: false
-            }
-        ]
-    },
-    options: optionsLine
-});
+    if (canvasCouts) {
+        window.chartCouts = new Chart(canvasCouts, {
+        type: 'line',
+        data: {
+            labels: <?= json_encode($labelsTimeline) ?>,
+            datasets: [
+                {
+                    label: 'Coûts',
+                    data: <?= json_encode($coutsTimeline) ?>,
+                    borderColor: '#ef4444',
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#ef4444',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6
+                },
+                {
+                    label: 'Valeur cible',
+                    data: <?= json_encode(array_fill(0, count($labelsTimeline), $valeurPotentielle)) ?>,
+                    borderColor: '#22c55e',
+                    borderDash: [8, 4],
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                }
+            ]
+        },
+        options: optionsLine
+    });
+    }
 
 // Chart 2: Heures travaillées
-window.chartBudget = new Chart(document.getElementById('chartBudget'), {
-    type: 'bar',
-    data: {
-        labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
-        datasets: [{
-            data: <?= json_encode($jourDataHeures ?: [0]) ?>,
-            backgroundColor: 'rgba(59, 130, 246, 0.7)',
-            borderRadius: 6,
-            borderSkipped: false,
-            hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)'
-        }]
-    },
-    options: optionsBar
-});
+if (canvasBudget) {
+    window.chartBudget = new Chart(canvasBudget, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
+            datasets: [{
+                data: <?= json_encode($jourDataHeures ?: [0]) ?>,
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderRadius: 6,
+                borderSkipped: false,
+                hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)'
+            }]
+        },
+        options: optionsBar
+    });
+}
 
 // Chart 3: Budget vs Dépensé
-window.chartProfits = new Chart(document.getElementById('chartProfits'), {
-    type: 'line',
-    data: {
-        labels: <?= json_encode($jourLabels) ?>,
-        datasets: [
-            {
-                label: 'Budget prévu',
-                data: <?= json_encode($dataExtrapole) ?>,
-                borderColor: '#22c55e',
-                backgroundColor: 'rgba(34, 197, 94, 0.15)',
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3,
-                pointBackgroundColor: '#22c55e',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2
-            },
-            {
-                label: 'Dépensé réel',
-                data: <?= json_encode($dataReel) ?>,
-                borderColor: '#f97316',
-                backgroundColor: 'rgba(249, 115, 22, 0.15)',
-                fill: true,
-                stepped: 'middle',
-                pointRadius: 4,
-                pointBackgroundColor: '#f97316',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 6
-            }
-        ]
-    },
-    options: optionsLine
-});
+if (canvasProfits) {
+    window.chartProfits = new Chart(canvasProfits, {
+        type: 'line',
+        data: {
+            labels: <?= json_encode($jourLabels) ?>,
+            datasets: [
+                {
+                    label: 'Budget prévu',
+                    data: <?= json_encode($dataExtrapole) ?>,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#22c55e',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                },
+                {
+                    label: 'Dépensé réel',
+                    data: <?= json_encode($dataReel) ?>,
+                    borderColor: '#f97316',
+                    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+                    fill: true,
+                    stepped: 'middle',
+                    pointRadius: 4,
+                    pointBackgroundColor: '#f97316',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointHoverRadius: 6
+                }
+            ]
+        },
+        options: optionsLine
+    });
+}
 };
 
 // Animation des cartes graphiques avec Motion
