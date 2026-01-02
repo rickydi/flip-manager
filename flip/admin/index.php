@@ -438,11 +438,29 @@ include '../includes/header.php';
 .gauge-percent-arc.over100 {
     fill: #ffd700;
     font-weight: 700;
-    filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 15px #ffa500);
+    font-size: 13px;
+    filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 6px #ffd700);
+    animation: pulse-text 1.5s ease-in-out infinite;
 }
 
 .gauge-percent-dot.over100 {
+    fill: #ffd700 !important;
     filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 15px #ffa500);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-text {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 15px #ffa500);
+    }
+    50% {
+        filter: drop-shadow(0 0 15px #ffd700) drop-shadow(0 0 25px #ffa500);
+    }
 }
 
 /* Fireworks container */
@@ -2028,9 +2046,11 @@ function updateGaugeVisual(type, value, target) {
         if (realPercent >= 100) {
             dotEl.classList.add('over100');
             percentEl.classList.add('over100');
+            dotEl.setAttribute('r', 16); // Plus gros
         } else {
             dotEl.classList.remove('over100');
             percentEl.classList.remove('over100');
+            dotEl.setAttribute('r', 12); // Taille normale
         }
     }
 }
@@ -2143,13 +2163,14 @@ function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPerce
         if (isOver100 && progress > 0.8) {
             dotEl.classList.add('over100');
             textEl.classList.add('over100');
+            dotEl.setAttribute('r', 16); // Plus gros quand over 100%
         }
 
         if (progress < 1) {
             requestAnimationFrame(animate);
         } else {
             // Animation pop à la fin
-            animateDotPop(dotEl);
+            animateDotPop(dotEl, isOver100);
 
             // Feux d'artifice si >= 100%
             if (isOver100) {
@@ -2162,9 +2183,9 @@ function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPerce
     requestAnimationFrame(animate);
 }
 
-function animateDotPop(dotEl) {
-    const originalRadius = 12;
-    const maxRadius = 18;
+function animateDotPop(dotEl, isOver100 = false) {
+    const originalRadius = isOver100 ? 16 : 12;
+    const maxRadius = isOver100 ? 22 : 18;
     const duration = 300;
     const startTime = performance.now();
 
