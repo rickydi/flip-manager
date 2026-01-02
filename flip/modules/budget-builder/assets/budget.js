@@ -291,6 +291,8 @@ const BudgetBuilder = {
             new_parent_id: newParentId
         }).then(response => {
             if (response.success) {
+                // Rafraîchir le catalogue (magasin) pour voir le déplacement
+                self.loadCatalogueByEtape();
                 self.refreshAfterBudgetChange();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec du déplacement'));
