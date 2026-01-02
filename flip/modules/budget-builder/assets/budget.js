@@ -810,6 +810,36 @@ const BudgetBuilder = {
 
         container.innerHTML = html;
         this.reinitDragDropForItems();
+        this.applyFolderStates();
+    },
+
+    // Appliquer les états sauvegardés des dossiers/sections
+    applyFolderStates: function() {
+        // Appliquer l'état des sections (étapes)
+        document.querySelectorAll('.etape-section').forEach(section => {
+            const etapeId = section.dataset.etapeId;
+            const isCollapsed = getFolderState('section_' + etapeId);
+            if (isCollapsed === true) {
+                const toggle = section.querySelector('.folder-toggle');
+                const children = section.querySelector('.section-children');
+                if (toggle) toggle.classList.add('collapsed');
+                if (children) children.classList.add('collapsed');
+            }
+        });
+
+        // Appliquer l'état des dossiers
+        document.querySelectorAll('.catalogue-item.is-folder').forEach(folder => {
+            const folderId = folder.dataset.id;
+            const isCollapsed = getFolderState('folder_' + folderId);
+            if (isCollapsed === true) {
+                const toggle = folder.querySelector('.folder-toggle');
+                const children = folder.nextElementSibling;
+                if (toggle) toggle.classList.add('collapsed');
+                if (children && children.classList.contains('folder-children')) {
+                    children.classList.add('collapsed');
+                }
+            }
+        });
     },
 
     renderEtapeItems: function(items) {
@@ -1471,6 +1501,30 @@ function toggleFolder(el) {
     if (children && children.classList.contains('folder-children')) {
         children.classList.toggle('collapsed');
     }
+    // Sauvegarder l'état dans localStorage
+    const folderId = parent.dataset.id;
+    if (folderId) {
+        const isCollapsed = el.classList.contains('collapsed');
+        saveFolderState('folder_' + folderId, isCollapsed);
+    }
+}
+
+// Sauvegarder/Charger l'état des dossiers
+function saveFolderState(key, isCollapsed) {
+    try {
+        let states = JSON.parse(localStorage.getItem('magasinFolderStates') || '{}');
+        states[key] = isCollapsed;
+        localStorage.setItem('magasinFolderStates', JSON.stringify(states));
+    } catch(e) {}
+}
+
+function getFolderState(key) {
+    try {
+        let states = JSON.parse(localStorage.getItem('magasinFolderStates') || '{}');
+        return states[key];
+    } catch(e) {
+        return undefined;
+    }
 }
 
 function addItem(parentId, type) {
@@ -1521,6 +1575,13 @@ function toggleSection(el) {
     const children = parent.nextElementSibling;
     if (children && children.classList.contains('section-children')) {
         children.classList.toggle('collapsed');
+    }
+    // Sauvegarder l'état de la section dans localStorage
+    const section = el.closest('.etape-section');
+    const etapeId = section ? section.dataset.etapeId : null;
+    if (etapeId) {
+        const isCollapsed = el.classList.contains('collapsed');
+        saveFolderState('section_' + etapeId, isCollapsed);
     }
 }
 
