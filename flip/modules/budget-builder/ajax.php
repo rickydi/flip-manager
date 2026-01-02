@@ -1825,6 +1825,113 @@ try {
             }
             break;
 
+        // ================================
+        // FOLDER STATES (persistance en DB)
+        // ================================
+
+        case 'save_folder_state':
+            $userId = $_SESSION['user_id'] ?? 0;
+            $folderKey = trim($input['folder_key'] ?? '');
+            $stateValue = $input['is_collapsed'] ?? $input['state_value'] ?? false;
+
+            if (!$userId) throw new Exception('Non authentifié');
+            if (empty($folderKey)) throw new Exception('Clé de dossier requise');
+
+            // Créer la table si elle n'existe pas
+            try {
+                $pdo->query("SELECT state_value FROM budget_folder_states LIMIT 1");
+            } catch (Exception $e) {
+                // Table n'existe pas ou n'a pas la colonne state_value
+                try {
+                    $pdo->query("SELECT 1 FROM budget_folder_states LIMIT 1");
+                    // Table existe, ajouter la colonne
+                    $pdo->exec("ALTER TABLE budget_folder_states ADD COLUMN state_value VARCHAR(500) DEFAULT NULL");
+                } catch (Exception $e2) {
+                    // Créer la table complète
+                    $pdo->exec("
+                        CREATE TABLE budget_folder_states (
+                            id INT AUTO_INCREMENT PRIMARY KEY,
+                            user_id INT NOT NULL,
+                            folder_key VARCHAR(100) NOT NULL,
+                            is_collapsed TINYINT(1) NOT NULL DEFAULT 0,
+                            state_value VARCHAR(500) DEFAULT NULL,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                            UNIQUE KEY unique_user_folder (user_id, folder_key),
+                            INDEX idx_user (user_id)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                    ");
+                }
+            }
+
+            // Déterminer les valeurs à sauvegarder
+            $isCollapsed = is_bool($stateValue) ? ($stateValue ? 1 : 0) : (is_numeric($stateValue) ? (int)$stateValue : 0);
+            $stateValueStr = is_string($stateValue) ? $stateValue : null;
+
+            // Insérer ou mettre à jour
+            $stmt = $pdo->prepare("
+                INSERT INTO budget_folder_states (user_id, folder_key, is_collapsed, state_value)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE is_collapsed = VALUES(is_collapsed), state_value = VALUES(state_value)
+            ");
+            $stmt->execute([$userId, $folderKey, $isCollapsed, $stateValueStr]);
+
+            echo json_encode(['success' => true]);
+            break;
+
+        case 'get_folder_states':
+            $userId = $_SESSION['user_id'] ?? 0;
+            if (!$userId) throw new Exception('Non authentifié');
+
+            // Créer la table si elle n'existe pas
+            try {
+                $pdo->query("SELECT 1 FROM budget_folder_states LIMIT 1");
+            } catch (Exception $e) {
+                echo json_encode(['success' => true, 'states' => []]);
+                break;
+            }
+
+            // Vérifier si la colonne state_value existe
+            $hasStateValue = false;
+            try {
+                $pdo->query("SELECT state_value FROM budget_folder_states LIMIT 1");
+                $hasStateValue = true;
+            } catch (Exception $e) {}
+
+            if ($hasStateValue) {
+                $stmt = $pdo->prepare("SELECT folder_key, is_collapsed, state_value FROM budget_folder_states WHERE user_id = ?");
+            } else {
+                $stmt = $pdo->prepare("SELECT folder_key, is_collapsed FROM budget_folder_states WHERE user_id = ?");
+            }
+            $stmt->execute([$userId]);
+            $rows = $stmt->fetchAll();
+
+            $states = [];
+            foreach ($rows as $row) {
+                // Si state_value existe et n'est pas null, l'utiliser, sinon utiliser is_collapsed
+                if ($hasStateValue && isset($row['state_value']) && $row['state_value'] !== null) {
+                    $states[$row['folder_key']] = $row['state_value'];
+                } else {
+                    $states[$row['folder_key']] = (bool)$row['is_collapsed'];
+                }
+            }
+
+            echo json_encode(['success' => true, 'states' => $states]);
+            break;
+
+        case 'clear_folder_states':
+            $userId = $_SESSION['user_id'] ?? 0;
+            if (!$userId) throw new Exception('Non authentifié');
+
+            try {
+                $stmt = $pdo->prepare("DELETE FROM budget_folder_states WHERE user_id = ?");
+                $stmt->execute([$userId]);
+            } catch (Exception $e) {
+                // Table n'existe pas encore
+            }
+
+            echo json_encode(['success' => true]);
+            break;
+
         default:
             throw new Exception('Action non reconnue: ' . $action);
     }

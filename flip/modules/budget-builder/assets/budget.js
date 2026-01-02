@@ -754,7 +754,14 @@ const BudgetBuilder = {
         // Afficher un loader
         container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div></div>';
 
-        this.ajax('get_catalogue_by_etape', {}).then(response => {
+        // Charger d'abord les états des dossiers depuis la DB, puis le catalogue
+        const loadStates = folderStatesCacheLoaded
+            ? Promise.resolve(folderStatesCache)
+            : loadFolderStatesFromDB();
+
+        loadStates.then(() => {
+            return self.ajax('get_catalogue_by_etape', {});
+        }).then(response => {
             if (response.success && response.grouped) {
                 self.renderCatalogueByEtape(response.grouped);
                 self.currentCatalogueView = 'etape';
@@ -811,6 +818,8 @@ const BudgetBuilder = {
         container.innerHTML = html;
         this.reinitDragDropForItems();
         this.applyFolderStates();
+        // Appliquer le filtre d'étapes sauvegardé
+        applyStoredEtapeFilter();
     },
 
     // Appliquer les états sauvegardés des dossiers/sections
@@ -1509,22 +1518,40 @@ function toggleFolder(el) {
     }
 }
 
-// Sauvegarder/Charger l'état des dossiers
-function saveFolderState(key, isCollapsed) {
-    try {
-        let states = JSON.parse(localStorage.getItem('magasinFolderStates') || '{}');
-        states[key] = isCollapsed;
-        localStorage.setItem('magasinFolderStates', JSON.stringify(states));
-    } catch(e) {}
+// Cache des états de dossiers (chargé depuis la DB)
+let folderStatesCache = {};
+let folderStatesCacheLoaded = false;
+
+// Sauvegarder l'état d'un dossier dans la DB
+function saveFolderState(key, value) {
+    // Mettre à jour le cache immédiatement
+    folderStatesCache[key] = value;
+
+    // Sauvegarder en DB via AJAX
+    // Si c'est un booléen, utiliser is_collapsed, sinon state_value
+    const payload = { folder_key: key };
+    if (typeof value === 'boolean') {
+        payload.is_collapsed = value;
+    } else {
+        payload.state_value = String(value);
+    }
+    BudgetBuilder.ajax('save_folder_state', payload);
 }
 
+// Récupérer l'état d'un dossier depuis le cache
 function getFolderState(key) {
-    try {
-        let states = JSON.parse(localStorage.getItem('magasinFolderStates') || '{}');
-        return states[key];
-    } catch(e) {
-        return undefined;
-    }
+    return folderStatesCache[key];
+}
+
+// Charger tous les états de dossiers depuis la DB
+function loadFolderStatesFromDB() {
+    return BudgetBuilder.ajax('get_folder_states', {}).then(response => {
+        if (response.success && response.states) {
+            folderStatesCache = response.states;
+            folderStatesCacheLoaded = true;
+        }
+        return folderStatesCache;
+    });
 }
 
 function addItem(parentId, type) {
@@ -1810,8 +1837,8 @@ function applyEtapeFilter() {
         }
     });
 
-    // Sauvegarder le filtre dans localStorage
-    localStorage.setItem('magasinEtapeFilter', JSON.stringify(checkedEtapes));
+    // Sauvegarder le filtre dans la DB
+    saveFolderState('etape_filter_values', checkedEtapes.join(','));
 }
 
 function toggleAllEtapesFilter(checked) {
@@ -1821,16 +1848,14 @@ function toggleAllEtapesFilter(checked) {
     applyEtapeFilter();
 }
 
-// Appliquer le filtre sauvegardé au chargement
-document.addEventListener('DOMContentLoaded', function() {
-    const savedFilter = localStorage.getItem('magasinEtapeFilter');
-    if (savedFilter) {
-        try {
-            const checkedEtapes = JSON.parse(savedFilter);
-            document.querySelectorAll('.etape-filter-checkbox').forEach(cb => {
-                cb.checked = checkedEtapes.includes(cb.value);
-            });
-            applyEtapeFilter();
-        } catch(e) {}
+// Appliquer le filtre sauvegardé au chargement (après que le cache soit chargé)
+function applyStoredEtapeFilter() {
+    const savedFilter = getFolderState('etape_filter_values');
+    if (savedFilter && typeof savedFilter === 'string') {
+        const checkedEtapes = savedFilter.split(',').filter(v => v);
+        document.querySelectorAll('.etape-filter-checkbox').forEach(cb => {
+            cb.checked = checkedEtapes.includes(cb.value);
+        });
+        applyEtapeFilter();
     }
-});
+}
