@@ -2543,6 +2543,52 @@ try {
         $jourDataAchats[] = round((float)$row['total'], 2);
     }
 } catch (Exception $e) {}
+
+// Différence Budget Extrapolé vs Réel (par semaine)
+$dateDebut = !empty($projet['date_acquisition']) ? $projet['date_acquisition'] : date('Y-m-d');
+$dateFin = !empty($projet['date_vente']) ? $projet['date_vente'] : date('Y-m-d', strtotime('+' . $moisProjet . ' months', strtotime($dateDebut)));
+$budgetTotal = $indicateurs['renovation']['budget'] ?: 1;
+
+$depensesCumulees = [];
+try {
+    $stmt = $pdo->prepare("SELECT date_facture as jour, SUM(montant_total) as total FROM factures WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_facture ORDER BY date_facture");
+    $stmt->execute([$projetId]);
+    $cumul = 0;
+    foreach ($stmt->fetchAll() as $row) {
+        $cumul += (float)$row['total'];
+        $depensesCumulees[$row['jour']] = $cumul;
+    }
+} catch (Exception $e) {}
+
+$diffLabels = [];
+$diffData = [];
+$diffColors = [];
+$dateStart = new DateTime($dateDebut);
+$dateEnd = new DateTime($dateFin);
+$joursTotal = max(1, $dateStart->diff($dateEnd)->days);
+$dernierCumul = 0;
+
+$interval = new DateInterval('P7D');
+$period = new DatePeriod($dateStart, $interval, $dateEnd);
+$points = iterator_to_array($period);
+$points[] = $dateEnd;
+
+foreach ($points as $date) {
+    $dateStr = $date->format('Y-m-d');
+    $joursEcoules = $dateStart->diff($date)->days;
+    $pctProgression = $joursEcoules / $joursTotal;
+    $budgetExtrapole = round($budgetTotal * $pctProgression, 2);
+
+    foreach ($depensesCumulees as $jour => $cumul) {
+        if ($jour <= $dateStr) $dernierCumul = $cumul;
+    }
+
+    // Différence: positif = dépassement, négatif = économie
+    $diff = round($dernierCumul - $budgetExtrapole, 2);
+    $diffLabels[] = $date->format('d M');
+    $diffData[] = $diff;
+    $diffColors[] = $diff >= 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(34, 197, 94, 0.7)';
+}
 ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Motion One pour animations graphiques -->
@@ -2641,10 +2687,12 @@ window.initDetailCharts = function () {
     if (window.chartCouts && typeof window.chartCouts.destroy === 'function') window.chartCouts.destroy();
     if (window.chartBudget && typeof window.chartBudget.destroy === 'function') window.chartBudget.destroy();
     if (window.chartProfits && typeof window.chartProfits.destroy === 'function') window.chartProfits.destroy();
+    if (window.chartDiff && typeof window.chartDiff.destroy === 'function') window.chartDiff.destroy();
 
     var canvasCouts = document.getElementById('chartCouts');
     var canvasBudget = document.getElementById('chartBudget');
     var canvasProfits = document.getElementById('chartProfits');
+    var canvasDiff = document.getElementById('chartDiff');
 
     // Chart 1: Coûts vs Valeur
     if (canvasCouts) {
@@ -2742,6 +2790,62 @@ if (canvasProfits) {
                 y: {
                     grid: { color: 'rgba(148, 163, 184, 0.1)' },
                     ticks: { callback: v => v+'$', font: { size: 10 }, color: '#94a3b8' }
+                }
+            }
+        }
+    });
+}
+
+// Chart 4: Écart Budget (Extrapolé vs Réel)
+if (canvasDiff) {
+    window.chartDiff = new Chart(canvasDiff, {
+        type: 'bar',
+        data: {
+            labels: <?= json_encode($diffLabels ?: ['Aucun']) ?>,
+            datasets: [{
+                data: <?= json_encode($diffData ?: [0]) ?>,
+                backgroundColor: <?= json_encode($diffColors ?: ['rgba(148, 163, 184, 0.5)']) ?>,
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1200,
+                easing: 'easeOutQuart',
+                delay: (context) => context.dataIndex * 150
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { size: 12, weight: '600' },
+                    bodyFont: { size: 11 },
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.raw;
+                            const formatted = Math.abs(val).toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
+                            return val >= 0 ? '+ ' + formatted + ' (dépassement)' : '- ' + formatted + ' (économie)';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 }, color: '#94a3b8' }
+                },
+                y: {
+                    grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                    ticks: {
+                        callback: v => (v >= 0 ? '+' : '') + v + '$',
+                        font: { size: 10 },
+                        color: '#94a3b8'
+                    }
                 }
             }
         }

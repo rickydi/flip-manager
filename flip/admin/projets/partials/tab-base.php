@@ -84,6 +84,7 @@ if ($isPartialBase) {
         .chart-header.red { background: rgba(239,68,68,0.08); }
         .chart-header.blue { background: rgba(59,130,246,0.08); }
         .chart-header.green { background: rgba(34,197,94,0.08); }
+        .chart-header.orange { background: rgba(249,115,22,0.08); }
         .chart-icon {
             width: 36px;
             height: 36px;
@@ -96,6 +97,7 @@ if ($isPartialBase) {
         .chart-icon.red { background: #ef4444; color: white; }
         .chart-icon.blue { background: #3b82f6; color: white; }
         .chart-icon.green { background: #22c55e; color: white; }
+        .chart-icon.orange { background: #f97316; color: white; }
         .chart-title {
             font-weight: 600;
             font-size: 0.9rem;
@@ -145,6 +147,20 @@ if ($isPartialBase) {
                     </div>
                 </div>
                 <div class="chart-body"><canvas id="chartProfits" height="150"></canvas></div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card chart-card h-100">
+                <div class="chart-header orange">
+                    <div class="chart-icon orange">
+                        <i class="bi bi-arrow-left-right"></i>
+                    </div>
+                    <div>
+                        <div class="chart-title">Écart Budget</div>
+                        <div class="chart-subtitle">Extrapolé vs Réel</div>
+                    </div>
+                </div>
+                <div class="chart-body"><canvas id="chartDiff" height="150"></canvas></div>
             </div>
         </div>
     </div>
