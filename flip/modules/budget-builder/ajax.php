@@ -362,8 +362,19 @@ try {
             $lienAchat = trim($input['lien_achat'] ?? '');
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
 
-            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ? WHERE id = ?");
-            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $id]);
+            // Récupérer l'étape actuelle de l'item
+            $stmt = $pdo->prepare("SELECT etape_id, parent_id FROM catalogue_items WHERE id = ?");
+            $stmt->execute([$id]);
+            $current = $stmt->fetch();
+
+            // Si l'étape change, mettre parent_id à NULL pour que l'item devienne racine dans la nouvelle étape
+            $newParentId = $current['parent_id'];
+            if ($etapeId !== null && (int)$current['etape_id'] !== $etapeId) {
+                $newParentId = null; // Devient un élément racine dans la nouvelle étape
+            }
+
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = ? WHERE id = ?");
+            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $newParentId, $id]);
 
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;
@@ -446,8 +457,19 @@ try {
             $nom = trim($input['nom'] ?? '');
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
 
-            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ? WHERE id = ?");
-            $stmt->execute([$nom, $etapeId, $id]);
+            // Récupérer l'étape actuelle du dossier
+            $stmt = $pdo->prepare("SELECT etape_id, parent_id FROM catalogue_items WHERE id = ?");
+            $stmt->execute([$id]);
+            $current = $stmt->fetch();
+
+            // Si l'étape change, mettre parent_id à NULL pour que le dossier devienne racine dans la nouvelle étape
+            $newParentId = $current['parent_id'];
+            if ($etapeId !== null && (int)$current['etape_id'] !== $etapeId) {
+                $newParentId = null; // Devient un élément racine dans la nouvelle étape
+            }
+
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ?, parent_id = ? WHERE id = ?");
+            $stmt->execute([$nom, $etapeId, $newParentId, $id]);
 
             echo json_encode(['success' => true, 'message' => 'Dossier mis à jour']);
             break;
