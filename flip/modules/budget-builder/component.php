@@ -2030,8 +2030,8 @@ function renderPanierTree($items, $level = 0) {
             const hasSubgroups = groupData.subgroups !== undefined;
 
             html += `<div class="order-group mb-4">
-                <h5 class="border-bottom pb-2 mb-3" style="background: #f8f9fa; margin: -0.5rem -0.5rem 1rem; padding: 0.75rem;">
-                    <i class="bi ${primaryIcon} me-2"></i>${escapeHtml(groupName)}
+                <h5 class="border-bottom pb-2 mb-3" style="background: rgba(255,255,255,0.1); margin: -0.5rem -0.5rem 1rem; padding: 0.75rem; border-radius: 4px;">
+                    <i class="bi ${primaryIcon} me-2 text-success"></i>${escapeHtml(groupName)}
                 </h5>`;
 
             if (hasSubgroups) {
