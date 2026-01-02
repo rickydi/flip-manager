@@ -114,58 +114,66 @@ if ($isPartialBase) {
         .chart-body canvas {
             border-radius: 8px;
         }
-        /* Budget Gauge Horizontal */
-        .budget-gauge-container {
-            padding: 10px 5px;
+        /* Budget Gauge Horizontal - Mini version pour 4 jauges */
+        .budget-gauges-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 5px;
         }
-        .budget-gauge-labels {
+        .mini-gauge {
+            padding: 4px 6px;
+            background: rgba(0,0,0,0.15);
+            border-radius: 6px;
+        }
+        .mini-gauge-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-bottom: 3px;
             display: flex;
             justify-content: space-between;
-            font-size: 0.7rem;
-            margin-bottom: 8px;
+            align-items: center;
         }
-        .budget-gauge-bar {
+        .mini-gauge-label .label-text { opacity: 0.8; }
+        .mini-gauge-bar {
             position: relative;
-            height: 24px;
-            border-radius: 12px;
-            display: flex;
+            height: 12px;
+            border-radius: 6px;
             overflow: visible;
             background: linear-gradient(90deg, #ef4444 0%, #fbbf24 35%, #22c55e 50%, #22c55e 100%);
         }
-        .budget-gauge-center {
+        .mini-gauge-center {
             position: absolute;
             left: 50%;
-            top: -4px;
-            bottom: -4px;
-            width: 3px;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
             background: #1e293b;
             transform: translateX(-50%);
-            border-radius: 2px;
+            border-radius: 1px;
             z-index: 2;
         }
-        .budget-gauge-indicator {
+        .mini-gauge-indicator {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 18px;
-            height: 18px;
+            width: 10px;
+            height: 10px;
             background: #1e293b;
-            border: 3px solid #fff;
+            border: 2px solid #fff;
             border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
             z-index: 3;
             transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
-        .budget-gauge-value {
-            text-align: center;
-            margin-top: 10px;
-            font-size: 1.1rem;
+        .mini-gauge-value {
+            font-size: 0.7rem;
             font-weight: 600;
         }
-        .budget-gauge-value.negative { color: #ef4444; }
-        .budget-gauge-value.positive { color: #22c55e; }
-        .budget-gauge-value.neutral { color: #64748b; }
+        .mini-gauge-value.negative { color: #ef4444; }
+        .mini-gauge-value.positive { color: #22c55e; }
+        .mini-gauge-value.neutral { color: #64748b; }
     </style>
 
     <!-- Lottie Player -->
@@ -208,24 +216,56 @@ if ($isPartialBase) {
                         <i class="bi bi-graph-up-arrow"></i>
                     </div>
                     <div>
-                        <div class="chart-title">Écart Profit</div>
-                        <div class="chart-subtitle">Réel vs Extrapolé (après impôt)</div>
+                        <div class="chart-title">Écarts Budget</div>
+                        <div class="chart-subtitle">Réel vs Extrapolé</div>
                     </div>
                 </div>
                 <div class="chart-body d-flex flex-column justify-content-center" style="min-height: 150px;">
-                    <div class="budget-gauge-container">
-                        <div class="budget-gauge-labels">
-                            <span class="text-danger"><i class="bi bi-dash-circle"></i> Moins bon</span>
-                            <span class="text-muted">Prévu</span>
-                            <span class="text-success">Meilleur <i class="bi bi-plus-circle"></i></span>
+                    <div class="budget-gauges-grid">
+                        <!-- Récurrent -->
+                        <div class="mini-gauge">
+                            <div class="mini-gauge-label">
+                                <span class="label-text"><i class="bi bi-arrow-repeat"></i> Récurrent</span>
+                                <span class="mini-gauge-value" id="gaugeValueRecurrent">-</span>
+                            </div>
+                            <div class="mini-gauge-bar">
+                                <div class="mini-gauge-center"></div>
+                                <div class="mini-gauge-indicator" id="gaugeIndicatorRecurrent"></div>
+                            </div>
                         </div>
-                        <div class="budget-gauge-bar">
-                            <div class="budget-gauge-negative"></div>
-                            <div class="budget-gauge-center"></div>
-                            <div class="budget-gauge-positive"></div>
-                            <div class="budget-gauge-indicator" id="budgetGaugeIndicator"></div>
+                        <!-- Rénovation -->
+                        <div class="mini-gauge">
+                            <div class="mini-gauge-label">
+                                <span class="label-text"><i class="bi bi-tools"></i> Rénovation</span>
+                                <span class="mini-gauge-value" id="gaugeValueRenovation">-</span>
+                            </div>
+                            <div class="mini-gauge-bar">
+                                <div class="mini-gauge-center"></div>
+                                <div class="mini-gauge-indicator" id="gaugeIndicatorRenovation"></div>
+                            </div>
                         </div>
-                        <div class="budget-gauge-value" id="budgetGaugeValue">0 $</div>
+                        <!-- Vente -->
+                        <div class="mini-gauge">
+                            <div class="mini-gauge-label">
+                                <span class="label-text"><i class="bi bi-cash-stack"></i> Vente</span>
+                                <span class="mini-gauge-value" id="gaugeValueVente">-</span>
+                            </div>
+                            <div class="mini-gauge-bar">
+                                <div class="mini-gauge-center"></div>
+                                <div class="mini-gauge-indicator" id="gaugeIndicatorVente"></div>
+                            </div>
+                        </div>
+                        <!-- Général -->
+                        <div class="mini-gauge">
+                            <div class="mini-gauge-label">
+                                <span class="label-text"><i class="bi bi-star-fill"></i> Général</span>
+                                <span class="mini-gauge-value" id="gaugeValueGeneral">-</span>
+                            </div>
+                            <div class="mini-gauge-bar">
+                                <div class="mini-gauge-center"></div>
+                                <div class="mini-gauge-indicator" id="gaugeIndicatorGeneral"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1098,44 +1138,79 @@ if ($isPartialBase) {
     </div><!-- Fin col-xxl-3 -->
     </div><!-- Fin row xxl -->
 
-    <!-- Script pour mettre à jour la jauge Écart Budget avec le Profit après impôt -->
+    <!-- Script pour mettre à jour les 4 jauges Écart Budget -->
     <script>
     (function() {
-        const gaugeIndicator = document.getElementById('budgetGaugeIndicator');
-        const gaugeValue = document.getElementById('budgetGaugeValue');
-        if (!gaugeIndicator || !gaugeValue) return;
+        // Fonction pour mettre à jour une mini-jauge
+        // Pour les coûts: écart positif (budget > réel) = économie = bien (droite)
+        // Pour le profit: écart positif (réel > budget) = plus de profit = bien (droite)
+        function updateMiniGauge(indicatorId, valueId, extrapole, reel, isProfit = false) {
+            const indicator = document.getElementById(indicatorId);
+            const valueEl = document.getElementById(valueId);
+            if (!indicator || !valueEl) return;
 
-        // Valeurs du profit après impôt
-        const profitExtrapole = <?= json_encode($profitApresImpot ?? 0) ?>;
-        const profitReel = <?= json_encode($profitApresImpotReel ?? 0) ?>;
-        const diffProfit = profitReel - profitExtrapole;
+            // Pour les coûts: diff = extrapole - reel (positif = économie)
+            // Pour le profit: diff = reel - extrapole (positif = plus de profit)
+            const diff = isProfit ? (reel - extrapole) : (extrapole - reel);
 
-        // Échelle max basée sur le profit extrapolé (ou 10000 minimum)
-        const maxDiff = Math.max(Math.abs(profitExtrapole) * 0.5, 10000);
+            // Échelle max
+            const maxDiff = Math.max(Math.abs(extrapole) * 0.5, 5000);
 
-        // Position: centre = 50%, droite = meilleur que prévu, gauche = pire
-        // diffProfit positif = réel > extrapolé = mieux = droite
-        let position = 50 + (diffProfit / maxDiff) * 45;
-        position = Math.max(5, Math.min(95, position));
+            // Position: centre = 50%, droite = bien, gauche = mal
+            let position = 50 + (diff / maxDiff) * 45;
+            position = Math.max(5, Math.min(95, position));
 
-        // Animer après un délai
-        setTimeout(() => {
-            gaugeIndicator.style.left = position + '%';
-        }, 800);
+            // Animer
+            setTimeout(() => {
+                indicator.style.left = position + '%';
+            }, 800);
 
-        // Afficher la valeur
-        const absVal = Math.abs(diffProfit);
-        const formatted = absVal.toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
-        if (diffProfit > 0) {
-            gaugeValue.textContent = '+ ' + formatted;
-            gaugeValue.className = 'budget-gauge-value positive';
-        } else if (diffProfit < 0) {
-            gaugeValue.textContent = '- ' + formatted;
-            gaugeValue.className = 'budget-gauge-value negative';
-        } else {
-            gaugeValue.textContent = 'Équilibré';
-            gaugeValue.className = 'budget-gauge-value neutral';
+            // Afficher la valeur
+            const absVal = Math.abs(diff);
+            let formatted;
+            if (absVal >= 1000) {
+                formatted = (absVal / 1000).toFixed(1) + 'k';
+            } else {
+                formatted = Math.round(absVal) + '$';
+            }
+
+            if (diff > 0) {
+                valueEl.textContent = '+' + formatted;
+                valueEl.className = 'mini-gauge-value positive';
+            } else if (diff < 0) {
+                valueEl.textContent = '-' + formatted;
+                valueEl.className = 'mini-gauge-value negative';
+            } else {
+                valueEl.textContent = '=';
+                valueEl.className = 'mini-gauge-value neutral';
+            }
         }
+
+        // Données des 4 catégories
+        const gaugeData = {
+            recurrent: {
+                extrapole: <?= json_encode($totalRecExtrapole ?? 0) ?>,
+                reel: <?= json_encode($totalRecReel ?? 0) ?>
+            },
+            renovation: {
+                extrapole: <?= json_encode($renoBudgetTTC ?? 0) ?>,
+                reel: <?= json_encode($renoReelTTC ?? 0) ?>
+            },
+            vente: {
+                extrapole: <?= json_encode($totalVentePrevu ?? 0) ?>,
+                reel: <?= json_encode($totalVenteReel ?? 0) ?>
+            },
+            general: {
+                extrapole: <?= json_encode($profitApresImpot ?? 0) ?>,
+                reel: <?= json_encode($profitApresImpotReel ?? 0) ?>
+            }
+        };
+
+        // Mettre à jour chaque jauge
+        updateMiniGauge('gaugeIndicatorRecurrent', 'gaugeValueRecurrent', gaugeData.recurrent.extrapole, gaugeData.recurrent.reel, false);
+        updateMiniGauge('gaugeIndicatorRenovation', 'gaugeValueRenovation', gaugeData.renovation.extrapole, gaugeData.renovation.reel, false);
+        updateMiniGauge('gaugeIndicatorVente', 'gaugeValueVente', gaugeData.vente.extrapole, gaugeData.vente.reel, false);
+        updateMiniGauge('gaugeIndicatorGeneral', 'gaugeValueGeneral', gaugeData.general.extrapole, gaugeData.general.reel, true);
     })();
     </script>
 
