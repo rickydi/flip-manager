@@ -78,7 +78,7 @@
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>">
+                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
                             <td><?= formatDate($f['date_facture']) ?></td>
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
                             <td><?= e($f['etape_nom'] ?? 'N/A') ?></td>
@@ -135,3 +135,14 @@
             </div>
         <?php endif; ?>
     </div><!-- Fin TAB FACTURES -->
+
+<script>
+// Clic sur ligne pour ouvrir la facture
+document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row => {
+    row.addEventListener('click', function(e) {
+        // Ne pas naviguer si on clique sur un bouton, lien, dropdown ou formulaire
+        if (e.target.closest('button, a, .dropdown, form, input')) return;
+        window.location.href = this.dataset.href;
+    });
+});
+</script>
