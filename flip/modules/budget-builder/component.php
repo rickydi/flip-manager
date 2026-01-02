@@ -1407,6 +1407,7 @@ function renderPanierTree($items, $level = 0) {
         const popupImg = document.getElementById('image-preview-img');
 
         document.addEventListener('mouseenter', function(e) {
+            if (!e.target.closest) return; // Ignorer les nœuds texte
             const trigger = e.target.closest('.image-preview-trigger');
             if (trigger && trigger.dataset.image) {
                 popupImg.src = trigger.dataset.image;
@@ -1416,6 +1417,7 @@ function renderPanierTree($items, $level = 0) {
         }, true);
 
         document.addEventListener('mouseleave', function(e) {
+            if (!e.target.closest) return; // Ignorer les nœuds texte
             const trigger = e.target.closest('.image-preview-trigger');
             if (trigger) {
                 popup.style.display = 'none';
