@@ -436,10 +436,9 @@ include '../includes/header.php';
 
 /* Over 100% effect */
 .gauge-percent-arc.over100 {
-    fill: #ffd700;
+    fill: #000;
     font-weight: 700;
     font-size: 13px;
-    filter: drop-shadow(0 0 3px #fff) drop-shadow(0 0 6px #ffd700);
     animation: pulse-text 1.5s ease-in-out infinite;
 }
 
