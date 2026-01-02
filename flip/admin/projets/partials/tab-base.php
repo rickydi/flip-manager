@@ -114,28 +114,29 @@ if ($isPartialBase) {
         .chart-body canvas {
             border-radius: 8px;
         }
-        /* Budget Gauge Horizontal - 4 jauges en ligne */
-        .budget-gauges-row {
+        /* Budget Gauge - 4 jauges empilées verticalement */
+        .budget-gauges-stack {
             display: flex;
-            gap: 6px;
-            padding: 8px 5px;
+            flex-direction: column;
+            gap: 8px;
+            padding: 5px 10px;
         }
         .mini-gauge {
-            flex: 1;
-            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         .mini-gauge-label {
-            font-size: 0.6rem;
+            font-size: 0.7rem;
             font-weight: 600;
-            margin-bottom: 2px;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
+            width: 50px;
+            flex-shrink: 0;
+            opacity: 0.9;
         }
-        .mini-gauge-label .label-text { opacity: 0.8; }
-        .mini-gauge-label .label-text i { margin-right: 2px; }
+        .mini-gauge-label i { margin-right: 3px; }
         .mini-gauge-bar {
             position: relative;
+            flex: 1;
             height: 14px;
             border-radius: 7px;
             overflow: visible;
@@ -167,10 +168,11 @@ if ($isPartialBase) {
             transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .mini-gauge-value {
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             font-weight: 600;
-            text-align: center;
-            margin-top: 2px;
+            width: 45px;
+            text-align: right;
+            flex-shrink: 0;
         }
         .mini-gauge-value.negative { color: #ef4444; }
         .mini-gauge-value.positive { color: #22c55e; }
@@ -222,41 +224,25 @@ if ($isPartialBase) {
                     </div>
                 </div>
                 <div class="chart-body d-flex flex-column justify-content-center" style="min-height: 150px;">
-                    <div class="budget-gauges-row">
-                        <!-- Récurrent -->
+                    <div class="budget-gauges-stack">
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-arrow-repeat"></i>Réc.</span></div>
-                            <div class="mini-gauge-bar">
-                                <div class="mini-gauge-center"></div>
-                                <div class="mini-gauge-indicator" id="gaugeIndicatorRecurrent"></div>
-                            </div>
+                            <div class="mini-gauge-label"><i class="bi bi-arrow-repeat"></i>Réc.</div>
+                            <div class="mini-gauge-bar"><div class="mini-gauge-center"></div><div class="mini-gauge-indicator" id="gaugeIndicatorRecurrent"></div></div>
                             <div class="mini-gauge-value" id="gaugeValueRecurrent">-</div>
                         </div>
-                        <!-- Rénovation -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-tools"></i>Réno</span></div>
-                            <div class="mini-gauge-bar">
-                                <div class="mini-gauge-center"></div>
-                                <div class="mini-gauge-indicator" id="gaugeIndicatorRenovation"></div>
-                            </div>
+                            <div class="mini-gauge-label"><i class="bi bi-tools"></i>Réno</div>
+                            <div class="mini-gauge-bar"><div class="mini-gauge-center"></div><div class="mini-gauge-indicator" id="gaugeIndicatorRenovation"></div></div>
                             <div class="mini-gauge-value" id="gaugeValueRenovation">-</div>
                         </div>
-                        <!-- Vente -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-cash-stack"></i>Vente</span></div>
-                            <div class="mini-gauge-bar">
-                                <div class="mini-gauge-center"></div>
-                                <div class="mini-gauge-indicator" id="gaugeIndicatorVente"></div>
-                            </div>
+                            <div class="mini-gauge-label"><i class="bi bi-shop"></i>Vente</div>
+                            <div class="mini-gauge-bar"><div class="mini-gauge-center"></div><div class="mini-gauge-indicator" id="gaugeIndicatorVente"></div></div>
                             <div class="mini-gauge-value" id="gaugeValueVente">-</div>
                         </div>
-                        <!-- Profit -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-star-fill"></i>Profit</span></div>
-                            <div class="mini-gauge-bar">
-                                <div class="mini-gauge-center"></div>
-                                <div class="mini-gauge-indicator" id="gaugeIndicatorGeneral"></div>
-                            </div>
+                            <div class="mini-gauge-label"><i class="bi bi-star-fill"></i>Profit</div>
+                            <div class="mini-gauge-bar"><div class="mini-gauge-center"></div><div class="mini-gauge-indicator" id="gaugeIndicatorGeneral"></div></div>
                             <div class="mini-gauge-value" id="gaugeValueGeneral">-</div>
                         </div>
                     </div>
