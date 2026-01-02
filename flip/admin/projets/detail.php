@@ -2824,40 +2824,6 @@ document.addEventListener('DOMContentLoaded', function() {
             { duration: 0.6, delay: stagger(0.15), easing: [0.22, 1, 0.36, 1] }
         );
     }
-
-    // Budget Gauge Horizontal
-    const gaugeIndicator = document.getElementById('budgetGaugeIndicator');
-    const gaugeValue = document.getElementById('budgetGaugeValue');
-    if (gaugeIndicator && gaugeValue) {
-        const currentDiff = <?= json_encode($currentDiff) ?>;
-        const maxDiff = <?= json_encode($maxDiff) ?>;
-
-        // Calculer la position (0-100%)
-        // Centre = 50%, gauche = dépassement (0-50%), droite = économie (50-100%)
-        // currentDiff positif = dépassement = aller vers la gauche
-        // currentDiff négatif = économie = aller vers la droite
-        let position = 50 - (currentDiff / maxDiff) * 50;
-        position = Math.max(5, Math.min(95, position)); // Limiter entre 5% et 95%
-
-        // Animer après un délai
-        setTimeout(() => {
-            gaugeIndicator.style.left = position + '%';
-        }, 500);
-
-        // Afficher la valeur
-        const absVal = Math.abs(currentDiff);
-        const formatted = absVal.toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
-        if (currentDiff > 0) {
-            gaugeValue.textContent = '- ' + formatted;
-            gaugeValue.className = 'budget-gauge-value negative';
-        } else if (currentDiff < 0) {
-            gaugeValue.textContent = '+ ' + formatted;
-            gaugeValue.className = 'budget-gauge-value positive';
-        } else {
-            gaugeValue.textContent = 'Équilibré';
-            gaugeValue.className = 'budget-gauge-value neutral';
-        }
-    }
 });
 </script>
 <script>

@@ -205,19 +205,19 @@ if ($isPartialBase) {
             <div class="card chart-card h-100">
                 <div class="chart-header orange">
                     <div class="chart-icon orange">
-                        <i class="bi bi-arrow-left-right"></i>
+                        <i class="bi bi-graph-up-arrow"></i>
                     </div>
                     <div>
-                        <div class="chart-title">Écart Budget</div>
-                        <div class="chart-subtitle">Extrapolé vs Réel</div>
+                        <div class="chart-title">Écart Profit</div>
+                        <div class="chart-subtitle">Réel vs Extrapolé (après impôt)</div>
                     </div>
                 </div>
                 <div class="chart-body d-flex flex-column justify-content-center" style="min-height: 150px;">
                     <div class="budget-gauge-container">
                         <div class="budget-gauge-labels">
-                            <span class="text-danger"><i class="bi bi-dash-circle"></i> Dépassement</span>
-                            <span class="text-muted">Égal</span>
-                            <span class="text-success">Économie <i class="bi bi-plus-circle"></i></span>
+                            <span class="text-danger"><i class="bi bi-dash-circle"></i> Moins bon</span>
+                            <span class="text-muted">Prévu</span>
+                            <span class="text-success">Meilleur <i class="bi bi-plus-circle"></i></span>
                         </div>
                         <div class="budget-gauge-bar">
                             <div class="budget-gauge-negative"></div>
@@ -1097,6 +1097,48 @@ if ($isPartialBase) {
     </div><!-- Fin card Vente -->
     </div><!-- Fin col-xxl-3 -->
     </div><!-- Fin row xxl -->
+
+    <!-- Script pour mettre à jour la jauge Écart Budget avec le Profit après impôt -->
+    <script>
+    (function() {
+        const gaugeIndicator = document.getElementById('budgetGaugeIndicator');
+        const gaugeValue = document.getElementById('budgetGaugeValue');
+        if (!gaugeIndicator || !gaugeValue) return;
+
+        // Valeurs du profit après impôt
+        const profitExtrapole = <?= json_encode($profitApresImpot ?? 0) ?>;
+        const profitReel = <?= json_encode($profitApresImpotReel ?? 0) ?>;
+        const diffProfit = profitReel - profitExtrapole;
+
+        // Échelle max basée sur le profit extrapolé (ou 10000 minimum)
+        const maxDiff = Math.max(Math.abs(profitExtrapole) * 0.5, 10000);
+
+        // Position: centre = 50%, droite = meilleur que prévu, gauche = pire
+        // diffProfit positif = réel > extrapolé = mieux = droite
+        let position = 50 + (diffProfit / maxDiff) * 45;
+        position = Math.max(5, Math.min(95, position));
+
+        // Animer après un délai
+        setTimeout(() => {
+            gaugeIndicator.style.left = position + '%';
+        }, 800);
+
+        // Afficher la valeur
+        const absVal = Math.abs(diffProfit);
+        const formatted = absVal.toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
+        if (diffProfit > 0) {
+            gaugeValue.textContent = '+ ' + formatted;
+            gaugeValue.className = 'budget-gauge-value positive';
+        } else if (diffProfit < 0) {
+            gaugeValue.textContent = '- ' + formatted;
+            gaugeValue.className = 'budget-gauge-value negative';
+        } else {
+            gaugeValue.textContent = 'Équilibré';
+            gaugeValue.className = 'budget-gauge-value neutral';
+        }
+    })();
+    </script>
+
     </div><!-- Fin base-dynamic-content -->
     </div><!-- Fin TAB BASE -->
 <?php
