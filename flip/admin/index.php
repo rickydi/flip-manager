@@ -434,6 +434,66 @@ include '../includes/header.php';
     transition: opacity 0.2s ease;
 }
 
+/* Over 100% effect */
+.gauge-percent-arc.over100 {
+    fill: #ffd700;
+    font-weight: 700;
+    filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 15px #ffa500);
+}
+
+.gauge-percent-dot.over100 {
+    filter: drop-shadow(0 0 8px #ffd700) drop-shadow(0 0 15px #ffa500);
+}
+
+/* Fireworks container */
+.fireworks-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.firework {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: firework-explode 1s ease-out forwards;
+}
+
+@keyframes firework-explode {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+.sparkle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    animation: sparkle-fly 1.2s ease-out forwards;
+}
+
+@keyframes sparkle-fly {
+    0% {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
 .gauge-item:hover {
     transform: scale(1.05);
     transition: transform 0.2s ease;
@@ -1942,17 +2002,18 @@ function updateGaugeVisual(type, value, target) {
         const centerY = parseFloat(progressEl.dataset.centery);
         const radius = parseFloat(progressEl.dataset.radius);
 
-        let percent = 0;
+        let realPercent = 0;
         if (target > 0) {
-            percent = Math.min(100, (value / target) * 100);
+            realPercent = (value / target) * 100;
         }
-        const offset = circumference - (circumference * percent / 100);
+        const visualPercent = Math.min(100, realPercent); // Position capped at 100%
+        const offset = circumference - (circumference * visualPercent / 100);
 
         // Mettre à jour l'arc
         progressEl.style.strokeDashoffset = offset;
 
         // Calculer nouvelle position du point sur l'arc
-        const angle = Math.PI * (1 - percent / 100);
+        const angle = Math.PI * (1 - visualPercent / 100);
         const newX = centerX + radius * Math.cos(angle);
         const newY = centerY - radius * Math.sin(angle);
 
@@ -1961,7 +2022,16 @@ function updateGaugeVisual(type, value, target) {
         dotEl.setAttribute('cy', newY);
         percentEl.setAttribute('x', newX);
         percentEl.setAttribute('y', newY);
-        percentEl.textContent = percent.toFixed(0) + '%';
+        percentEl.textContent = Math.round(realPercent) + '%';
+
+        // Effet over 100%
+        if (realPercent >= 100) {
+            dotEl.classList.add('over100');
+            percentEl.classList.add('over100');
+        } else {
+            dotEl.classList.remove('over100');
+            percentEl.classList.remove('over100');
+        }
     }
 }
 
@@ -2011,14 +2081,15 @@ function animateGaugesOnLoad() {
             const centerY = parseFloat(progressEl.dataset.centery);
             const radius = parseFloat(progressEl.dataset.radius);
 
-            let percent = 0;
+            let realPercent = 0;
             if (target > 0) {
-                percent = Math.min(100, (value / target) * 100);
+                realPercent = (value / target) * 100;
             }
-            const finalOffset = circumference - (circumference * percent / 100);
+            const visualPercent = Math.min(100, realPercent); // Position capped at 100%
+            const finalOffset = circumference - (circumference * visualPercent / 100);
 
-            // Position finale du point
-            const angle = Math.PI * (1 - percent / 100);
+            // Position finale du point (capped à 100%)
+            const angle = Math.PI * (1 - visualPercent / 100);
             const finalX = centerX + radius * Math.cos(angle);
             const finalY = centerY - radius * Math.sin(angle);
 
@@ -2028,8 +2099,8 @@ function animateGaugesOnLoad() {
                 progressEl.classList.add('animated');
                 progressEl.style.strokeDashoffset = finalOffset;
 
-                // Animer le point le long de l'arc
-                animateDotAlongArc(dotEl, percentEl, centerX, centerY, radius, percent, 1200);
+                // Animer le point le long de l'arc (avec le vrai %)
+                animateDotAlongArc(dotEl, percentEl, centerX, centerY, radius, realPercent, 1200);
 
             }, index * 200);
         }
@@ -2038,6 +2109,8 @@ function animateGaugesOnLoad() {
 
 function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPercent, duration) {
     const startTime = performance.now();
+    const isOver100 = targetPercent >= 100;
+    const visualPercent = Math.min(targetPercent, 100); // Position capped at 100%
 
     function animate(currentTime) {
         const elapsed = currentTime - startTime;
@@ -2045,10 +2118,11 @@ function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPerce
 
         // Easing pour un mouvement fluide
         const easeOut = 1 - Math.pow(1 - progress, 3);
-        const currentPercent = easeOut * targetPercent;
+        const currentVisualPercent = easeOut * visualPercent;
+        const currentDisplayPercent = easeOut * targetPercent; // Affichage réel
 
-        // Calculer la position sur l'arc
-        const angle = Math.PI * (1 - currentPercent / 100);
+        // Calculer la position sur l'arc (capped à 100%)
+        const angle = Math.PI * (1 - currentVisualPercent / 100);
         const x = centerX + radius * Math.cos(angle);
         const y = centerY - radius * Math.sin(angle);
 
@@ -2057,7 +2131,7 @@ function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPerce
         dotEl.setAttribute('cy', y);
         textEl.setAttribute('x', x);
         textEl.setAttribute('y', y);
-        textEl.textContent = Math.round(currentPercent) + '%';
+        textEl.textContent = Math.round(currentDisplayPercent) + '%';
 
         // Afficher progressivement
         if (progress > 0.1) {
@@ -2065,11 +2139,23 @@ function animateDotAlongArc(dotEl, textEl, centerX, centerY, radius, targetPerce
             textEl.classList.add('visible');
         }
 
+        // Ajouter effet over100
+        if (isOver100 && progress > 0.8) {
+            dotEl.classList.add('over100');
+            textEl.classList.add('over100');
+        }
+
         if (progress < 1) {
             requestAnimationFrame(animate);
         } else {
             // Animation pop à la fin
             animateDotPop(dotEl);
+
+            // Feux d'artifice si >= 100%
+            if (isOver100) {
+                const rect = dotEl.getBoundingClientRect();
+                launchFireworks(rect.left + rect.width/2, rect.top + rect.height/2);
+            }
         }
     }
 
@@ -2152,6 +2238,60 @@ function initVelocityToggle() {
 
 function formatNumber(num, decimals) {
     return num.toLocaleString('fr-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+// Feux d'artifice
+function launchFireworks(x, y) {
+    // Créer le container s'il n'existe pas
+    let container = document.querySelector('.fireworks-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'fireworks-container';
+        document.body.appendChild(container);
+    }
+
+    const colors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9', '#ff7675', '#74b9ff', '#a29bfe'];
+    const particleCount = 30;
+
+    // Créer les particules
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'sparkle';
+        particle.style.left = x + 'px';
+        particle.style.top = y + 'px';
+        particle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+        // Direction aléatoire
+        const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+        const velocity = 80 + Math.random() * 80;
+        const endX = Math.cos(angle) * velocity;
+        const endY = Math.sin(angle) * velocity - 30; // Légère gravité inverse
+
+        particle.style.setProperty('--end-x', endX + 'px');
+        particle.style.setProperty('--end-y', endY + 'px');
+        particle.style.animation = `sparkle-fly 1.2s ease-out forwards`;
+        particle.style.transform = `translate(${endX}px, ${endY}px)`;
+
+        container.appendChild(particle);
+
+        // Nettoyer après l'animation
+        setTimeout(() => particle.remove(), 1200);
+    }
+
+    // Ajouter quelques grosses particules
+    for (let i = 0; i < 8; i++) {
+        const bigParticle = document.createElement('div');
+        bigParticle.className = 'firework';
+        bigParticle.style.left = (x + (Math.random() - 0.5) * 60) + 'px';
+        bigParticle.style.top = (y + (Math.random() - 0.5) * 60) + 'px';
+        bigParticle.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        bigParticle.style.width = (8 + Math.random() * 8) + 'px';
+        bigParticle.style.height = bigParticle.style.width;
+        bigParticle.style.boxShadow = `0 0 ${10 + Math.random() * 10}px ${bigParticle.style.backgroundColor}`;
+
+        container.appendChild(bigParticle);
+        setTimeout(() => bigParticle.remove(), 1000);
+    }
 }
 
 // Initialiser le toggle au chargement
