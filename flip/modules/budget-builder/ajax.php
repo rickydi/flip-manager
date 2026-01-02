@@ -361,10 +361,18 @@ try {
             $fournisseur = trim($input['fournisseur'] ?? '');
             $lienAchat = trim($input['lien_achat'] ?? '');
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
+            $image = isset($input['image']) ? $input['image'] : null;
+
+            // S'assurer que la colonne image existe
+            try {
+                $pdo->query("SELECT image FROM catalogue_items LIMIT 1");
+            } catch (Exception $e) {
+                $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN image MEDIUMTEXT DEFAULT NULL");
+            }
 
             // Quand on édite via le modal, l'item devient TOUJOURS racine dans l'étape choisie
-            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL WHERE id = ?");
-            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $id]);
+            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
+            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
 
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;

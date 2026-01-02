@@ -1006,6 +1006,20 @@ function renderPanierTree($items, $level = 0) {
                         <i class="bi bi-cursor-fill"></i> Ouvre le site ici pour sélectionner le prix
                     </small>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label">Image <small class="text-muted">(Ctrl+V pour coller)</small></label>
+                    <div id="item-modal-image-zone" class="border rounded p-3 text-center" style="min-height: 80px; cursor: pointer; background: rgba(0,0,0,0.05);" tabindex="0">
+                        <div id="item-modal-image-placeholder">
+                            <i class="bi bi-image text-muted" style="font-size: 1.5rem;"></i>
+                            <div class="small text-muted mt-1">Cliquez ici puis Ctrl+V pour coller une image</div>
+                        </div>
+                        <img id="item-modal-image-preview" src="" alt="Aperçu" style="max-width: 100%; max-height: 150px; display: none; border-radius: 4px;">
+                        <input type="hidden" id="item-modal-image-data">
+                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="item-modal-image-remove" style="display: none;" onclick="removeItemImage()">
+                            <i class="bi bi-trash"></i> Supprimer
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
@@ -1241,6 +1255,10 @@ function renderPanierTree($items, $level = 0) {
                 document.getElementById('item-modal-fournisseur').value = itemResp.item.fournisseur || '';
                 document.getElementById('item-modal-etape').value = itemResp.item.etape_id || '';
                 document.getElementById('item-modal-lien').value = itemResp.item.lien_achat || '';
+
+                // Charger l'image si elle existe
+                setItemModalImage(itemResp.item.image || null);
+
                 itemModal.show();
             }
         });
@@ -1248,16 +1266,18 @@ function renderPanierTree($items, $level = 0) {
 
     function saveItemModal() {
         const id = document.getElementById('item-modal-id').value;
+        const imageData = document.getElementById('item-modal-image-data').value;
         const data = {
             id: id,
             nom: document.getElementById('item-modal-nom').value,
             prix: document.getElementById('item-modal-prix').value,
             fournisseur: document.getElementById('item-modal-fournisseur').value,
             etape_id: document.getElementById('item-modal-etape').value,
-            lien_achat: document.getElementById('item-modal-lien').value
+            lien_achat: document.getElementById('item-modal-lien').value,
+            image: imageData || null
         };
 
-        console.log('saveItemModal - sending:', data);
+        console.log('saveItemModal - sending:', { ...data, image: imageData ? '[IMAGE DATA]' : null });
 
         BudgetBuilder.ajax('update_item', data).then(response => {
             console.log('saveItemModal - response:', response);
@@ -1268,6 +1288,96 @@ function renderPanierTree($items, $level = 0) {
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
             }
+        });
+    }
+
+    // ================================
+    // IMAGE PASTE HANDLING
+    // ================================
+
+    function setItemModalImage(imageSrc) {
+        const preview = document.getElementById('item-modal-image-preview');
+        const placeholder = document.getElementById('item-modal-image-placeholder');
+        const removeBtn = document.getElementById('item-modal-image-remove');
+        const dataInput = document.getElementById('item-modal-image-data');
+
+        if (imageSrc) {
+            preview.src = imageSrc;
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+            removeBtn.style.display = 'inline-block';
+            dataInput.value = imageSrc;
+        } else {
+            preview.src = '';
+            preview.style.display = 'none';
+            placeholder.style.display = 'block';
+            removeBtn.style.display = 'none';
+            dataInput.value = '';
+        }
+    }
+
+    function removeItemImage() {
+        setItemModalImage(null);
+    }
+
+    // Gestion du Ctrl+V pour coller une image
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageZone = document.getElementById('item-modal-image-zone');
+        if (!imageZone) return;
+
+        // Écouter paste sur la zone d'image
+        imageZone.addEventListener('paste', function(e) {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+
+                    reader.onload = function(event) {
+                        // Compresser l'image si elle est trop grande
+                        compressImage(event.target.result, 800, 0.7).then(compressed => {
+                            setItemModalImage(compressed);
+                        });
+                    };
+
+                    reader.readAsDataURL(blob);
+                    break;
+                }
+            }
+        });
+
+        // Focus sur la zone au clic
+        imageZone.addEventListener('click', function() {
+            this.focus();
+        });
+    });
+
+    // Compresser une image base64
+    function compressImage(base64, maxWidth, quality) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = base64;
         });
     }
 
