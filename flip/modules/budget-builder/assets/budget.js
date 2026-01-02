@@ -824,11 +824,15 @@ const BudgetBuilder = {
 
     // Appliquer les états sauvegardés des dossiers/sections
     applyFolderStates: function() {
+        console.log('applyFolderStates - cache:', folderStatesCache);
+
         // Appliquer l'état des sections (étapes)
         document.querySelectorAll('.etape-section').forEach(section => {
             const etapeId = section.dataset.etapeId;
-            const isCollapsed = getFolderState('section_' + etapeId);
-            if (isCollapsed === true) {
+            const stateValue = getFolderState('section_' + etapeId);
+            // Accepter true, 1, "1", "true" comme collapsed
+            const isCollapsed = stateValue === true || stateValue === 1 || stateValue === "1" || stateValue === "true";
+            if (isCollapsed) {
                 const toggle = section.querySelector('.folder-toggle');
                 const children = section.querySelector('.section-children');
                 if (toggle) toggle.classList.add('collapsed');
@@ -839,8 +843,10 @@ const BudgetBuilder = {
         // Appliquer l'état des dossiers
         document.querySelectorAll('.catalogue-item.is-folder').forEach(folder => {
             const folderId = folder.dataset.id;
-            const isCollapsed = getFolderState('folder_' + folderId);
-            if (isCollapsed === true) {
+            const stateValue = getFolderState('folder_' + folderId);
+            // Accepter true, 1, "1", "true" comme collapsed
+            const isCollapsed = stateValue === true || stateValue === 1 || stateValue === "1" || stateValue === "true";
+            if (isCollapsed) {
                 const toggle = folder.querySelector('.folder-toggle');
                 const children = folder.nextElementSibling;
                 if (toggle) toggle.classList.add('collapsed');
@@ -1545,12 +1551,22 @@ function getFolderState(key) {
 
 // Charger tous les états de dossiers depuis la DB
 function loadFolderStatesFromDB() {
+    // S'assurer que ajaxUrl est défini
+    if (!BudgetBuilder.ajaxUrl) {
+        console.warn('loadFolderStatesFromDB: ajaxUrl not set yet');
+        return Promise.resolve({});
+    }
+
     return BudgetBuilder.ajax('get_folder_states', {}).then(response => {
+        console.log('loadFolderStatesFromDB response:', response);
         if (response.success && response.states) {
             folderStatesCache = response.states;
             folderStatesCacheLoaded = true;
         }
         return folderStatesCache;
+    }).catch(err => {
+        console.error('loadFolderStatesFromDB error:', err);
+        return {};
     });
 }
 
