@@ -114,6 +114,58 @@ if ($isPartialBase) {
         .chart-body canvas {
             border-radius: 8px;
         }
+        /* Budget Gauge Horizontal */
+        .budget-gauge-container {
+            padding: 10px 5px;
+        }
+        .budget-gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            margin-bottom: 8px;
+        }
+        .budget-gauge-bar {
+            position: relative;
+            height: 24px;
+            border-radius: 12px;
+            display: flex;
+            overflow: visible;
+            background: linear-gradient(90deg, #ef4444 0%, #fbbf24 35%, #22c55e 50%, #22c55e 100%);
+        }
+        .budget-gauge-center {
+            position: absolute;
+            left: 50%;
+            top: -4px;
+            bottom: -4px;
+            width: 3px;
+            background: #1e293b;
+            transform: translateX(-50%);
+            border-radius: 2px;
+            z-index: 2;
+        }
+        .budget-gauge-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 18px;
+            height: 18px;
+            background: #1e293b;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 3;
+            transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .budget-gauge-value {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .budget-gauge-value.negative { color: #ef4444; }
+        .budget-gauge-value.positive { color: #22c55e; }
+        .budget-gauge-value.neutral { color: #64748b; }
     </style>
 
     <!-- Lottie Player -->
@@ -160,7 +212,22 @@ if ($isPartialBase) {
                         <div class="chart-subtitle">Extrapolé vs Réel</div>
                     </div>
                 </div>
-                <div class="chart-body"><canvas id="chartDiff" height="150"></canvas></div>
+                <div class="chart-body d-flex flex-column justify-content-center" style="min-height: 150px;">
+                    <div class="budget-gauge-container">
+                        <div class="budget-gauge-labels">
+                            <span class="text-danger"><i class="bi bi-dash-circle"></i> Dépassement</span>
+                            <span class="text-muted">Égal</span>
+                            <span class="text-success">Économie <i class="bi bi-plus-circle"></i></span>
+                        </div>
+                        <div class="budget-gauge-bar">
+                            <div class="budget-gauge-negative"></div>
+                            <div class="budget-gauge-center"></div>
+                            <div class="budget-gauge-positive"></div>
+                            <div class="budget-gauge-indicator" id="budgetGaugeIndicator"></div>
+                        </div>
+                        <div class="budget-gauge-value" id="budgetGaugeValue">0 $</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

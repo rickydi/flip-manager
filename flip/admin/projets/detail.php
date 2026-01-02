@@ -2589,6 +2589,10 @@ foreach ($points as $date) {
     $diffData[] = $diff;
     $diffColors[] = $diff >= 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(34, 197, 94, 0.7)';
 }
+
+// Différence actuelle pour la jauge horizontale
+$currentDiff = end($diffData) ?: 0; // Dernière valeur = différence actuelle
+$maxDiff = $budgetTotal * 0.3; // 30% du budget comme max pour l'échelle
 ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Motion One pour animations graphiques -->
@@ -2687,12 +2691,10 @@ window.initDetailCharts = function () {
     if (window.chartCouts && typeof window.chartCouts.destroy === 'function') window.chartCouts.destroy();
     if (window.chartBudget && typeof window.chartBudget.destroy === 'function') window.chartBudget.destroy();
     if (window.chartProfits && typeof window.chartProfits.destroy === 'function') window.chartProfits.destroy();
-    if (window.chartDiff && typeof window.chartDiff.destroy === 'function') window.chartDiff.destroy();
 
     var canvasCouts = document.getElementById('chartCouts');
     var canvasBudget = document.getElementById('chartBudget');
     var canvasProfits = document.getElementById('chartProfits');
-    var canvasDiff = document.getElementById('chartDiff');
 
     // Chart 1: Coûts vs Valeur
     if (canvasCouts) {
@@ -2796,61 +2798,6 @@ if (canvasProfits) {
     });
 }
 
-// Chart 4: Écart Budget (Extrapolé vs Réel)
-if (canvasDiff) {
-    window.chartDiff = new Chart(canvasDiff, {
-        type: 'bar',
-        data: {
-            labels: <?= json_encode($diffLabels ?: ['Aucun']) ?>,
-            datasets: [{
-                data: <?= json_encode($diffData ?: [0]) ?>,
-                backgroundColor: <?= json_encode($diffColors ?: ['rgba(148, 163, 184, 0.5)']) ?>,
-                borderRadius: 6,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-                duration: 1200,
-                easing: 'easeOutQuart',
-                delay: (context) => context.dataIndex * 150
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-                    titleFont: { size: 12, weight: '600' },
-                    bodyFont: { size: 11 },
-                    padding: 12,
-                    cornerRadius: 8,
-                    callbacks: {
-                        label: function(context) {
-                            const val = context.raw;
-                            const formatted = Math.abs(val).toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
-                            return val >= 0 ? '+ ' + formatted + ' (dépassement)' : '- ' + formatted + ' (économie)';
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    grid: { display: false },
-                    ticks: { font: { size: 10 }, color: '#94a3b8' }
-                },
-                y: {
-                    grid: { color: 'rgba(148, 163, 184, 0.1)' },
-                    ticks: {
-                        callback: v => (v >= 0 ? '+' : '') + v + '$',
-                        font: { size: 10 },
-                        color: '#94a3b8'
-                    }
-                }
-            }
-        }
-    });
-}
 };
 
 // Initialiser les charts au chargement
@@ -2864,6 +2811,40 @@ document.addEventListener('DOMContentLoaded', function() {
             { opacity: [0, 1], y: [30, 0], scale: [0.95, 1] },
             { duration: 0.6, delay: stagger(0.15), easing: [0.22, 1, 0.36, 1] }
         );
+    }
+
+    // Budget Gauge Horizontal
+    const gaugeIndicator = document.getElementById('budgetGaugeIndicator');
+    const gaugeValue = document.getElementById('budgetGaugeValue');
+    if (gaugeIndicator && gaugeValue) {
+        const currentDiff = <?= json_encode($currentDiff) ?>;
+        const maxDiff = <?= json_encode($maxDiff) ?>;
+
+        // Calculer la position (0-100%)
+        // Centre = 50%, gauche = dépassement (0-50%), droite = économie (50-100%)
+        // currentDiff positif = dépassement = aller vers la gauche
+        // currentDiff négatif = économie = aller vers la droite
+        let position = 50 - (currentDiff / maxDiff) * 50;
+        position = Math.max(5, Math.min(95, position)); // Limiter entre 5% et 95%
+
+        // Animer après un délai
+        setTimeout(() => {
+            gaugeIndicator.style.left = position + '%';
+        }, 500);
+
+        // Afficher la valeur
+        const absVal = Math.abs(currentDiff);
+        const formatted = absVal.toLocaleString('fr-CA', {style: 'currency', currency: 'CAD'});
+        if (currentDiff > 0) {
+            gaugeValue.textContent = '- ' + formatted;
+            gaugeValue.className = 'budget-gauge-value negative';
+        } else if (currentDiff < 0) {
+            gaugeValue.textContent = '+ ' + formatted;
+            gaugeValue.className = 'budget-gauge-value positive';
+        } else {
+            gaugeValue.textContent = 'Équilibré';
+            gaugeValue.className = 'budget-gauge-value neutral';
+        }
     }
 });
 </script>
