@@ -497,15 +497,16 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
                                 <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Filtrer par étapes">
                                     <i class="bi bi-funnel"></i>
                                 </button>
-                                <ul class="dropdown-menu dropdown-menu-end" id="etapes-filter-menu" style="min-width: 200px;">
-                                    <li><a class="dropdown-item" href="#" onclick="toggleAllEtapesFilter(true); return false;"><i class="bi bi-check-all me-2"></i>Tout sélectionner</a></li>
-                                    <li><a class="dropdown-item" href="#" onclick="toggleAllEtapesFilter(false); return false;"><i class="bi bi-x-lg me-2"></i>Tout désélectionner</a></li>
-                                    <li><hr class="dropdown-divider"></li>
+                                <ul class="dropdown-menu dropdown-menu-end py-1" id="etapes-filter-menu" style="min-width: 150px; font-size: 0.8rem;">
+                                    <li class="px-2 py-1 d-flex gap-2 border-bottom mb-1">
+                                        <a href="#" class="text-success small" onclick="toggleAllEtapesFilter(true); return false;" title="Tout cocher"><i class="bi bi-check-all"></i></a>
+                                        <a href="#" class="text-danger small" onclick="toggleAllEtapesFilter(false); return false;" title="Tout décocher"><i class="bi bi-x-lg"></i></a>
+                                    </li>
                                     <?php foreach ($etapes as $etape): ?>
                                     <li>
-                                        <label class="dropdown-item d-flex align-items-center">
-                                            <input type="checkbox" class="form-check-input me-2 etape-filter-checkbox" value="<?= $etape['id'] ?>" checked onchange="applyEtapeFilter()">
-                                            <?= e($etape['nom']) ?>
+                                        <label class="dropdown-item py-1 px-2 d-flex align-items-center" style="cursor: pointer;">
+                                            <input type="checkbox" class="form-check-input me-1 etape-filter-checkbox" value="<?= $etape['id'] ?>" checked onchange="applyEtapeFilter()" style="width: 14px; height: 14px;">
+                                            <small><?= e($etape['nom']) ?></small>
                                         </label>
                                     </li>
                                     <?php endforeach; ?>
