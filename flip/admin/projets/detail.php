@@ -2590,9 +2590,21 @@ foreach ($points as $date) {
     $diffColors[] = $diff >= 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(34, 197, 94, 0.7)';
 }
 
-// Différence actuelle pour la jauge horizontale
-$currentDiff = end($diffData) ?: 0; // Dernière valeur = différence actuelle
-$maxDiff = $budgetTotal * 0.3; // 30% du budget comme max pour l'échelle
+// Différence actuelle pour la jauge horizontale (basée sur AUJOURD'HUI)
+$aujourdHui = new DateTime();
+$joursEcoulesAujourdhui = max(1, $dateStart->diff($aujourdHui)->days);
+$pctProgressionAujourdhui = min(1, $joursEcoulesAujourdhui / $joursTotal);
+$budgetExtrapoleAujourdhui = round($budgetTotal * $pctProgressionAujourdhui, 2);
+
+// Dépenses réelles totales jusqu'à aujourd'hui
+$depensesReelles = 0;
+foreach ($depensesCumulees as $jour => $cumul) {
+    $depensesReelles = $cumul; // Dernière valeur cumulative
+}
+
+// Différence: positif = dépassement (dépensé plus que prévu), négatif = économie
+$currentDiff = round($depensesReelles - $budgetExtrapoleAujourdhui, 2);
+$maxDiff = max(1, $budgetTotal * 0.5); // 50% du budget comme max pour l'échelle
 ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Motion One pour animations graphiques -->
