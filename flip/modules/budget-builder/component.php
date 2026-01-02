@@ -2203,9 +2203,10 @@ function renderPanierTree($items, $level = 0) {
                     .order-check:checked + .print-checkbox::after {
                         content: "✓";
                     }
+                    /* Cacher les liens externes */
+                    a[target="_blank"] { display: none !important; }
                     @media print {
                         .btn { display: none !important; }
-                        a { text-decoration: none !important; color: inherit !important; }
                     }
                 </style>
             </head>
