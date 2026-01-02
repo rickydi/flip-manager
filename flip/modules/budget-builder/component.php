@@ -202,7 +202,7 @@ function getChildren($pdo, $parentId, $depth = 0) {
         return [];
     }
 
-    $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
+    $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
     $stmt->execute([$parentId]);
     $items = $stmt->fetchAll();
 
@@ -231,7 +231,7 @@ function getCatalogueBySection($pdo) {
 
         // Récupérer seulement les éléments RACINE de cette étape
         $stmt = $pdo->prepare("
-            SELECT * FROM catalogue_items
+            SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
             WHERE etape_id = ? AND actif = 1 AND parent_id IS NULL
             ORDER BY type DESC, ordre, nom
         ");
@@ -255,7 +255,7 @@ function getCatalogueBySection($pdo) {
 
     // Section "Non spécifié" pour les éléments sans étape
     $stmt = $pdo->query("
-        SELECT * FROM catalogue_items
+        SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
         WHERE (etape_id IS NULL OR etape_id = 0) AND parent_id IS NULL AND actif = 1
         ORDER BY type DESC, ordre, nom
     ");
@@ -289,10 +289,10 @@ function getCatalogueTree($pdo, $parentId = null, $depth = 0) {
     }
 
     if ($parentId === null) {
-        $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id IS NULL AND actif = 1 ORDER BY type DESC, ordre, nom");
+        $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id IS NULL AND actif = 1 ORDER BY type DESC, ordre, nom");
         $stmt->execute();
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
+        $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
         $stmt->execute([$parentId]);
     }
 
@@ -819,7 +819,7 @@ function renderCatalogueTree($items, $level = 0) {
 
             <span class="item-actions">
                 <?php if (!$isFolder): ?>
-                    <?php if (!empty($item['image'])): ?>
+                    <?php if (!empty($item['has_image'])): ?>
                     <span class="image-preview-trigger" data-item-id="<?= $item['id'] ?>">
                         <i class="bi bi-eye text-success" style="cursor: pointer;"></i>
                     </span>
