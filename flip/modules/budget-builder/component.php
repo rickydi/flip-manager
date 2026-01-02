@@ -465,6 +465,10 @@ $totalPanier = calculatePanierSectionsTotal($panierSections);
 ?>
 
 <link rel="stylesheet" href="<?= url('/modules/budget-builder/assets/budget.css') ?>?v=<?= time() ?>">
+<style>
+/* Cacher le print-checkbox dans l'interface normale */
+.print-checkbox { display: none; }
+</style>
 
 <div class="budget-builder-container">
     <!-- Toolbar: Undo/Redo -->
@@ -2069,7 +2073,7 @@ function renderPanierTree($items, $level = 0) {
                             <td style="width:40px;" class="text-center text-nowrap">
                                 <input type="checkbox" class="form-check-input order-check me-1"
                                        data-id="${item.id}" ${isChecked ? 'checked' : ''}
-                                       onchange="toggleOrderItem(${item.id}, this.checked)">${linkHtml}
+                                       onchange="toggleOrderItem(${item.id}, this.checked)"><span class="print-checkbox"></span>${linkHtml}
                             </td>
                             <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
                             <td style="width:60px;" class="text-center">${item.quantite}</td>
@@ -2103,7 +2107,7 @@ function renderPanierTree($items, $level = 0) {
                         <td style="width:40px;" class="text-center text-nowrap">
                             <input type="checkbox" class="form-check-input order-check me-1"
                                    data-id="${item.id}" ${isChecked ? 'checked' : ''}
-                                   onchange="toggleOrderItem(${item.id}, this.checked)">${linkHtml}
+                                   onchange="toggleOrderItem(${item.id}, this.checked)"><span class="print-checkbox"></span>${linkHtml}
                         </td>
                         <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
                         <td style="width:60px;" class="text-center">${item.quantite}</td>
@@ -2175,6 +2179,30 @@ function renderPanierTree($items, $level = 0) {
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
                 <style>
                     body { padding: 20px; }
+                    /* Style pour les cases à cocher imprimables */
+                    .order-check {
+                        display: none !important;
+                    }
+                    .order-check + .print-checkbox {
+                        display: inline-block;
+                        width: 16px;
+                        height: 16px;
+                        border: 2px solid #333;
+                        border-radius: 3px;
+                        text-align: center;
+                        line-height: 12px;
+                        font-size: 14px;
+                        font-weight: bold;
+                        vertical-align: middle;
+                    }
+                    .order-check:checked + .print-checkbox {
+                        background: #198754;
+                        border-color: #198754;
+                        color: white;
+                    }
+                    .order-check:checked + .print-checkbox::after {
+                        content: "✓";
+                    }
                     @media print {
                         .btn { display: none !important; }
                         a { text-decoration: none !important; color: inherit !important; }
