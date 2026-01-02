@@ -2668,9 +2668,9 @@ const optionsBar = {
 };
 
 window.initDetailCharts = function () {
-    if (window.chartCouts) window.chartCouts.destroy();
-    if (window.chartBudget) window.chartBudget.destroy();
-    if (window.chartProfits) window.chartProfits.destroy();
+    if (window.chartCouts && typeof window.chartCouts.destroy === 'function') window.chartCouts.destroy();
+    if (window.chartBudget && typeof window.chartBudget.destroy === 'function') window.chartBudget.destroy();
+    if (window.chartProfits && typeof window.chartProfits.destroy === 'function') window.chartProfits.destroy();
 
     // Chart 1: Coûts vs Valeur
     window.chartCouts = new Chart(document.getElementById('chartCouts'), {
@@ -2704,10 +2704,9 @@ window.initDetailCharts = function () {
     },
     options: optionsLine
 });
-};
 
 // Chart 2: Heures travaillées
-new Chart(document.getElementById('chartBudget'), {
+window.chartBudget = new Chart(document.getElementById('chartBudget'), {
     type: 'bar',
     data: {
         labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
@@ -2723,7 +2722,7 @@ new Chart(document.getElementById('chartBudget'), {
 });
 
 // Chart 3: Budget vs Dépensé
-new Chart(document.getElementById('chartProfits'), {
+window.chartProfits = new Chart(document.getElementById('chartProfits'), {
     type: 'line',
     data: {
         labels: <?= json_encode($jourLabels) ?>,
@@ -2757,6 +2756,7 @@ new Chart(document.getElementById('chartProfits'), {
     },
     options: optionsLine
 });
+};
 
 // Animation des cartes graphiques avec Motion
 document.addEventListener('DOMContentLoaded', function() {
