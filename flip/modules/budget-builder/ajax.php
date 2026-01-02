@@ -1625,32 +1625,58 @@ try {
                     ci.lien_achat,
                     ci.etape_id,
                     ci.ordre,
-                    e.nom as etape_nom,
-                    parent.nom as parent_nom
+                    e.nom as etape_nom
                 FROM catalogue_items ci
                 LEFT JOIN budget_etapes e ON ci.etape_id = e.id
-                LEFT JOIN catalogue_items parent ON ci.parent_id = parent.id
                 WHERE ci.actif = 1
                 ORDER BY ci.etape_id, ci.parent_id, ci.ordre, ci.nom
             ");
             $items = $stmt->fetchAll();
 
+            // Indexer tous les items par ID pour construire les chemins
+            $itemsById = [];
+            foreach ($items as $item) {
+                $itemsById[$item['id']] = $item;
+            }
+
+            // Fonction pour construire le chemin complet
+            function buildFullPath($item, $itemsById, $maxDepth = 10) {
+                $path = [];
+                $current = $item;
+                $depth = 0;
+
+                while ($current && $current['parent_id'] && $depth < $maxDepth) {
+                    if (isset($itemsById[$current['parent_id']])) {
+                        $parent = $itemsById[$current['parent_id']];
+                        array_unshift($path, $parent['nom']);
+                        $current = $parent;
+                    } else {
+                        break;
+                    }
+                    $depth++;
+                }
+
+                return implode(' > ', $path);
+            }
+
             // Construire le CSV
             $csv = [];
-            // En-têtes
-            $csv[] = ['ID', 'Type', 'Nom', 'Prix', 'Quantité par défaut', 'Fournisseur', 'Lien achat', 'Étape', 'Catégorie parente', 'Parent ID', 'Ordre'];
+            // En-têtes avec colonne "Chemin complet"
+            $csv[] = ['ID', 'Type', 'Nom', 'Chemin complet', 'Prix', 'Quantité par défaut', 'Fournisseur', 'Lien achat', 'Étape', 'Parent ID', 'Ordre'];
 
             foreach ($items as $item) {
+                $fullPath = buildFullPath($item, $itemsById);
+
                 $csv[] = [
                     $item['id'],
                     $item['type'] === 'folder' ? 'Dossier' : 'Article',
                     $item['nom'],
+                    $fullPath,
                     $item['type'] === 'item' ? number_format($item['prix'], 2, '.', '') : '',
                     $item['type'] === 'item' ? $item['quantite_defaut'] : '',
                     $item['fournisseur'] ?: '',
                     $item['lien_achat'] ?: '',
                     $item['etape_nom'] ?: '',
-                    $item['parent_nom'] ?: '',
                     $item['parent_id'] ?: '',
                     $item['ordre']
                 ];
@@ -1691,27 +1717,21 @@ try {
                     $etapesMap[strtolower(trim($e['nom']))] = $e['id'];
                 }
 
-                // Map pour retrouver les parents par nom
-                $stmtParents = $pdo->query("SELECT id, nom FROM catalogue_items WHERE type = 'folder' AND actif = 1");
-                $parentsMap = [];
-                foreach ($stmtParents->fetchAll() as $p) {
-                    $parentsMap[strtolower(trim($p['nom']))] = $p['id'];
-                }
-
                 foreach ($lines as $lineNum => $line) {
                     $row = str_getcsv($line);
                     if (count($row) < 3) continue; // Ligne invalide
 
-                    // Mapper les colonnes (flexible selon l'ordre)
+                    // Mapper les colonnes selon le nouveau format avec "Chemin complet"
+                    // Colonnes: ID, Type, Nom, Chemin complet, Prix, Quantité, Fournisseur, Lien, Étape, Parent ID, Ordre
                     $id = isset($row[0]) && is_numeric($row[0]) ? (int)$row[0] : null;
                     $type = isset($row[1]) ? (stripos($row[1], 'dossier') !== false || $row[1] === 'folder' ? 'folder' : 'item') : 'item';
                     $nom = trim($row[2] ?? '');
-                    $prix = isset($row[3]) ? floatval(str_replace(',', '.', $row[3])) : 0;
-                    $quantiteDefaut = isset($row[4]) && is_numeric($row[4]) ? (int)$row[4] : 1;
-                    $fournisseur = trim($row[5] ?? '');
-                    $lienAchat = trim($row[6] ?? '');
-                    $etapeNom = trim($row[7] ?? '');
-                    $parentNom = trim($row[8] ?? '');
+                    // $row[3] = Chemin complet (lecture seule, ignoré à l'import)
+                    $prix = isset($row[4]) ? floatval(str_replace(',', '.', $row[4])) : 0;
+                    $quantiteDefaut = isset($row[5]) && is_numeric($row[5]) ? (int)$row[5] : 1;
+                    $fournisseur = trim($row[6] ?? '');
+                    $lienAchat = trim($row[7] ?? '');
+                    $etapeNom = trim($row[8] ?? '');
                     $parentId = isset($row[9]) && is_numeric($row[9]) ? (int)$row[9] : null;
                     $ordre = isset($row[10]) && is_numeric($row[10]) ? (int)$row[10] : 0;
 
@@ -1729,13 +1749,8 @@ try {
                         }
                     }
 
-                    // Trouver le parent par nom si spécifié et pas de parent_id
-                    if (!$parentId && !empty($parentNom)) {
-                        $parentKey = strtolower($parentNom);
-                        if (isset($parentsMap[$parentKey])) {
-                            $parentId = $parentsMap[$parentKey];
-                        }
-                    }
+                    // Note: Le "Chemin complet" est en lecture seule
+                    // Le parent_id est utilisé directement depuis la colonne Parent ID
 
                     // Update ou Insert
                     if ($id && $mode === 'update') {
