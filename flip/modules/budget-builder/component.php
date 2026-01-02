@@ -1254,9 +1254,13 @@ function renderPanierTree($items, $level = 0) {
             lien_achat: document.getElementById('item-modal-lien').value
         };
 
+        console.log('saveItemModal - sending:', data);
+
         BudgetBuilder.ajax('update_item', data).then(response => {
+            console.log('saveItemModal - response:', response);
             if (response.success) {
                 itemModal.hide();
+                console.log('saveItemModal - calling refreshAll');
                 BudgetBuilder.refreshAll();
             } else {
                 alert('Erreur: ' + (response.message || 'Échec'));
