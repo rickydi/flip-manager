@@ -452,6 +452,10 @@ function calculatePanierSectionsTotal($sections) {
 // ============================================
 // Charger les données
 // ============================================
+// Charger les étapes pour le filtre dropdown
+$stmtEtapes = $pdo->query("SELECT * FROM budget_etapes ORDER BY ordre, id");
+$etapes = $stmtEtapes->fetchAll();
+
 $catalogueSections = getCatalogueBySection($pdo);
 $panierSections = isset($projetId) ? getPanierBySection($pdo, $projetId) : [];
 $panier = isset($projetId) ? getPanier($pdo, $projetId) : [];
