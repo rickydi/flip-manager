@@ -1139,6 +1139,18 @@ if ($isPartialBase) {
     </div><!-- Fin row xxl -->
 
     <!-- Script pour mettre à jour les 4 jauges Écart Budget -->
+    <?php
+    // Valeurs par défaut si les variables n'existent pas (hors du bloc prêteurs/investisseurs)
+    $gaugeRecurrentExtrapole = isset($totalRecExtrapole) ? $totalRecExtrapole : 0;
+    $gaugeRecurrentReel = isset($totalRecReel) ? $totalRecReel : 0;
+    $gaugeRenovationExtrapole = isset($renoBudgetTTC) ? $renoBudgetTTC : 0;
+    $gaugeRenovationReel = isset($renoReelTTC) ? $renoReelTTC : 0;
+    $gaugeVenteExtrapole = isset($totalVentePrevu) ? $totalVentePrevu : 0;
+    $gaugeVenteReel = isset($totalVenteReel) ? $totalVenteReel : 0;
+    // Pour le général (profit), utiliser équité si pas de prêteurs/investisseurs
+    $gaugeGeneralExtrapole = isset($profitApresImpot) ? $profitApresImpot : ($indicateurs['equite_potentielle'] ?? 0);
+    $gaugeGeneralReel = isset($profitApresImpotReel) ? $profitApresImpotReel : ($indicateurs['equite_reelle'] ?? 0);
+    ?>
     <script>
     (function() {
         // Fonction pour mettre à jour une mini-jauge
@@ -1163,7 +1175,7 @@ if ($isPartialBase) {
             // Animer
             setTimeout(() => {
                 indicator.style.left = position + '%';
-            }, 800);
+            }, 100);
 
             // Afficher la valeur
             const absVal = Math.abs(diff);
@@ -1189,22 +1201,24 @@ if ($isPartialBase) {
         // Données des 4 catégories
         const gaugeData = {
             recurrent: {
-                extrapole: <?= json_encode($totalRecExtrapole ?? 0) ?>,
-                reel: <?= json_encode($totalRecReel ?? 0) ?>
+                extrapole: <?= json_encode($gaugeRecurrentExtrapole) ?>,
+                reel: <?= json_encode($gaugeRecurrentReel) ?>
             },
             renovation: {
-                extrapole: <?= json_encode($renoBudgetTTC ?? 0) ?>,
-                reel: <?= json_encode($renoReelTTC ?? 0) ?>
+                extrapole: <?= json_encode($gaugeRenovationExtrapole) ?>,
+                reel: <?= json_encode($gaugeRenovationReel) ?>
             },
             vente: {
-                extrapole: <?= json_encode($totalVentePrevu ?? 0) ?>,
-                reel: <?= json_encode($totalVenteReel ?? 0) ?>
+                extrapole: <?= json_encode($gaugeVenteExtrapole) ?>,
+                reel: <?= json_encode($gaugeVenteReel) ?>
             },
             general: {
-                extrapole: <?= json_encode($profitApresImpot ?? 0) ?>,
-                reel: <?= json_encode($profitApresImpotReel ?? 0) ?>
+                extrapole: <?= json_encode($gaugeGeneralExtrapole) ?>,
+                reel: <?= json_encode($gaugeGeneralReel) ?>
             }
         };
+
+        console.log('Gauge data:', gaugeData);
 
         // Mettre à jour chaque jauge
         updateMiniGauge('gaugeIndicatorRecurrent', 'gaugeValueRecurrent', gaugeData.recurrent.extrapole, gaugeData.recurrent.reel, false);
