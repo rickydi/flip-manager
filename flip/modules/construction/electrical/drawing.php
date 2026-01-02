@@ -1066,6 +1066,7 @@ function countDevicesPerCircuit() {
         counts[index] = { prises: 0, interrupteurs: 0, lumieres: 0, autres: 0 };
     });
 
+    if (!canvas) return counts;
     canvas.getObjects().forEach(obj => {
         if (obj.symbolType && obj.circuitIndex !== undefined) {
             const circuit = obj.circuitIndex;
@@ -1487,8 +1488,9 @@ function showToast(msg) {
     setTimeout(() => toast.remove(), 2000);
 }
 
-// Générer la liste des items à acheter
-function getShoppingList() {
+// Générer la liste des items à acheter (pour le dessin - renommée pour éviter conflit avec component.php)
+function getDrawingShoppingList() {
+    if (!canvas) return {};
     const items = {};
     const symbolNames = {
         'outlet': 'Prise standard 120V',
@@ -1544,7 +1546,7 @@ function printDrawing() {
     });
 
     // Générer la liste d'achats
-    const shoppingList = getShoppingList();
+    const shoppingList = getDrawingShoppingList();
     let shoppingHtml = '';
     if (Object.keys(shoppingList).length > 0) {
         shoppingHtml = `
