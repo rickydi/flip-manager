@@ -1192,6 +1192,8 @@ function renderPanierTree($items, $level = 0) {
 
 <script src="<?= url('/modules/budget-builder/assets/budget.js') ?>?v=<?= time() ?>"></script>
 <script>
+    console.log('=== Budget Builder Script Loading ===');
+
     // Initialiser avec l'ID du projet
     BudgetBuilder.init(<?= $projetId ?? 'null' ?>);
 
@@ -1204,6 +1206,7 @@ function renderPanierTree($items, $level = 0) {
     let itemModal = null;
 
     function openItemModal(itemId) {
+        console.log('openItemModal called with id:', itemId);
         if (!itemModal) {
             itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
         }
@@ -1286,6 +1289,7 @@ function renderPanierTree($items, $level = 0) {
     let folderModal = null;
 
     function openFolderModal(folderId) {
+        console.log('openFolderModal called with id:', folderId);
         if (!folderModal) {
             folderModal = new bootstrap.Modal(document.getElementById('folderModal'));
         }
