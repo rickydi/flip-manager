@@ -1170,6 +1170,9 @@ include '../includes/header.php';
                     <i class="bi bi-graph-up-arrow"></i>
                     Basé sur <?= $joursEcoules ?> jours → <?= formatMoney($profitExtrapolAnnuel) ?>/an
                 </small>
+                <small class="text-muted d-block" style="font-size: 0.65rem;">
+                    <?= formatMoney($profitNetAnnuel) ?> de profit net réalisé
+                </small>
             </div>
             <?php endif; ?>
         </div>
