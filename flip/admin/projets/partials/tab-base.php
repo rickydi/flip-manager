@@ -114,39 +114,38 @@ if ($isPartialBase) {
         .chart-body canvas {
             border-radius: 8px;
         }
-        /* Budget Gauge Horizontal - Mini version pour 4 jauges */
-        .budget-gauges-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            padding: 5px;
+        /* Budget Gauge Horizontal - 4 jauges en ligne */
+        .budget-gauges-row {
+            display: flex;
+            gap: 6px;
+            padding: 8px 5px;
         }
         .mini-gauge {
-            padding: 4px 6px;
-            background: rgba(0,0,0,0.15);
-            border-radius: 6px;
+            flex: 1;
+            min-width: 0;
         }
         .mini-gauge-label {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             font-weight: 600;
-            margin-bottom: 3px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            margin-bottom: 2px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
         }
         .mini-gauge-label .label-text { opacity: 0.8; }
+        .mini-gauge-label .label-text i { margin-right: 2px; }
         .mini-gauge-bar {
             position: relative;
-            height: 12px;
-            border-radius: 6px;
+            height: 14px;
+            border-radius: 7px;
             overflow: visible;
             background: linear-gradient(90deg, #ef4444 0%, #fbbf24 35%, #22c55e 50%, #22c55e 100%);
         }
         .mini-gauge-center {
             position: absolute;
             left: 50%;
-            top: -2px;
-            bottom: -2px;
+            top: -1px;
+            bottom: -1px;
             width: 2px;
             background: #1e293b;
             transform: translateX(-50%);
@@ -168,8 +167,10 @@ if ($isPartialBase) {
             transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         .mini-gauge-value {
-            font-size: 0.7rem;
+            font-size: 0.65rem;
             font-weight: 600;
+            text-align: center;
+            margin-top: 2px;
         }
         .mini-gauge-value.negative { color: #ef4444; }
         .mini-gauge-value.positive { color: #22c55e; }
@@ -221,50 +222,42 @@ if ($isPartialBase) {
                     </div>
                 </div>
                 <div class="chart-body d-flex flex-column justify-content-center" style="min-height: 150px;">
-                    <div class="budget-gauges-grid">
+                    <div class="budget-gauges-row">
                         <!-- Récurrent -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label">
-                                <span class="label-text"><i class="bi bi-arrow-repeat"></i> Récurrent</span>
-                                <span class="mini-gauge-value" id="gaugeValueRecurrent">-</span>
-                            </div>
+                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-arrow-repeat"></i>Réc.</span></div>
                             <div class="mini-gauge-bar">
                                 <div class="mini-gauge-center"></div>
                                 <div class="mini-gauge-indicator" id="gaugeIndicatorRecurrent"></div>
                             </div>
+                            <div class="mini-gauge-value" id="gaugeValueRecurrent">-</div>
                         </div>
                         <!-- Rénovation -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label">
-                                <span class="label-text"><i class="bi bi-tools"></i> Rénovation</span>
-                                <span class="mini-gauge-value" id="gaugeValueRenovation">-</span>
-                            </div>
+                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-tools"></i>Réno</span></div>
                             <div class="mini-gauge-bar">
                                 <div class="mini-gauge-center"></div>
                                 <div class="mini-gauge-indicator" id="gaugeIndicatorRenovation"></div>
                             </div>
+                            <div class="mini-gauge-value" id="gaugeValueRenovation">-</div>
                         </div>
                         <!-- Vente -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label">
-                                <span class="label-text"><i class="bi bi-cash-stack"></i> Vente</span>
-                                <span class="mini-gauge-value" id="gaugeValueVente">-</span>
-                            </div>
+                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-cash-stack"></i>Vente</span></div>
                             <div class="mini-gauge-bar">
                                 <div class="mini-gauge-center"></div>
                                 <div class="mini-gauge-indicator" id="gaugeIndicatorVente"></div>
                             </div>
+                            <div class="mini-gauge-value" id="gaugeValueVente">-</div>
                         </div>
-                        <!-- Général -->
+                        <!-- Profit -->
                         <div class="mini-gauge">
-                            <div class="mini-gauge-label">
-                                <span class="label-text"><i class="bi bi-star-fill"></i> Général</span>
-                                <span class="mini-gauge-value" id="gaugeValueGeneral">-</span>
-                            </div>
+                            <div class="mini-gauge-label"><span class="label-text"><i class="bi bi-star-fill"></i>Profit</span></div>
                             <div class="mini-gauge-bar">
                                 <div class="mini-gauge-center"></div>
                                 <div class="mini-gauge-indicator" id="gaugeIndicatorGeneral"></div>
                             </div>
+                            <div class="mini-gauge-value" id="gaugeValueGeneral">-</div>
                         </div>
                     </div>
                 </div>
