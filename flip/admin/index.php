@@ -350,6 +350,7 @@ include '../includes/header.php';
 .gauge-speedometer svg {
     width: 100%;
     height: 100%;
+    overflow: visible;
 }
 
 .gauge-bg {
