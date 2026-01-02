@@ -370,9 +370,21 @@ try {
                 $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN image MEDIUMTEXT DEFAULT NULL");
             }
 
-            // Quand on édite via le modal, l'item devient TOUJOURS racine dans l'étape choisie
-            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
-            $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
+            // Vérifier si l'étape a changé
+            $stmtOld = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
+            $stmtOld->execute([$id]);
+            $oldItem = $stmtOld->fetch();
+            $oldEtapeId = $oldItem ? ($oldItem['etape_id'] ?: null) : null;
+
+            // Si l'étape change, l'item devient racine dans la nouvelle étape
+            if ($etapeId !== $oldEtapeId) {
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
+                $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
+            } else {
+                // Sinon, garder le parent_id intact
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, image = ? WHERE id = ?");
+                $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
+            }
 
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
             break;
@@ -455,9 +467,21 @@ try {
             $nom = trim($input['nom'] ?? '');
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
 
-            // Quand on édite via le modal, le dossier devient TOUJOURS racine dans l'étape choisie
-            $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ?, parent_id = NULL WHERE id = ?");
-            $stmt->execute([$nom, $etapeId, $id]);
+            // Vérifier si l'étape a changé
+            $stmtOld = $pdo->prepare("SELECT etape_id FROM catalogue_items WHERE id = ?");
+            $stmtOld->execute([$id]);
+            $oldFolder = $stmtOld->fetch();
+            $oldEtapeId = $oldFolder ? ($oldFolder['etape_id'] ?: null) : null;
+
+            // Si l'étape change, le dossier devient racine dans la nouvelle étape
+            if ($etapeId !== $oldEtapeId) {
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ?, parent_id = NULL WHERE id = ?");
+                $stmt->execute([$nom, $etapeId, $id]);
+            } else {
+                // Sinon, garder le parent_id intact
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, etape_id = ? WHERE id = ?");
+                $stmt->execute([$nom, $etapeId, $id]);
+            }
 
             echo json_encode(['success' => true, 'message' => 'Dossier mis à jour']);
             break;
