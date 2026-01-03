@@ -353,6 +353,13 @@ try {
             echo json_encode(['success' => true, 'item' => $item]);
             break;
 
+        case 'debug_images':
+            $stmt = $pdo->query("SELECT id, nom, (image IS NOT NULL AND image != '') as has_image, LENGTH(image) as image_size FROM catalogue_items WHERE type = 'item' LIMIT 20");
+            $items = $stmt->fetchAll();
+            $countWithImage = $pdo->query("SELECT COUNT(*) FROM catalogue_items WHERE image IS NOT NULL AND image != ''")->fetchColumn();
+            echo json_encode(['success' => true, 'items' => $items, 'total_with_image' => $countWithImage]);
+            break;
+
         case 'get_item_image':
             $id = (int)($input['id'] ?? 0);
             if (!$id) throw new Exception('ID requis');

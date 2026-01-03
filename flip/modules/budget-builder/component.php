@@ -738,6 +738,11 @@ function renderSectionItems($items, $level = 0) {
 
             <span class="item-actions">
                 <?php if (!$isFolder): ?>
+                    <?php if (!empty($item['has_image'])): ?>
+                    <span class="image-preview-trigger" data-item-id="<?= $item['id'] ?>">
+                        <i class="bi bi-eye text-success" style="cursor: pointer;"></i>
+                    </span>
+                    <?php endif; ?>
                     <span class="badge bg-secondary item-prix-badge"><?= formatMoney($item['prix'] ?? 0) ?></span>
                     <button type="button" class="btn btn-sm btn-link p-0 text-info"
                             onclick="openItemModal(<?= $item['id'] ?>)" title="Modifier">
