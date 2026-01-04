@@ -1187,7 +1187,7 @@ try {
             $getChildren = function($pdo, $parentId, $depth = 0) use (&$getChildren) {
                 if ($depth > 10) return [];
                 $stmt = $pdo->prepare("
-                    SELECT * FROM catalogue_items
+                    SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
                     WHERE parent_id = ? AND actif = 1
                     ORDER BY type DESC, ordre, nom
                 ");
@@ -1236,7 +1236,7 @@ try {
                 // Récupérer seulement les éléments RACINE de cette étape (parent_id IS NULL)
                 // Les enfants seront chargés via getChildren()
                 $stmt = $pdo->prepare("
-                    SELECT * FROM catalogue_items
+                    SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
                     WHERE etape_id = ? AND actif = 1 AND parent_id IS NULL
                     ORDER BY type DESC, ordre, nom
                 ");
@@ -1261,7 +1261,7 @@ try {
 
             // Éléments sans étape (qui n'ont pas de parent avec étape non plus)
             $stmt = $pdo->query("
-                SELECT * FROM catalogue_items
+                SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
                 WHERE (etape_id IS NULL OR etape_id = 0) AND actif = 1 AND parent_id IS NULL
                 ORDER BY type DESC, ordre, nom
             ");
