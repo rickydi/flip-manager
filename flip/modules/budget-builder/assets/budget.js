@@ -908,7 +908,7 @@ const BudgetBuilder = {
 
             if (!isFolder) {
                 // Actions pour les items
-                const eyeIcon = item.has_image ? `
+                const eyeIcon = (item.has_image == 1) ? `
                     <span class="image-preview-trigger" data-item-id="${item.id}">
                         <i class="bi bi-eye text-success" style="cursor: pointer;"></i>
                     </span>` : '';
