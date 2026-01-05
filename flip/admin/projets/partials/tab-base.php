@@ -110,6 +110,7 @@ if ($isPartialBase) {
         .chart-body {
             padding: 12px;
             position: relative;
+            min-height: 170px;
         }
         .chart-body canvas {
             border-radius: 8px;
