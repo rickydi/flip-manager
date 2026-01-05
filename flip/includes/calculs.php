@@ -707,8 +707,12 @@ function getInvestisseursProjet($pdo, $projetId, $equitePotentielle = 0, $mois =
         $profitApresInterets = $equitePotentielle;
 
         foreach ($investisseurs as &$inv) {
-            // Calculer le pourcentage selon la mise de fonds
-            if ($miseTotaleInvestisseurs > 0) {
+            // Utiliser le pourcentage direct si spécifié, sinon calculer selon la mise de fonds
+            if ($inv['pourcentage'] > 0) {
+                // Pourcentage direct spécifié - l'utiliser tel quel
+                $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
+            } elseif ($miseTotaleInvestisseurs > 0) {
+                // Pas de pourcentage direct - calculer selon la mise de fonds
                 $inv['pourcentage'] = ($inv['mise_de_fonds'] / $miseTotaleInvestisseurs) * 100;
                 $inv['profit_estime'] = $profitApresInterets * ($inv['pourcentage'] / 100);
             }
