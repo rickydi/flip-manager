@@ -463,50 +463,43 @@
     <!-- Auto-save sur blur pour les champs de financement -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const editForms = document.querySelectorAll('form[id^="form-preteur-"], form[id^="form-invest-"]');
         const indicator = document.getElementById('save-indicator');
 
-        function showIndicator(type, message) {
+        // Cibler tous les inputs dans les tableaux prêteurs/investisseurs (pas les formulaires d'ajout)
+        const inputs = document.querySelectorAll('#financement table tbody input[type="text"]');
+
+        console.log('Auto-save: Found ' + inputs.length + ' inputs');
+
+        function showIndicator(message) {
             const icon = indicator.querySelector('i');
             const text = indicator.querySelector('span');
             indicator.style.display = 'block';
+            indicator.style.background = '#f39c12';
+            indicator.style.color = 'white';
+            icon.className = 'bi bi-arrow-repeat me-2';
             text.textContent = message;
-
-            if (type === 'saving') {
-                indicator.style.background = '#f39c12';
-                indicator.style.color = 'white';
-                icon.className = 'bi bi-arrow-repeat me-2';
-                icon.style.animation = 'spin 1s linear infinite';
-            } else if (type === 'success') {
-                indicator.style.background = '#27ae60';
-                indicator.style.color = 'white';
-                icon.className = 'bi bi-check-circle me-2';
-                icon.style.animation = 'none';
-                setTimeout(() => { indicator.style.display = 'none'; }, 1500);
-            }
         }
 
-        editForms.forEach(function(form) {
-            const inputs = form.querySelectorAll('input[type="text"]');
-            inputs.forEach(function(input) {
-                input.dataset.initialValue = input.value;
+        inputs.forEach(function(input) {
+            input.dataset.initialValue = input.value;
 
-                input.addEventListener('blur', function() {
-                    if (this.value !== this.dataset.initialValue) {
-                        showIndicator('saving', 'Sauvegarde...');
-                        form.submit();
+            input.addEventListener('blur', function() {
+                if (this.value !== this.dataset.initialValue) {
+                    showIndicator('Sauvegarde...');
+                    // Trouver le bouton submit le plus proche et cliquer dessus
+                    const row = this.closest('tr');
+                    const submitBtn = row.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.click();
                     }
-                });
+                }
+            });
 
-                input.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (this.value !== this.dataset.initialValue) {
-                            showIndicator('saving', 'Sauvegarde...');
-                            form.submit();
-                        }
-                    }
-                });
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.blur(); // Déclenche le blur qui fait le save
+                }
             });
         });
     });
