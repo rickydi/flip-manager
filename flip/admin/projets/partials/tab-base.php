@@ -964,15 +964,7 @@ if ($isPartialBase) {
                         <td class="text-end">-</td>
                         <td class="text-end"><?= formatMoney($indicateurs['valeur_potentielle']) ?></td>
                     </tr>
-                    
-                    <?php $diffEquite = $indicateurs['equite_reelle'] - $indicateurs['equite_potentielle']; ?>
-                    <tr class="total-row">
-                        <td>ÉQUITÉ / PROFIT</td>
-                        <td class="text-end"><?= formatMoney($indicateurs['equite_potentielle']) ?></td>
-                        <td class="text-end" style="color:<?= $diffEquite >= 0 ? '#90EE90' : '#ffcccc' ?>"><?= $diffEquite >= 0 ? '+' : '' ?><?= formatMoney($diffEquite) ?></td>
-                        <td class="text-end"><?= formatMoney($indicateurs['equite_reelle']) ?></td>
-                    </tr>
-                    
+
                     <!-- PARTAGE DES PROFITS -->
                     <?php if (!empty($indicateurs['preteurs']) || !empty($indicateurs['investisseurs'])): ?>
                     <tr class="section-header" data-section="partage">
