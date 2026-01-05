@@ -80,54 +80,78 @@ class ClaudeService {
     }
 
     /**
-     * Analyse un fichier PDF de comparables
+     * Analyse un fichier PDF de comparables EN DEUX ÉTAPES
+     * Étape 1: Extraire la liste des propriétés
+     * Étape 2: Analyser chaque propriété en détail
+     *
      * @param string $pdfPath Chemin absolu vers le fichier PDF
      * @param array $projetInfo Informations sur le projet sujet (pour comparaison)
+     * @param callable|null $progressCallback Callback pour suivre la progression
      * @return array Résultats de l'analyse
      */
-    public function analyserComparables($pdfPath, $projetInfo) {
+    public function analyserComparables($pdfPath, $projetInfo, $progressCallback = null) {
         if (!file_exists($pdfPath)) {
             throw new Exception("Fichier PDF introuvable.");
         }
 
         $pdfData = base64_encode(file_get_contents($pdfPath));
 
-        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec (Flip immobilier). " .
-                       "Ton rôle est d'analyser des fiches descriptives Centris (PDF) et de les comparer avec un projet sujet. " .
-                       "Tu dois extraire les données de chaque comparable vendu et estimer la valeur du sujet. " .
-                       "Sois précis, critique sur les rénovations visibles (regarde les photos si disponibles dans le PDF) et justifie chaque ajustement. " .
-                       "Réponds UNIQUEMENT en JSON valide.";
+        // === ÉTAPE 1: Extraire la liste des propriétés ===
+        if ($progressCallback) $progressCallback('etape1', 'Extraction de la liste des propriétés...');
 
-        $userMessage = "Voici un rapport de comparables vendus (PDF). \n" .
-                      "PROJET SUJET (CE QUE JE VAIS VENDRE) : \n" .
-                      "- Adresse : " . ($projetInfo['adresse'] ?? 'N/A') . "\n" .
-                      "- Type : " . ($projetInfo['type'] ?? 'Maison unifamiliale') . "\n" .
-                      "- Chambres : " . ($projetInfo['chambres'] ?? 'N/A') . "\n" .
-                      "- Salles de bain : " . ($projetInfo['sdb'] ?? 'N/A') . "\n" .
-                      "- Superficie : " . ($projetInfo['superficie'] ?? 'N/A') . "\n" .
-                      "- Garage : " . ($projetInfo['garage'] ?? 'Non') . "\n" .
-                      "- État prévu à la vente : Entièrement rénové au goût du jour (Cuisine quartz, SDB moderne, planchers neufs).\n\n" .
-                      "TACHE : \n" .
-                      "1. Extrais chaque propriété vendue du PDF. \n" .
-                      "2. Pour chaque propriété, note l'état des rénovations sur 10 (basé sur les photos et descriptions). \n" .
-                      "3. Compare avec le sujet et propose un ajustement (+/- $) pour ramener le comparable au niveau du sujet. \n" .
-                      "4. Estime le prix de vente final du sujet. \n\n" .
-                      "Format JSON attendu : \n" .
-                      "{ \n" .
-                      "  'comparables': [ \n" .
-                      "    { 'adresse': '...', 'prix_vendu': 000, 'date_vente': 'YYYY-MM-DD', 'chambres': '...', 'sdb': '...', 'superficie': '...', 'annee': 0000, 'etat_note': 8, 'etat_texte': 'Rénové', 'renovations': '...', 'ajustement': -10000, 'commentaire': '...' } \n" .
-                      "  ], \n" .
-                      "  'analyse_globale': { \n" .
-                      "    'prix_suggere': 000, \n" .
-                      "    'fourchette_basse': 000, \n" .
-                      "    'fourchette_haute': 000, \n" .
-                      "    'commentaire_general': '...' \n" .
-                      "  } \n" .
-                      "}";
+        $listeProprietés = $this->etape1_extraireListe($pdfData);
+
+        if (empty($listeProprietés)) {
+            throw new Exception("Aucune propriété trouvée dans le PDF.");
+        }
+
+        // === ÉTAPE 2: Analyser chaque propriété en détail ===
+        $comparables = [];
+        $totalProps = count($listeProprietés);
+
+        foreach ($listeProprietés as $index => $prop) {
+            if ($progressCallback) {
+                $progressCallback('etape2', "Analyse détaillée " . ($index + 1) . "/$totalProps: " . ($prop['adresse'] ?? 'Propriété'));
+            }
+
+            $detailAnalyse = $this->etape2_analyserPropriete($pdfData, $prop, $projetInfo);
+            $comparables[] = array_merge($prop, $detailAnalyse);
+        }
+
+        // === ÉTAPE 3: Synthèse finale ===
+        if ($progressCallback) $progressCallback('synthese', 'Calcul du prix suggéré...');
+
+        $analyseSynthese = $this->etape3_synthese($comparables, $projetInfo);
+
+        return [
+            'comparables' => $comparables,
+            'analyse_globale' => $analyseSynthese
+        ];
+    }
+
+    /**
+     * ÉTAPE 1: Extraire la liste simple des propriétés du PDF
+     */
+    private function etape1_extraireListe($pdfData) {
+        $systemPrompt = "Tu es un assistant qui extrait des données de fiches Centris. " .
+                       "Ton SEUL travail est de lister les propriétés vendues présentes dans le PDF. " .
+                       "Réponds UNIQUEMENT en JSON valide, sans texte.";
+
+        $userMessage = "Analyse ce PDF Centris et liste TOUTES les propriétés vendues.\n\n" .
+                      "Pour chaque propriété, extrais UNIQUEMENT:\n" .
+                      "- adresse (rue, ville)\n" .
+                      "- prix_vendu (nombre entier)\n" .
+                      "- date_vente (YYYY-MM-DD si disponible)\n" .
+                      "- chambres (ex: '3+1' ou '4')\n" .
+                      "- sdb (salles de bain)\n" .
+                      "- superficie (en pi²)\n" .
+                      "- annee (année de construction)\n\n" .
+                      "Format JSON:\n" .
+                      "[{\"adresse\": \"123 Rue Test, Ville\", \"prix_vendu\": 350000, \"date_vente\": \"2024-05-15\", \"chambres\": \"3\", \"sdb\": \"2\", \"superficie\": \"1200\", \"annee\": 1985}]";
 
         $payload = [
             'model' => $this->model,
-            'max_tokens' => 4096,
+            'max_tokens' => 2048,
             'messages' => [
                 [
                     'role' => 'user',
@@ -150,24 +174,146 @@ class ClaudeService {
             'system' => $systemPrompt
         ];
 
-        return $this->callApi($payload);
+        $result = $this->callApiPdf($payload);
+
+        // S'assurer que c'est un array
+        if (!is_array($result)) {
+            throw new Exception("Format de réponse invalide à l'étape 1");
+        }
+
+        // Si c'est un objet avec une clé 'proprietes' ou 'comparables', l'extraire
+        if (isset($result['proprietes'])) return $result['proprietes'];
+        if (isset($result['comparables'])) return $result['comparables'];
+
+        // Sinon c'est déjà un array de propriétés
+        return $result;
     }
 
-    private function callApi($payload) {
+    /**
+     * ÉTAPE 2: Analyser une propriété en détail (état, rénovations, ajustement)
+     */
+    private function etape2_analyserPropriete($pdfData, $propriete, $projetInfo) {
+        $adresse = $propriete['adresse'] ?? 'Inconnue';
+
+        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec. " .
+                       "Tu analyses UNE SEULE propriété et tu évalues son état basé sur les photos/descriptions. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        $userMessage = "Dans ce PDF, trouve la propriété située au: {$adresse}\n\n" .
+                      "PROJET SUJET (pour comparaison):\n" .
+                      "- Adresse: " . ($projetInfo['adresse'] ?? 'N/A') . "\n" .
+                      "- État prévu: Entièrement rénové (cuisine quartz, SDB moderne, planchers neufs)\n\n" .
+                      "Analyse cette propriété ({$adresse}) et retourne:\n" .
+                      "- etat_note: Note de 1 à 10 (10 = entièrement rénové luxe)\n" .
+                      "- etat_texte: Description courte de l'état (ex: 'Cuisine rénovée, SDB d'origine')\n" .
+                      "- renovations: Liste des rénovations visibles\n" .
+                      "- ajustement: Montant +/- $ pour ramener au niveau du sujet (rénové)\n" .
+                      "- commentaire: Justification de l'ajustement\n\n" .
+                      "Format JSON:\n" .
+                      "{\"etat_note\": 7, \"etat_texte\": \"Partiellement rénové\", \"renovations\": \"Cuisine refaite 2020, planchers flottants\", \"ajustement\": -15000, \"commentaire\": \"SDB non rénovées, sous-sol non fini\"}";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 1024,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'document',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => 'application/pdf',
+                                'data' => $pdfData
+                            ]
+                        ],
+                        [
+                            'type' => 'text',
+                            'text' => $userMessage
+                        ]
+                    ]
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            return $this->callApiPdf($payload);
+        } catch (Exception $e) {
+            // En cas d'erreur, retourner des valeurs par défaut
+            return [
+                'etat_note' => 5,
+                'etat_texte' => 'Non analysé',
+                'renovations' => '',
+                'ajustement' => 0,
+                'commentaire' => 'Erreur lors de l\'analyse: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * ÉTAPE 3: Synthèse - Calculer le prix suggéré basé sur les comparables analysés
+     */
+    private function etape3_synthese($comparables, $projetInfo) {
+        // Calculer la moyenne des prix ajustés
+        $prixAjustes = [];
+        foreach ($comparables as $comp) {
+            $prixVendu = (float)($comp['prix_vendu'] ?? 0);
+            $ajustement = (float)($comp['ajustement'] ?? 0);
+            if ($prixVendu > 0) {
+                $prixAjustes[] = $prixVendu + $ajustement;
+            }
+        }
+
+        if (empty($prixAjustes)) {
+            return [
+                'prix_suggere' => 0,
+                'fourchette_basse' => 0,
+                'fourchette_haute' => 0,
+                'commentaire_general' => 'Impossible de calculer un prix suggéré.'
+            ];
+        }
+
+        $moyenne = array_sum($prixAjustes) / count($prixAjustes);
+        $min = min($prixAjustes);
+        $max = max($prixAjustes);
+
+        // Arrondir aux 5000$ près
+        $prixSuggere = round($moyenne / 5000) * 5000;
+        $fourchetteBasse = round($min / 5000) * 5000;
+        $fourchetteHaute = round($max / 5000) * 5000;
+
+        $nbComparables = count($comparables);
+        $commentaire = "Basé sur $nbComparables comparables analysés. ";
+        $commentaire .= "Prix ajustés varient de " . number_format($min, 0, ',', ' ') . "$ à " . number_format($max, 0, ',', ' ') . "$.";
+
+        return [
+            'prix_suggere' => $prixSuggere,
+            'fourchette_basse' => $fourchetteBasse,
+            'fourchette_haute' => $fourchetteHaute,
+            'commentaire_general' => $commentaire
+        ];
+    }
+
+    /**
+     * Appel API avec support PDF
+     */
+    private function callApiPdf($payload) {
         $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120); // 2 minutes timeout
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'x-api-key: ' . $this->apiKey,
             'anthropic-version: 2023-06-01',
             'content-type: application/json',
-            'anthropic-beta: pdfs-2024-09-25' // Header nécessaire pour le support PDF
+            'anthropic-beta: pdfs-2024-09-25'
         ]);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        
+
         if (curl_errno($ch)) {
             throw new Exception('Erreur Curl: ' . curl_error($ch));
         }
@@ -180,14 +326,18 @@ class ClaudeService {
 
         $data = json_decode($response, true);
         $content = $data['content'][0]['text'] ?? '';
-        
-        // Extraire le JSON de la réponse (au cas où il y a du texte autour)
-        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
-            $json = json_decode($matches[0], true);
-            if ($json) return $json;
+
+        // Extraire le JSON de la réponse
+        if (preg_match('/\[[\s\S]*\]/', $content, $matchesArray)) {
+            $json = json_decode($matchesArray[0], true);
+            if ($json !== null) return $json;
+        }
+        if (preg_match('/\{[\s\S]*\}/', $content, $matchesObj)) {
+            $json = json_decode($matchesObj[0], true);
+            if ($json !== null) return $json;
         }
 
-        throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé).");
+        throw new Exception("Réponse invalide de l'IA (pas de JSON trouvé): " . substr($content, 0, 200));
     }
 
     /**
