@@ -32,7 +32,16 @@ try {
     foreach ($cols as $col) {
         try { $pdo->exec("ALTER TABLE analyses_marche ADD COLUMN $col"); } catch (Exception $ex) {}
     }
+    // Modifier l'ENUM statut pour ajouter 'extraction'
+    try {
+        $pdo->exec("ALTER TABLE analyses_marche MODIFY COLUMN statut ENUM('en_cours', 'termine', 'erreur', 'extraction') DEFAULT 'en_cours'");
+    } catch (Exception $ex) {}
 }
+
+// S'assurer que l'ENUM statut inclut 'extraction' (migration existante)
+try {
+    $pdo->exec("ALTER TABLE analyses_marche MODIFY COLUMN statut ENUM('en_cours', 'termine', 'erreur', 'extraction') DEFAULT 'en_cours'");
+} catch (Exception $ex) {}
 
 // Vérifier les dépendances système
 $pdfService = new PdfExtractorService($pdo);
