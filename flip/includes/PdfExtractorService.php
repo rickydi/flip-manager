@@ -186,8 +186,8 @@ class PdfExtractorService {
         $chunks = [];
 
         // Pattern pour détecter le début d'une nouvelle propriété
-        // "No Centris    10979113 (Vendu en 31 jours)"
-        $pattern = '/No\s+Centris\s+(\d+)\s*\(Vendu en (\d+) jours?\)/i';
+        // Format Centris: "10979113 (Vendu en 31 jours)No Centris"
+        $pattern = '/(\d{7,8})\s*\(Vendu en (\d+) jours?\)\s*No\s*Centris/i';
 
         // Trouver toutes les occurrences
         preg_match_all($pattern, $text, $matches, PREG_OFFSET_CAPTURE);
@@ -208,14 +208,14 @@ class PdfExtractorService {
 
             $chunkText = substr($text, $startPos, $endPos - $startPos);
 
-            // Extraire les pages (pattern: "Page X de Y")
+            // Extraire les pages (pattern: "No Centris XXXXX - Page X de Y")
             $pageDebut = 1;
             $pageFin = 1;
-            if (preg_match('/Page\s+(\d+)\s+de\s+(\d+)/i', $chunkText, $pageMatch)) {
+            if (preg_match('/No\s*Centris\s*\d+\s*-\s*Page\s+(\d+)\s+de\s+(\d+)/i', $chunkText, $pageMatch)) {
                 $pageDebut = (int)$pageMatch[1];
             }
             // Chercher la dernière page mentionnée
-            preg_match_all('/Page\s+(\d+)\s+de\s+\d+/i', $chunkText, $allPages);
+            preg_match_all('/No\s*Centris\s*\d+\s*-\s*Page\s+(\d+)\s+de\s+\d+/i', $chunkText, $allPages);
             if (!empty($allPages[1])) {
                 $pageFin = max(array_map('intval', $allPages[1]));
             }
@@ -242,19 +242,21 @@ class PdfExtractorService {
     private function parseChunkData($text) {
         $data = [];
 
-        // Adresse (première ligne après le No Centris qui ressemble à une adresse)
-        if (preg_match('/(\d+[\s,]+(?:Rue|Avenue|Boulevard|Chemin|Place|Croissant)[^\n]+)/i', $text, $m)) {
+        // Adresse (ligne avec numéro + Rue/Avenue/Boulevard etc.)
+        if (preg_match('/(\d+[\s,]*(?:Rue|Avenue|Boulevard|Chemin|Place|Croissant|Av\.|Boul\.)[^\n]+)/iu', $text, $m)) {
             $data['adresse'] = trim($m[1]);
         }
 
-        // Prix vendu
-        if (preg_match('/([\d\s]+)\s*\$/m', $text, $m)) {
+        // Prix vendu (format: "640 000 $" ou "1 200 000 $")
+        if (preg_match('/([\d\s]{3,12})\s*\$/m', $text, $m)) {
             $data['prix_vendu'] = (int)preg_replace('/\s/', '', $m[1]);
         }
 
-        // Ville
-        if (preg_match('/Sainte?-[A-Za-z]+|[A-Z][a-z]+-[A-Za-z]+/', $text, $m)) {
-            $data['ville'] = $m[0];
+        // Ville - chercher après le code postal ou dans les premières lignes
+        if (preg_match('/[A-Z]\d[A-Z]\s*\d[A-Z]\d\s*\n\s*([A-Za-zÀ-ÿ\-]+)/u', $text, $m)) {
+            $data['ville'] = trim($m[1]);
+        } elseif (preg_match('/(Sainte?-[A-Za-zÀ-ÿ]+|[A-Z][a-zÀ-ÿ]+-[A-Za-zÀ-ÿ]+|Montréal|Laval|Québec|Longueuil|Gatineau)/u', $text, $m)) {
+            $data['ville'] = $m[1];
         }
 
         // Année de construction
