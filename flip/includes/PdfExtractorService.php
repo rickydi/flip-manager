@@ -2,15 +2,26 @@
 /**
  * Service d'extraction de PDF Centris
  * Extrait le texte et les images, organise par propriété
+ * Version PHP Pure - utilise smalot/pdfparser
  */
+
+// Charger l'autoloader Composer
+$composerAutoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (file_exists($composerAutoload)) {
+    require_once $composerAutoload;
+}
 
 class PdfExtractorService {
     private $pdo;
     private $uploadDir;
+    private $useNativeExtraction = false;
 
     public function __construct($pdo) {
         $this->pdo = $pdo;
         $this->uploadDir = dirname(__DIR__) . '/uploads/comparables/';
+
+        // Vérifier si la librairie PHP est disponible
+        $this->useNativeExtraction = class_exists('\\Smalot\\PdfParser\\Parser');
     }
 
     /**
@@ -60,26 +71,40 @@ class PdfExtractorService {
     }
 
     /**
-     * Extrait le texte du PDF avec pdftotext
+     * Extrait le texte du PDF - PHP Pure avec smalot/pdfparser
      */
     private function extractText($pdfPath) {
+        // Méthode 1: Utiliser smalot/pdfparser (PHP pure)
+        if ($this->useNativeExtraction) {
+            try {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($pdfPath);
+                $text = $pdf->getText();
+
+                if (!empty($text)) {
+                    return $text;
+                }
+            } catch (\Exception $e) {
+                // Log l'erreur mais continue avec fallback
+                error_log("PdfParser error: " . $e->getMessage());
+            }
+        }
+
+        // Méthode 2: Fallback vers pdftotext si disponible
         $output = [];
         $returnVar = 0;
-
-        // Essayer pdftotext (poppler-utils)
         exec("pdftotext -layout " . escapeshellarg($pdfPath) . " - 2>/dev/null", $output, $returnVar);
 
         if ($returnVar === 0 && !empty($output)) {
             return implode("\n", $output);
         }
 
-        // Fallback: essayer avec php-pdf-parser si disponible
-        // Pour l'instant, retourner vide si pdftotext échoue
         return '';
     }
 
     /**
-     * Extrait les images du PDF avec pdfimages
+     * Extrait les images du PDF
+     * Note: L'extraction d'images est optionnelle, l'analyse se fait principalement sur le texte
      */
     private function extractImages($pdfPath, $outputDir) {
         $imagesDir = $outputDir . 'all_images/';
@@ -87,29 +112,64 @@ class PdfExtractorService {
             mkdir($imagesDir, 0755, true);
         }
 
-        $returnVar = 0;
-        // Extraire en JPEG pour compatibilité
-        exec("pdfimages -j " . escapeshellarg($pdfPath) . " " . escapeshellarg($imagesDir . "img") . " 2>/dev/null", $output, $returnVar);
-
-        // Lister les images extraites
         $images = [];
-        $files = glob($imagesDir . "img-*.{jpg,jpeg,png,ppm}", GLOB_BRACE);
 
-        foreach ($files as $file) {
-            // Extraire le numéro de page de l'image (format: img-XXX-Y.jpg où XXX = page)
-            $basename = basename($file);
-            if (preg_match('/img-(\d+)/', $basename, $matches)) {
-                $pageNum = (int)$matches[1];
-                $images[] = [
-                    'path' => $file,
-                    'page' => $pageNum,
-                    'filename' => $basename
-                ];
+        // Méthode 1: Essayer pdfimages si disponible
+        $returnVar = 0;
+        exec("which pdfimages 2>/dev/null", $checkOutput, $checkReturn);
+
+        if ($checkReturn === 0) {
+            exec("pdfimages -j " . escapeshellarg($pdfPath) . " " . escapeshellarg($imagesDir . "img") . " 2>/dev/null", $output, $returnVar);
+
+            $files = glob($imagesDir . "img-*.{jpg,jpeg,png,ppm}", GLOB_BRACE);
+
+            foreach ($files as $file) {
+                $basename = basename($file);
+                if (preg_match('/img-(\d+)/', $basename, $matches)) {
+                    $pageNum = (int)$matches[1];
+                    $images[] = [
+                        'path' => $file,
+                        'page' => $pageNum,
+                        'filename' => $basename
+                    ];
+                }
             }
+
+            usort($images, function($a, $b) { return $a['page'] - $b['page']; });
         }
 
-        // Trier par page
-        usort($images, function($a, $b) { return $a['page'] - $b['page']; });
+        // Méthode 2: Essayer d'extraire avec smalot/pdfparser (limité mais fonctionne parfois)
+        if (empty($images) && $this->useNativeExtraction) {
+            try {
+                $parser = new \Smalot\PdfParser\Parser();
+                $pdf = $parser->parseFile($pdfPath);
+
+                $imgCount = 0;
+                foreach ($pdf->getPages() as $pageNum => $page) {
+                    $xObjects = $page->getXObjects();
+                    foreach ($xObjects as $xObject) {
+                        if ($xObject instanceof \Smalot\PdfParser\XObject\Image) {
+                            $imgCount++;
+                            $imgPath = $imagesDir . 'img-' . str_pad($pageNum, 3, '0', STR_PAD_LEFT) . '-' . $imgCount . '.jpg';
+
+                            // Essayer d'extraire le contenu de l'image
+                            $content = $xObject->getContent();
+                            if (!empty($content)) {
+                                file_put_contents($imgPath, $content);
+                                $images[] = [
+                                    'path' => $imgPath,
+                                    'page' => $pageNum,
+                                    'filename' => basename($imgPath)
+                                ];
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // L'extraction d'images peut échouer, ce n'est pas critique
+                error_log("Image extraction error: " . $e->getMessage());
+            }
+        }
 
         return $images;
     }
@@ -351,17 +411,28 @@ class PdfExtractorService {
 
     /**
      * Vérifie si les outils nécessaires sont installés
+     * Retourne true pour PHP pure même sans poppler-utils
      */
     public static function checkDependencies() {
         $results = [];
 
-        // Vérifier pdftotext
+        // Vérifier la librairie PHP pure (smalot/pdfparser)
+        $composerAutoload = dirname(__DIR__) . '/vendor/autoload.php';
+        if (file_exists($composerAutoload)) {
+            require_once $composerAutoload;
+        }
+        $results['php_parser'] = class_exists('\\Smalot\\PdfParser\\Parser');
+
+        // Vérifier pdftotext (optionnel maintenant)
         exec('which pdftotext 2>/dev/null', $output, $returnVar);
         $results['pdftotext'] = $returnVar === 0;
 
-        // Vérifier pdfimages
+        // Vérifier pdfimages (optionnel maintenant)
         exec('which pdfimages 2>/dev/null', $output2, $returnVar2);
         $results['pdfimages'] = $returnVar2 === 0;
+
+        // Le module fonctionne si PHP parser OU pdftotext est disponible
+        $results['ready'] = $results['php_parser'] || $results['pdftotext'];
 
         return $results;
     }
