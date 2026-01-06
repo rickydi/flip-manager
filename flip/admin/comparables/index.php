@@ -4,10 +4,6 @@
  * Version 2 - Workflow par chunks avec extraction PDF
  * Flip Manager
  */
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-try {
 
 require_once '../../config.php';
 require_once '../../includes/auth.php';
@@ -333,9 +329,4 @@ document.getElementById('formAnalyse').addEventListener('submit', function() {
 });
 </script>
 
-<?php include '../../includes/footer.php';
-
-} catch (Exception $e) {
-    echo '<pre>ERREUR: ' . htmlspecialchars($e->getMessage()) . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
-}
-?>
+<?php include '../../includes/footer.php'; ?>
