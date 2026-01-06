@@ -93,7 +93,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                         // Mettre à jour le statut en erreur
                         $pdo->prepare("UPDATE analyses_marche SET statut = 'erreur', error_log = ? WHERE id = ?")
                             ->execute([$result['error'], $analyseId]);
-                        $errors[] = $result['error'];
+
+                        // Debug: sauvegarder le texte extrait pour analyse
+                        if (isset($result['debug_text'])) {
+                            $debugFile = $uploadDir . 'debug_' . $analyseId . '.txt';
+                            file_put_contents($debugFile, $result['debug_text']);
+                            $errors[] = $result['error'] . ' <a href="' . $debugFile . '" target="_blank">Voir le texte extrait</a>';
+                        } else {
+                            $errors[] = $result['error'];
+                        }
                     } else {
                         // Sauvegarder les chunks en DB
                         $pdfService->saveChunksToDb($analyseId, $result['chunks'], $result['path']);

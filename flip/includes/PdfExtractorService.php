@@ -46,7 +46,12 @@ class PdfExtractorService {
         // 2. Découper par propriété (No Centris)
         $chunks = $this->splitByProperty($text);
         if (empty($chunks)) {
-            return ['success' => false, 'error' => 'Aucune propriété trouvée dans le PDF'];
+            // Retourner le texte extrait pour debug
+            return [
+                'success' => false,
+                'error' => 'Aucune propriété trouvée dans le PDF',
+                'debug_text' => substr($text, 0, 5000) // Premiers 5000 caractères
+            ];
         }
 
         // 3. Extraire les images
