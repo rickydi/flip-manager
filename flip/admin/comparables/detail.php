@@ -1,166 +1,517 @@
 <?php
 /**
- * Détail d'une analyse de marché (IA)
+ * Détail d'une analyse de marché - Comparables IA
+ * Version 2 - Workflow par chunks avec galerie photos
  * Flip Manager
  */
 
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/ClaudeService.php';
 
 requireAdmin();
 
-$analyseId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+$analyseId = (int)($_GET['id'] ?? 0);
+if (!$analyseId) {
+    setFlashMessage('Analyse introuvable.', 'danger');
+    redirect('/admin/comparables/index.php');
+}
 
 // Récupérer l'analyse
 $stmt = $pdo->prepare("
-    SELECT a.*, p.nom as projet_nom, p.adresse as projet_adresse
-    FROM analyses_marche a 
-    LEFT JOIN projets p ON a.projet_id = p.id 
+    SELECT a.*, p.nom as projet_nom, p.adresse as projet_adresse, p.ville as projet_ville
+    FROM analyses_marche a
+    LEFT JOIN projets p ON a.projet_id = p.id
     WHERE a.id = ?
 ");
 $stmt->execute([$analyseId]);
 $analyse = $stmt->fetch();
 
 if (!$analyse) {
-    setFlashMessage('danger', 'Analyse introuvable.');
+    setFlashMessage('Analyse introuvable.', 'danger');
     redirect('/admin/comparables/index.php');
 }
 
-$pageTitle = 'Rapport: ' . $analyse['nom_rapport'];
+// Récupérer les chunks
+$stmtChunks = $pdo->prepare("
+    SELECT c.*, (SELECT COUNT(*) FROM comparables_photos WHERE chunk_id = c.id) as nb_photos
+    FROM comparables_chunks c
+    WHERE c.analyse_id = ?
+    ORDER BY c.id
+");
+$stmtChunks->execute([$analyseId]);
+$chunks = $stmtChunks->fetchAll();
 
-// Récupérer les items (comparables)
-$stmt = $pdo->prepare("SELECT * FROM comparables_items WHERE analyse_id = ? ORDER BY prix_vendu DESC");
-$stmt->execute([$analyseId]);
-$items = $stmt->fetchAll();
+// Compter les chunks par statut
+$chunksPending = 0;
+$chunksDone = 0;
+foreach ($chunks as $chunk) {
+    if ($chunk['statut'] === 'done') $chunksDone++;
+    else $chunksPending++;
+}
+
+$pageTitle = $analyse['nom_rapport'];
+
+// Traitement AJAX pour analyser un chunk
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    header('Content-Type: application/json');
+
+    if ($_POST['action'] === 'analyze_chunk') {
+        $chunkId = (int)($_POST['chunk_id'] ?? 0);
+
+        try {
+            // Récupérer le chunk
+            $stmtChunk = $pdo->prepare("SELECT * FROM comparables_chunks WHERE id = ? AND analyse_id = ?");
+            $stmtChunk->execute([$chunkId, $analyseId]);
+            $chunk = $stmtChunk->fetch();
+
+            if (!$chunk) {
+                echo json_encode(['success' => false, 'error' => 'Chunk introuvable']);
+                exit;
+            }
+
+            // Récupérer les photos du chunk
+            $stmtPhotos = $pdo->prepare("SELECT * FROM comparables_photos WHERE chunk_id = ? ORDER BY ordre");
+            $stmtPhotos->execute([$chunkId]);
+            $photos = $stmtPhotos->fetchAll();
+
+            // Infos du projet sujet
+            $projetInfo = [
+                'adresse' => $analyse['projet_adresse'] . ', ' . $analyse['projet_ville'],
+                'type' => 'Maison unifamiliale rénové'
+            ];
+
+            // Données du chunk pour l'analyse
+            $chunkData = [
+                'adresse' => $chunk['adresse'],
+                'prix_vendu' => $chunk['prix_vendu'],
+                'renovations_texte' => $chunk['renovations_texte']
+            ];
+
+            // Analyser les photos avec Claude
+            $claudeService = new ClaudeService($pdo);
+            $result = $claudeService->analyzeChunkPhotos($photos, $chunkData, $projetInfo);
+
+            // Mettre à jour le chunk avec les résultats
+            $stmtUpdate = $pdo->prepare("
+                UPDATE comparables_chunks
+                SET etat_note = ?, etat_analyse = ?, ajustement = ?, commentaire_ia = ?, statut = 'done'
+                WHERE id = ?
+            ");
+            $stmtUpdate->execute([
+                $result['etat_note'] ?? 5,
+                $result['etat_analyse'] ?? '',
+                $result['ajustement'] ?? 0,
+                $result['commentaire_ia'] ?? '',
+                $chunkId
+            ]);
+
+            // Vérifier si tous les chunks sont terminés
+            $stmtRemaining = $pdo->prepare("SELECT COUNT(*) FROM comparables_chunks WHERE analyse_id = ? AND statut != 'done'");
+            $stmtRemaining->execute([$analyseId]);
+            $remaining = $stmtRemaining->fetchColumn();
+
+            echo json_encode([
+                'success' => true,
+                'result' => $result,
+                'remaining' => $remaining
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    if ($_POST['action'] === 'finalize') {
+        try {
+            // Récupérer tous les chunks terminés
+            $stmtChunks = $pdo->prepare("SELECT * FROM comparables_chunks WHERE analyse_id = ? AND statut = 'done'");
+            $stmtChunks->execute([$analyseId]);
+            $allChunks = $stmtChunks->fetchAll();
+
+            // Infos du projet
+            $projetInfo = [
+                'adresse' => $analyse['projet_adresse'] . ', ' . $analyse['projet_ville']
+            ];
+
+            // Consolider les résultats
+            $claudeService = new ClaudeService($pdo);
+            $consolidated = $claudeService->consolidateChunksAnalysis($allChunks, $projetInfo);
+
+            // Mettre à jour l'analyse
+            $stmtUpdate = $pdo->prepare("
+                UPDATE analyses_marche
+                SET prix_suggere_ia = ?, fourchette_basse = ?, fourchette_haute = ?,
+                    analyse_ia_texte = ?, statut = 'termine'
+                WHERE id = ?
+            ");
+            $stmtUpdate->execute([
+                $consolidated['prix_suggere'],
+                $consolidated['fourchette_basse'],
+                $consolidated['fourchette_haute'],
+                $consolidated['commentaire_general'],
+                $analyseId
+            ]);
+
+            echo json_encode([
+                'success' => true,
+                'consolidated' => $consolidated
+            ]);
+        } catch (Exception $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        }
+        exit;
+    }
+}
 
 include '../../includes/header.php';
 ?>
 
+<style>
+.chunk-card {
+    transition: all 0.3s ease;
+}
+.chunk-card.analyzing {
+    border-color: #ffc107 !important;
+    box-shadow: 0 0 10px rgba(255, 193, 7, 0.3);
+}
+.chunk-card.done {
+    border-color: #198754 !important;
+}
+.chunk-card.error {
+    border-color: #dc3545 !important;
+}
+.photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+}
+.photo-grid img {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.photo-grid img:hover {
+    transform: scale(1.05);
+}
+.price-summary {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 24px;
+}
+.price-main {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+.progress-analysis {
+    height: 30px;
+    font-size: 1rem;
+}
+.note-badge {
+    font-size: 1.2rem;
+    padding: 0.5em 0.8em;
+}
+.ajustement-positif { color: #198754; }
+.ajustement-negatif { color: #dc3545; }
+</style>
+
 <div class="container-fluid">
-    <div class="page-header d-flex justify-content-between align-items-center no-print">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
-                    <li class="breadcrumb-item"><a href="<?= url('/admin/comparables/index.php') ?>">Comparables & IA</a></li>
-                    <li class="breadcrumb-item active"><?= e($analyse['nom_rapport']) ?></li>
-                </ol>
-            </nav>
-            <h1><i class="bi bi-file-earmark-bar-graph me-2"></i>Rapport d'analyse</h1>
-        </div>
-        <div class="d-flex gap-2">
-            <button onclick="window.print()" class="btn btn-outline-secondary">
-                <i class="bi bi-printer me-1"></i>Imprimer
-            </button>
-            <a href="index.php" class="btn btn-secondary">Retour</a>
-        </div>
+    <div class="page-header">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= url('/admin/comparables/index.php') ?>">Comparables</a></li>
+                <li class="breadcrumb-item active"><?= e($analyse['nom_rapport']) ?></li>
+            </ol>
+        </nav>
+        <h1><i class="bi bi-robot me-2"></i><?= e($analyse['nom_rapport']) ?></h1>
     </div>
 
-    <!-- Résumé IA -->
-    <div class="row mb-4">
-        <div class="col-lg-8">
-            <div class="card h-100 border-primary">
-                <div class="card-header bg-primary text-white">
-                    <i class="bi bi-robot me-2"></i>Analyse de l'IA (Claude)
+    <!-- Résumé Prix -->
+    <?php if ($analyse['statut'] === 'termine' && $analyse['prix_suggere_ia'] > 0): ?>
+        <div class="price-summary mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-4 text-center">
+                    <div class="text-uppercase small opacity-75">Prix Suggéré</div>
+                    <div class="price-main"><?= formatMoney($analyse['prix_suggere_ia']) ?></div>
                 </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <h5 class="card-title text-primary">Prix Suggéré : <?= formatMoney($analyse['prix_suggere_ia']) ?></h5>
-                            <h6 class="card-subtitle text-muted">
-                                Fourchette : <?= formatMoney($analyse['fourchette_basse']) ?> - <?= formatMoney($analyse['fourchette_haute']) ?>
-                            </h6>
+                <div class="col-md-4 text-center">
+                    <div class="text-uppercase small opacity-75">Fourchette</div>
+                    <div class="fs-4">
+                        <?= formatMoney($analyse['fourchette_basse']) ?> - <?= formatMoney($analyse['fourchette_haute']) ?>
+                    </div>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="text-uppercase small opacity-75">Comparables</div>
+                    <div class="fs-4"><?= count($chunks) ?> propriétés</div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- Progression et Actions -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-3">Progression de l'analyse</h5>
+                    <div class="progress progress-analysis mb-2">
+                        <div class="progress-bar bg-success" id="progressBar"
+                             style="width: <?= count($chunks) > 0 ? round(($chunksDone / count($chunks)) * 100) : 0 ?>%">
+                            <span id="progressText"><?= $chunksDone ?>/<?= count($chunks) ?></span>
                         </div>
-                        <span class="badge bg-info text-dark">Date : <?= formatDateTime($analyse['date_analyse']) ?></span>
                     </div>
-                    <div class="card-text" style="white-space: pre-line;">
-                        <?= nl2br(e($analyse['analyse_ia_texte'])) ?>
-                    </div>
+                    <small class="text-muted" id="statusText">
+                        <?php if ($analyse['statut'] === 'termine'): ?>
+                            Analyse terminée
+                        <?php elseif ($chunksDone === count($chunks) && count($chunks) > 0): ?>
+                            Prêt pour finalisation
+                        <?php else: ?>
+                            <?= $chunksPending ?> propriétés à analyser
+                        <?php endif; ?>
+                    </small>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-header">
-                    <i class="bi bi-info-circle me-2"></i>Détails du sujet
-                </div>
-                <div class="card-body">
-                    <p><strong>Projet :</strong> <?= e($analyse['projet_nom'] ?? 'N/A') ?></p>
-                    <p><strong>Adresse :</strong> <?= e($analyse['projet_adresse'] ?? 'N/A') ?></p>
-                    <hr>
-                    <p class="mb-1"><strong>Statistiques Comparables :</strong></p>
-                    <ul class="list-unstyled">
-                        <li>Nombre de vendus : <strong><?= count($items) ?></strong></li>
-                        <li>Prix moyen : <strong><?= formatMoney($analyse['prix_moyen']) ?></strong></li>
-                        <li>Prix médian : <strong><?= formatMoney($analyse['prix_median']) ?></strong></li>
-                    </ul>
+                <div class="col-md-6 text-end">
+                    <?php if ($analyse['statut'] !== 'termine'): ?>
+                        <?php if ($chunksDone < count($chunks)): ?>
+                            <button class="btn btn-primary btn-lg" id="btnStartAnalysis">
+                                <i class="bi bi-play-fill me-2"></i>
+                                <?= $chunksDone > 0 ? 'Continuer' : 'Lancer' ?> l'analyse IA
+                            </button>
+                        <?php else: ?>
+                            <button class="btn btn-success btn-lg" id="btnFinalize">
+                                <i class="bi bi-check-circle me-2"></i>Finaliser et calculer le prix
+                            </button>
+                        <?php endif; ?>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tableau des Comparables -->
-    <div class="card">
-        <div class="card-header">
-            <i class="bi bi-houses me-2"></i>Propriétés comparées
+    <!-- Commentaire IA global -->
+    <?php if (!empty($analyse['analyse_ia_texte'])): ?>
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-chat-left-text me-2"></i>Analyse consolidée
+            </div>
+            <div class="card-body">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: inherit;"><?= e($analyse['analyse_ia_texte']) ?></pre>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-striped table-hover align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th style="width: 20%;">Adresse</th>
-                        <th style="width: 10%;">Prix Vendu</th>
-                        <th style="width: 10%;">Vendu le</th>
-                        <th style="width: 10%;">Délai</th>
-                        <th style="width: 10%;">Caractéristiques</th>
-                        <th style="width: 15%;">État (Note IA)</th>
-                        <th style="width: 10%;">Ajustement</th>
-                        <th style="width: 15%;">Commentaire</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($items as $item): ?>
-                    <tr>
-                        <td>
-                            <strong><?= e($item['adresse']) ?></strong><br>
-                            <small class="text-muted">Année <?= $item['annee_construction'] ?></small>
-                        </td>
-                        <td class="fw-bold text-primary"><?= formatMoney($item['prix_vendu']) ?></td>
-                        <td><?= formatDate($item['date_vente']) ?></td>
-                        <td><?= $item['delai_vente'] > 0 ? $item['delai_vente'] . ' jours' : '-' ?></td>
-                        <td>
-                            <small>
-                                <i class="bi bi-door-closed me-1"></i><?= e($item['chambres']) ?> ch.<br>
-                                <i class="bi bi-droplet me-1"></i><?= e($item['salles_bains']) ?> sdb<br>
-                                <i class="bi bi-arrows-fullscreen me-1"></i><?= e($item['superficie_batiment']) ?>
-                            </small>
-                        </td>
-                        <td>
-                            <div class="d-flex align-items-center mb-1">
-                                <span class="badge bg-<?= $item['etat_general_note'] >= 8 ? 'success' : ($item['etat_general_note'] >= 6 ? 'warning' : 'danger') ?> me-2">
-                                    <?= $item['etat_general_note'] ?>/10
-                                </span>
-                                <small><?= e($item['etat_general_texte']) ?></small>
-                            </div>
-                            <?php if ($item['renovations_mentionnees']): ?>
-                                <small class="text-muted d-block text-truncate" style="max-width: 150px;" title="<?= e($item['renovations_mentionnees']) ?>">
-                                    Rénos: <?= e($item['renovations_mentionnees']) ?>
-                                </small>
+    <?php endif; ?>
+
+    <!-- Liste des Chunks (Comparables) -->
+    <h4 class="mb-3"><i class="bi bi-houses me-2"></i>Propriétés comparables (<?= count($chunks) ?>)</h4>
+
+    <div class="row" id="chunksContainer">
+        <?php foreach ($chunks as $index => $chunk): ?>
+            <div class="col-lg-6 mb-4">
+                <div class="card chunk-card h-100 <?= $chunk['statut'] === 'done' ? 'done' : '' ?>"
+                     id="chunk-<?= $chunk['id'] ?>"
+                     data-chunk-id="<?= $chunk['id'] ?>"
+                     data-status="<?= $chunk['statut'] ?>">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>No Centris: <?= e($chunk['no_centris']) ?></strong>
+                            <?php if ($chunk['statut'] === 'done'): ?>
+                                <span class="badge bg-success ms-2"><i class="bi bi-check"></i></span>
+                            <?php elseif ($chunk['statut'] === 'error'): ?>
+                                <span class="badge bg-danger ms-2"><i class="bi bi-x"></i></span>
                             <?php endif; ?>
-                        </td>
-                        <td class="<?= $item['ajustement_ia'] > 0 ? 'text-success' : ($item['ajustement_ia'] < 0 ? 'text-danger' : 'text-muted') ?>">
-                            <?= $item['ajustement_ia'] > 0 ? '+' : '' ?><?= formatMoney($item['ajustement_ia']) ?>
-                        </td>
-                        <td>
-                            <small class="text-muted"><?= e($item['commentaire_ia']) ?></small>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+                        </div>
+                        <span class="badge bg-secondary"><?= $chunk['nb_photos'] ?> photos</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <p class="mb-1"><strong><?= e($chunk['adresse'] ?? 'Adresse inconnue') ?></strong></p>
+                                <?php if ($chunk['ville']): ?>
+                                    <p class="text-muted mb-2"><?= e($chunk['ville']) ?></p>
+                                <?php endif; ?>
+
+                                <div class="d-flex gap-3 mb-2">
+                                    <?php if ($chunk['prix_vendu'] > 0): ?>
+                                        <span><i class="bi bi-tag text-primary"></i> <?= formatMoney($chunk['prix_vendu']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['jours_marche']): ?>
+                                        <span><i class="bi bi-calendar3 text-muted"></i> <?= $chunk['jours_marche'] ?> jours</span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="d-flex gap-3 small text-muted">
+                                    <?php if ($chunk['chambres']): ?>
+                                        <span><i class="bi bi-door-closed"></i> <?= e($chunk['chambres']) ?> ch</span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['sdb']): ?>
+                                        <span><i class="bi bi-droplet"></i> <?= e($chunk['sdb']) ?> sdb</span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['annee_construction']): ?>
+                                        <span><i class="bi bi-building"></i> <?= $chunk['annee_construction'] ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Résultats IA -->
+                                <?php if ($chunk['statut'] === 'done'): ?>
+                                    <hr>
+                                    <div class="d-flex align-items-center gap-3 mb-2">
+                                        <span class="note-badge badge bg-<?= $chunk['etat_note'] >= 7 ? 'success' : ($chunk['etat_note'] >= 5 ? 'warning' : 'danger') ?>">
+                                            <?= number_format($chunk['etat_note'], 1) ?>/10
+                                        </span>
+                                        <?php if ($chunk['ajustement'] != 0): ?>
+                                            <span class="fs-5 fw-bold <?= $chunk['ajustement'] >= 0 ? 'ajustement-positif' : 'ajustement-negatif' ?>">
+                                                <?= $chunk['ajustement'] >= 0 ? '+' : '' ?><?= formatMoney($chunk['ajustement']) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <?php if ($chunk['etat_analyse']): ?>
+                                        <p class="small mb-1"><strong>État:</strong> <?= e($chunk['etat_analyse']) ?></p>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['commentaire_ia']): ?>
+                                        <p class="small text-muted mb-0"><?= e($chunk['commentaire_ia']) ?></p>
+                                    <?php endif; ?>
+                                <?php endif; ?>
+                            </div>
+                            <div class="col-md-5">
+                                <?php
+                                // Récupérer les photos du chunk
+                                $stmtPhotos = $pdo->prepare("SELECT * FROM comparables_photos WHERE chunk_id = ? ORDER BY ordre LIMIT 6");
+                                $stmtPhotos->execute([$chunk['id']]);
+                                $photos = $stmtPhotos->fetchAll();
+                                ?>
+                                <?php if (!empty($photos)): ?>
+                                    <div class="photo-grid">
+                                        <?php foreach ($photos as $photo): ?>
+                                            <?php
+                                            // Convertir le chemin absolu en URL relative
+                                            $photoUrl = str_replace(dirname(dirname(__DIR__)), '', $photo['file_path']);
+                                            ?>
+                                            <img src="<?= e($photoUrl) ?>"
+                                                 alt="<?= e($photo['label'] ?? 'Photo') ?>"
+                                                 onclick="openLightbox('<?= e($photoUrl) ?>')"
+                                                 loading="lazy">
+                                        <?php endforeach; ?>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="text-center text-muted py-4">
+                                        <i class="bi bi-image fs-1"></i>
+                                        <p class="small mb-0">Aucune photo</p>
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</div>
+
+<!-- Lightbox Modal -->
+<div class="modal fade" id="lightboxModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark">
+            <div class="modal-body p-0 text-center">
+                <img src="" id="lightboxImage" class="img-fluid" style="max-height: 90vh;">
+                <button type="button" class="btn-close btn-close-white position-absolute top-0 end-0 m-3" data-bs-dismiss="modal"></button>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function openLightbox(src) {
+    document.getElementById('lightboxImage').src = src;
+    new bootstrap.Modal(document.getElementById('lightboxModal')).show();
+}
+
+// Analyse des chunks
+document.getElementById('btnStartAnalysis')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyse en cours...';
+
+    const chunks = document.querySelectorAll('.chunk-card[data-status="pending"]');
+    const totalChunks = <?= count($chunks) ?>;
+    let doneCount = <?= $chunksDone ?>;
+
+    for (const card of chunks) {
+        const chunkId = card.dataset.chunkId;
+        card.classList.add('analyzing');
+
+        try {
+            const response = await fetch('', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `action=analyze_chunk&chunk_id=${chunkId}`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                card.classList.remove('analyzing');
+                card.classList.add('done');
+                card.dataset.status = 'done';
+                doneCount++;
+
+                // Mettre à jour la progression
+                const progress = Math.round((doneCount / totalChunks) * 100);
+                document.getElementById('progressBar').style.width = progress + '%';
+                document.getElementById('progressText').textContent = doneCount + '/' + totalChunks;
+
+                // Recharger la page pour afficher les résultats (simple pour l'instant)
+                if (data.remaining === 0) {
+                    location.reload();
+                }
+            } else {
+                card.classList.remove('analyzing');
+                card.classList.add('error');
+                console.error('Erreur:', data.error);
+            }
+        } catch (err) {
+            card.classList.remove('analyzing');
+            card.classList.add('error');
+            console.error('Erreur réseau:', err);
+        }
+    }
+
+    // Recharger pour voir le bouton finaliser
+    location.reload();
+});
+
+// Finalisation
+document.getElementById('btnFinalize')?.addEventListener('click', async function() {
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Calcul en cours...';
+
+    try {
+        const response = await fetch('', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'action=finalize'
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Finaliser et calculer le prix';
+        }
+    } catch (err) {
+        alert('Erreur réseau');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Finaliser et calculer le prix';
+    }
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>
