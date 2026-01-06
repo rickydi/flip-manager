@@ -20,12 +20,8 @@ $pageTitle = 'Comparables & Analyse IA';
 
 // Auto-migration des tables si elles n'existent pas
 $tableExists = false;
-try {
-    $pdo->query("SELECT 1 FROM comparables_chunks LIMIT 1");
-    $tableExists = true;
-} catch (PDOException $e) {
-    $tableExists = false;
-}
+$checkTable = $pdo->query("SHOW TABLES LIKE 'comparables_chunks'");
+$tableExists = $checkTable->rowCount() > 0;
 
 if (!$tableExists) {
     // Exécuter le SQL de migration V2
@@ -124,14 +120,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Récupérer les analyses existantes
-$stmt = $pdo->query("
-    SELECT a.*, p.nom as projet_nom,
-           (SELECT COUNT(*) FROM comparables_chunks WHERE analyse_id = a.id) as nb_chunks,
-           (SELECT COUNT(*) FROM comparables_chunks WHERE analyse_id = a.id AND statut = 'done') as chunks_done
-    FROM analyses_marche a
-    LEFT JOIN projets p ON a.projet_id = p.id
-    ORDER BY a.date_analyse DESC
-");
+$chunksTableCheck = $pdo->query("SHOW TABLES LIKE 'comparables_chunks'")->rowCount() > 0;
+if ($chunksTableCheck) {
+    $stmt = $pdo->query("
+        SELECT a.*, p.nom as projet_nom,
+               (SELECT COUNT(*) FROM comparables_chunks WHERE analyse_id = a.id) as nb_chunks,
+               (SELECT COUNT(*) FROM comparables_chunks WHERE analyse_id = a.id AND statut = 'done') as chunks_done
+        FROM analyses_marche a
+        LEFT JOIN projets p ON a.projet_id = p.id
+        ORDER BY a.date_analyse DESC
+    ");
+} else {
+    $stmt = $pdo->query("
+        SELECT a.*, p.nom as projet_nom, 0 as nb_chunks, 0 as chunks_done
+        FROM analyses_marche a
+        LEFT JOIN projets p ON a.projet_id = p.id
+        ORDER BY a.date_analyse DESC
+    ");
+}
 $analyses = $stmt->fetchAll();
 
 // Récupérer les projets pour le formulaire
