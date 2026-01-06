@@ -23,9 +23,14 @@ try {
     $queries = explode(';', $sqlMigration);
     foreach ($queries as $query) {
         $query = trim($query);
-        if (!empty($query) && !str_starts_with(trim($query), '--')) {
+        if (!empty($query) && substr(trim($query), 0, 2) !== '--') {
             try { $pdo->exec($query); } catch (Exception $ex) {}
         }
+    }
+    // Ajouter colonnes à analyses_marche (ignore si existent déjà)
+    $cols = ['total_chunks INT DEFAULT 0', 'processed_chunks INT DEFAULT 0', 'photos_analyzed INT DEFAULT 0', 'extraction_path VARCHAR(255)', 'error_log TEXT'];
+    foreach ($cols as $col) {
+        try { $pdo->exec("ALTER TABLE analyses_marche ADD COLUMN $col"); } catch (Exception $ex) {}
     }
 }
 

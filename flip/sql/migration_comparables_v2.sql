@@ -43,12 +43,7 @@ CREATE TABLE IF NOT EXISTS comparables_chunks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Modifier la table analyses_marche pour le nouveau workflow
-ALTER TABLE analyses_marche
-    ADD COLUMN IF NOT EXISTS total_chunks INT DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS processed_chunks INT DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS photos_analyzed INT DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS extraction_path VARCHAR(255),
-    ADD COLUMN IF NOT EXISTS error_log TEXT;
+-- Note: Ces colonnes seront ajoutées manuellement si elles n'existent pas
 
 -- Table pour stocker les photos individuelles (optionnel, pour galerie)
 CREATE TABLE IF NOT EXISTS comparables_photos (
