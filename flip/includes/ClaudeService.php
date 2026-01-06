@@ -153,6 +153,199 @@ class ClaudeService {
         return $this->callApi($payload);
     }
 
+/**
+     * Analyse les photos d'une propriété (chunk) avec Claude Vision
+     * @param array $photos Liste des chemins vers les photos
+     * @param array $chunkData Données texte déjà extraites (adresse, prix, etc.)
+     * @param array $projetInfo Infos du projet sujet pour comparaison
+     * @return array Analyse de l'état et ajustement suggéré
+     */
+    public function analyzeChunkPhotos($photos, $chunkData, $projetInfo) {
+        if (empty($photos)) {
+            return [
+                'etat_note' => 5,
+                'etat_analyse' => 'Aucune photo disponible',
+                'ajustement' => 0,
+                'commentaire_ia' => 'Analyse basée uniquement sur les données texte.'
+            ];
+        }
+
+        // Préparer les images pour l'API (max 5 photos pour limiter les coûts)
+        $imageContents = [];
+        $photosPaths = array_slice($photos, 0, 5);
+
+        foreach ($photosPaths as $photo) {
+            $path = is_array($photo) ? $photo['path'] : $photo;
+            if (file_exists($path)) {
+                $imageData = base64_encode(file_get_contents($path));
+                $mimeType = $this->getMimeType($path);
+                if ($mimeType) {
+                    $imageContents[] = [
+                        'type' => 'image',
+                        'source' => [
+                            'type' => 'base64',
+                            'media_type' => $mimeType,
+                            'data' => $imageData
+                        ]
+                    ];
+                }
+            }
+        }
+
+        if (empty($imageContents)) {
+            return [
+                'etat_note' => 5,
+                'etat_analyse' => 'Photos non lisibles',
+                'ajustement' => 0,
+                'commentaire_ia' => 'Impossible de lire les photos.'
+            ];
+        }
+
+        $adresse = $chunkData['adresse'] ?? 'Inconnue';
+        $prixVendu = $chunkData['prix_vendu'] ?? 0;
+        $renovationsTexte = $chunkData['renovations_texte'] ?? '';
+
+        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec spécialisé dans les flips. " .
+                       "Tu analyses les photos d'une propriété VENDUE pour évaluer son état de rénovation. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        $userMessage = "PROPRIÉTÉ COMPARABLE: {$adresse}\n" .
+                      "Prix vendu: " . number_format($prixVendu, 0, ',', ' ') . " $\n" .
+                      "Rénovations mentionnées: {$renovationsTexte}\n\n" .
+                      "PROJET SUJET (ma propriété à vendre):\n" .
+                      "- Adresse: " . ($projetInfo['adresse'] ?? 'N/A') . "\n" .
+                      "- État prévu: Entièrement rénové au goût du jour (cuisine quartz/moderne, SDB modernes, planchers neufs)\n\n" .
+                      "Analyse ces photos et retourne:\n" .
+                      "- etat_note: Note de 1 à 10 (1=délabré, 5=correct, 8=bien rénové, 10=luxe)\n" .
+                      "- etat_analyse: Description de l'état (cuisine, SDB, planchers, finitions)\n" .
+                      "- ajustement: Montant +/- $ pour ajuster ce comparable au niveau du sujet\n" .
+                      "  - Si comparable MIEUX rénové que sujet: ajustement NÉGATIF (ex: -20000)\n" .
+                      "  - Si comparable MOINS rénové que sujet: ajustement POSITIF (ex: +30000)\n" .
+                      "- commentaire_ia: Justification de l'ajustement\n\n" .
+                      "Format JSON:\n" .
+                      "{\"etat_note\": 7, \"etat_analyse\": \"Cuisine moderne avec îlot, SDB rénovées, planchers bois\", \"ajustement\": -10000, \"commentaire_ia\": \"Comparable bien rénové, similaire au sujet\"}";
+
+        // Ajouter le texte à la fin des images
+        $imageContents[] = [
+            'type' => 'text',
+            'text' => $userMessage
+        ];
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 1024,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $imageContents
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            return $this->callApiSimple($payload);
+        } catch (Exception $e) {
+            return [
+                'etat_note' => 5,
+                'etat_analyse' => 'Erreur d\'analyse',
+                'ajustement' => 0,
+                'commentaire_ia' => 'Erreur: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * Détermine le type MIME d'une image
+     */
+    private function getMimeType($path) {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp'
+        ];
+        return $mimeTypes[$ext] ?? null;
+    }
+
+    /**
+     * Consolide les analyses de tous les chunks pour calculer le prix suggéré
+     * @param array $chunks Données des chunks avec analyses
+     * @param array $projetInfo Infos du projet sujet
+     * @return array Analyse globale consolidée
+     */
+    public function consolidateChunksAnalysis($chunks, $projetInfo) {
+        $prixAjustes = [];
+        $commentaires = [];
+
+        foreach ($chunks as $chunk) {
+            $prixVendu = (float)($chunk['prix_vendu'] ?? 0);
+            $ajustement = (float)($chunk['ajustement'] ?? 0);
+
+            if ($prixVendu > 0) {
+                $prixAjuste = $prixVendu + $ajustement;
+                $prixAjustes[] = $prixAjuste;
+
+                $commentaires[] = sprintf(
+                    "%s: %s$ vendu → %s$ ajusté (%s$)",
+                    $chunk['adresse'] ?? $chunk['no_centris'],
+                    number_format($prixVendu, 0, ',', ' '),
+                    number_format($prixAjuste, 0, ',', ' '),
+                    ($ajustement >= 0 ? '+' : '') . number_format($ajustement, 0, ',', ' ')
+                );
+            }
+        }
+
+        if (empty($prixAjustes)) {
+            return [
+                'prix_suggere' => 0,
+                'fourchette_basse' => 0,
+                'fourchette_haute' => 0,
+                'prix_median' => 0,
+                'commentaire_general' => 'Aucun comparable valide pour calculer un prix.'
+            ];
+        }
+
+        // Calculs statistiques
+        sort($prixAjustes);
+        $count = count($prixAjustes);
+        $moyenne = array_sum($prixAjustes) / $count;
+        $min = min($prixAjustes);
+        $max = max($prixAjustes);
+
+        // Médiane
+        if ($count % 2 === 0) {
+            $median = ($prixAjustes[$count/2 - 1] + $prixAjustes[$count/2]) / 2;
+        } else {
+            $median = $prixAjustes[floor($count/2)];
+        }
+
+        // Arrondir aux 5000$ près
+        $prixSuggere = round($moyenne / 5000) * 5000;
+        $fourchetteBasse = round($min / 5000) * 5000;
+        $fourchetteHaute = round($max / 5000) * 5000;
+        $prixMedian = round($median / 5000) * 5000;
+
+        $commentaire = "Basé sur $count comparables analysés.\n";
+        $commentaire .= "Moyenne: " . number_format($moyenne, 0, ',', ' ') . " $\n";
+        $commentaire .= "Médiane: " . number_format($median, 0, ',', ' ') . " $\n\n";
+        $commentaire .= "Détail:\n" . implode("\n", $commentaires);
+
+        return [
+            'prix_suggere' => $prixSuggere,
+            'fourchette_basse' => $fourchetteBasse,
+            'fourchette_haute' => $fourchetteHaute,
+            'prix_median' => $prixMedian,
+            'nb_comparables' => $count,
+            'commentaire_general' => $commentaire
+        ];
+    }
+
+    /**
+     * Appel API avec support PDF
+     */
     private function callApi($payload) {
         $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
