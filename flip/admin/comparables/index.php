@@ -7,6 +7,8 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
+try {
+
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
@@ -17,33 +19,42 @@ requireAdmin();
 $pageTitle = 'Comparables & Analyse IA';
 
 // Auto-migration des tables si elles n'existent pas
+$tableExists = false;
 try {
     $pdo->query("SELECT 1 FROM comparables_chunks LIMIT 1");
-} catch (Exception $e) {
+    $tableExists = true;
+} catch (PDOException $e) {
+    $tableExists = false;
+}
+
+if (!$tableExists) {
     // Exécuter le SQL de migration V2
-    $sqlMigration = file_get_contents('../../sql/migration_comparables_v2.sql');
-    $queries = explode(';', $sqlMigration);
-    foreach ($queries as $query) {
-        $query = trim($query);
-        if (!empty($query) && substr(trim($query), 0, 2) !== '--') {
-            try { $pdo->exec($query); } catch (Exception $ex) {}
+    $sqlFile = dirname(dirname(__DIR__)) . '/sql/migration_comparables_v2.sql';
+    if (file_exists($sqlFile)) {
+        $sqlMigration = file_get_contents($sqlFile);
+        $queries = explode(';', $sqlMigration);
+        foreach ($queries as $query) {
+            $query = trim($query);
+            if (!empty($query) && substr(trim($query), 0, 2) !== '--') {
+                try { $pdo->exec($query); } catch (PDOException $ex) {}
+            }
         }
     }
     // Ajouter colonnes à analyses_marche (ignore si existent déjà)
     $cols = ['total_chunks INT DEFAULT 0', 'processed_chunks INT DEFAULT 0', 'photos_analyzed INT DEFAULT 0', 'extraction_path VARCHAR(255)', 'error_log TEXT'];
     foreach ($cols as $col) {
-        try { $pdo->exec("ALTER TABLE analyses_marche ADD COLUMN $col"); } catch (Exception $ex) {}
+        try { $pdo->exec("ALTER TABLE analyses_marche ADD COLUMN $col"); } catch (PDOException $ex) {}
     }
     // Modifier l'ENUM statut pour ajouter 'extraction'
     try {
         $pdo->exec("ALTER TABLE analyses_marche MODIFY COLUMN statut ENUM('en_cours', 'termine', 'erreur', 'extraction') DEFAULT 'en_cours'");
-    } catch (Exception $ex) {}
+    } catch (PDOException $ex) {}
 }
 
 // S'assurer que l'ENUM statut inclut 'extraction' (migration existante)
 try {
     $pdo->exec("ALTER TABLE analyses_marche MODIFY COLUMN statut ENUM('en_cours', 'termine', 'erreur', 'extraction') DEFAULT 'en_cours'");
-} catch (Exception $ex) {}
+} catch (PDOException $ex) {}
 
 // Vérifier les dépendances système
 $pdfService = new PdfExtractorService($pdo);
@@ -316,4 +327,9 @@ document.getElementById('formAnalyse').addEventListener('submit', function() {
 });
 </script>
 
-<?php include '../../includes/footer.php'; ?>
+<?php include '../../includes/footer.php';
+
+} catch (Exception $e) {
+    echo '<pre>ERREUR: ' . htmlspecialchars($e->getMessage()) . "\n" . htmlspecialchars($e->getTraceAsString()) . '</pre>';
+}
+?>
