@@ -124,22 +124,28 @@ include '../../includes/header.php';
             </nav>
             <h1><i class="bi bi-robot me-2"></i>Analyse de Marché (IA)</h1>
         </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNouveau" <?= (!$dependencies['pdftotext'] || !$dependencies['pdfimages']) ? 'disabled' : '' ?>>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNouveau" <?= !$dependencies['ready'] ? 'disabled' : '' ?>>
             <i class="bi bi-plus-lg me-1"></i>Nouvelle Analyse
         </button>
     </div>
 
     <?php displayFlashMessage(); ?>
 
-    <?php if (!$dependencies['pdftotext'] || !$dependencies['pdfimages']): ?>
-        <div class="alert alert-warning">
+    <?php if (!$dependencies['ready']): ?>
+        <div class="alert alert-danger">
             <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong>Dépendances manquantes:</strong> Les outils <code>poppler-utils</code> sont requis.
-            <ul class="mb-0 mt-2">
-                <?php if (!$dependencies['pdftotext']): ?><li><code>pdftotext</code> non trouvé</li><?php endif; ?>
-                <?php if (!$dependencies['pdfimages']): ?><li><code>pdfimages</code> non trouvé</li><?php endif; ?>
-            </ul>
-            <div class="mt-2">Installation: <code>sudo apt-get install poppler-utils</code></div>
+            <strong>Configuration requise:</strong> Aucun outil d'extraction PDF n'est disponible.
+            <div class="mt-2">
+                Installer la librairie PHP: <code>cd flip && composer require smalot/pdfparser</code>
+            </div>
+        </div>
+    <?php elseif ($dependencies['php_parser'] && !$dependencies['pdftotext']): ?>
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Mode PHP Pure activé</strong> - L'extraction utilise la librairie smalot/pdfparser.
+            <?php if (!$dependencies['pdfimages']): ?>
+            <br><small class="text-muted">Note: Les images ne seront pas extraites (pdfimages non disponible). L'analyse se fera sur le texte uniquement.</small>
+            <?php endif; ?>
         </div>
     <?php endif; ?>
 
