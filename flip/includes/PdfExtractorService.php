@@ -109,7 +109,7 @@ class PdfExtractorService {
         }
 
         // Trier par page
-        usort($images, fn($a, $b) => $a['page'] - $b['page']);
+        usort($images, function($a, $b) { return $a['page'] - $b['page']; });
 
         return $images;
     }
