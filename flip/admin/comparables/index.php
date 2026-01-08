@@ -8,6 +8,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/ClaudeService.php';
 require_once '../../includes/PdfExtractorService.php';
 
 requireAdmin();
@@ -48,8 +49,11 @@ try {
     $pdo->exec("ALTER TABLE analyses_marche MODIFY COLUMN statut ENUM('en_cours', 'termine', 'erreur', 'extraction') DEFAULT 'en_cours'");
 } catch (PDOException $ex) {}
 
+// Services
+$claudeService = new ClaudeService($pdo);
+$pdfService = new PdfExtractorService($pdo, $claudeService);
+
 // Vérifier les dépendances système
-$pdfService = new PdfExtractorService($pdo);
 $dependencies = PdfExtractorService::checkDependencies();
 
 $errors = [];

@@ -154,6 +154,98 @@ class ClaudeService {
     }
 
     /**
+     * Extrait les données structurées d'un chunk de texte PDF avec l'IA
+     * Étape 1: Extraction des champs (remplace le parsing regex)
+     * @param string $rawText Texte brut extrait du PDF
+     * @return array Données structurées extraites
+     */
+    public function extractChunkDataWithAI($rawText) {
+        $systemPrompt = "Tu es un assistant spécialisé dans l'extraction de données de fiches immobilières Centris (Québec). " .
+                       "Tu dois extraire TOUTES les informations disponibles du texte fourni avec précision. " .
+                       "Si une donnée n'est pas présente, utilise null. " .
+                       "Les superficies doivent être en pieds carrés (pc). Si tu vois des dimensions (ex: 47 X 92), calcule la superficie. " .
+                       "Réponds UNIQUEMENT en JSON valide, sans texte autour.";
+
+        $userMessage = "Extrait les données de cette fiche Centris:\n\n" .
+                      "=== TEXTE DE LA FICHE ===\n" .
+                      substr($rawText, 0, 12000) . "\n\n" .
+                      "=== CHAMPS À EXTRAIRE ===\n" .
+                      "Retourne un JSON avec ces champs (null si non trouvé):\n\n" .
+                      "{\n" .
+                      "  \"adresse\": \"Numéro + nom de rue complet\",\n" .
+                      "  \"ville\": \"Nom de la ville\",\n" .
+                      "  \"prix_vendu\": 0,\n" .
+                      "  \"date_vente\": \"YYYY-MM-DD (cherche Date PA acceptée ou Signature acte de vente)\",\n" .
+                      "  \"annee_construction\": 0,\n" .
+                      "  \"type_propriete\": \"Genre de propriété (Maison de plain-pied, Cottage, etc.)\",\n" .
+                      "  \"type_batiment\": \"Isolé, Jumelé, etc.\",\n" .
+                      "  \"chambres\": \"Nombre de chambres (Nbre chambres, PAS Nbre pièces)\",\n" .
+                      "  \"sdb\": \"Nombre de salles de bain (format: 2+1 si applicable)\",\n" .
+                      "  \"nb_pieces\": \"Nombre total de pièces\",\n" .
+                      "  \"superficie_terrain\": \"En pieds carrés (pc). Si dimensions données (ex: 47 X 92 p), calcule: 47*92=4324 pc\",\n" .
+                      "  \"superficie_habitable\": \"En pieds carrés (pc). Si dimensions données, calcule.\",\n" .
+                      "  \"dimensions_terrain\": \"Format original (ex: 47 X 92 p)\",\n" .
+                      "  \"dimensions_batiment\": \"Format original (ex: 24 X 34 p)\",\n" .
+                      "  \"eval_terrain\": 0,\n" .
+                      "  \"eval_batiment\": 0,\n" .
+                      "  \"eval_total\": 0,\n" .
+                      "  \"taxe_municipale\": 0,\n" .
+                      "  \"taxe_scolaire\": 0,\n" .
+                      "  \"taxe_annee\": \"YYYY\",\n" .
+                      "  \"fondation\": \"Type de fondation\",\n" .
+                      "  \"toiture\": \"Revêtement de la toiture\",\n" .
+                      "  \"revetement\": \"Revêtement extérieur\",\n" .
+                      "  \"garage\": \"Attaché, Détaché, Simple, Double, etc.\",\n" .
+                      "  \"stationnement\": 0,\n" .
+                      "  \"piscine\": \"Type de piscine ou null\",\n" .
+                      "  \"sous_sol\": \"Type de sous-sol\",\n" .
+                      "  \"chauffage\": \"Mode de chauffage\",\n" .
+                      "  \"energie\": \"Source d'énergie\",\n" .
+                      "  \"renovations_total\": 0,\n" .
+                      "  \"renovations_texte\": \"Liste des rénovations avec années et coûts\",\n" .
+                      "  \"proximites\": \"Proximités mentionnées\",\n" .
+                      "  \"inclusions\": \"Inclusions\",\n" .
+                      "  \"exclusions\": \"Exclusions\",\n" .
+                      "  \"remarques\": \"Remarques importantes\"\n" .
+                      "}\n\n" .
+                      "IMPORTANT:\n" .
+                      "- Les prix et évaluations sont des nombres entiers sans espaces ni $\n" .
+                      "- Les superficies doivent inclure l'unité (ex: \"4324 pc\")\n" .
+                      "- Si tu vois des dimensions (ex: 47 X 92), CALCULE la superficie et indique le calcul\n" .
+                      "- Cherche 'Nbre chambres' pas 'Nbre pièces' pour les chambres";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 2048,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $userMessage
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+
+            // Normaliser les valeurs numériques
+            $numericFields = ['prix_vendu', 'annee_construction', 'eval_terrain', 'eval_batiment',
+                             'eval_total', 'taxe_municipale', 'taxe_scolaire', 'stationnement', 'renovations_total'];
+            foreach ($numericFields as $field) {
+                if (isset($result[$field])) {
+                    $result[$field] = (int) preg_replace('/[^\d]/', '', (string)$result[$field]);
+                }
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            error_log("AI extraction error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Analyse approfondie d'un chunk basée sur les données texte extraites
      * @param array $chunkData Toutes les données extraites du chunk
      * @param array $projetInfo Infos du projet sujet pour comparaison

@@ -15,13 +15,27 @@ class PdfExtractorService {
     private $pdo;
     private $uploadDir;
     private $useNativeExtraction = false;
+    private $claudeService = null;
+    private $useAiExtraction = true; // Par défaut, utiliser l'IA pour l'étape 1
 
-    public function __construct($pdo) {
+    public function __construct($pdo, $claudeService = null) {
         $this->pdo = $pdo;
         $this->uploadDir = dirname(__DIR__) . '/uploads/comparables/';
 
         // Vérifier si la librairie PHP est disponible
         $this->useNativeExtraction = class_exists('\\Smalot\\PdfParser\\Parser');
+
+        // Service Claude pour extraction AI
+        if ($claudeService) {
+            $this->claudeService = $claudeService;
+        }
+    }
+
+    /**
+     * Configure si on utilise l'extraction AI ou regex pour l'étape 1
+     */
+    public function setUseAiExtraction($useAi) {
+        $this->useAiExtraction = $useAi;
     }
 
     /**
@@ -221,7 +235,12 @@ class PdfExtractorService {
             }
 
             // Extraire les données structurées du texte
-            $data = $this->parseChunkData($chunkText);
+            // Utiliser l'IA si disponible pour l'étape 1 (extraction des champs)
+            if ($this->useAiExtraction && $this->claudeService) {
+                $data = $this->parseChunkDataWithAI($chunkText);
+            } else {
+                $data = $this->parseChunkData($chunkText);
+            }
 
             $chunks[] = [
                 'no_centris' => $noCentris,
@@ -237,7 +256,28 @@ class PdfExtractorService {
     }
 
     /**
-     * Parse les données structurées d'un chunk de texte - Version complète
+     * Parse les données avec l'IA Claude - Étape 1: Extraction intelligente
+     */
+    private function parseChunkDataWithAI($text) {
+        try {
+            $aiData = $this->claudeService->extractChunkDataWithAI($text);
+
+            // Si l'AI retourne des données, les utiliser
+            if (!empty($aiData)) {
+                return $aiData;
+            }
+
+            // Fallback vers regex si AI retourne vide
+            return $this->parseChunkData($text);
+        } catch (Exception $e) {
+            // Fallback vers regex si AI échoue
+            error_log("AI extraction failed, falling back to regex: " . $e->getMessage());
+            return $this->parseChunkData($text);
+        }
+    }
+
+    /**
+     * Parse les données structurées d'un chunk de texte - Version complète (fallback regex)
      */
     private function parseChunkData($text) {
         $data = [];
