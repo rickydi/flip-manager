@@ -302,55 +302,52 @@ class PdfExtractorService {
             $data['nb_pieces'] = $m[1];
         }
 
-        // Superficie terrain - plusieurs patterns possibles
-        // Format: "Superficie du terrain    4 400 pc" ou "4400 pi²"
-        if (preg_match('/Superficie\s*(?:du\s*)?terrain[\s\t]+([\d\s,\.]+)\s*(pc|pi²?|m²|m2)?/iu', $text, $m)) {
-            $val = trim(preg_replace('/\s/', '', $m[1]));
-            $unit = $m[2] ?? 'pc';
-            $data['superficie_terrain'] = $val . ' ' . $unit;
+        // === SUPERFICIE TERRAIN ===
+        // Format Centris: "Superficie du terrain    4 400 pc" (avec espaces/tabs)
+        // Pattern très permissif pour capturer la valeur
+        if (preg_match('/Superficie\s+(?:du\s+)?terrain[^\d]*([\d][\d\s]*)\s*(pc|pi|p|m)/iu', $text, $m)) {
+            $val = preg_replace('/\s/', '', $m[1]);
+            $data['superficie_terrain'] = $val . ' ' . $m[2];
         }
 
-        // Dimensions du terrain - Format: "47 X 92 p" → calculer si pas de superficie
-        if (preg_match('/Dimensions?\s*(?:du\s*)?terrain[\s\t]+([\d\s,\.]+)\s*[xX×]\s*([\d\s,\.]+)\s*(p|pi|m)?/iu', $text, $m)) {
-            $dim1 = (float)str_replace([' ', ','], ['', '.'], $m[1]);
-            $dim2 = (float)str_replace([' ', ','], ['', '.'], $m[2]);
+        // === DIMENSIONS TERRAIN === (pour calculer si pas de superficie)
+        // Format: "Dimensions du terrain    47 X 92 p"
+        if (preg_match('/Dimensions?\s+(?:du\s+)?terrain[^\d]*([\d]+(?:[,\.]\d+)?)\s*[xX×]\s*([\d]+(?:[,\.]\d+)?)\s*(p|pi|m)?/iu', $text, $m)) {
+            $dim1 = (float)str_replace(',', '.', $m[1]);
+            $dim2 = (float)str_replace(',', '.', $m[2]);
             $unit = $m[3] ?? 'p';
-            $data['dimensions_terrain'] = round($dim1) . ' x ' . round($dim2) . ' ' . $unit;
-            // Si pas de superficie, calculer
+            $data['dimensions_terrain'] = round($dim1) . 'x' . round($dim2) . ' ' . $unit;
+
+            // Calculer superficie si pas déjà trouvée
             if (empty($data['superficie_terrain']) && $dim1 > 0 && $dim2 > 0) {
                 $calcul = round($dim1 * $dim2);
                 $data['superficie_terrain'] = $calcul . ' pc (' . round($dim1) . 'x' . round($dim2) . ')';
             }
         }
 
-        // Superficie habitable/bâtiment - plusieurs patterns
-        // Format: "Superficie habitable    1 200 pc" ou vide
-        if (preg_match('/Superficie\s*(?:habitable|du\s*bâtiment)[\s\t]+([\d\s,\.]+)\s*(pc|pi²?|m²|m2)?/iu', $text, $m)) {
-            $val = trim(preg_replace('/\s/', '', $m[1]));
-            $unit = $m[2] ?? 'pc';
-            $data['superficie_habitable'] = $val . ' ' . $unit;
-        } elseif (preg_match('/(?:Aire|Surface)\s*habitable[\s\t]+([\d\s,\.]+)\s*(pc|pi²?|m²|m2)?/iu', $text, $m)) {
-            $val = trim(preg_replace('/\s/', '', $m[1]));
-            $unit = $m[2] ?? 'pc';
-            $data['superficie_habitable'] = $val . ' ' . $unit;
+        // === SUPERFICIE HABITABLE/BÂTIMENT ===
+        // Format: "Superficie habitable    1 200 pc"
+        if (preg_match('/Superficie\s+habitable[^\d]*([\d][\d\s]*)\s*(pc|pi|p|m)/iu', $text, $m)) {
+            $val = preg_replace('/\s/', '', $m[1]);
+            $data['superficie_habitable'] = $val . ' ' . $m[2];
+        } elseif (preg_match('/Superficie\s+(?:du\s+)?b[âa]timent[^\d]*([\d][\d\s]*)\s*(pc|pi|p|m)/iu', $text, $m)) {
+            $val = preg_replace('/\s/', '', $m[1]);
+            $data['superficie_habitable'] = $val . ' ' . $m[2];
         }
 
-        // Dimensions du bâtiment - Format: "24 X 34 p irr" → calculer si pas de superficie
-        if (preg_match('/Dimensions?\s*(?:du\s*)?bâtiment[\s\t]+([\d\s,\.]+)\s*[xX×]\s*([\d\s,\.]+)\s*(p|pi|m)?/iu', $text, $m)) {
-            $dim1 = (float)str_replace([' ', ','], ['', '.'], $m[1]);
-            $dim2 = (float)str_replace([' ', ','], ['', '.'], $m[2]);
+        // === DIMENSIONS BÂTIMENT === (pour calculer si pas de superficie)
+        // Format: "Dimensions du bâtiment    24 X 34 p irr"
+        if (preg_match('/Dimensions?\s+(?:du\s+)?b[âa]timent[^\d]*([\d]+(?:[,\.]\d+)?)\s*[xX×]\s*([\d]+(?:[,\.]\d+)?)\s*(p|pi|m)?/iu', $text, $m)) {
+            $dim1 = (float)str_replace(',', '.', $m[1]);
+            $dim2 = (float)str_replace(',', '.', $m[2]);
             $unit = $m[3] ?? 'p';
-            $data['dimensions_batiment'] = round($dim1) . ' x ' . round($dim2) . ' ' . $unit;
-            // Si pas de superficie habitable, calculer
+            $data['dimensions_batiment'] = round($dim1) . 'x' . round($dim2) . ' ' . $unit;
+
+            // Calculer superficie si pas déjà trouvée
             if (empty($data['superficie_habitable']) && $dim1 > 0 && $dim2 > 0) {
                 $calcul = round($dim1 * $dim2);
                 $data['superficie_habitable'] = $calcul . ' pc (' . round($dim1) . 'x' . round($dim2) . ')';
             }
-        }
-
-        // Dimensions terrain (backup pattern)
-        if (empty($data['dimensions_terrain']) && preg_match('/Dimensions?[\s\t]+([\d\s,\.]+)\s*[xX×]\s*([\d\s,\.]+)\s*(p|pi|m)?\s*(?:terrain|lot)/iu', $text, $m)) {
-            $data['dimensions_terrain'] = trim($m[1]) . ' x ' . trim($m[2]) . ' ' . ($m[3] ?? 'p');
         }
 
         // === ÉVALUATION MUNICIPALE ===
