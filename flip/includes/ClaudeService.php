@@ -247,6 +247,10 @@ class ClaudeService {
         $userMessage .= "   - Superficie terrain et bâtiment\n";
         $userMessage .= "   - Type de chauffage/énergie\n";
         $userMessage .= "   - Sous-sol fini ou non\n\n";
+        $userMessage .= "4. Donne un POURCENTAGE DE CONFIANCE (0-100%) basé sur:\n";
+        $userMessage .= "   - Qualité des données disponibles\n";
+        $userMessage .= "   - Similarité avec le sujet (localisation, type, taille)\n";
+        $userMessage .= "   - Pertinence du comparable pour l'estimation\n\n";
         $userMessage .= "Format JSON attendu:\n";
         $userMessage .= "{\n";
         $userMessage .= "  \"etat_note\": 7,\n";
@@ -257,6 +261,7 @@ class ClaudeService {
         $userMessage .= "    \"caracteristiques\": 5000,\n";
         $userMessage .= "    \"autres\": 0\n";
         $userMessage .= "  },\n";
+        $userMessage .= "  \"confiance\": 85,\n";
         $userMessage .= "  \"commentaire_ia\": \"Justification détaillée de l'ajustement...\"\n";
         $userMessage .= "}";
 
@@ -279,6 +284,7 @@ class ClaudeService {
                 'etat_analyse' => $result['etat_analyse'] ?? 'Analyse non disponible',
                 'ajustement' => (float)($result['ajustement'] ?? 0),
                 'ajustement_details' => $result['ajustement_details'] ?? null,
+                'confiance' => (int)($result['confiance'] ?? 50),
                 'commentaire_ia' => $result['commentaire_ia'] ?? ''
             ];
         } catch (Exception $e) {
@@ -286,6 +292,7 @@ class ClaudeService {
                 'etat_note' => 5,
                 'etat_analyse' => 'Erreur lors de l\'analyse',
                 'ajustement' => 0,
+                'confiance' => 0,
                 'commentaire_ia' => 'Erreur: ' . $e->getMessage()
             ];
         }
