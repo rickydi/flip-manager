@@ -346,7 +346,7 @@ include '../../includes/header.php';
 
     <div class="row" id="chunksContainer">
         <?php foreach ($chunks as $index => $chunk): ?>
-            <div class="col-12 mb-4">
+            <div class="col-xl-6 col-12 mb-4">
                 <div class="card chunk-card <?= $chunk['statut'] === 'done' ? 'done' : '' ?>"
                      id="chunk-<?= $chunk['id'] ?>"
                      data-chunk-id="<?= $chunk['id'] ?>"

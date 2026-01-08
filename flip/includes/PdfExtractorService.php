@@ -459,15 +459,20 @@ class PdfExtractorService {
     }
 
     /**
-     * Sauvegarde les chunks en base de données
+     * Sauvegarde les chunks en base de données - Version complète avec tous les champs
      */
     public function saveChunksToDb($analyseId, $chunks, $basePath) {
         $stmt = $this->pdo->prepare("
             INSERT INTO comparables_chunks
             (analyse_id, no_centris, page_debut, page_fin, chunk_text, photos_path,
              adresse, ville, prix_vendu, date_vente, jours_marche, chambres, sdb,
-             superficie_terrain, annee_construction, type_propriete, renovations_texte, remarques)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             superficie_terrain, superficie_batiment, annee_construction, type_propriete,
+             eval_terrain, eval_batiment, eval_total,
+             taxe_municipale, taxe_scolaire, taxe_annee,
+             fondation, toiture, revetement, garage, stationnement, piscine, sous_sol,
+             chauffage, energie, proximites, inclusions, exclusions,
+             renovations_total, renovations_texte, remarques)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $savedChunks = [];
@@ -490,9 +495,29 @@ class PdfExtractorService {
                 $data['chambres'] ?? null,
                 $data['sdb'] ?? null,
                 $data['superficie_terrain'] ?? null,
+                $data['superficie_habitable'] ?? null,
                 $data['annee_construction'] ?? null,
                 $data['type_propriete'] ?? null,
-                $data['renovations'] ?? null,
+                $data['eval_terrain'] ?? null,
+                $data['eval_batiment'] ?? null,
+                $data['eval_total'] ?? null,
+                $data['taxe_municipale'] ?? null,
+                $data['taxe_scolaire'] ?? null,
+                $data['taxe_annee'] ?? null,
+                $data['fondation'] ?? null,
+                $data['toiture'] ?? null,
+                $data['revetement'] ?? null,
+                $data['garage'] ?? null,
+                $data['stationnement'] ?? null,
+                $data['piscine'] ?? null,
+                $data['sous_sol'] ?? null,
+                $data['chauffage'] ?? null,
+                $data['energie'] ?? null,
+                $data['proximites'] ?? null,
+                $data['inclusions'] ?? null,
+                $data['exclusions'] ?? null,
+                $data['renovations_total'] ?? 0,
+                $data['renovations_texte'] ?? null,
                 $data['remarques'] ?? null
             ]);
 
