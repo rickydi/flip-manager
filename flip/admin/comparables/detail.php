@@ -335,26 +335,103 @@ include '../../includes/header.php';
                                     <p class="text-muted mb-2"><?= e($chunk['ville']) ?></p>
                                 <?php endif; ?>
 
+                                <!-- Prix et jours -->
                                 <div class="d-flex gap-3 mb-2">
                                     <?php if ($chunk['prix_vendu'] > 0): ?>
-                                        <span><i class="bi bi-tag text-primary"></i> <?= formatMoney($chunk['prix_vendu']) ?></span>
+                                        <span class="fw-bold text-success"><i class="bi bi-tag"></i> <?= formatMoney($chunk['prix_vendu']) ?></span>
                                     <?php endif; ?>
                                     <?php if ($chunk['jours_marche']): ?>
                                         <span><i class="bi bi-calendar3 text-muted"></i> <?= $chunk['jours_marche'] ?> jours</span>
                                     <?php endif; ?>
                                 </div>
 
-                                <div class="d-flex gap-3 small text-muted">
+                                <!-- Caractéristiques de base -->
+                                <div class="d-flex flex-wrap gap-2 small mb-2">
                                     <?php if ($chunk['chambres']): ?>
-                                        <span><i class="bi bi-door-closed"></i> <?= e($chunk['chambres']) ?> ch</span>
+                                        <span class="badge bg-light text-dark"><i class="bi bi-door-closed"></i> <?= e($chunk['chambres']) ?> ch</span>
                                     <?php endif; ?>
                                     <?php if ($chunk['sdb']): ?>
-                                        <span><i class="bi bi-droplet"></i> <?= e($chunk['sdb']) ?> sdb</span>
+                                        <span class="badge bg-light text-dark"><i class="bi bi-droplet"></i> <?= e($chunk['sdb']) ?> sdb</span>
                                     <?php endif; ?>
                                     <?php if ($chunk['annee_construction']): ?>
-                                        <span><i class="bi bi-building"></i> <?= $chunk['annee_construction'] ?></span>
+                                        <span class="badge bg-light text-dark"><i class="bi bi-building"></i> <?= $chunk['annee_construction'] ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['type_propriete']): ?>
+                                        <span class="badge bg-info text-dark"><?= e($chunk['type_propriete']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['superficie_terrain']): ?>
+                                        <span class="badge bg-light text-dark"><i class="bi bi-rulers"></i> <?= e($chunk['superficie_terrain']) ?> pc</span>
                                     <?php endif; ?>
                                 </div>
+
+                                <!-- Évaluation municipale -->
+                                <?php if ($chunk['eval_total'] > 0): ?>
+                                <div class="small mb-2 p-2 bg-light rounded">
+                                    <strong><i class="bi bi-bank"></i> Évaluation:</strong>
+                                    <?= formatMoney($chunk['eval_total']) ?>
+                                    <?php if ($chunk['eval_terrain'] > 0 || $chunk['eval_batiment'] > 0): ?>
+                                        <span class="text-muted">(Terrain: <?= formatMoney($chunk['eval_terrain']) ?>, Bât: <?= formatMoney($chunk['eval_batiment']) ?>)</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Taxes -->
+                                <?php if ($chunk['taxe_municipale'] > 0 || $chunk['taxe_scolaire'] > 0): ?>
+                                <div class="small mb-2">
+                                    <i class="bi bi-receipt"></i> <strong>Taxes:</strong>
+                                    <?php if ($chunk['taxe_municipale'] > 0): ?>
+                                        Mun: <?= formatMoney($chunk['taxe_municipale']) ?>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['taxe_scolaire'] > 0): ?>
+                                        | Scol: <?= formatMoney($chunk['taxe_scolaire']) ?>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['taxe_annee']): ?>
+                                        (<?= $chunk['taxe_annee'] ?>)
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Rénovations -->
+                                <?php if ($chunk['renovations_total'] > 0 || $chunk['renovations_texte']): ?>
+                                <div class="small mb-2 p-2 bg-warning bg-opacity-10 rounded">
+                                    <strong><i class="bi bi-tools"></i> Rénovations:</strong>
+                                    <?php if ($chunk['renovations_total'] > 0): ?>
+                                        <span class="text-success fw-bold"><?= formatMoney($chunk['renovations_total']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['renovations_texte']): ?>
+                                        <br><small class="text-muted"><?= e(substr($chunk['renovations_texte'], 0, 200)) ?><?= strlen($chunk['renovations_texte']) > 200 ? '...' : '' ?></small>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+
+                                <!-- Caractéristiques détaillées -->
+                                <div class="small text-muted mb-2">
+                                    <?php if ($chunk['fondation']): ?>
+                                        <span class="me-2">🏠 <?= e($chunk['fondation']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['toiture']): ?>
+                                        <span class="me-2">🔺 <?= e($chunk['toiture']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['garage']): ?>
+                                        <span class="me-2">🚗 <?= e($chunk['garage']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['piscine']): ?>
+                                        <span class="me-2">🏊 <?= e($chunk['piscine']) ?></span>
+                                    <?php endif; ?>
+                                    <?php if ($chunk['sous_sol']): ?>
+                                        <span class="me-2">⬇️ <?= e(substr($chunk['sous_sol'], 0, 50)) ?></span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Remarques -->
+                                <?php if ($chunk['remarques']): ?>
+                                <div class="small mb-2">
+                                    <details>
+                                        <summary class="text-muted cursor-pointer"><i class="bi bi-chat-left-text"></i> Remarques</summary>
+                                        <p class="mt-1 p-2 bg-light rounded"><?= nl2br(e(substr($chunk['remarques'], 0, 500))) ?></p>
+                                    </details>
+                                </div>
+                                <?php endif; ?>
 
                                 <!-- Résultats IA -->
                                 <?php if ($chunk['statut'] === 'done'): ?>
