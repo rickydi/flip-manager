@@ -153,7 +153,145 @@ class ClaudeService {
         return $this->callApi($payload);
     }
 
-/**
+    /**
+     * Analyse approfondie d'un chunk basée sur les données texte extraites
+     * @param array $chunkData Toutes les données extraites du chunk
+     * @param array $projetInfo Infos du projet sujet pour comparaison
+     * @return array Analyse complète avec note et ajustement
+     */
+    public function analyzeChunkText($chunkData, $projetInfo) {
+        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec spécialisé dans les flips immobiliers. " .
+                       "Tu analyses les données d'une propriété VENDUE (comparable) pour évaluer son état et calculer un ajustement par rapport au projet sujet. " .
+                       "Tu dois être PRÉCIS et CRITIQUE. Chaque élément (rénovations, caractéristiques, âge) doit influencer ton ajustement. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        // Construire le message détaillé avec toutes les données extraites
+        $comparable = "=== PROPRIÉTÉ COMPARABLE (VENDUE) ===\n";
+        $comparable .= "No Centris: " . ($chunkData['no_centris'] ?? 'N/A') . "\n";
+        $comparable .= "Adresse: " . ($chunkData['adresse'] ?? 'N/A') . "\n";
+        $comparable .= "Ville: " . ($chunkData['ville'] ?? 'N/A') . "\n";
+        $comparable .= "Prix vendu: " . number_format((float)($chunkData['prix_vendu'] ?? 0), 0, ',', ' ') . " $\n";
+        $comparable .= "Date de vente: " . ($chunkData['date_vente'] ?? 'N/A') . "\n";
+        $comparable .= "Jours sur le marché: " . ($chunkData['jours_marche'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Caractéristiques ---\n";
+        $comparable .= "Type: " . ($chunkData['type_propriete'] ?? 'N/A') . "\n";
+        $comparable .= "Année construction: " . ($chunkData['annee_construction'] ?? 'N/A') . "\n";
+        $comparable .= "Chambres: " . ($chunkData['chambres'] ?? 'N/A') . "\n";
+        $comparable .= "Salles de bain: " . ($chunkData['sdb'] ?? 'N/A') . "\n";
+        $comparable .= "Superficie terrain: " . ($chunkData['superficie_terrain'] ?? 'N/A') . "\n";
+        $comparable .= "Superficie bâtiment: " . ($chunkData['superficie_batiment'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Évaluation Municipale ---\n";
+        $comparable .= "Terrain: " . ($chunkData['eval_terrain'] ?? 'N/A') . "\n";
+        $comparable .= "Bâtiment: " . ($chunkData['eval_batiment'] ?? 'N/A') . "\n";
+        $comparable .= "Total: " . ($chunkData['eval_total'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Taxes ---\n";
+        $comparable .= "Municipale: " . ($chunkData['taxe_municipale'] ?? 'N/A') . "\n";
+        $comparable .= "Scolaire: " . ($chunkData['taxe_scolaire'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Construction & Finitions ---\n";
+        $comparable .= "Fondation: " . ($chunkData['fondation'] ?? 'N/A') . "\n";
+        $comparable .= "Toiture: " . ($chunkData['toiture'] ?? 'N/A') . "\n";
+        $comparable .= "Revêtement: " . ($chunkData['revetement'] ?? 'N/A') . "\n";
+        $comparable .= "Garage: " . ($chunkData['garage'] ?? 'N/A') . "\n";
+        $comparable .= "Stationnement: " . ($chunkData['stationnement'] ?? 'N/A') . "\n";
+        $comparable .= "Piscine: " . ($chunkData['piscine'] ?? 'N/A') . "\n";
+        $comparable .= "Sous-sol: " . ($chunkData['sous_sol'] ?? 'N/A') . "\n";
+        $comparable .= "Chauffage: " . ($chunkData['chauffage'] ?? 'N/A') . "\n";
+        $comparable .= "Énergie: " . ($chunkData['energie'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Rénovations ---\n";
+        $comparable .= "Total rénovations: " . ($chunkData['renovations_total'] ?? 'N/A') . "\n";
+        $comparable .= "Détail: " . ($chunkData['renovations_texte'] ?? 'Aucune info') . "\n\n";
+
+        $comparable .= "--- Autres ---\n";
+        $comparable .= "Proximités: " . ($chunkData['proximites'] ?? 'N/A') . "\n";
+        $comparable .= "Inclusions: " . ($chunkData['inclusions'] ?? 'N/A') . "\n";
+        $comparable .= "Exclusions: " . ($chunkData['exclusions'] ?? 'N/A') . "\n";
+        $comparable .= "Remarques: " . ($chunkData['remarques'] ?? 'N/A') . "\n";
+
+        // Construire les infos du projet sujet
+        $sujet = "=== PROJET SUJET (MA PROPRIÉTÉ À VENDRE) ===\n";
+        $sujet .= "Adresse: " . ($projetInfo['adresse'] ?? 'N/A') . "\n";
+        $sujet .= "Ville: " . ($projetInfo['ville'] ?? 'N/A') . "\n";
+        $sujet .= "Type: " . ($projetInfo['type'] ?? 'Maison unifamiliale') . "\n";
+        $sujet .= "Chambres: " . ($projetInfo['chambres'] ?? 'N/A') . "\n";
+        $sujet .= "Salles de bain: " . ($projetInfo['sdb'] ?? 'N/A') . "\n";
+        $sujet .= "Superficie: " . ($projetInfo['superficie'] ?? 'N/A') . "\n";
+        $sujet .= "Garage: " . ($projetInfo['garage'] ?? 'Non') . "\n";
+        $sujet .= "État prévu: ENTIÈREMENT RÉNOVÉ au goût du jour\n";
+        $sujet .= "- Cuisine: moderne avec comptoirs quartz, armoires neuves\n";
+        $sujet .= "- Salles de bain: rénovées modernes\n";
+        $sujet .= "- Planchers: neufs (bois franc ou vinyle de luxe)\n";
+        $sujet .= "- Peinture: fraîche partout\n";
+        $sujet .= "- Électricité: mise aux normes si nécessaire\n";
+        $sujet .= "- Plomberie: fonctionnelle et mise à jour\n";
+
+        $userMessage = $comparable . "\n" . $sujet . "\n\n";
+        $userMessage .= "=== ANALYSE DEMANDÉE ===\n";
+        $userMessage .= "1. Évalue l'ÉTAT GÉNÉRAL du comparable sur 10:\n";
+        $userMessage .= "   - 1-3: Délabré, à rénover complètement\n";
+        $userMessage .= "   - 4-5: Correct mais daté, rénovations partielles nécessaires\n";
+        $userMessage .= "   - 6-7: Bon état, quelques mises à jour récentes\n";
+        $userMessage .= "   - 8-9: Bien rénové, au goût du jour\n";
+        $userMessage .= "   - 10: Luxueux, finitions haut de gamme\n\n";
+        $userMessage .= "2. Calcule l'AJUSTEMENT en $ pour ramener ce comparable au niveau du sujet:\n";
+        $userMessage .= "   - Si comparable MIEUX rénové/équipé → ajustement NÉGATIF (ex: -25000)\n";
+        $userMessage .= "   - Si comparable MOINS rénové/équipé → ajustement POSITIF (ex: +35000)\n\n";
+        $userMessage .= "3. Facteurs à considérer pour l'ajustement:\n";
+        $userMessage .= "   - Différence d'état des rénovations (cuisine, SDB, planchers)\n";
+        $userMessage .= "   - Âge du bâtiment et état structurel\n";
+        $userMessage .= "   - Présence/absence de garage, piscine\n";
+        $userMessage .= "   - Superficie terrain et bâtiment\n";
+        $userMessage .= "   - Type de chauffage/énergie\n";
+        $userMessage .= "   - Sous-sol fini ou non\n\n";
+        $userMessage .= "Format JSON attendu:\n";
+        $userMessage .= "{\n";
+        $userMessage .= "  \"etat_note\": 7,\n";
+        $userMessage .= "  \"etat_analyse\": \"Description détaillée de l'état du comparable...\",\n";
+        $userMessage .= "  \"ajustement\": 15000,\n";
+        $userMessage .= "  \"ajustement_details\": {\n";
+        $userMessage .= "    \"renovations\": 10000,\n";
+        $userMessage .= "    \"caracteristiques\": 5000,\n";
+        $userMessage .= "    \"autres\": 0\n";
+        $userMessage .= "  },\n";
+        $userMessage .= "  \"commentaire_ia\": \"Justification détaillée de l'ajustement...\"\n";
+        $userMessage .= "}";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 2048,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $userMessage
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+            return [
+                'etat_note' => (float)($result['etat_note'] ?? 5),
+                'etat_analyse' => $result['etat_analyse'] ?? 'Analyse non disponible',
+                'ajustement' => (float)($result['ajustement'] ?? 0),
+                'ajustement_details' => $result['ajustement_details'] ?? null,
+                'commentaire_ia' => $result['commentaire_ia'] ?? ''
+            ];
+        } catch (Exception $e) {
+            return [
+                'etat_note' => 5,
+                'etat_analyse' => 'Erreur lors de l\'analyse',
+                'ajustement' => 0,
+                'commentaire_ia' => 'Erreur: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Analyse les photos d'une propriété (chunk) avec Claude Vision
      * @param array $photos Liste des chemins vers les photos
      * @param array $chunkData Données texte déjà extraites (adresse, prix, etc.)

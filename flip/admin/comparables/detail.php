@@ -71,27 +71,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 exit;
             }
 
-            // Récupérer les photos du chunk
-            $stmtPhotos = $pdo->prepare("SELECT * FROM comparables_photos WHERE chunk_id = ? ORDER BY ordre");
-            $stmtPhotos->execute([$chunkId]);
-            $photos = $stmtPhotos->fetchAll();
-
-            // Infos du projet sujet
+            // Infos du projet sujet (enrichies)
             $projetInfo = [
-                'adresse' => $analyse['projet_adresse'] . ', ' . $analyse['projet_ville'],
-                'type' => 'Maison unifamiliale rénové'
+                'adresse' => $analyse['projet_adresse'],
+                'ville' => $analyse['projet_ville'],
+                'type' => 'Maison unifamiliale',
+                'chambres' => 3, // TODO: Récupérer depuis le projet
+                'sdb' => 2,
+                'superficie' => 'N/A',
+                'garage' => 'Non'
             ];
 
-            // Données du chunk pour l'analyse
+            // Données COMPLÈTES du chunk pour l'analyse IA approfondie
             $chunkData = [
+                'no_centris' => $chunk['no_centris'],
                 'adresse' => $chunk['adresse'],
+                'ville' => $chunk['ville'],
                 'prix_vendu' => $chunk['prix_vendu'],
-                'renovations_texte' => $chunk['renovations_texte']
+                'date_vente' => $chunk['date_vente'],
+                'jours_marche' => $chunk['jours_marche'],
+                'type_propriete' => $chunk['type_propriete'],
+                'annee_construction' => $chunk['annee_construction'],
+                'chambres' => $chunk['chambres'],
+                'sdb' => $chunk['sdb'],
+                'superficie_terrain' => $chunk['superficie_terrain'],
+                'superficie_batiment' => $chunk['superficie_batiment'],
+                // Évaluation municipale
+                'eval_terrain' => $chunk['eval_terrain'],
+                'eval_batiment' => $chunk['eval_batiment'],
+                'eval_total' => $chunk['eval_total'],
+                // Taxes
+                'taxe_municipale' => $chunk['taxe_municipale'],
+                'taxe_scolaire' => $chunk['taxe_scolaire'],
+                // Caractéristiques
+                'fondation' => $chunk['fondation'],
+                'toiture' => $chunk['toiture'],
+                'revetement' => $chunk['revetement'],
+                'garage' => $chunk['garage'],
+                'stationnement' => $chunk['stationnement'],
+                'piscine' => $chunk['piscine'],
+                'sous_sol' => $chunk['sous_sol'],
+                'chauffage' => $chunk['chauffage'],
+                'energie' => $chunk['energie'],
+                // Rénovations
+                'renovations_total' => $chunk['renovations_total'],
+                'renovations_texte' => $chunk['renovations_texte'],
+                // Autres
+                'proximites' => $chunk['proximites'],
+                'inclusions' => $chunk['inclusions'],
+                'exclusions' => $chunk['exclusions'],
+                'remarques' => $chunk['remarques']
             ];
 
-            // Analyser les photos avec Claude
+            // Analyser avec Claude (analyse texte approfondie)
             $claudeService = new ClaudeService($pdo);
-            $result = $claudeService->analyzeChunkPhotos($photos, $chunkData, $projetInfo);
+            $result = $claudeService->analyzeChunkText($chunkData, $projetInfo);
 
             // Mettre à jour le chunk avec les résultats
             $stmtUpdate = $pdo->prepare("
