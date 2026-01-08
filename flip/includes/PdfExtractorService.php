@@ -439,21 +439,25 @@ class PdfExtractorService {
         }
 
         // Date de vente - plusieurs formats possibles
-        // Format: "Date PA acceptée 2024-01-15" ou "Vendu le 15 janvier 2024" ou "2024-01-15"
-        if (preg_match('/Date\s*PA\s*acceptée\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+        // Format Centris: "Date PA acceptée    2025-11-07" (avec tabs/espaces)
+        if (preg_match('/Date\s*PA\s*accept[ée]+[\s\t]+(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
-        } elseif (preg_match('/Date\s*(?:de\s*)?vente\s*[:\s]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+        } elseif (preg_match('/Date\s*PA\s*accept[ée]+[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Date\s*(?:de\s*)?vente[\s\t:]+(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
         } elseif (preg_match('/Vendu(?:e)?\s*(?:le\s*)?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
-        } elseif (preg_match('/Signature\s*(?:de\s*)?l\'?acte\s*(?:de\s*)?vente\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
-            $data['date_vente'] = $m[1];
-        } elseif (preg_match('/(\d{4}-\d{2}-\d{2})\s*(?:date\s*)?(?:vente|vendu)/iu', $text, $m)) {
+        } elseif (preg_match('/Signature\s*(?:de\s*)?l\'?acte[\s\t]+(?:de\s*)?vente[\s\t]+(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
         }
 
-        // Date signature acte de vente (backup)
+        // Date signature acte de vente (backup) - chercher n'importe quelle date après "Signature"
         if (empty($data['date_vente']) && preg_match('/Signature[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        }
+        // Backup: chercher date après "acceptée"
+        if (empty($data['date_vente']) && preg_match('/accept[ée]+[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
         }
 
