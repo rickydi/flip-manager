@@ -289,18 +289,24 @@ class PdfExtractorService {
             $data['nb_pieces'] = $m[1];
         }
 
-        // Superficie terrain (en pc ou pi²)
-        if (preg_match('/Superficie du terrain\s*([\d\s,\.]+)\s*(?:pc|pi)/iu', $text, $m)) {
+        // Superficie terrain - plusieurs patterns possibles
+        if (preg_match('/Superficie\s*(?:du\s*)?terrain[:\s]*([\d\s,\.]+)\s*(?:pc|pi|m²|m2)?/iu', $text, $m)) {
+            $data['superficie_terrain'] = trim(preg_replace('/\s/', '', $m[1]));
+        } elseif (preg_match('/Terrain[:\s]*([\d\s,\.]+)\s*(?:pc|pi²|pi2|m²|m2)/iu', $text, $m)) {
             $data['superficie_terrain'] = trim(preg_replace('/\s/', '', $m[1]));
         }
 
-        // Superficie habitable
-        if (preg_match('/Superficie habitable\s*([\d\s,\.]+)/iu', $text, $m)) {
+        // Superficie habitable/bâtiment - plusieurs patterns
+        if (preg_match('/Superficie\s*(?:habitable|bâtiment|du bâtiment)[:\s]*([\d\s,\.]+)\s*(?:pc|pi|m²|m2)?/iu', $text, $m)) {
+            $data['superficie_habitable'] = trim(preg_replace('/\s/', '', $m[1]));
+        } elseif (preg_match('/(?:Aire habitable|Surface habitable)[:\s]*([\d\s,\.]+)\s*(?:pc|pi²|pi2|m²|m2)?/iu', $text, $m)) {
+            $data['superficie_habitable'] = trim(preg_replace('/\s/', '', $m[1]));
+        } elseif (preg_match('/(\d[\d\s,\.]+)\s*(?:pc|pi²|pi2)\s*(?:habitable|de superficie)/iu', $text, $m)) {
             $data['superficie_habitable'] = trim(preg_replace('/\s/', '', $m[1]));
         }
 
         // Dimensions terrain
-        if (preg_match('/Dimensions du terrain\s*([\d\s,\.]+\s*[xX]\s*[\d\s,\.]+)/iu', $text, $m)) {
+        if (preg_match('/Dimensions?\s*(?:du\s*)?terrain[:\s]*([\d\s,\.]+\s*[xX×]\s*[\d\s,\.]+)/iu', $text, $m)) {
             $data['dimensions_terrain'] = trim($m[1]);
         }
 
