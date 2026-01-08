@@ -259,8 +259,12 @@ class PdfExtractorService {
             $data['ville'] = $m[1];
         }
 
-        // Année de construction
-        if (preg_match('/Année de construction\s*(\d{4})/i', $text, $m)) {
+        // Année de construction - plusieurs formats
+        if (preg_match('/Année\s*(?:de\s*)?construction[:\s]*(\d{4})/iu', $text, $m)) {
+            $data['annee_construction'] = (int)$m[1];
+        } elseif (preg_match('/Construit(?:e)?\s*(?:en\s*)?(\d{4})/iu', $text, $m)) {
+            $data['annee_construction'] = (int)$m[1];
+        } elseif (preg_match('/(\d{4})\s*(?:année|construction)/iu', $text, $m)) {
             $data['annee_construction'] = (int)$m[1];
         }
 
@@ -274,18 +278,27 @@ class PdfExtractorService {
             $data['type_batiment'] = trim($m[1]);
         }
 
-        // Chambres (format: "2+3" ou "5")
-        if (preg_match('/Nbre\s*chambres[^\d]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+        // Chambres - ATTENTION: ne pas confondre avec Nbre pièces
+        // Format Centris: "Nbre chambres c-c 3" ou "Chambres: 3+1" ou "3 chambres"
+        if (preg_match('/Nbre\s*chambres\s*(?:c-c|au\s*s-s)?\s*(\d+)/iu', $text, $m)) {
+            $data['chambres'] = $m[1];
+        } elseif (preg_match('/Chambres?\s*[:\s]*(\d+(?:\+\d+)?)/iu', $text, $m)) {
+            $data['chambres'] = $m[1];
+        } elseif (preg_match('/(\d+)\s*chambres?\s*(?:à\s*coucher)?/iu', $text, $m)) {
             $data['chambres'] = $m[1];
         }
 
         // Salles de bain (format: "2+3" ou "2")
-        if (preg_match('/salles?\s*de\s*bains?[^\d]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+        if (preg_match('/Nbre\s*salles?\s*(?:de\s*)?bains?\s*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['sdb'] = $m[1];
+        } elseif (preg_match('/salles?\s*(?:de\s*)?bains?\s*[:\s]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['sdb'] = $m[1];
+        } elseif (preg_match('/(\d+\+\d+|\d+)\s*salles?\s*(?:de\s*)?bains?/iu', $text, $m)) {
             $data['sdb'] = $m[1];
         }
 
-        // Nombre de pièces
-        if (preg_match('/Nbre\s*pièces\s*(\d+\+\d+|\d+)/iu', $text, $m)) {
+        // Nombre de pièces (total) - distinct des chambres
+        if (preg_match('/Nbre\s*pièces\s*(\d+\+?\d*)/iu', $text, $m)) {
             $data['nb_pieces'] = $m[1];
         }
 
@@ -311,13 +324,17 @@ class PdfExtractorService {
         }
 
         // === ÉVALUATION MUNICIPALE ===
-        if (preg_match('/Terrain\s*([\d\s]+)\s*\$/iu', $text, $m)) {
+        // Format Centris: "Terrain 150 000 $" ou "Éval. terrain: 150000$"
+        if (preg_match('/(?:Éval(?:uation)?\.?\s*)?Terrain\s*[:\s]*([\d\s]+)\s*\$/iu', $text, $m)) {
             $data['eval_terrain'] = (int)preg_replace('/\s/', '', $m[1]);
         }
-        if (preg_match('/Bâtiment\s*([\d\s]+)\s*\$/iu', $text, $m)) {
+        if (preg_match('/(?:Éval(?:uation)?\.?\s*)?Bâtiment\s*[:\s]*([\d\s]+)\s*\$/iu', $text, $m)) {
             $data['eval_batiment'] = (int)preg_replace('/\s/', '', $m[1]);
         }
-        if (preg_match('/Total\s*([\d\s]+)\s*\$\s*\([\d,\.]+\s*%\)/iu', $text, $m)) {
+        // Total avec ou sans pourcentage
+        if (preg_match('/(?:Éval(?:uation)?\.?\s*)?Total\s*[:\s]*([\d\s]+)\s*\$(?:\s*\([\d,\.]+\s*%\))?/iu', $text, $m)) {
+            $data['eval_total'] = (int)preg_replace('/\s/', '', $m[1]);
+        } elseif (preg_match('/Évaluation\s*(?:municipale|mun\.?)?\s*[:\s]*([\d\s]+)\s*\$/iu', $text, $m)) {
             $data['eval_total'] = (int)preg_replace('/\s/', '', $m[1]);
         }
 
@@ -367,12 +384,19 @@ class PdfExtractorService {
             $data['revetement'] = trim($m[1]);
         }
 
-        // Garage / Stationnement
-        if (preg_match('/Stat\.\s*\(total\)\s*(\d+)/iu', $text, $m)) {
+        // Garage / Stationnement - plus précis pour éviter faux positifs
+        if (preg_match('/Stat(?:ionnement)?\.?\s*\(?total\)?\s*(\d+)/iu', $text, $m)) {
             $data['stationnement'] = (int)$m[1];
         }
-        if (preg_match('/Garage\s*([^\n\t]*)/iu', $text, $m)) {
-            $data['garage'] = trim($m[1]);
+        // Garage: Attaché, Détaché, Simple, Double, etc. - limiter aux valeurs typiques
+        if (preg_match('/Garage\s*[:\s]*((?:Attaché|Détaché|Simple|Double|Triple|Intégré|Non|Oui|Aucun|\d+)[^\n\t]*)/iu', $text, $m)) {
+            $garage = trim($m[1]);
+            // Nettoyer si contient "Fenestration" ou autres textes parasites
+            $garage = preg_replace('/Fenestration.*$/i', '', $garage);
+            $garage = preg_replace('/Revêtement.*$/i', '', $garage);
+            $data['garage'] = trim($garage) ?: null;
+        } elseif (preg_match('/(\d+)\s*garage/iu', $text, $m)) {
+            $data['garage'] = $m[1] . ' garage(s)';
         }
 
         // Piscine
@@ -414,14 +438,23 @@ class PdfExtractorService {
             $data['remarques'] = trim(substr($m[1], 0, 2000));
         }
 
-        // Date PA acceptée (date de vente)
-        if (preg_match('/Date PA acceptée\s*(\d{4}-\d{2}-\d{2})/i', $text, $m)) {
+        // Date de vente - plusieurs formats possibles
+        // Format: "Date PA acceptée 2024-01-15" ou "Vendu le 15 janvier 2024" ou "2024-01-15"
+        if (preg_match('/Date\s*PA\s*acceptée\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Date\s*(?:de\s*)?vente\s*[:\s]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Vendu(?:e)?\s*(?:le\s*)?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Signature\s*(?:de\s*)?l\'?acte\s*(?:de\s*)?vente\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/(\d{4}-\d{2}-\d{2})\s*(?:date\s*)?(?:vente|vendu)/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
         }
 
-        // Date signature acte de vente
-        if (preg_match('/Signature de l\'acte de vente\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
-            $data['date_signature'] = $m[1];
+        // Date signature acte de vente (backup)
+        if (empty($data['date_vente']) && preg_match('/Signature[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
         }
 
         return $data;
