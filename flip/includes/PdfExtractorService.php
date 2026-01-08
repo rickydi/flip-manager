@@ -237,7 +237,7 @@ class PdfExtractorService {
     }
 
     /**
-     * Parse les données structurées d'un chunk de texte
+     * Parse les données structurées d'un chunk de texte - Version complète
      */
     private function parseChunkData($text) {
         $data = [];
@@ -252,51 +252,170 @@ class PdfExtractorService {
             $data['prix_vendu'] = (int)preg_replace('/\s/', '', $m[1]);
         }
 
-        // Ville - chercher après le code postal ou dans les premières lignes
+        // Ville - chercher après le code postal ou pattern connu
         if (preg_match('/[A-Z]\d[A-Z]\s*\d[A-Z]\d\s*\n\s*([A-Za-zÀ-ÿ\-]+)/u', $text, $m)) {
             $data['ville'] = trim($m[1]);
-        } elseif (preg_match('/(Sainte?-[A-Za-zÀ-ÿ]+|[A-Z][a-zÀ-ÿ]+-[A-Za-zÀ-ÿ]+|Montréal|Laval|Québec|Longueuil|Gatineau)/u', $text, $m)) {
+        } elseif (preg_match('/(Sainte?-[A-Za-zÀ-ÿ]+|Saint-[A-Za-zÀ-ÿ]+|[A-Z][a-zÀ-ÿ]+-[A-Za-zÀ-ÿ]+|Montréal|Laval|Québec|Longueuil|Gatineau|Sherbrooke|Trois-Rivières)/u', $text, $m)) {
             $data['ville'] = $m[1];
         }
 
         // Année de construction
-        if (preg_match('/Année de construction\s+(\d{4})/i', $text, $m)) {
+        if (preg_match('/Année de construction\s*(\d{4})/i', $text, $m)) {
             $data['annee_construction'] = (int)$m[1];
         }
 
-        // Chambres
-        if (preg_match('/Nbre chambres.*?(\d+\+\d+|\d+)/i', $text, $m)) {
-            $data['chambres'] = $m[1];
-        }
-
-        // Salles de bain
-        if (preg_match('/salles de bains.*?(\d+\+\d+|\d+)/i', $text, $m)) {
-            $data['sdb'] = $m[1];
-        }
-
-        // Superficie terrain
-        if (preg_match('/Superficie du terrain\s+([\d\s,\.]+)\s*pc/i', $text, $m)) {
-            $data['superficie_terrain'] = trim($m[1]);
-        }
-
-        // Type de propriété
-        if (preg_match('/Genre de propriété\s+([^\n]+)/i', $text, $m)) {
+        // Genre de propriété (Maison de plain-pied, Cottage, etc.)
+        if (preg_match('/Genre de propriété\s*([^\t\n]+)/iu', $text, $m)) {
             $data['type_propriete'] = trim($m[1]);
         }
 
-        // Rénovations
-        if (preg_match('/Rénovations\s+([^\n]+(?:\n[^\n]+)*?)(?=Piscine|Stat\.|Fondation)/is', $text, $m)) {
-            $data['renovations'] = trim($m[1]);
+        // Type de bâtiment (Isolé, Jumelé, etc.)
+        if (preg_match('/Type de bâtiment\s*([^\t\n]+)/iu', $text, $m)) {
+            $data['type_batiment'] = trim($m[1]);
         }
 
-        // Remarques
-        if (preg_match('/Remarques\s+(.*?)(?=Vente avec|Déclaration|Addenda|Source|$)/is', $text, $m)) {
-            $data['remarques'] = trim(substr($m[1], 0, 1000)); // Limiter à 1000 chars
+        // Chambres (format: "2+3" ou "5")
+        if (preg_match('/Nbre\s*chambres[^\d]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['chambres'] = $m[1];
         }
 
-        // Date PA acceptée (approximation date de vente)
-        if (preg_match('/Date PA acceptée\s+(\d{4}-\d{2}-\d{2})/i', $text, $m)) {
+        // Salles de bain (format: "2+3" ou "2")
+        if (preg_match('/salles?\s*de\s*bains?[^\d]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['sdb'] = $m[1];
+        }
+
+        // Nombre de pièces
+        if (preg_match('/Nbre\s*pièces\s*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['nb_pieces'] = $m[1];
+        }
+
+        // Superficie terrain (en pc ou pi²)
+        if (preg_match('/Superficie du terrain\s*([\d\s,\.]+)\s*(?:pc|pi)/iu', $text, $m)) {
+            $data['superficie_terrain'] = trim(preg_replace('/\s/', '', $m[1]));
+        }
+
+        // Superficie habitable
+        if (preg_match('/Superficie habitable\s*([\d\s,\.]+)/iu', $text, $m)) {
+            $data['superficie_habitable'] = trim(preg_replace('/\s/', '', $m[1]));
+        }
+
+        // Dimensions terrain
+        if (preg_match('/Dimensions du terrain\s*([\d\s,\.]+\s*[xX]\s*[\d\s,\.]+)/iu', $text, $m)) {
+            $data['dimensions_terrain'] = trim($m[1]);
+        }
+
+        // === ÉVALUATION MUNICIPALE ===
+        if (preg_match('/Terrain\s*([\d\s]+)\s*\$/iu', $text, $m)) {
+            $data['eval_terrain'] = (int)preg_replace('/\s/', '', $m[1]);
+        }
+        if (preg_match('/Bâtiment\s*([\d\s]+)\s*\$/iu', $text, $m)) {
+            $data['eval_batiment'] = (int)preg_replace('/\s/', '', $m[1]);
+        }
+        if (preg_match('/Total\s*([\d\s]+)\s*\$\s*\([\d,\.]+\s*%\)/iu', $text, $m)) {
+            $data['eval_total'] = (int)preg_replace('/\s/', '', $m[1]);
+        }
+
+        // === TAXES ===
+        if (preg_match('/Municipale\s*([\d\s]+)\s*\$\s*\((\d{4})\)/iu', $text, $m)) {
+            $data['taxe_municipale'] = (int)preg_replace('/\s/', '', $m[1]);
+            $data['taxe_annee'] = $m[2];
+        }
+        if (preg_match('/Scolaire\s*([\d\s]+)\s*\$\s*\((\d{4})\)/iu', $text, $m)) {
+            $data['taxe_scolaire'] = (int)preg_replace('/\s/', '', $m[1]);
+        }
+
+        // === RÉNOVATIONS AVEC COÛTS ===
+        // Pattern: "Cuisine - 2022 (25 000 $), Électricité - 2022 (10 000 $)"
+        $renovations = [];
+        if (preg_match('/Rénovations\s*([^§]+?)(?=Piscine|Municipalité|Approvisionnement|Fondation|Stat\.|$)/isu', $text, $m)) {
+            $renoText = $m[1];
+            // Extraire chaque rénovation avec son coût
+            if (preg_match_all('/([A-Za-zÀ-ÿ\s\-]+)\s*-\s*(\d{4})\s*\(([\d\s]+)\s*\$\)/iu', $renoText, $renoMatches, PREG_SET_ORDER)) {
+                foreach ($renoMatches as $reno) {
+                    $renovations[] = [
+                        'type' => trim($reno[1]),
+                        'annee' => $reno[2],
+                        'cout' => (int)preg_replace('/\s/', '', $reno[3])
+                    ];
+                }
+            }
+            $data['renovations'] = $renovations;
+            $data['renovations_texte'] = trim($renoText);
+            // Calculer le total des rénovations
+            $data['renovations_total'] = array_sum(array_column($renovations, 'cout'));
+        }
+
+        // === CARACTÉRISTIQUES ===
+        // Fondation
+        if (preg_match('/Fondation\s*([^\n\t]+)/iu', $text, $m)) {
+            $data['fondation'] = trim($m[1]);
+        }
+
+        // Toiture
+        if (preg_match('/Revêtement de la toiture\s*([^\n\t]+)/iu', $text, $m)) {
+            $data['toiture'] = trim($m[1]);
+        }
+
+        // Revêtement extérieur
+        if (preg_match('/Revêtement\s*([^\n\t]+?)(?=Garage|Fenestration|$)/iu', $text, $m)) {
+            $data['revetement'] = trim($m[1]);
+        }
+
+        // Garage / Stationnement
+        if (preg_match('/Stat\.\s*\(total\)\s*(\d+)/iu', $text, $m)) {
+            $data['stationnement'] = (int)$m[1];
+        }
+        if (preg_match('/Garage\s*([^\n\t]*)/iu', $text, $m)) {
+            $data['garage'] = trim($m[1]);
+        }
+
+        // Piscine
+        if (preg_match('/Piscine\s*([^\n\t]+)/iu', $text, $m)) {
+            $piscine = trim($m[1]);
+            if (!empty($piscine) && $piscine !== 'Non') {
+                $data['piscine'] = $piscine;
+            }
+        }
+
+        // Sous-sol
+        if (preg_match('/Sous-sol\s*([^\n\t]+)/iu', $text, $m)) {
+            $data['sous_sol'] = trim($m[1]);
+        }
+
+        // Chauffage
+        if (preg_match('/Mode chauffage\s*([^\n\t]+)/iu', $text, $m)) {
+            $data['chauffage'] = trim($m[1]);
+        }
+        if (preg_match('/Énergie\/Chauffage\s*([^\n\t]+)/iu', $text, $m)) {
+            $data['energie'] = trim($m[1]);
+        }
+
+        // === PROXIMITÉS ===
+        if (preg_match('/Proximité\s*([^\n]+(?:\n[^\n]+)*?)(?=Foyer|Particularités|Armoires|$)/isu', $text, $m)) {
+            $data['proximites'] = trim($m[1]);
+        }
+
+        // === INCLUSIONS / EXCLUSIONS ===
+        if (preg_match('/Inclusions\s*\n?\s*([^\n]+(?:\n[^\n]+)*?)(?=Exclusions|Remarques|$)/isu', $text, $m)) {
+            $data['inclusions'] = trim($m[1]);
+        }
+        if (preg_match('/Exclusions\s*\n?\s*([^\n]+)/iu', $text, $m)) {
+            $data['exclusions'] = trim($m[1]);
+        }
+
+        // === REMARQUES ===
+        if (preg_match('/Remarques\s*\n?\s*(.*?)(?=Vente avec|Déclaration|Source|No Centris|$)/isu', $text, $m)) {
+            $data['remarques'] = trim(substr($m[1], 0, 2000));
+        }
+
+        // Date PA acceptée (date de vente)
+        if (preg_match('/Date PA acceptée\s*(\d{4}-\d{2}-\d{2})/i', $text, $m)) {
             $data['date_vente'] = $m[1];
+        }
+
+        // Date signature acte de vente
+        if (preg_match('/Signature de l\'acte de vente\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_signature'] = $m[1];
         }
 
         return $data;
