@@ -526,12 +526,30 @@ function openImageModal() {
     modalRotation = rotation;
 
     const modalImg = document.getElementById('modalImage');
-    modalImg.src = imageUrl;
-    updateModalTransform();
-    document.getElementById('zoomLevel').textContent = '100%';
+    const modal = document.getElementById('imageModal');
 
-    new bootstrap.Modal(document.getElementById('imageModal')).show();
+    // Appliquer la rotation après chargement de l'image
+    modalImg.onload = function() {
+        updateModalTransform();
+    };
+
+    // Si image déjà en cache, appliquer immédiatement
+    if (modalImg.src === imageUrl && modalImg.complete) {
+        updateModalTransform();
+    } else {
+        modalImg.src = imageUrl;
+    }
+
+    document.getElementById('zoomLevel').textContent = '100%';
+    updateModalTransform(); // Appliquer immédiatement aussi
+
+    new bootstrap.Modal(modal).show();
 }
+
+// Appliquer la rotation quand le modal s'ouvre complètement
+document.getElementById('imageModal')?.addEventListener('shown.bs.modal', function() {
+    updateModalTransform();
+});
 
 // Mettre à jour le transform (rotation + zoom)
 function updateModalTransform() {
@@ -598,9 +616,15 @@ async function autoDetectEtape() {
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
     try {
-        // Charger l'image et convertir en base64
+        // Charger l'image et la compresser si nécessaire
         const response = await fetch(imageUrl);
         const blob = await response.blob();
+
+        // Compresser l'image si > 4MB
+        let finalBlob = blob;
+        if (blob.size > 4 * 1024 * 1024) {
+            finalBlob = await compressImage(blob, 0.7, 1600);
+        }
 
         const reader = new FileReader();
         reader.onloadend = async function() {
@@ -643,15 +667,13 @@ async function autoDetectEtape() {
                     calculerTotal();
                 }
 
-                // Notification
-                if (data.data.categorie_suggestion) {
-                    btn.classList.remove('btn-outline-primary');
-                    btn.classList.add('btn-success');
-                    setTimeout(() => {
-                        btn.classList.remove('btn-success');
-                        btn.classList.add('btn-outline-primary');
-                    }, 2000);
-                }
+                // Notification visuelle
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                setTimeout(() => {
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                }, 2000);
             } else {
                 alert('Erreur: ' + (data.error || 'Analyse impossible'));
             }
@@ -660,13 +682,44 @@ async function autoDetectEtape() {
             btn.innerHTML = originalHtml;
         };
 
-        reader.readAsDataURL(blob);
+        reader.readAsDataURL(finalBlob);
     } catch (err) {
         console.error('Erreur:', err);
         alert('Erreur: ' + err.message);
         btn.disabled = false;
         btn.innerHTML = originalHtml;
     }
+}
+
+// Compresser une image
+function compressImage(blob, quality, maxSize) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Réduire si trop grand
+            if (width > maxSize || height > maxSize) {
+                if (width > height) {
+                    height = (height / width) * maxSize;
+                    width = maxSize;
+                } else {
+                    width = (width / height) * maxSize;
+                    height = maxSize;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(resolve, 'image/jpeg', quality);
+        };
+        img.src = URL.createObjectURL(blob);
+    });
 }
 </script>
 
