@@ -326,6 +326,9 @@ include '../../includes/header.php';
                                         <button type="button" class="btn btn-outline-primary btn-sm" onclick="openImageModal()">
                                             <i class="bi bi-eye"></i>
                                         </button>
+                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="analyserDetails()" id="btnAnalyseDetails" title="Décortiquer par étape">
+                                            <i class="bi bi-list-check"></i>
+                                        </button>
                                     </div>
                                 </div>
                                 <input type="hidden" id="currentRotation" value="<?= $currentRotation ?>">
@@ -438,6 +441,27 @@ include '../../includes/header.php';
             <div class="modal-body d-flex align-items-center justify-content-center p-0"
                  style="overflow:auto;cursor:grab" id="imageContainer">
                 <img src="" id="modalImage" style="transition:transform 0.2s">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Analyse Détaillée par Étape -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-list-check me-2"></i>Breakdown par étape</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <p class="mt-2 text-muted">Analyse en cours...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
             </div>
         </div>
     </div>
@@ -720,6 +744,177 @@ function compressImage(blob, quality, maxSize) {
         };
         img.src = URL.createObjectURL(blob);
     });
+}
+
+// Analyse détaillée avec breakdown par étape
+async function analyserDetails() {
+    const btn = document.getElementById('btnAnalyseDetails');
+    const imageUrl = document.getElementById('imageUrl')?.value;
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    const contentDiv = document.getElementById('detailsContent');
+
+    if (!imageUrl) {
+        alert('Aucune image disponible');
+        return;
+    }
+
+    // Afficher le modal avec loading
+    contentDiv.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-info" role="status"></div>
+            <p class="mt-2 text-muted">Analyse en cours... (peut prendre 10-15 secondes)</p>
+        </div>
+    `;
+    modal.show();
+
+    try {
+        // Charger et compresser l'image
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+
+        let finalBlob = blob;
+        if (blob.size > 4 * 1024 * 1024) {
+            finalBlob = await compressImage(blob, 0.7, 1600);
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = async function() {
+            const base64 = reader.result;
+
+            // Appeler l'API d'analyse détaillée
+            const apiResponse = await fetch('<?= url('/api/analyse-facture-details.php') ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image: base64})
+            });
+
+            const data = await apiResponse.json();
+
+            if (data.success && data.data) {
+                displayDetailsResults(data.data);
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        ${data.error || 'Erreur lors de l\'analyse'}
+                    </div>
+                `;
+            }
+        };
+
+        reader.readAsDataURL(finalBlob);
+    } catch (err) {
+        console.error('Erreur:', err);
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur: ${err.message}
+            </div>
+        `;
+    }
+}
+
+// Afficher les résultats de l'analyse détaillée
+function displayDetailsResults(data) {
+    const contentDiv = document.getElementById('detailsContent');
+
+    let html = '';
+
+    // Info facture
+    html += `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <strong>${data.fournisseur || 'Fournisseur inconnu'}</strong>
+                <span class="text-muted ms-2">${data.date_facture || ''}</span>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-success fs-6">${formatMoney(data.total || 0)}</span>
+            </div>
+        </div>
+    `;
+
+    // Totaux par étape
+    if (data.totaux_par_etape && data.totaux_par_etape.length > 0) {
+        html += `<h6 class="mt-4 mb-3"><i class="bi bi-pie-chart me-2"></i>Répartition par étape</h6>`;
+        html += `<div class="row g-2 mb-4">`;
+        data.totaux_par_etape.forEach(t => {
+            const percent = data.sous_total > 0 ? Math.round((t.montant / data.sous_total) * 100) : 0;
+            html += `
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-medium">${t.etape_nom}</span>
+                                <span class="badge bg-primary">${formatMoney(t.montant)}</span>
+                            </div>
+                            <div class="progress mt-1" style="height: 4px;">
+                                <div class="progress-bar" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // Liste des articles
+    if (data.lignes && data.lignes.length > 0) {
+        html += `<h6 class="mt-4 mb-3"><i class="bi bi-list-ul me-2"></i>Détail des articles (${data.lignes.length})</h6>`;
+        html += `<div class="table-responsive"><table class="table table-sm table-hover">`;
+        html += `<thead class="table-light"><tr>
+            <th>Article</th>
+            <th>Qté</th>
+            <th class="text-end">Prix</th>
+            <th>Étape</th>
+        </tr></thead><tbody>`;
+
+        data.lignes.forEach(l => {
+            html += `<tr>
+                <td>
+                    <small>${l.description}</small>
+                    ${l.raison ? `<br><span class="text-muted" style="font-size:0.7rem">${l.raison}</span>` : ''}
+                </td>
+                <td>${l.quantite || 1}</td>
+                <td class="text-end">${formatMoney(l.total || 0)}</td>
+                <td><span class="badge bg-secondary">${l.etape_nom || 'N/A'}</span></td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+    }
+
+    // Résumé taxes
+    html += `
+        <div class="border-top pt-3 mt-3">
+            <div class="row text-end">
+                <div class="col-8 text-muted">Sous-total:</div>
+                <div class="col-4">${formatMoney(data.sous_total || 0)}</div>
+            </div>
+            <div class="row text-end">
+                <div class="col-8 text-muted">TPS (5%):</div>
+                <div class="col-4">${formatMoney(data.tps || 0)}</div>
+            </div>
+            <div class="row text-end">
+                <div class="col-8 text-muted">TVQ (9.975%):</div>
+                <div class="col-4">${formatMoney(data.tvq || 0)}</div>
+            </div>
+            <div class="row text-end fw-bold">
+                <div class="col-8">Total:</div>
+                <div class="col-4">${formatMoney(data.total || 0)}</div>
+            </div>
+        </div>
+    `;
+
+    contentDiv.innerHTML = html;
+}
+
+// Formater montant en argent
+function formatMoney(amount) {
+    return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD'
+    }).format(amount);
 }
 </script>
 

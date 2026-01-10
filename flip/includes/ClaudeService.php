@@ -701,6 +701,112 @@ class ClaudeService {
         return $this->callApiFacture($payload);
     }
 
+    /**
+     * Analyse détaillée d'une facture avec breakdown par étape de construction
+     * @param string $imageData Image en base64
+     * @param string $mimeType Type MIME de l'image
+     * @param array $etapes Liste des étapes de construction disponibles
+     * @return array Détails des lignes avec étapes assignées
+     */
+    public function analyserFactureDetails($imageData, $mimeType, $etapes = []) {
+        $systemPrompt = "Tu es un expert en construction et rénovation au Québec. " .
+                       "Tu analyses des factures de quincaillerie (Home Depot, Réno Dépot, BMR, etc.) " .
+                       "et tu catégorises chaque article par étape de construction. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        // Construire la liste des étapes
+        $etapesListe = "";
+        if (!empty($etapes)) {
+            foreach ($etapes as $idx => $etape) {
+                $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
+            }
+        } else {
+            // Étapes par défaut si non fournies
+            $etapesListe = "- id: 1, nom: Démolition\n" .
+                          "- id: 2, nom: Structure/Charpente\n" .
+                          "- id: 3, nom: Plomberie\n" .
+                          "- id: 4, nom: Électricité\n" .
+                          "- id: 5, nom: Isolation\n" .
+                          "- id: 6, nom: Gypse/Plâtre\n" .
+                          "- id: 7, nom: Finition intérieure\n" .
+                          "- id: 8, nom: Peinture\n" .
+                          "- id: 9, nom: Revêtement extérieur\n" .
+                          "- id: 10, nom: Toiture\n" .
+                          "- id: 11, nom: Planchers\n" .
+                          "- id: 12, nom: Cuisine\n" .
+                          "- id: 13, nom: Salle de bain\n" .
+                          "- id: 14, nom: Portes et fenêtres\n" .
+                          "- id: 15, nom: Autre\n";
+        }
+
+        $userMessage = "Analyse cette facture de quincaillerie et catégorise CHAQUE LIGNE par étape de construction.\n\n" .
+                      "ÉTAPES DISPONIBLES:\n{$etapesListe}\n" .
+                      "GUIDE DE CATÉGORISATION:\n" .
+                      "- Bois (2x4, 2x6, 2x8, etc.), clous charpente, équerres, étriers → Structure/Charpente\n" .
+                      "- Tuyaux, raccords, valves, robinets → Plomberie\n" .
+                      "- Fils, boîtes électriques, prises, interrupteurs → Électricité\n" .
+                      "- Laine, styromousse, pare-vapeur → Isolation\n" .
+                      "- Gypse, vis gypse, composé, ruban → Gypse/Plâtre\n" .
+                      "- Moulures, trim, quincaillerie décorative → Finition intérieure\n" .
+                      "- Peinture, primer, rouleaux, pinceaux → Peinture\n" .
+                      "- Bardeaux, membrane, soffites → Toiture ou Revêtement\n" .
+                      "- Plancher flottant, sous-couche → Planchers\n" .
+                      "- Armoires, comptoirs, éviers cuisine → Cuisine\n" .
+                      "- Vanités, toilettes, douches → Salle de bain\n\n" .
+                      "Retourne un JSON avec:\n" .
+                      "{\n" .
+                      "  \"fournisseur\": \"Nom visible sur facture\",\n" .
+                      "  \"date_facture\": \"YYYY-MM-DD\",\n" .
+                      "  \"lignes\": [\n" .
+                      "    {\n" .
+                      "      \"description\": \"Description de l'article\",\n" .
+                      "      \"quantite\": 1,\n" .
+                      "      \"prix_unitaire\": 10.00,\n" .
+                      "      \"total\": 10.00,\n" .
+                      "      \"etape_id\": 2,\n" .
+                      "      \"etape_nom\": \"Structure/Charpente\",\n" .
+                      "      \"raison\": \"Bois de construction\"\n" .
+                      "    }\n" .
+                      "  ],\n" .
+                      "  \"totaux_par_etape\": [\n" .
+                      "    {\"etape_id\": 2, \"etape_nom\": \"Structure/Charpente\", \"montant\": 150.00}\n" .
+                      "  ],\n" .
+                      "  \"sous_total\": 500.00,\n" .
+                      "  \"tps\": 25.00,\n" .
+                      "  \"tvq\": 49.88,\n" .
+                      "  \"total\": 574.88\n" .
+                      "}\n\n" .
+                      "IMPORTANT: Utilise les id des étapes fournies. Si une étape n'existe pas, utilise etape_id: null.";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 4096,
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'image',
+                            'source' => [
+                                'type' => 'base64',
+                                'media_type' => $mimeType,
+                                'data' => $imageData
+                            ]
+                        ],
+                        [
+                            'type' => 'text',
+                            'text' => $userMessage
+                        ]
+                    ]
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        return $this->callApiFacture($payload);
+    }
+
     private function callApiFacture($payload) {
         $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
