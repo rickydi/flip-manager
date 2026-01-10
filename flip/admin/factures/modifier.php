@@ -21,7 +21,32 @@ try {
     }
 }
 
+// Migration: ajouter colonne rotation si elle n'existe pas
+try {
+    $pdo->query("SELECT rotation FROM factures LIMIT 1");
+} catch (Exception $e) {
+    try {
+        $pdo->exec("ALTER TABLE factures ADD COLUMN rotation INT DEFAULT 0");
+    } catch (Exception $e2) {}
+}
+
 $factureId = (int)($_GET['id'] ?? 0);
+
+// AJAX: Sauvegarder la rotation
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'rotate') {
+    header('Content-Type: application/json');
+    $rotation = (int)($_POST['rotation'] ?? 0) % 360;
+    $id = (int)($_POST['facture_id'] ?? 0);
+    try {
+        $stmt = $pdo->prepare("UPDATE factures SET rotation = ? WHERE id = ?");
+        $stmt->execute([$rotation, $id]);
+        echo json_encode(['success' => true, 'rotation' => $rotation]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
 if (!$factureId) {
     setFlashMessage('danger', 'Facture non trouvée.');
     redirect('/admin/factures/liste.php');
@@ -160,7 +185,7 @@ include '../../includes/header.php';
     
     <div class="card">
         <div class="card-body">
-            <form method="POST" enctype="multipart/form-data">
+            <form method="POST" enctype="multipart/form-data" id="factureForm">
                 <?php csrfField(); ?>
                 
                 <div class="row">
@@ -267,25 +292,46 @@ include '../../includes/header.php';
                 
                 <div class="mb-3">
                     <label class="form-label">Photo/PDF de la facture</label>
-                    <?php if ($facture['fichier']): 
+                    <?php if ($facture['fichier']):
                         $isImage = preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier']);
                         $isPdf = preg_match('/\.pdf$/i', $facture['fichier']);
+                        $currentRotation = (int)($facture['rotation'] ?? 0);
                     ?>
-                        <div class="mb-2 d-flex align-items-center gap-3">
+                        <div class="mb-2">
                             <?php if ($isImage): ?>
-                                <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
-                                    <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
-                                         alt="Facture"
-                                         style="max-width:150px;max-height:150px;object-fit:contain;border-radius:8px;border:2px solid #ddd">
-                                </a>
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="position-relative" style="display:inline-block;">
+                                        <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
+                                            <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                                 alt="Facture" id="factureImage"
+                                                 style="max-width:200px;max-height:200px;object-fit:contain;border-radius:8px;border:2px solid #ddd;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
+                                        </a>
+                                    </div>
+                                    <div class="d-flex flex-column gap-2">
+                                        <div class="btn-group-vertical">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="rotateImage(-90)" title="Rotation gauche">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="rotateImage(90)" title="Rotation droite">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </div>
+                                        <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="btn btn-outline-primary btn-sm">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="currentRotation" value="<?= $currentRotation ?>">
                             <?php elseif ($isPdf): ?>
-                                <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
-                                    <i class="bi bi-file-pdf" style="font-size:4rem"></i>
-                                </a>
+                                <div class="d-flex align-items-center gap-3">
+                                    <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
+                                        <i class="bi bi-file-pdf" style="font-size:4rem"></i>
+                                    </a>
+                                    <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="btn btn-outline-secondary btn-sm">
+                                        <i class="bi bi-eye me-1"></i>Voir PDF
+                                    </a>
+                                </div>
                             <?php endif; ?>
-                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-eye me-1"></i>Voir en grand
-                            </a>
                         </div>
                     <?php endif; ?>
                     <input type="file" class="form-control" name="fichier" accept=".jpg,.jpeg,.png,.gif,.pdf">
@@ -297,16 +343,30 @@ include '../../includes/header.php';
                     <textarea class="form-control" name="notes" rows="2"><?= e($facture['notes']) ?></textarea>
                 </div>
                 
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-success">
-                        <i class="bi bi-check-circle me-1"></i>Enregistrer
-                    </button>
+                <div class="d-flex gap-2 mb-5">
                     <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
                     <button type="button" class="btn btn-outline-danger ms-auto" data-bs-toggle="modal" data-bs-target="#deleteModal">
                         <i class="bi bi-trash me-1"></i>Supprimer
                     </button>
                 </div>
+
+                <!-- Spacer pour le bouton fixe -->
+                <div style="height: 70px;"></div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bouton Enregistrer fixe en bas -->
+<div class="fixed-bottom bg-white border-top shadow-lg py-3" style="z-index: 1030;">
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Total : </strong><span id="totalFactureFixed"><?= formatMoney($facture['montant_total']) ?></span>
+            </div>
+            <button type="submit" form="factureForm" class="btn btn-success btn-lg px-5">
+                <i class="bi bi-check-circle me-2"></i>Enregistrer
+            </button>
         </div>
     </div>
 </div>
@@ -365,7 +425,9 @@ function calculerTotal() {
     const tps = parseFloat(document.getElementById('tps').value.replace(',', '.').replace(/\s/g, '')) || 0;
     const tvq = parseFloat(document.getElementById('tvq').value.replace(',', '.').replace(/\s/g, '')) || 0;
     const total = montant + tps + tvq;
-    document.getElementById('totalFacture').textContent = total.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+    const formatted = total.toLocaleString('fr-CA', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' $';
+    document.getElementById('totalFacture').textContent = formatted;
+    document.getElementById('totalFactureFixed').textContent = formatted;
 }
 
 document.getElementById('montantAvantTaxes').addEventListener('input', function() {
@@ -374,6 +436,31 @@ document.getElementById('montantAvantTaxes').addEventListener('input', function(
 });
 document.getElementById('tps').addEventListener('input', calculerTotal);
 document.getElementById('tvq').addEventListener('input', calculerTotal);
+
+// Rotation de l'image
+function rotateImage(degrees) {
+    const img = document.getElementById('factureImage');
+    const rotationInput = document.getElementById('currentRotation');
+    if (!img || !rotationInput) return;
+
+    let currentRotation = parseInt(rotationInput.value) || 0;
+    currentRotation = (currentRotation + degrees + 360) % 360;
+    rotationInput.value = currentRotation;
+
+    img.style.transform = 'rotate(' + currentRotation + 'deg)';
+
+    // Sauvegarder via AJAX
+    fetch('', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'ajax_action=rotate&facture_id=<?= $factureId ?>&rotation=' + currentRotation
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) console.error('Erreur rotation:', data.error);
+    })
+    .catch(err => console.error('Erreur:', err));
+}
 </script>
 
 <?php include '../../includes/footer.php'; ?>
