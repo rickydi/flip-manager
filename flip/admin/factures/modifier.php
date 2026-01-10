@@ -203,14 +203,21 @@ include '../../includes/header.php';
                     
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Étape *</label>
-                        <select class="form-select" name="etape_id" required>
-                            <option value="">Sélectionner...</option>
-                            <?php foreach ($etapes as $etape): ?>
-                                <option value="<?= $etape['id'] ?>" <?= ($facture['etape_id'] ?? 0) == $etape['id'] ? 'selected' : '' ?>>
-                                    <?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="input-group">
+                            <select class="form-select" name="etape_id" id="etapeSelect" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($etapes as $etape): ?>
+                                    <option value="<?= $etape['id'] ?>" <?= ($facture['etape_id'] ?? 0) == $etape['id'] ? 'selected' : '' ?>>
+                                        <?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if ($facture['fichier'] && preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier'])): ?>
+                            <button type="button" class="btn btn-outline-primary" onclick="autoDetectEtape()" id="btnAutoDetect" title="Analyser avec IA">
+                                <i class="bi bi-magic"></i>
+                            </button>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     
                     <div class="col-md-4 mb-3">
@@ -399,23 +406,38 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<!-- Modal Image Viewer avec rotation -->
+<!-- Modal Image Viewer avec rotation et zoom -->
 <div class="modal fade" id="imageModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-dialog modal-fullscreen">
         <div class="modal-content bg-dark">
             <div class="modal-header border-0 py-2">
-                <div class="btn-group">
-                    <button type="button" class="btn btn-outline-light btn-sm" onclick="rotateModalImage(-90)">
-                        <i class="bi bi-arrow-counterclockwise"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-light btn-sm" onclick="rotateModalImage(90)">
-                        <i class="bi bi-arrow-clockwise"></i>
-                    </button>
+                <div class="d-flex gap-2">
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="rotateModalImage(-90)" title="Rotation gauche">
+                            <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="rotateModalImage(90)" title="Rotation droite">
+                            <i class="bi bi-arrow-clockwise"></i>
+                        </button>
+                    </div>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="zoomImage(-0.25)" title="Zoom -">
+                            <i class="bi bi-zoom-out"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="zoomImage(0.25)" title="Zoom +">
+                            <i class="bi bi-zoom-in"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-light btn-sm" onclick="resetZoom()" title="Reset">
+                            <i class="bi bi-arrows-angle-contract"></i>
+                        </button>
+                    </div>
+                    <span class="text-white-50 small align-self-center ms-2" id="zoomLevel">100%</span>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body d-flex align-items-center justify-content-center p-2" style="min-height:70vh;overflow:hidden">
-                <img src="" id="modalImage" style="max-width:90%;max-height:70vh;object-fit:contain;transition:transform 0.3s">
+            <div class="modal-body d-flex align-items-center justify-content-center p-0"
+                 style="overflow:auto;cursor:grab" id="imageContainer">
+                <img src="" id="modalImage" style="transition:transform 0.2s">
             </div>
         </div>
     </div>
@@ -490,22 +512,49 @@ function saveRotation(rotation) {
     .catch(err => console.error('Erreur:', err));
 }
 
+// Variables pour zoom
+let currentZoom = 1;
+let modalRotation = 0;
+
 // Ouvrir le modal avec l'image
 function openImageModal() {
     const imageUrl = document.getElementById('imageUrl')?.value;
     const rotation = parseInt(document.getElementById('currentRotation')?.value) || 0;
     if (!imageUrl) return;
 
+    currentZoom = 1;
+    modalRotation = rotation;
+
     const modalImg = document.getElementById('modalImage');
     modalImg.src = imageUrl;
-    modalImg.style.transform = 'rotate(' + rotation + 'deg)';
+    updateModalTransform();
+    document.getElementById('zoomLevel').textContent = '100%';
 
     new bootstrap.Modal(document.getElementById('imageModal')).show();
 }
 
+// Mettre à jour le transform (rotation + zoom)
+function updateModalTransform() {
+    const modalImg = document.getElementById('modalImage');
+    modalImg.style.transform = `rotate(${modalRotation}deg) scale(${currentZoom})`;
+}
+
+// Zoom
+function zoomImage(delta) {
+    currentZoom = Math.max(0.25, Math.min(4, currentZoom + delta));
+    updateModalTransform();
+    document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+}
+
+// Reset zoom
+function resetZoom() {
+    currentZoom = 1;
+    updateModalTransform();
+    document.getElementById('zoomLevel').textContent = '100%';
+}
+
 // Rotation dans le modal (et sauvegarde)
 function rotateModalImage(degrees) {
-    const modalImg = document.getElementById('modalImage');
     const rotationInput = document.getElementById('currentRotation');
     const previewImg = document.getElementById('factureImage');
 
@@ -513,15 +562,111 @@ function rotateModalImage(degrees) {
     currentRotation = (currentRotation + degrees + 360) % 360;
 
     if (rotationInput) rotationInput.value = currentRotation;
+    modalRotation = currentRotation;
 
     // Appliquer au modal
-    modalImg.style.transform = 'rotate(' + currentRotation + 'deg)';
+    updateModalTransform();
 
     // Appliquer au preview aussi
     if (previewImg) previewImg.style.transform = 'rotate(' + currentRotation + 'deg)';
 
     // Sauvegarder
     saveRotation(currentRotation);
+}
+
+// Zoom avec molette souris
+document.getElementById('imageModal')?.addEventListener('wheel', function(e) {
+    if (e.target.id === 'modalImage' || e.target.id === 'imageContainer') {
+        e.preventDefault();
+        zoomImage(e.deltaY > 0 ? -0.1 : 0.1);
+    }
+});
+
+// Auto-détection de l'étape par IA
+async function autoDetectEtape() {
+    const btn = document.getElementById('btnAutoDetect');
+    const imageUrl = document.getElementById('imageUrl')?.value;
+
+    if (!imageUrl) {
+        alert('Aucune image disponible');
+        return;
+    }
+
+    // Animation du bouton
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        // Charger l'image et convertir en base64
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+
+        const reader = new FileReader();
+        reader.onloadend = async function() {
+            const base64 = reader.result;
+
+            // Appeler l'API d'analyse
+            const apiResponse = await fetch('<?= url('/api/analyse-facture.php') ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image: base64})
+            });
+
+            const data = await apiResponse.json();
+
+            if (data.success && data.data) {
+                // Remplir l'étape si trouvée
+                if (data.data.categorie_id) {
+                    document.getElementById('etapeSelect').value = data.data.categorie_id;
+                }
+
+                // Remplir autres champs si vides
+                const fournisseurInput = document.querySelector('input[name="fournisseur"]');
+                const descriptionInput = document.querySelector('textarea[name="description"]');
+                const dateInput = document.querySelector('input[name="date_facture"]');
+                const montantInput = document.getElementById('montantAvantTaxes');
+
+                if (fournisseurInput && !fournisseurInput.value && data.data.fournisseur) {
+                    fournisseurInput.value = data.data.fournisseur;
+                }
+                if (descriptionInput && !descriptionInput.value && data.data.description) {
+                    descriptionInput.value = data.data.description;
+                }
+                if (dateInput && !dateInput.value && data.data.date_facture) {
+                    dateInput.value = data.data.date_facture;
+                }
+                if (montantInput && (!montantInput.value || montantInput.value === '0') && data.data.montant_avant_taxes) {
+                    montantInput.value = data.data.montant_avant_taxes.toFixed(2);
+                    if (data.data.tps) document.getElementById('tps').value = data.data.tps.toFixed(2);
+                    if (data.data.tvq) document.getElementById('tvq').value = data.data.tvq.toFixed(2);
+                    calculerTotal();
+                }
+
+                // Notification
+                if (data.data.categorie_suggestion) {
+                    btn.classList.remove('btn-outline-primary');
+                    btn.classList.add('btn-success');
+                    setTimeout(() => {
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-outline-primary');
+                    }, 2000);
+                }
+            } else {
+                alert('Erreur: ' + (data.error || 'Analyse impossible'));
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        };
+
+        reader.readAsDataURL(blob);
+    } catch (err) {
+        console.error('Erreur:', err);
+        alert('Erreur: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+    }
 }
 </script>
 
