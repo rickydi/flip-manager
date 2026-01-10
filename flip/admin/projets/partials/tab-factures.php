@@ -9,23 +9,6 @@
         $facturesFournisseurs = array_unique(array_filter(array_column($facturesProjet, 'fournisseur')));
         sort($facturesFournisseurs);
 
-        // Récupérer le breakdown par étape (depuis facture_lignes)
-        $breakdownEtapes = [];
-        try {
-            $stmtBreakdown = $pdo->prepare("
-                SELECT fl.etape_nom, fl.etape_id, SUM(fl.total) as total_etape, COUNT(*) as nb_lignes
-                FROM facture_lignes fl
-                JOIN factures f ON fl.facture_id = f.id
-                WHERE f.projet_id = ?
-                GROUP BY fl.etape_id, fl.etape_nom
-                ORDER BY total_etape DESC
-            ");
-            $stmtBreakdown->execute([$projetId]);
-            $breakdownEtapes = $stmtBreakdown->fetchAll();
-        } catch (Exception $e) {
-            // Table n'existe pas encore
-        }
-        $totalBreakdown = array_sum(array_column($breakdownEtapes, 'total_etape'));
         ?>
 
         <!-- Barre compacte : Total + Filtres + Actions -->
@@ -75,37 +58,6 @@
                 </a>
             </div>
         </div>
-
-        <?php if (!empty($breakdownEtapes)): ?>
-        <!-- Breakdown par étape de construction -->
-        <div class="card mb-3 border-info">
-            <div class="card-header bg-info bg-opacity-10 py-2">
-                <div class="d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-pie-chart me-2"></i><strong>Dépenses par étape de construction</strong></span>
-                    <span class="badge bg-info"><?= formatMoney($totalBreakdown) ?> analysé</span>
-                </div>
-            </div>
-            <div class="card-body py-2">
-                <div class="row g-2">
-                    <?php foreach ($breakdownEtapes as $be):
-                        $percent = $totalBreakdown > 0 ? round(($be['total_etape'] / $totalBreakdown) * 100) : 0;
-                    ?>
-                    <div class="col-md-4 col-lg-3">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-truncate" style="max-width: 60%;" title="<?= e($be['etape_nom'] ?? 'Non spécifié') ?>">
-                                <?= e($be['etape_nom'] ?? 'Non spécifié') ?>
-                            </small>
-                            <strong class="text-nowrap"><?= formatMoney($be['total_etape']) ?></strong>
-                        </div>
-                        <div class="progress" style="height: 4px;">
-                            <div class="progress-bar bg-info" style="width: <?= $percent ?>%"></div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
 
         <?php if (empty($facturesProjet)): ?>
             <div class="alert alert-info">
