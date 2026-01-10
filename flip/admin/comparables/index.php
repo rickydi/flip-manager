@@ -304,10 +304,14 @@ include '../../includes/header.php';
                                         <a href="detail.php?id=<?= $analyse['id'] ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i> Voir
                                         </a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger ms-1"
-                                                onclick="confirmDelete(<?= $analyse['id'] ?>, '<?= e(addslashes($analyse['nom_rapport'])) ?>')">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
+                                        <form method="POST" action="" style="display: inline;">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="analyse_id" value="<?= $analyse['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -375,38 +379,6 @@ include '../../includes/header.php';
     </div>
 </div>
 
-<!-- Modal Confirmation Suppression -->
-<div class="modal fade" id="modalDelete" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="">
-                <?php csrfField(); ?>
-                <input type="hidden" name="action" value="delete">
-                <input type="hidden" name="analyse_id" id="deleteAnalyseId">
-
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Confirmer la suppression</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Voulez-vous vraiment supprimer le rapport:</p>
-                    <p class="fw-bold" id="deleteRapportNom"></p>
-                    <div class="alert alert-warning mb-0">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        Cette action supprimera également tous les comparables et l'analyse IA associés. Cette action est irréversible.
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-danger">
-                        <i class="bi bi-trash me-1"></i>Supprimer
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <script>
 document.getElementById('formAnalyse').addEventListener('submit', function() {
     var btn = document.getElementById('btnAnalyser');
@@ -417,12 +389,6 @@ document.getElementById('formAnalyse').addEventListener('submit', function() {
     txt.textContent = 'Extraction en cours...';
     spin.classList.remove('d-none');
 });
-
-function confirmDelete(id, nom) {
-    document.getElementById('deleteAnalyseId').value = id;
-    document.getElementById('deleteRapportNom').textContent = nom;
-    new bootstrap.Modal(document.getElementById('modalDelete')).show();
-}
 </script>
 
 <?php include '../../includes/footer.php'; ?>

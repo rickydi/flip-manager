@@ -219,6 +219,7 @@ class ClaudeService {
         $payload = [
             'model' => $this->model,
             'max_tokens' => 2048,
+            'temperature' => 0, // Résultats consistants
             'messages' => [
                 [
                     'role' => 'user',
@@ -362,6 +363,7 @@ class ClaudeService {
         $payload = [
             'model' => $this->model,
             'max_tokens' => 2048,
+            'temperature' => 0, // Résultats consistants
             'messages' => [
                 [
                     'role' => 'user',
