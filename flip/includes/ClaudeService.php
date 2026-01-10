@@ -163,7 +163,7 @@ class ClaudeService {
         $systemPrompt = "Tu es un assistant spécialisé dans l'extraction de données de fiches immobilières Centris (Québec). " .
                        "Tu dois extraire TOUTES les informations disponibles du texte fourni avec précision. " .
                        "Si une donnée n'est pas présente, utilise null. " .
-                       "Les superficies doivent être en pieds carrés (pc). Si tu vois des dimensions (ex: 47 X 92), calcule la superficie. " .
+                       "ATTENTION: Superficie TERRAIN (grand, ex: 4000+ pc) ≠ Superficie HABITABLE (petit, ex: 800-2000 pc). " .
                        "Réponds UNIQUEMENT en JSON valide, sans texte autour.";
 
         $userMessage = "Extrait les données de cette fiche Centris:\n\n" .
@@ -182,10 +182,10 @@ class ClaudeService {
                       "  \"chambres\": \"Nombre de chambres (Nbre chambres, PAS Nbre pièces)\",\n" .
                       "  \"sdb\": \"Nombre de salles de bain (format: 2+1 si applicable)\",\n" .
                       "  \"nb_pieces\": \"Nombre total de pièces\",\n" .
-                      "  \"superficie_terrain\": \"En pieds carrés (pc). Si dimensions données (ex: 47 X 92 p), calcule: 47*92=4324 pc\",\n" .
-                      "  \"superficie_habitable\": \"En pieds carrés (pc). Si dimensions données, calcule.\",\n" .
-                      "  \"dimensions_terrain\": \"Format original (ex: 47 X 92 p)\",\n" .
-                      "  \"dimensions_batiment\": \"Format original (ex: 24 X 34 p)\",\n" .
+                      "  \"superficie_terrain\": \"TERRAIN (lot). Cherche 'Superficie du terrain' ou 'Dimensions du terrain'. Si dimensions (ex: 47 X 92 p), calcule 47*92=4324 pc. Typiquement 3000-10000+ pc.\",\n" .
+                      "  \"superficie_habitable\": \"BÂTIMENT (maison). Cherche 'Superficie habitable' ou 'Dimensions du bâtiment'. Si dimensions (ex: 24 X 34 p), calcule 24*34=816 pc. Typiquement 800-2500 pc. TOUJOURS PLUS PETIT que le terrain!\",\n" .
+                      "  \"dimensions_terrain\": \"Format original du terrain (ex: 47 X 92 p)\",\n" .
+                      "  \"dimensions_batiment\": \"Format original du bâtiment (ex: 24 X 34 p)\",\n" .
                       "  \"eval_terrain\": 0,\n" .
                       "  \"eval_batiment\": 0,\n" .
                       "  \"eval_total\": 0,\n" .
@@ -208,10 +208,12 @@ class ClaudeService {
                       "  \"exclusions\": \"Exclusions\",\n" .
                       "  \"remarques\": \"Remarques importantes\"\n" .
                       "}\n\n" .
-                      "IMPORTANT:\n" .
+                      "RÈGLES IMPORTANTES:\n" .
                       "- Les prix et évaluations sont des nombres entiers sans espaces ni $\n" .
-                      "- Les superficies doivent inclure l'unité (ex: \"4324 pc\")\n" .
-                      "- Si tu vois des dimensions (ex: 47 X 92), CALCULE la superficie et indique le calcul\n" .
+                      "- Les superficies doivent inclure l'unité (ex: \"4324 pc\" ou \"816 pc\")\n" .
+                      "- TERRAIN: 'Superficie du terrain' ou 'Dimensions du terrain' (47 X 92 = grand lot)\n" .
+                      "- BÂTIMENT: 'Superficie habitable' ou 'Dimensions du bâtiment' (24 X 34 = maison)\n" .
+                      "- Le bâtiment est TOUJOURS plus petit que le terrain!\n" .
                       "- Cherche 'Nbre chambres' pas 'Nbre pièces' pour les chambres";
 
         $payload = [

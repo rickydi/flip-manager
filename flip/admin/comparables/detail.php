@@ -658,13 +658,23 @@ document.getElementById('btnStartAnalysis')?.addEventListener('click', async fun
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyse en cours...';
 
-    const chunks = document.querySelectorAll('.chunk-card[data-status="pending"]');
+    // Sélectionner les headers des chunks qui ne sont pas encore analysés
+    const chunkHeaders = document.querySelectorAll('.chunk-header[data-status="pending"]');
     const totalChunks = <?= count($chunks) ?>;
     let doneCount = <?= $chunksDone ?>;
 
-    for (const card of chunks) {
-        const chunkId = card.dataset.chunkId;
-        card.classList.add('analyzing');
+    if (chunkHeaders.length === 0) {
+        btn.innerHTML = 'Aucun chunk à analyser';
+        location.reload();
+        return;
+    }
+
+    for (const header of chunkHeaders) {
+        const chunkId = header.dataset.chunkId;
+
+        // Ajouter un indicateur de chargement
+        const originalHTML = header.innerHTML;
+        header.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Analyse...';
 
         try {
             const response = await fetch('', {
@@ -676,9 +686,8 @@ document.getElementById('btnStartAnalysis')?.addEventListener('click', async fun
             const data = await response.json();
 
             if (data.success) {
-                card.classList.remove('analyzing');
-                card.classList.add('done');
-                card.dataset.status = 'done';
+                header.dataset.status = 'done';
+                header.innerHTML = originalHTML.replace('Comp.', '<span class="badge bg-success me-1">✓</span>Comp.');
                 doneCount++;
 
                 // Mettre à jour la progression
@@ -686,19 +695,19 @@ document.getElementById('btnStartAnalysis')?.addEventListener('click', async fun
                 document.getElementById('progressBar').style.width = progress + '%';
                 document.getElementById('progressText').textContent = doneCount + '/' + totalChunks;
 
-                // Recharger la page pour afficher les résultats (simple pour l'instant)
+                // Recharger la page si tous sont terminés
                 if (data.remaining === 0) {
                     location.reload();
                 }
             } else {
-                card.classList.remove('analyzing');
-                card.classList.add('error');
+                header.innerHTML = originalHTML + ' <span class="badge bg-danger">Erreur</span>';
                 console.error('Erreur:', data.error);
+                alert('Erreur: ' + data.error);
             }
         } catch (err) {
-            card.classList.remove('analyzing');
-            card.classList.add('error');
+            header.innerHTML = originalHTML + ' <span class="badge bg-danger">Erreur</span>';
             console.error('Erreur réseau:', err);
+            alert('Erreur réseau: ' + err.message);
         }
     }
 
