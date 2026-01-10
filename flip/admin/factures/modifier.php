@@ -300,12 +300,10 @@ include '../../includes/header.php';
                         <div class="mb-2">
                             <?php if ($isImage): ?>
                                 <div class="d-flex align-items-start gap-3">
-                                    <div class="position-relative" style="display:inline-block;">
-                                        <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
-                                            <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
-                                                 alt="Facture" id="factureImage"
-                                                 style="max-width:200px;max-height:200px;object-fit:contain;border-radius:8px;border:2px solid #ddd;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
-                                        </a>
+                                    <div class="position-relative" style="display:inline-block;cursor:pointer" onclick="openImageModal()">
+                                        <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
+                                             alt="Facture" id="factureImage"
+                                             style="max-width:200px;max-height:200px;object-fit:contain;border-radius:8px;border:2px solid #ddd;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
                                     </div>
                                     <div class="d-flex flex-column gap-2">
                                         <div class="btn-group-vertical">
@@ -316,12 +314,13 @@ include '../../includes/header.php';
                                                 <i class="bi bi-arrow-clockwise"></i>
                                             </button>
                                         </div>
-                                        <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="btn btn-outline-primary btn-sm">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="openImageModal()">
                                             <i class="bi bi-eye"></i>
-                                        </a>
+                                        </button>
                                     </div>
                                 </div>
                                 <input type="hidden" id="currentRotation" value="<?= $currentRotation ?>">
+                                <input type="hidden" id="imageUrl" value="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>">
                             <?php elseif ($isPdf): ?>
                                 <div class="d-flex align-items-center gap-3">
                                     <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
@@ -398,6 +397,28 @@ include '../../includes/header.php';
     </div>
 </div>
 
+<!-- Modal Image Viewer avec rotation -->
+<div class="modal fade" id="imageModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0 py-2">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="rotateModalImage(-90)">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-light btn-sm" onclick="rotateModalImage(90)">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-2">
+                <img src="" id="modalImage" style="max-width:100%;max-height:80vh;transition:transform 0.3s">
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let taxesActives = true;
 
@@ -437,7 +458,7 @@ document.getElementById('montantAvantTaxes').addEventListener('input', function(
 document.getElementById('tps').addEventListener('input', calculerTotal);
 document.getElementById('tvq').addEventListener('input', calculerTotal);
 
-// Rotation de l'image
+// Rotation de l'image (preview)
 function rotateImage(degrees) {
     const img = document.getElementById('factureImage');
     const rotationInput = document.getElementById('currentRotation');
@@ -450,16 +471,55 @@ function rotateImage(degrees) {
     img.style.transform = 'rotate(' + currentRotation + 'deg)';
 
     // Sauvegarder via AJAX
+    saveRotation(currentRotation);
+}
+
+// Sauvegarder la rotation en DB
+function saveRotation(rotation) {
     fetch('', {
         method: 'POST',
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: 'ajax_action=rotate&facture_id=<?= $factureId ?>&rotation=' + currentRotation
+        body: 'ajax_action=rotate&facture_id=<?= $factureId ?>&rotation=' + rotation
     })
     .then(r => r.json())
     .then(data => {
         if (!data.success) console.error('Erreur rotation:', data.error);
     })
     .catch(err => console.error('Erreur:', err));
+}
+
+// Ouvrir le modal avec l'image
+function openImageModal() {
+    const imageUrl = document.getElementById('imageUrl')?.value;
+    const rotation = parseInt(document.getElementById('currentRotation')?.value) || 0;
+    if (!imageUrl) return;
+
+    const modalImg = document.getElementById('modalImage');
+    modalImg.src = imageUrl;
+    modalImg.style.transform = 'rotate(' + rotation + 'deg)';
+
+    new bootstrap.Modal(document.getElementById('imageModal')).show();
+}
+
+// Rotation dans le modal (et sauvegarde)
+function rotateModalImage(degrees) {
+    const modalImg = document.getElementById('modalImage');
+    const rotationInput = document.getElementById('currentRotation');
+    const previewImg = document.getElementById('factureImage');
+
+    let currentRotation = parseInt(rotationInput?.value) || 0;
+    currentRotation = (currentRotation + degrees + 360) % 360;
+
+    if (rotationInput) rotationInput.value = currentRotation;
+
+    // Appliquer au modal
+    modalImg.style.transform = 'rotate(' + currentRotation + 'deg)';
+
+    // Appliquer au preview aussi
+    if (previewImg) previewImg.style.transform = 'rotate(' + currentRotation + 'deg)';
+
+    // Sauvegarder
+    saveRotation(currentRotation);
 }
 </script>
 
