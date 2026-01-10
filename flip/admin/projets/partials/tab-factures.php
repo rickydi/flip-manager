@@ -81,7 +81,7 @@
                         <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
                             <td><?= formatDate($f['date_facture']) ?></td>
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
-                            <td><?= e($f['etape_nom'] ?? 'N/A') ?></td>
+                            <td><?php if (empty($f['etape_nom'])): ?><span class="text-danger fw-bold">N/A</span><?php else: ?><?= e($f['etape_nom']) ?><?php endif; ?></td>
                             <td class="text-end fw-bold"><?= formatMoney($f['montant_total']) ?></td>
                             <td>
                                 <?php
