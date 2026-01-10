@@ -30,6 +30,28 @@ try {
     } catch (Exception $e2) {}
 }
 
+// Migration: créer table facture_lignes pour stocker le breakdown par étape
+try {
+    $pdo->query("SELECT 1 FROM facture_lignes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE facture_lignes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            facture_id INT NOT NULL,
+            description VARCHAR(500),
+            quantite DECIMAL(10,2) DEFAULT 1,
+            prix_unitaire DECIMAL(10,2) DEFAULT 0,
+            total DECIMAL(10,2) DEFAULT 0,
+            etape_id INT DEFAULT NULL,
+            etape_nom VARCHAR(100),
+            raison VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_facture (facture_id),
+            INDEX idx_etape (etape_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 $factureId = (int)($_GET['id'] ?? 0);
 
 // AJAX: Sauvegarder la rotation
@@ -462,6 +484,9 @@ include '../../includes/header.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-success" id="btnSaveBreakdown" onclick="saveBreakdown()" style="display:none">
+                    <i class="bi bi-check-circle me-1"></i>Enregistrer le breakdown
+                </button>
             </div>
         </div>
     </div>
@@ -746,6 +771,9 @@ function compressImage(blob, quality, maxSize) {
     });
 }
 
+// Variable pour stocker le breakdown courant
+let currentBreakdownData = null;
+
 // Analyse détaillée avec breakdown par étape
 async function analyserDetails() {
     const btn = document.getElementById('btnAnalyseDetails');
@@ -757,6 +785,10 @@ async function analyserDetails() {
         alert('Aucune image disponible');
         return;
     }
+
+    // Cacher le bouton save et reset data
+    document.getElementById('btnSaveBreakdown').style.display = 'none';
+    currentBreakdownData = null;
 
     // Afficher le modal avec loading
     contentDiv.innerHTML = `
@@ -817,6 +849,12 @@ async function analyserDetails() {
 // Afficher les résultats de l'analyse détaillée
 function displayDetailsResults(data) {
     const contentDiv = document.getElementById('detailsContent');
+
+    // Stocker les données pour sauvegarde
+    currentBreakdownData = data;
+
+    // Afficher le bouton de sauvegarde
+    document.getElementById('btnSaveBreakdown').style.display = 'inline-block';
 
     let html = '';
 
@@ -915,6 +953,65 @@ function formatMoney(amount) {
         style: 'currency',
         currency: 'CAD'
     }).format(amount);
+}
+
+// Sauvegarder le breakdown dans la BD
+async function saveBreakdown() {
+    if (!currentBreakdownData || !currentBreakdownData.lignes) {
+        alert('Aucune donnée à sauvegarder');
+        return;
+    }
+
+    const btn = document.getElementById('btnSaveBreakdown');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sauvegarde...';
+
+    try {
+        const response = await fetch('<?= url('/api/save-facture-lignes.php') ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                facture_id: <?= $factureId ?>,
+                lignes: currentBreakdownData.lignes
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enregistré!';
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-success');
+
+            // Afficher message de succès
+            const contentDiv = document.getElementById('detailsContent');
+            const alertHtml = `
+                <div class="alert alert-success alert-dismissible fade show mb-3">
+                    <i class="bi bi-check-circle me-2"></i>
+                    ${data.count} lignes enregistrées! Le breakdown est visible sur la page projet.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            contentDiv.insertAdjacentHTML('afterbegin', alertHtml);
+
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.classList.remove('btn-outline-success');
+                btn.classList.add('btn-success');
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            alert('Erreur: ' + (data.error || 'Sauvegarde impossible'));
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    } catch (err) {
+        console.error('Erreur:', err);
+        alert('Erreur: ' + err.message);
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
 }
 </script>
 
