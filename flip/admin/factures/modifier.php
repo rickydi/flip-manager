@@ -300,10 +300,12 @@ include '../../includes/header.php';
                         <div class="mb-2">
                             <?php if ($isImage): ?>
                                 <div class="d-flex align-items-start gap-3">
-                                    <div class="position-relative" style="display:inline-block;cursor:pointer" onclick="openImageModal()">
+                                    <div class="position-relative d-flex align-items-center justify-content-center"
+                                         style="width:200px;height:200px;cursor:pointer;overflow:hidden;border-radius:8px;border:2px solid #ddd;background:#f8f9fa"
+                                         onclick="openImageModal()">
                                         <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
                                              alt="Facture" id="factureImage"
-                                             style="max-width:200px;max-height:200px;object-fit:contain;border-radius:8px;border:2px solid #ddd;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
+                                             style="max-width:180px;max-height:180px;object-fit:contain;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
                                     </div>
                                     <div class="d-flex flex-column gap-2">
                                         <div class="btn-group-vertical">
@@ -412,8 +414,8 @@ include '../../includes/header.php';
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body text-center p-2">
-                <img src="" id="modalImage" style="max-width:100%;max-height:80vh;transition:transform 0.3s">
+            <div class="modal-body d-flex align-items-center justify-content-center p-2" style="min-height:70vh;overflow:hidden">
+                <img src="" id="modalImage" style="max-width:90%;max-height:70vh;object-fit:contain;transition:transform 0.3s">
             </div>
         </div>
     </div>
