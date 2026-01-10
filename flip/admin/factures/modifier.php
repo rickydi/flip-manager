@@ -310,8 +310,8 @@ include '../../includes/header.php';
                                     <div class="position-relative d-flex align-items-center justify-content-center"
                                          style="width:200px;height:200px;cursor:pointer;overflow:hidden;border-radius:8px;border:2px solid #ddd;background:#f8f9fa"
                                          onclick="openImageModal()">
-                                        <img src="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>"
-                                             alt="Facture" id="factureImage"
+                                        <img src="<?= url('/api/thumbnail.php?file=factures/' . e($facture['fichier']) . '&w=200&h=200') ?>"
+                                             alt="Facture" id="factureImage" loading="lazy"
                                              style="max-width:180px;max-height:180px;object-fit:contain;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
                                     </div>
                                     <div class="d-flex flex-column gap-2">
