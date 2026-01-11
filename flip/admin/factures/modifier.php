@@ -1004,10 +1004,46 @@ function saveBreakdown() {
             (e.montant > max.montant) ? e : max
         );
 
-        if (etapePrincipale.etape_id) {
-            const etapeSelect = document.getElementById('etapeSelect');
-            if (etapeSelect) {
-                etapeSelect.value = etapePrincipale.etape_id;
+        const etapeSelect = document.getElementById('etapeSelect');
+        if (etapeSelect) {
+            let found = false;
+
+            // Essayer d'abord par ID
+            if (etapePrincipale.etape_id) {
+                for (let option of etapeSelect.options) {
+                    if (option.value == etapePrincipale.etape_id) {
+                        etapeSelect.value = option.value;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            // Si pas trouvé par ID, chercher par nom
+            if (!found && etapePrincipale.etape_nom) {
+                const nomLower = etapePrincipale.etape_nom.toLowerCase();
+                for (let option of etapeSelect.options) {
+                    if (option.text.toLowerCase().includes(nomLower) ||
+                        nomLower.includes(option.text.toLowerCase().replace(/^\d+\.\s*/, ''))) {
+                        etapeSelect.value = option.value;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            // Si toujours pas trouvé, sélectionner la première option valide
+            if (!found) {
+                for (let option of etapeSelect.options) {
+                    if (option.value && option.value !== '') {
+                        etapeSelect.value = option.value;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (found) {
                 etapeSelect.classList.add('border-success');
                 setTimeout(() => etapeSelect.classList.remove('border-success'), 3000);
             }
