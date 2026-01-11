@@ -834,7 +834,7 @@ function fillFormWithData(data) {
 
     // Description
     if (data.description) {
-        document.querySelector('input[name="description"]').value = data.description;
+        document.querySelector('textarea[name="description"]').value = data.description;
     }
 
     // Montants
@@ -870,7 +870,7 @@ function fillFormWithData(data) {
 }
 
 function highlightFilledFields() {
-    const fields = ['#fournisseur', 'input[name="date_facture"]', 'input[name="description"]',
+    const fields = ['#fournisseur', 'input[name="date_facture"]', 'textarea[name="description"]',
                    '#montantAvantTaxes', '#tps', '#tvq', 'select[name="categorie_id"]', 'textarea[name="notes"]'];
 
     fields.forEach(selector => {
