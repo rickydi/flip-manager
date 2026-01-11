@@ -1061,54 +1061,53 @@ function saveBreakdown() {
     document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
 
     // Sélectionner automatiquement l'étape principale (celle avec le plus gros montant)
-    if (currentBreakdownData.totaux_par_etape && currentBreakdownData.totaux_par_etape.length > 0) {
+    const etapeSelect = document.getElementById('etapeSelect');
+    if (etapeSelect && currentBreakdownData.totaux_par_etape && currentBreakdownData.totaux_par_etape.length > 0) {
         let etapePrincipale = currentBreakdownData.totaux_par_etape.reduce((max, e) =>
             (e.montant > max.montant) ? e : max
         );
 
-        const etapeSelect = document.getElementById('etapeSelect');
-        if (etapeSelect) {
-            let found = false;
+        console.log('Étape principale:', etapePrincipale);
+        let found = false;
 
-            // Essayer d'abord par ID
-            if (etapePrincipale.etape_id) {
-                for (let option of etapeSelect.options) {
-                    if (option.value == etapePrincipale.etape_id) {
-                        etapeSelect.value = option.value;
-                        found = true;
-                        break;
-                    }
+        // Chercher par nom (plus fiable que par ID)
+        if (etapePrincipale.etape_nom) {
+            const nomRecherche = etapePrincipale.etape_nom.toLowerCase().trim();
+
+            for (let option of etapeSelect.options) {
+                if (!option.value || option.value === '') continue;
+
+                // Extraire le nom sans le numéro (ex: "1. Démolition" -> "démolition")
+                const optionNom = option.text.toLowerCase().replace(/^\d+\.\s*/, '').trim();
+
+                console.log('Comparaison:', nomRecherche, 'vs', optionNom);
+
+                if (optionNom === nomRecherche ||
+                    optionNom.includes(nomRecherche) ||
+                    nomRecherche.includes(optionNom)) {
+                    etapeSelect.value = option.value;
+                    found = true;
+                    console.log('Trouvé! Option:', option.value, option.text);
+                    break;
                 }
             }
+        }
 
-            // Si pas trouvé par ID, chercher par nom
-            if (!found && etapePrincipale.etape_nom) {
-                const nomLower = etapePrincipale.etape_nom.toLowerCase();
-                for (let option of etapeSelect.options) {
-                    if (option.text.toLowerCase().includes(nomLower) ||
-                        nomLower.includes(option.text.toLowerCase().replace(/^\d+\.\s*/, ''))) {
-                        etapeSelect.value = option.value;
-                        found = true;
-                        break;
-                    }
+        // Fallback: prendre la première option valide
+        if (!found) {
+            console.log('Pas trouvé par nom, fallback sur première option');
+            for (let option of etapeSelect.options) {
+                if (option.value && option.value !== '') {
+                    etapeSelect.value = option.value;
+                    found = true;
+                    break;
                 }
             }
+        }
 
-            // Si toujours pas trouvé, sélectionner la première option valide
-            if (!found) {
-                for (let option of etapeSelect.options) {
-                    if (option.value && option.value !== '') {
-                        etapeSelect.value = option.value;
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            if (found) {
-                etapeSelect.classList.add('border-success');
-                setTimeout(() => etapeSelect.classList.remove('border-success'), 3000);
-            }
+        if (found) {
+            etapeSelect.classList.add('border-success');
+            setTimeout(() => etapeSelect.classList.remove('border-success'), 3000);
         }
     }
 
