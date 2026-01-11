@@ -377,8 +377,8 @@ include '../../includes/header.php';
                 </div>
                 
                 <div class="mb-3">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-control" name="description" rows="2"><?= e($facture['description']) ?></textarea>
+                    <label class="form-label">Description <small class="text-muted">(remplie auto par l'IA)</small></label>
+                    <textarea class="form-control font-monospace" name="description" rows="8" style="font-size: 0.85rem;"><?= e($facture['description']) ?></textarea>
                 </div>
                 
                 <div class="row">
@@ -1072,6 +1072,30 @@ function saveBreakdown() {
 
     // Stocker dans le champ hidden
     document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
+
+    // Formater les articles en tableau pour la description
+    // Format: Article | Qté | Prix | Étape
+    let descriptionTable = "ARTICLES DÉTECTÉS PAR IA:\n";
+    descriptionTable += "─".repeat(60) + "\n";
+
+    currentBreakdownData.lignes.forEach((ligne, idx) => {
+        const desc = (ligne.description || 'N/A').substring(0, 35).padEnd(35);
+        const qty = String(ligne.quantite || 1).padStart(4);
+        const prix = (ligne.total || 0).toFixed(2).padStart(8);
+        const etape = (ligne.etape_nom || 'N/A').substring(0, 15);
+        descriptionTable += `${desc} x${qty} ${prix}$ [${etape}]\n`;
+    });
+
+    descriptionTable += "─".repeat(60) + "\n";
+    descriptionTable += `TOTAL: ${currentBreakdownData.lignes.length} articles | Sous-total: ${(currentBreakdownData.sous_total || 0).toFixed(2)}$`;
+
+    // Remplir le champ description
+    const descriptionField = document.querySelector('textarea[name="description"]');
+    if (descriptionField) {
+        descriptionField.value = descriptionTable;
+        descriptionField.classList.add('border-success');
+        setTimeout(() => descriptionField.classList.remove('border-success'), 3000);
+    }
 
     // Sélectionner automatiquement l'étape principale (celle avec le plus gros montant)
     const etapeSelect = document.getElementById('etapeSelect');
