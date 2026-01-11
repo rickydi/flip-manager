@@ -740,19 +740,21 @@ class ClaudeService {
         }
 
         $userMessage = "Analyse cette facture de quincaillerie et catégorise CHAQUE LIGNE par étape de construction.\n\n" .
-                      "ÉTAPES DISPONIBLES:\n{$etapesListe}\n" .
-                      "GUIDE DE CATÉGORISATION:\n" .
-                      "- Bois (2x4, 2x6, 2x8, etc.), clous charpente, équerres, étriers → Structure/Charpente\n" .
-                      "- Tuyaux, raccords, valves, robinets → Plomberie\n" .
-                      "- Fils, boîtes électriques, prises, interrupteurs → Électricité\n" .
-                      "- Laine, styromousse, pare-vapeur → Isolation\n" .
-                      "- Gypse, vis gypse, composé, ruban → Gypse/Plâtre\n" .
-                      "- Moulures, trim, quincaillerie décorative → Finition intérieure\n" .
-                      "- Peinture, primer, rouleaux, pinceaux → Peinture\n" .
-                      "- Bardeaux, membrane, soffites → Toiture ou Revêtement\n" .
-                      "- Plancher flottant, sous-couche → Planchers\n" .
-                      "- Armoires, comptoirs, éviers cuisine → Cuisine\n" .
-                      "- Vanités, toilettes, douches → Salle de bain\n\n" .
+                      "ÉTAPES DISPONIBLES (utilise EXACTEMENT ces noms et ids):\n{$etapesListe}\n" .
+                      "GUIDE DE CATÉGORISATION - associe les articles à l'étape la plus appropriée:\n" .
+                      "- Bois (2x4, 2x6, 2x8, etc.), clous charpente, équerres, étriers → étape contenant 'structure' ou 'division'\n" .
+                      "- Tuyaux, raccords, valves, robinets, drains → étape contenant 'plomberie'\n" .
+                      "- Fils, boîtes électriques, prises, interrupteurs, disjoncteurs → étape contenant 'électricité' ou 'electrique'\n" .
+                      "- Laine, styromousse, pare-vapeur, isolant → étape contenant 'isolation'\n" .
+                      "- Gypse, vis gypse, composé, ruban → étape contenant 'gypse'\n" .
+                      "- Moulures, trim, quincaillerie décorative → étape contenant 'finition'\n" .
+                      "- Peinture, primer, rouleaux, pinceaux, latex → étape contenant 'peinture' ou 'latex'\n" .
+                      "- Plancher, céramique, tuile, sous-couche → étape contenant 'plancher' ou 'ceramique'\n" .
+                      "- Armoires, comptoirs, éviers cuisine, vanités → étape contenant 'cuisine' ou 'vanité' ou 'ébénisterie'\n" .
+                      "- Portes, fenêtres, cadres → étape contenant 'porte' ou 'fenêtre'\n" .
+                      "- Escalier, marches, rampe → étape contenant 'escalier'\n" .
+                      "- Extérieur, revêtement, bardeau → étape contenant 'extérieur'\n\n" .
+                      "IMPORTANT: Tu DOIS utiliser les noms d'étapes EXACTEMENT comme fournis ci-dessus. Ne jamais inventer de nouvelles étapes.\n\n" .
                       "Retourne un JSON avec:\n" .
                       "{\n" .
                       "  \"fournisseur\": \"Nom visible sur facture\",\n" .
@@ -763,20 +765,20 @@ class ClaudeService {
                       "      \"quantite\": 1,\n" .
                       "      \"prix_unitaire\": 10.00,\n" .
                       "      \"total\": 10.00,\n" .
-                      "      \"etape_id\": 2,\n" .
-                      "      \"etape_nom\": \"Structure/Charpente\",\n" .
+                      "      \"etape_id\": 4,\n" .
+                      "      \"etape_nom\": \"Structures et division\",\n" .
                       "      \"raison\": \"Bois de construction\"\n" .
                       "    }\n" .
                       "  ],\n" .
                       "  \"totaux_par_etape\": [\n" .
-                      "    {\"etape_id\": 2, \"etape_nom\": \"Structure/Charpente\", \"montant\": 150.00}\n" .
+                      "    {\"etape_id\": 4, \"etape_nom\": \"Structures et division\", \"montant\": 150.00}\n" .
                       "  ],\n" .
                       "  \"sous_total\": 500.00,\n" .
                       "  \"tps\": 25.00,\n" .
                       "  \"tvq\": 49.88,\n" .
                       "  \"total\": 574.88\n" .
                       "}\n\n" .
-                      "IMPORTANT: Utilise les id des étapes fournies. Si une étape n'existe pas, utilise etape_id: null.";
+                      "CRITIQUE: Utilise UNIQUEMENT les étapes listées ci-dessus avec leurs IDs exacts. Choisis l'étape la plus proche même si pas parfaite.";
 
         $payload = [
             'model' => $this->model,
