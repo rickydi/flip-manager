@@ -168,6 +168,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $montantTotal, $fichier, $notes, $statut,
                     $factureId
                 ])) {
+                    // Sauvegarder les lignes du breakdown si présentes
+                    if (!empty($_POST['breakdown_data'])) {
+                        $breakdownData = json_decode($_POST['breakdown_data'], true);
+                        if ($breakdownData && !empty($breakdownData['lignes'])) {
+                            // Supprimer les anciennes lignes
+                            $stmtDel = $pdo->prepare("DELETE FROM facture_lignes WHERE facture_id = ?");
+                            $stmtDel->execute([$factureId]);
+
+                            // Insérer les nouvelles lignes
+                            $stmtLigne = $pdo->prepare("
+                                INSERT INTO facture_lignes (facture_id, description, quantite, prix_unitaire, total, etape_id, etape_nom, raison)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ");
+
+                            foreach ($breakdownData['lignes'] as $ligne) {
+                                $stmtLigne->execute([
+                                    $factureId,
+                                    $ligne['description'] ?? '',
+                                    $ligne['quantite'] ?? 1,
+                                    $ligne['prix_unitaire'] ?? 0,
+                                    $ligne['total'] ?? 0,
+                                    $ligne['etape_id'] ?? null,
+                                    $ligne['etape_nom'] ?? '',
+                                    $ligne['raison'] ?? ''
+                                ]);
+                            }
+                        }
+                    }
+
                     setFlashMessage('success', 'Facture mise à jour!');
                     redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=factures');
                 } else {
@@ -209,6 +238,7 @@ include '../../includes/header.php';
         <div class="card-body">
             <form method="POST" enctype="multipart/form-data" id="factureForm">
                 <?php csrfField(); ?>
+                <input type="hidden" name="breakdown_data" id="breakdownData" value="">
                 
                 <div class="row">
                     <div class="col-md-4 mb-3">
@@ -723,6 +753,9 @@ async function autoDetectEtape() {
                     btn.classList.remove('btn-success');
                     btn.classList.add('btn-outline-primary');
                 }, 2000);
+
+                // Lancer automatiquement le breakdown détaillé
+                analyserDetails();
             } else {
                 alert('Erreur: ' + (data.error || 'Analyse impossible'));
             }
@@ -955,63 +988,47 @@ function formatMoney(amount) {
     }).format(amount);
 }
 
-// Sauvegarder le breakdown dans la BD
-async function saveBreakdown() {
+// Stocker le breakdown dans le champ hidden (sera sauvegardé avec la facture)
+function saveBreakdown() {
     if (!currentBreakdownData || !currentBreakdownData.lignes) {
         alert('Aucune donnée à sauvegarder');
         return;
     }
 
+    // Stocker dans le champ hidden
+    document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
+
     const btn = document.getElementById('btnSaveBreakdown');
-    const originalHtml = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Sauvegarde...';
 
-    try {
-        const response = await fetch('<?= url('/api/save-facture-lignes.php') ?>', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                facture_id: <?= $factureId ?>,
-                lignes: currentBreakdownData.lignes
-            })
-        });
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('detailsModal')).hide();
 
-        const data = await response.json();
+    // Notification visuelle
+    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Prêt!';
+    btn.classList.remove('btn-success');
+    btn.classList.add('btn-outline-success');
 
-        if (data.success) {
-            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enregistré!';
-            btn.classList.remove('btn-success');
-            btn.classList.add('btn-outline-success');
+    // Afficher un message sur la page
+    const existingAlert = document.getElementById('breakdownConfirmAlert');
+    if (existingAlert) existingAlert.remove();
 
-            // Afficher message de succès
-            const contentDiv = document.getElementById('detailsContent');
-            const alertHtml = `
-                <div class="alert alert-success alert-dismissible fade show mb-3">
-                    <i class="bi bi-check-circle me-2"></i>
-                    ${data.count} lignes enregistrées! Le breakdown est visible sur la page projet.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-            contentDiv.insertAdjacentHTML('afterbegin', alertHtml);
+    const alertHtml = `
+        <div class="alert alert-success alert-dismissible fade show mb-3" id="breakdownConfirmAlert">
+            <i class="bi bi-check-circle me-2"></i>
+            <strong>Répartition prête!</strong> ${currentBreakdownData.lignes?.length || 0} articles seront répartis dans ${currentBreakdownData.totaux_par_etape?.length || 0} étapes à l'enregistrement.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
 
-            setTimeout(() => {
-                btn.innerHTML = originalHtml;
-                btn.classList.remove('btn-outline-success');
-                btn.classList.add('btn-success');
-                btn.disabled = false;
-            }, 3000);
-        } else {
-            alert('Erreur: ' + (data.error || 'Sauvegarde impossible'));
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        }
-    } catch (err) {
-        console.error('Erreur:', err);
-        alert('Erreur: ' + err.message);
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-    }
+    // Insérer après le header de la card
+    const cardBody = document.querySelector('.card-body');
+    cardBody.insertAdjacentHTML('afterbegin', alertHtml);
+
+    setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Enregistrer le breakdown';
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-success');
+    }, 2000);
 }
 </script>
 

@@ -21,6 +21,28 @@ try {
     }
 }
 
+// Migration: créer table facture_lignes pour stocker le breakdown par étape
+try {
+    $pdo->query("SELECT 1 FROM facture_lignes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE facture_lignes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            facture_id INT NOT NULL,
+            description VARCHAR(500),
+            quantite DECIMAL(10,2) DEFAULT 1,
+            prix_unitaire DECIMAL(10,2) DEFAULT 0,
+            total DECIMAL(10,2) DEFAULT 0,
+            etape_id INT DEFAULT NULL,
+            etape_nom VARCHAR(100),
+            raison VARCHAR(255),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_facture (facture_id),
+            INDEX idx_etape (etape_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 $pageTitle = 'Nouvelle facture';
 $errors = [];
 
@@ -153,6 +175,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
                 $statut, $approuvePar, $dateApprobation
             ])) {
+                $newFactureId = $pdo->lastInsertId();
+
+                // Sauvegarder les lignes du breakdown si présentes
+                if (!empty($_POST['breakdown_data'])) {
+                    $breakdownData = json_decode($_POST['breakdown_data'], true);
+                    if ($breakdownData && !empty($breakdownData['lignes'])) {
+                        // Supprimer les anciennes lignes (au cas où)
+                        $stmtDel = $pdo->prepare("DELETE FROM facture_lignes WHERE facture_id = ?");
+                        $stmtDel->execute([$newFactureId]);
+
+                        // Insérer les nouvelles lignes
+                        $stmtLigne = $pdo->prepare("
+                            INSERT INTO facture_lignes (facture_id, description, quantite, prix_unitaire, total, etape_id, etape_nom, raison)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        ");
+
+                        foreach ($breakdownData['lignes'] as $ligne) {
+                            $stmtLigne->execute([
+                                $newFactureId,
+                                $ligne['description'] ?? '',
+                                $ligne['quantite'] ?? 1,
+                                $ligne['prix_unitaire'] ?? 0,
+                                $ligne['total'] ?? 0,
+                                $ligne['etape_id'] ?? null,
+                                $ligne['etape_nom'] ?? '',
+                                $ligne['raison'] ?? ''
+                            ]);
+                        }
+                    }
+                }
+
                 $msg = $approuverDirect ? 'Facture ajoutée et approuvée!' : 'Facture ajoutée!';
                 setFlashMessage('success', $msg);
                 redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=factures');
@@ -202,6 +255,7 @@ include '../../includes/header.php';
                 <div class="card-body">
                     <form method="POST" enctype="multipart/form-data" id="factureForm">
                         <?php csrfField(); ?>
+                        <input type="hidden" name="breakdown_data" id="breakdownData" value="">
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
@@ -646,6 +700,9 @@ function analyzeImage(base64Data, mimeType) {
             const confidenceEl = document.getElementById('confidenceLevel');
             confidenceEl.textContent = confidencePercent + '% confiance';
             confidenceEl.className = 'badge ms-2 ' + (confidencePercent >= 80 ? 'bg-success' : confidencePercent >= 50 ? 'bg-warning' : 'bg-danger');
+
+            // Lancer automatiquement l'analyse détaillée pour le breakdown
+            analyserBreakdownAuto(base64Data);
         } else {
             showError(data.error || 'Erreur lors de l\'analyse');
         }
@@ -768,8 +825,230 @@ function resetPasteZone() {
     previewImage.src = '';
     fileInput.value = '';
     clearPastedImage();
+    // Réinitialiser le breakdown
+    currentBreakdownData = null;
+    document.getElementById('breakdownData').value = '';
+}
+
+// =============================================
+// BREAKDOWN PAR ÉTAPE (AUTOMATIQUE)
+// =============================================
+
+let currentBreakdownData = null;
+let currentImageBase64 = null;
+
+// Lancer automatiquement le breakdown après l'analyse rapide
+async function analyserBreakdownAuto(base64Data) {
+    currentImageBase64 = base64Data;
+
+    const contentDiv = document.getElementById('detailsContent');
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+
+    // Cacher le bouton save et reset data
+    document.getElementById('btnSaveBreakdown').style.display = 'none';
+    currentBreakdownData = null;
+
+    // Afficher le modal avec loading
+    contentDiv.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-info" role="status"></div>
+            <p class="mt-2 text-muted">Analyse détaillée en cours... (10-15 secondes)</p>
+        </div>
+    `;
+    modal.show();
+
+    try {
+        const apiResponse = await fetch('<?= url('/api/analyse-facture-details.php') ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({image: base64Data})
+        });
+
+        const data = await apiResponse.json();
+
+        if (data.success && data.data) {
+            displayDetailsResults(data.data);
+        } else {
+            contentDiv.innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    ${data.error || 'Impossible d\'analyser les détails. La facture sera créée sans répartition.'}
+                </div>
+            `;
+        }
+    } catch (err) {
+        console.error('Erreur breakdown:', err);
+        contentDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur: ${err.message}. La facture sera créée sans répartition.
+            </div>
+        `;
+    }
+}
+
+// Afficher les résultats de l'analyse détaillée
+function displayDetailsResults(data) {
+    const contentDiv = document.getElementById('detailsContent');
+
+    // Stocker les données pour sauvegarde
+    currentBreakdownData = data;
+
+    // Afficher le bouton de confirmation
+    document.getElementById('btnSaveBreakdown').style.display = 'inline-block';
+
+    let html = '';
+
+    // Info facture
+    html += `
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <strong>${data.fournisseur || 'Fournisseur'}</strong>
+                <span class="text-muted ms-2">${data.date_facture || ''}</span>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-success fs-6">${formatMoney(data.total || 0)}</span>
+            </div>
+        </div>
+    `;
+
+    // Totaux par étape
+    if (data.totaux_par_etape && data.totaux_par_etape.length > 0) {
+        html += `<h6 class="mt-4 mb-3"><i class="bi bi-pie-chart me-2"></i>Répartition par étape</h6>`;
+        html += `<div class="row g-2 mb-4">`;
+        data.totaux_par_etape.forEach(t => {
+            const percent = data.sous_total > 0 ? Math.round((t.montant / data.sous_total) * 100) : 0;
+            html += `
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-medium">${t.etape_nom}</span>
+                                <span class="badge bg-primary">${formatMoney(t.montant)}</span>
+                            </div>
+                            <div class="progress mt-1" style="height: 4px;">
+                                <div class="progress-bar" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+
+    // Liste des articles
+    if (data.lignes && data.lignes.length > 0) {
+        html += `<h6 class="mt-4 mb-3"><i class="bi bi-list-ul me-2"></i>Détail des articles (${data.lignes.length})</h6>`;
+        html += `<div class="table-responsive"><table class="table table-sm table-hover">`;
+        html += `<thead class="table-light"><tr>
+            <th>Article</th>
+            <th>Qté</th>
+            <th class="text-end">Prix</th>
+            <th>Étape</th>
+        </tr></thead><tbody>`;
+
+        data.lignes.forEach(l => {
+            html += `<tr>
+                <td>
+                    <small>${l.description}</small>
+                    ${l.raison ? `<br><span class="text-muted" style="font-size:0.7rem">${l.raison}</span>` : ''}
+                </td>
+                <td>${l.quantite || 1}</td>
+                <td class="text-end">${formatMoney(l.total || 0)}</td>
+                <td><span class="badge bg-secondary">${l.etape_nom || 'N/A'}</span></td>
+            </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+    }
+
+    // Résumé taxes
+    html += `
+        <div class="border-top pt-3 mt-3">
+            <div class="row text-end">
+                <div class="col-8 text-muted">Sous-total:</div>
+                <div class="col-4">${formatMoney(data.sous_total || 0)}</div>
+            </div>
+            <div class="row text-end">
+                <div class="col-8 text-muted">TPS (5%):</div>
+                <div class="col-4">${formatMoney(data.tps || 0)}</div>
+            </div>
+            <div class="row text-end">
+                <div class="col-8 text-muted">TVQ (9.975%):</div>
+                <div class="col-4">${formatMoney(data.tvq || 0)}</div>
+            </div>
+            <div class="row text-end fw-bold">
+                <div class="col-8">Total:</div>
+                <div class="col-4">${formatMoney(data.total || 0)}</div>
+            </div>
+        </div>
+    `;
+
+    contentDiv.innerHTML = html;
+}
+
+// Formater montant en argent
+function formatMoney(amount) {
+    return new Intl.NumberFormat('fr-CA', {
+        style: 'currency',
+        currency: 'CAD'
+    }).format(amount);
+}
+
+// Confirmer le breakdown et stocker dans le champ hidden
+function confirmBreakdown() {
+    if (!currentBreakdownData) {
+        alert('Aucune donnée à sauvegarder');
+        return;
+    }
+
+    // Stocker dans le champ hidden
+    document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
+
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('detailsModal')).hide();
+
+    // Afficher confirmation visuelle
+    const alertHtml = `
+        <div class="alert alert-success alert-dismissible fade show mt-3" id="breakdownConfirm">
+            <i class="bi bi-check-circle me-2"></i>
+            <strong>Répartition prête!</strong> ${currentBreakdownData.lignes?.length || 0} articles seront répartis dans ${currentBreakdownData.totaux_par_etape?.length || 0} étapes.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    // Ajouter après le résultat AI
+    const aiResultDiv = document.getElementById('aiResult');
+    const existingAlert = document.getElementById('breakdownConfirm');
+    if (existingAlert) existingAlert.remove();
+    aiResultDiv.insertAdjacentHTML('afterend', alertHtml);
 }
 </script>
+
+<!-- Modal Breakdown par Étape -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title"><i class="bi bi-list-check me-2"></i>Répartition par étape</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-info" role="status"></div>
+                    <p class="mt-2 text-muted">Analyse en cours...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-success" id="btnSaveBreakdown" onclick="confirmBreakdown()" style="display:none">
+                    <i class="bi bi-check-circle me-1"></i>Utiliser cette répartition
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Modal Nouveau Fournisseur -->
 <div class="modal fade" id="nouveauFournisseurModal" tabindex="-1">
