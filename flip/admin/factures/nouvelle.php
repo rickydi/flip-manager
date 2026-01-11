@@ -1074,7 +1074,13 @@ function confirmBreakdown() {
     }
 
     // Stocker dans le champ hidden
-    document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
+    const breakdownJson = JSON.stringify(currentBreakdownData);
+    document.getElementById('breakdownData').value = breakdownJson;
+
+    // DEBUG: Vérifier que c'est stocké
+    console.log('Breakdown stocké, longueur:', breakdownJson.length);
+    console.log('Nb lignes:', currentBreakdownData.lignes?.length);
+    console.log('Lignes etape_nom:', currentBreakdownData.lignes?.map(l => l.etape_nom));
 
     // Formater les articles en tableau pour la description
     // Format: Article | Qté | Prix | Étape
@@ -1181,6 +1187,20 @@ function confirmBreakdown() {
     if (existingAlert) existingAlert.remove();
     aiResultDiv.insertAdjacentHTML('afterend', alertHtml);
 }
+
+// DEBUG: Vérifier les données au moment de la soumission
+document.getElementById('factureForm').addEventListener('submit', function(e) {
+    const breakdownValue = document.getElementById('breakdownData').value;
+    console.log('=== SOUMISSION DU FORMULAIRE ===');
+    console.log('breakdownData longueur:', breakdownValue.length);
+    if (breakdownValue) {
+        const parsed = JSON.parse(breakdownValue);
+        console.log('Nb lignes:', parsed.lignes?.length);
+        console.log('Étapes:', parsed.lignes?.map(l => l.etape_nom));
+    } else {
+        console.log('ATTENTION: breakdownData est VIDE!');
+    }
+});
 </script>
 
 <!-- Modal Breakdown par Étape -->
