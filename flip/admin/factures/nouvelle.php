@@ -162,7 +162,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $statut = $approuverDirect ? 'approuvee' : 'en_attente';
             $approuvePar = $approuverDirect ? $_SESSION['user_id'] : null;
             $dateApprobation = $approuverDirect ? date('Y-m-d H:i:s') : null;
-            
+
+            // Auto-sélectionner l'étape principale basée sur le breakdown
+            if (!empty($_POST['breakdown_data']) && (!$etapeId || $etapeId == 0)) {
+                $breakdownData = json_decode($_POST['breakdown_data'], true);
+                if ($breakdownData && !empty($breakdownData['totaux_par_etape'])) {
+                    // Récupérer le mapping nom -> id des étapes
+                    $etapesMap = [];
+                    $stmtEtapes = $pdo->query("SELECT id, nom FROM budget_etapes");
+                    while ($row = $stmtEtapes->fetch()) {
+                        $etapesMap[strtolower(trim($row['nom']))] = $row['id'];
+                    }
+
+                    // Trouver l'étape avec le plus gros montant
+                    $maxMontant = 0;
+                    $etapePrincipale = null;
+                    foreach ($breakdownData['totaux_par_etape'] as $t) {
+                        if ($t['montant'] > $maxMontant) {
+                            $maxMontant = $t['montant'];
+                            $etapePrincipale = $t['etape_nom'] ?? '';
+                        }
+                    }
+
+                    if ($etapePrincipale) {
+                        $nomLower = strtolower(trim($etapePrincipale));
+                        if (isset($etapesMap[$nomLower])) {
+                            $etapeId = $etapesMap[$nomLower];
+                        } else {
+                            foreach ($etapesMap as $nom => $id) {
+                                if (strpos($nom, $nomLower) !== false || strpos($nomLower, $nom) !== false) {
+                                    $etapeId = $id;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             $stmt = $pdo->prepare("
                 INSERT INTO factures (projet_id, etape_id, user_id, fournisseur, description, date_facture,
                                      montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut,
@@ -181,6 +218,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!empty($_POST['breakdown_data'])) {
                     $breakdownData = json_decode($_POST['breakdown_data'], true);
                     if ($breakdownData && !empty($breakdownData['lignes'])) {
+                        // Récupérer le mapping nom -> id des étapes
+                        $etapesMap = [];
+                        $stmtEtapes = $pdo->query("SELECT id, nom FROM budget_etapes");
+                        while ($row = $stmtEtapes->fetch()) {
+                            $etapesMap[strtolower(trim($row['nom']))] = $row['id'];
+                        }
+
                         // Supprimer les anciennes lignes (au cas où)
                         $stmtDel = $pdo->prepare("DELETE FROM facture_lignes WHERE facture_id = ?");
                         $stmtDel->execute([$newFactureId]);
@@ -192,14 +236,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ");
 
                         foreach ($breakdownData['lignes'] as $ligne) {
+                            // Trouver le vrai etape_id par le nom
+                            $etapeNom = $ligne['etape_nom'] ?? '';
+                            $etapeId = null;
+
+                            // Chercher par nom exact
+                            $nomLower = strtolower(trim($etapeNom));
+                            if (isset($etapesMap[$nomLower])) {
+                                $etapeId = $etapesMap[$nomLower];
+                            } else {
+                                // Chercher par correspondance partielle
+                                foreach ($etapesMap as $nom => $id) {
+                                    if (strpos($nom, $nomLower) !== false || strpos($nomLower, $nom) !== false) {
+                                        $etapeId = $id;
+                                        break;
+                                    }
+                                }
+                            }
+
                             $stmtLigne->execute([
                                 $newFactureId,
                                 $ligne['description'] ?? '',
                                 $ligne['quantite'] ?? 1,
                                 $ligne['prix_unitaire'] ?? 0,
                                 $ligne['total'] ?? 0,
-                                $ligne['etape_id'] ?? null,
-                                $ligne['etape_nom'] ?? '',
+                                $etapeId,
+                                $etapeNom,
                                 $ligne['raison'] ?? ''
                             ]);
                         }
