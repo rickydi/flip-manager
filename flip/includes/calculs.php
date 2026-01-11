@@ -339,7 +339,48 @@ function calculerDepensesParEtape($pdo, $projetId) {
     $result = [];
 
     try {
-        // Factures avec étape
+        // 1) D'abord: utiliser facture_lignes pour le breakdown détaillé (factures analysées par IA)
+        $stmt = $pdo->prepare("
+            SELECT
+                fl.etape_id,
+                COALESCE(e.nom, fl.etape_nom, 'Non spécifié') as etape_nom,
+                COALESCE(e.ordre, 999) as etape_ordre,
+                SUM(fl.total) as total
+            FROM facture_lignes fl
+            JOIN factures f ON fl.facture_id = f.id
+            LEFT JOIN budget_etapes e ON fl.etape_id = e.id
+            WHERE f.projet_id = ? AND f.statut != 'rejetee'
+            GROUP BY fl.etape_id, COALESCE(e.nom, fl.etape_nom), COALESCE(e.ordre, 999)
+        ");
+        $stmt->execute([$projetId]);
+
+        $facturesAvecBreakdown = [];
+        foreach ($stmt->fetchAll() as $row) {
+            $etapeId = $row['etape_id'] ?? 0;
+            if (!isset($result[$etapeId])) {
+                $result[$etapeId] = [
+                    'nom' => $row['etape_nom'] ?? 'Non spécifié',
+                    'ordre' => $row['etape_ordre'] ?? 999,
+                    'total' => 0
+                ];
+            }
+            $result[$etapeId]['total'] += (float) ($row['total'] ?? 0);
+        }
+
+        // Récupérer les IDs des factures qui ont un breakdown
+        $stmtIds = $pdo->prepare("
+            SELECT DISTINCT f.id
+            FROM factures f
+            JOIN facture_lignes fl ON f.id = fl.facture_id
+            WHERE f.projet_id = ?
+        ");
+        $stmtIds->execute([$projetId]);
+        $facturesAvecBreakdown = $stmtIds->fetchAll(PDO::FETCH_COLUMN);
+
+        // 2) Ensuite: ajouter les factures SANS breakdown (anciennes ou non analysées)
+        $placeholders = !empty($facturesAvecBreakdown) ? implode(',', array_fill(0, count($facturesAvecBreakdown), '?')) : '0';
+        $params = array_merge([$projetId], $facturesAvecBreakdown);
+
         $stmt = $pdo->prepare("
             SELECT
                 e.id as etape_id,
@@ -349,27 +390,32 @@ function calculerDepensesParEtape($pdo, $projetId) {
             FROM factures f
             LEFT JOIN budget_etapes e ON f.etape_id = e.id
             WHERE f.projet_id = ? AND f.statut != 'rejetee' AND f.etape_id IS NOT NULL
+              AND f.id NOT IN ($placeholders)
             GROUP BY e.id, e.nom, e.ordre
             ORDER BY e.ordre, e.nom
         ");
-        $stmt->execute([$projetId]);
+        $stmt->execute($params);
 
         foreach ($stmt->fetchAll() as $row) {
             $etapeId = $row['etape_id'] ?? 0;
-            $result[$etapeId] = [
-                'nom' => $row['etape_nom'] ?? 'Non spécifié',
-                'ordre' => $row['etape_ordre'] ?? 999,
-                'total' => (float) ($row['total'] ?? 0)
-            ];
+            if (!isset($result[$etapeId])) {
+                $result[$etapeId] = [
+                    'nom' => $row['etape_nom'] ?? 'Non spécifié',
+                    'ordre' => $row['etape_ordre'] ?? 999,
+                    'total' => 0
+                ];
+            }
+            $result[$etapeId]['total'] += (float) ($row['total'] ?? 0);
         }
 
-        // Factures SANS étape (anciennes factures)
+        // 3) Factures SANS étape ET sans breakdown (anciennes factures)
         $stmt = $pdo->prepare("
             SELECT SUM(montant_avant_taxes) as total
             FROM factures
             WHERE projet_id = ? AND statut != 'rejetee' AND etape_id IS NULL
+              AND id NOT IN ($placeholders)
         ");
-        $stmt->execute([$projetId]);
+        $stmt->execute($params);
         $row = $stmt->fetch();
         $totalSansEtape = (float) ($row['total'] ?? 0);
 
@@ -381,7 +427,31 @@ function calculerDepensesParEtape($pdo, $projetId) {
             ];
         }
     } catch (Exception $e) {
-        // Table n'existe pas
+        // Table n'existe pas - fallback sur l'ancienne méthode
+        try {
+            $stmt = $pdo->prepare("
+                SELECT
+                    e.id as etape_id,
+                    e.nom as etape_nom,
+                    e.ordre as etape_ordre,
+                    SUM(f.montant_avant_taxes) as total
+                FROM factures f
+                LEFT JOIN budget_etapes e ON f.etape_id = e.id
+                WHERE f.projet_id = ? AND f.statut != 'rejetee' AND f.etape_id IS NOT NULL
+                GROUP BY e.id, e.nom, e.ordre
+                ORDER BY e.ordre, e.nom
+            ");
+            $stmt->execute([$projetId]);
+
+            foreach ($stmt->fetchAll() as $row) {
+                $etapeId = $row['etape_id'] ?? 0;
+                $result[$etapeId] = [
+                    'nom' => $row['etape_nom'] ?? 'Non spécifié',
+                    'ordre' => $row['etape_ordre'] ?? 999,
+                    'total' => (float) ($row['total'] ?? 0)
+                ];
+            }
+        } catch (Exception $e2) {}
     }
 
     return $result;
