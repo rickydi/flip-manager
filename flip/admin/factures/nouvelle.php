@@ -217,6 +217,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Sauvegarder les lignes du breakdown si présentes
                 if (!empty($_POST['breakdown_data'])) {
                     $breakdownData = json_decode($_POST['breakdown_data'], true);
+
+                    // DEBUG: Log les données reçues
+                    file_put_contents('/tmp/breakdown_debug.txt',
+                        date('Y-m-d H:i:s') . " - NOUVELLE Facture ID: $newFactureId\n" .
+                        "Decoded lignes count: " . count($breakdownData['lignes'] ?? []) . "\n" .
+                        "Lignes: " . print_r($breakdownData['lignes'] ?? [], true) . "\n" .
+                        "---\n", FILE_APPEND);
+
                     if ($breakdownData && !empty($breakdownData['lignes'])) {
                         // Récupérer le mapping nom -> id des étapes
                         $etapesMap = [];

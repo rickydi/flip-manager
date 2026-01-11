@@ -4,12 +4,17 @@
         $breakdownEtapes = [];
         $totalBreakdown = 0;
         try {
+            // Grouper par etape_nom seulement (plus fiable car etape_id peut être NULL)
             $stmtBreakdown = $pdo->prepare("
-                SELECT fl.etape_nom, fl.etape_id, SUM(fl.total) as total_etape, COUNT(*) as nb_lignes
+                SELECT
+                    COALESCE(fl.etape_nom, 'Non spécifié') as etape_nom,
+                    fl.etape_id,
+                    SUM(fl.total) as total_etape,
+                    COUNT(*) as nb_lignes
                 FROM facture_lignes fl
                 JOIN factures f ON fl.facture_id = f.id
                 WHERE f.projet_id = ?
-                GROUP BY fl.etape_id, fl.etape_nom
+                GROUP BY fl.etape_nom
                 ORDER BY total_etape DESC
             ");
             $stmtBreakdown->execute([$projetId]);
@@ -18,6 +23,20 @@
         } catch (Exception $e) {
             // Table n'existe pas encore
         }
+
+        // Debug: voir les lignes brutes
+        $debugLignes = [];
+        try {
+            $stmtDebug = $pdo->prepare("
+                SELECT fl.id, fl.description, fl.etape_nom, fl.etape_id, fl.total
+                FROM facture_lignes fl
+                JOIN factures f ON fl.facture_id = f.id
+                WHERE f.projet_id = ?
+                LIMIT 20
+            ");
+            $stmtDebug->execute([$projetId]);
+            $debugLignes = $stmtDebug->fetchAll();
+        } catch (Exception $e) {}
         ?>
         <div class="card">
             <div class="card-header">
@@ -46,6 +65,26 @@
                 <div class="tab-content" id="constructionSubTabsContent">
                     <!-- Onglet Dépenses par étape -->
                     <div class="tab-pane fade show active" id="depenses-content" role="tabpanel">
+                        <?php if (!empty($debugLignes)): ?>
+                            <div class="alert alert-warning mb-3">
+                                <strong>Debug - Lignes brutes dans facture_lignes:</strong>
+                                <table class="table table-sm table-bordered mt-2 mb-0" style="font-size:0.8rem">
+                                    <thead><tr><th>ID</th><th>Description</th><th>etape_nom</th><th>etape_id</th><th>Total</th></tr></thead>
+                                    <tbody>
+                                    <?php foreach ($debugLignes as $dl): ?>
+                                        <tr>
+                                            <td><?= $dl['id'] ?></td>
+                                            <td><?= e(substr($dl['description'], 0, 40)) ?></td>
+                                            <td><strong><?= e($dl['etape_nom'] ?? 'NULL') ?></strong></td>
+                                            <td><?= $dl['etape_id'] ?? 'NULL' ?></td>
+                                            <td><?= $dl['total'] ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endif; ?>
+
                         <?php if (empty($breakdownEtapes)): ?>
                             <div class="alert alert-info">
                                 <i class="bi bi-info-circle me-2"></i>

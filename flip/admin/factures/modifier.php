@@ -208,6 +208,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Sauvegarder les lignes du breakdown si présentes
                     if (!empty($_POST['breakdown_data'])) {
                         $breakdownData = json_decode($_POST['breakdown_data'], true);
+
+                        // DEBUG: Log les données reçues
+                        file_put_contents('/tmp/breakdown_debug.txt',
+                            date('Y-m-d H:i:s') . " - Facture ID: $factureId\n" .
+                            "Raw POST: " . $_POST['breakdown_data'] . "\n" .
+                            "Decoded lignes count: " . count($breakdownData['lignes'] ?? []) . "\n" .
+                            "Lignes: " . print_r($breakdownData['lignes'] ?? [], true) . "\n" .
+                            "---\n", FILE_APPEND);
+
                         if ($breakdownData && !empty($breakdownData['lignes'])) {
                             // Récupérer le mapping nom -> id des étapes
                             $etapesMap = [];
@@ -226,10 +235,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                             ");
 
-                            foreach ($breakdownData['lignes'] as $ligne) {
+                            foreach ($breakdownData['lignes'] as $idx => $ligne) {
                                 // Trouver le vrai etape_id par le nom
                                 $etapeNom = $ligne['etape_nom'] ?? '';
                                 $etapeId = null;
+
+                                // DEBUG: Log chaque ligne
+                                file_put_contents('/tmp/breakdown_debug.txt',
+                                    "  Ligne $idx: etape_nom='$etapeNom' | keys=" . implode(',', array_keys($ligne)) . "\n", FILE_APPEND);
 
                                 // Chercher par nom exact
                                 $nomLower = strtolower(trim($etapeNom));
