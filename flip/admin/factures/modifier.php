@@ -998,6 +998,22 @@ function saveBreakdown() {
     // Stocker dans le champ hidden
     document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
 
+    // Sélectionner automatiquement l'étape principale (celle avec le plus gros montant)
+    if (currentBreakdownData.totaux_par_etape && currentBreakdownData.totaux_par_etape.length > 0) {
+        let etapePrincipale = currentBreakdownData.totaux_par_etape.reduce((max, e) =>
+            (e.montant > max.montant) ? e : max
+        );
+
+        if (etapePrincipale.etape_id) {
+            const etapeSelect = document.getElementById('etapeSelect');
+            if (etapeSelect) {
+                etapeSelect.value = etapePrincipale.etape_id;
+                etapeSelect.classList.add('border-success');
+                setTimeout(() => etapeSelect.classList.remove('border-success'), 3000);
+            }
+        }
+    }
+
     const btn = document.getElementById('btnSaveBreakdown');
 
     // Fermer le modal
@@ -1008,14 +1024,22 @@ function saveBreakdown() {
     btn.classList.remove('btn-success');
     btn.classList.add('btn-outline-success');
 
-    // Afficher un message sur la page
+    // Afficher un message sur la page avec détail des étapes
     const existingAlert = document.getElementById('breakdownConfirmAlert');
     if (existingAlert) existingAlert.remove();
+
+    let etapesDetail = '';
+    if (currentBreakdownData.totaux_par_etape) {
+        etapesDetail = currentBreakdownData.totaux_par_etape.map(e =>
+            `<span class="badge bg-secondary me-1">${e.etape_nom}: ${formatMoney(e.montant)}</span>`
+        ).join('');
+    }
 
     const alertHtml = `
         <div class="alert alert-success alert-dismissible fade show mb-3" id="breakdownConfirmAlert">
             <i class="bi bi-check-circle me-2"></i>
-            <strong>Répartition prête!</strong> ${currentBreakdownData.lignes?.length || 0} articles seront répartis dans ${currentBreakdownData.totaux_par_etape?.length || 0} étapes à l'enregistrement.
+            <strong>Répartition prête!</strong> ${currentBreakdownData.lignes?.length || 0} articles répartis:<br>
+            <div class="mt-2">${etapesDetail}</div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;

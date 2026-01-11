@@ -1006,14 +1006,40 @@ function confirmBreakdown() {
     // Stocker dans le champ hidden
     document.getElementById('breakdownData').value = JSON.stringify(currentBreakdownData);
 
+    // Sélectionner automatiquement l'étape principale (celle avec le plus gros montant)
+    if (currentBreakdownData.totaux_par_etape && currentBreakdownData.totaux_par_etape.length > 0) {
+        // Trouver l'étape avec le montant le plus élevé
+        let etapePrincipale = currentBreakdownData.totaux_par_etape.reduce((max, e) =>
+            (e.montant > max.montant) ? e : max
+        );
+
+        if (etapePrincipale.etape_id) {
+            const etapeSelect = document.querySelector('select[name="etape_id"]');
+            if (etapeSelect) {
+                etapeSelect.value = etapePrincipale.etape_id;
+                // Highlight visuel
+                etapeSelect.classList.add('border-success');
+                setTimeout(() => etapeSelect.classList.remove('border-success'), 3000);
+            }
+        }
+    }
+
     // Fermer le modal
     bootstrap.Modal.getInstance(document.getElementById('detailsModal')).hide();
 
-    // Afficher confirmation visuelle
+    // Afficher confirmation visuelle avec détail des étapes
+    let etapesDetail = '';
+    if (currentBreakdownData.totaux_par_etape) {
+        etapesDetail = currentBreakdownData.totaux_par_etape.map(e =>
+            `<span class="badge bg-secondary me-1">${e.etape_nom}: ${formatMoney(e.montant)}</span>`
+        ).join('');
+    }
+
     const alertHtml = `
         <div class="alert alert-success alert-dismissible fade show mt-3" id="breakdownConfirm">
             <i class="bi bi-check-circle me-2"></i>
-            <strong>Répartition prête!</strong> ${currentBreakdownData.lignes?.length || 0} articles seront répartis dans ${currentBreakdownData.totaux_par_etape?.length || 0} étapes.
+            <strong>Répartition prête!</strong> ${currentBreakdownData.lignes?.length || 0} articles répartis:<br>
+            <div class="mt-2">${etapesDetail}</div>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
