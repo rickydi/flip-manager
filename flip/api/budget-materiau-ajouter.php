@@ -38,7 +38,7 @@ $fournisseur = trim($input['fournisseur'] ?? '');
 $etapeId = !empty($input['etape_id']) ? intval($input['etape_id']) : null;
 $sku = trim($input['sku'] ?? '');
 $lien = trim($input['lien'] ?? '');
-$imageBase64 = $input['image_base64'] ?? '';
+$imageUrl = $input['image_url'] ?? '';
 
 try {
     // Vérifier si la table catalogue_items existe
@@ -49,27 +49,43 @@ try {
         exit;
     }
 
-    // Sauvegarder l'image si fournie
+    // Télécharger et sauvegarder l'image si URL fournie
     $imagePath = null;
-    if (!empty($imageBase64)) {
-        // Extraire le type et les données
-        if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $imageBase64, $matches)) {
-            $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
-            $imageData = base64_decode($matches[2]);
+    if (!empty($imageUrl)) {
+        $uploadDir = __DIR__ . '/../uploads/materiaux/';
 
-            if ($imageData !== false) {
-                // Générer un nom unique
-                $imagePath = 'materiau_' . time() . '_' . uniqid() . '.' . $extension;
-                $uploadDir = __DIR__ . '/../uploads/materiaux/';
+        // Créer le dossier s'il n'existe pas
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
 
-                // Créer le dossier s'il n'existe pas
-                if (!is_dir($uploadDir)) {
-                    mkdir($uploadDir, 0755, true);
-                }
+        // Télécharger l'image
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 10,
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false
+            ]
+        ]);
 
-                // Sauvegarder l'image
-                file_put_contents($uploadDir . $imagePath, $imageData);
+        $imageData = @file_get_contents($imageUrl, false, $context);
+
+        if ($imageData !== false) {
+            // Déterminer l'extension depuis l'URL ou le content-type
+            $extension = 'jpg';
+            if (preg_match('/\.(jpg|jpeg|png|gif|webp)/i', $imageUrl, $matches)) {
+                $extension = strtolower($matches[1]);
+                if ($extension === 'jpeg') $extension = 'jpg';
             }
+
+            // Générer un nom unique
+            $imagePath = 'materiau_' . time() . '_' . uniqid() . '.' . $extension;
+
+            // Sauvegarder l'image
+            file_put_contents($uploadDir . $imagePath, $imageData);
         }
     }
 

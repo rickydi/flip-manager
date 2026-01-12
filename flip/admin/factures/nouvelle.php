@@ -1174,12 +1174,31 @@ function updateBreakdownData() {
 }
 
 // Ajouter un article au catalogue budget
-function addToBudget(idx) {
+async function addToBudget(idx) {
     const article = currentArticlesData[idx];
     if (!article) return;
 
+    const btn = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1}) .btn-outline-success`);
+    if (btn) {
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btn.disabled = true;
+    }
+
     const fournisseur = document.getElementById('fournisseur').value || article.fournisseur || '';
-    const imageBase64 = document.getElementById('imageBase64').value || '';
+
+    // Essayer de récupérer l'image du produit depuis le site fournisseur
+    let productImageUrl = null;
+    if (article.link) {
+        try {
+            const previewResponse = await fetch('<?= url('/api/link-preview.php') ?>?url=' + encodeURIComponent(article.link));
+            const previewData = await previewResponse.json();
+            if (previewData.success && previewData.image) {
+                productImageUrl = previewData.image;
+            }
+        } catch (e) {
+            console.log('Impossible de récupérer image produit:', e);
+        }
+    }
 
     // Données à envoyer
     const data = {
@@ -1189,7 +1208,7 @@ function addToBudget(idx) {
         etape_id: article.etape_id || null,
         sku: article.sku || article.code_produit || '',
         lien: article.link || '',
-        image_base64: imageBase64,
+        image_url: productImageUrl,
         csrf_token: '<?= generateCSRFToken() ?>'
     };
 
@@ -1203,20 +1222,29 @@ function addToBudget(idx) {
     .then(result => {
         if (result.success) {
             // Marquer comme ajouté
-            const btn = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1}) .btn-outline-success`);
             if (btn) {
                 btn.classList.remove('btn-outline-success');
                 btn.classList.add('btn-success');
                 btn.innerHTML = '<i class="bi bi-check-lg"></i>';
-                btn.disabled = true;
             }
             console.log('Matériau ajouté:', result);
         } else {
+            if (btn) {
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-success');
+                btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+                btn.disabled = false;
+            }
             alert('Erreur: ' + (result.error || 'Impossible d\'ajouter'));
         }
     })
     .catch(err => {
         console.error('Erreur:', err);
+        if (btn) {
+            btn.classList.add('btn-outline-success');
+            btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+            btn.disabled = false;
+        }
         alert('Erreur de connexion');
     });
 }
