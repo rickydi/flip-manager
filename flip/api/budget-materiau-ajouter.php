@@ -49,16 +49,9 @@ try {
         exit;
     }
 
-    // Télécharger et sauvegarder l'image si URL fournie
-    $imagePath = null;
+    // Télécharger l'image et convertir en base64 si URL fournie
+    $imageBase64 = null;
     if (!empty($imageUrl)) {
-        $uploadDir = __DIR__ . '/../uploads/materiaux/';
-
-        // Créer le dossier s'il n'existe pas
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
         // Télécharger l'image
         $context = stream_context_create([
             'http' => [
@@ -74,18 +67,18 @@ try {
         $imageData = @file_get_contents($imageUrl, false, $context);
 
         if ($imageData !== false) {
-            // Déterminer l'extension depuis l'URL ou le content-type
-            $extension = 'jpg';
-            if (preg_match('/\.(jpg|jpeg|png|gif|webp)/i', $imageUrl, $matches)) {
-                $extension = strtolower($matches[1]);
-                if ($extension === 'jpeg') $extension = 'jpg';
+            // Déterminer le type MIME depuis l'URL
+            $mimeType = 'image/jpeg';
+            if (preg_match('/\.(png)/i', $imageUrl)) {
+                $mimeType = 'image/png';
+            } elseif (preg_match('/\.(gif)/i', $imageUrl)) {
+                $mimeType = 'image/gif';
+            } elseif (preg_match('/\.(webp)/i', $imageUrl)) {
+                $mimeType = 'image/webp';
             }
 
-            // Générer un nom unique
-            $imagePath = 'materiau_' . time() . '_' . uniqid() . '.' . $extension;
-
-            // Sauvegarder l'image
-            file_put_contents($uploadDir . $imagePath, $imageData);
+            // Convertir en base64 avec data URI
+            $imageBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
         }
     }
 
@@ -113,10 +106,10 @@ try {
     // Insérer le matériau dans catalogue_items
     $stmt = $pdo->prepare("
         INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat, image, actif)
-        VALUES (?, 'material', ?, ?, ?, ?, ?, ?, ?, 1)
+        VALUES (?, 'item', ?, ?, ?, ?, ?, ?, ?, 1)
     ");
 
-    $stmt->execute([$parentId, $nom, $prix, $ordre, $etapeId, $fournisseur, $lien, $imagePath]);
+    $stmt->execute([$parentId, $nom, $prix, $ordre, $etapeId, $fournisseur, $lien, $imageBase64]);
 
     $newId = $pdo->lastInsertId();
 
