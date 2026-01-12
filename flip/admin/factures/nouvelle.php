@@ -522,31 +522,33 @@ foreach ($etapesPrompt as $etape) {
     $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
 }
 
-echo htmlspecialchars("Analyse cette facture et catégorise CHAQUE LIGNE par étape de construction.
+echo htmlspecialchars("Analyse cette facture de quincaillerie/rénovation.
 
-FOURNISSEURS CONNUS: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.
-IMPORTANT: Identifie le fournisseur depuis le LOGO ou le NOM visible sur la facture.
+ÉTAPE 1 - IDENTIFIER LE FOURNISSEUR:
+Regarde le LOGO en haut de la facture. Fournisseurs connus: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.
+Le fournisseur est OBLIGATOIRE - cherche le nom du magasin sur la facture.
 
-ÉTAPES DISPONIBLES:
+ÉTAPE 2 - EXTRAIRE LES MONTANTS:
+- Trouve le sous-total (avant taxes)
+- Trouve TPS (5%) et TVQ (9.975%)
+- Trouve le total
+- Trouve la date (format YYYY-MM-DD)
+
+ÉTAPE 3 - CATÉGORISER LES ARTICLES:
+Utilise ces étapes de construction:
 {$etapesListe}
-GUIDE DE CATÉGORISATION:
-- Bois, clous, équerres, étriers → étape 'structure' ou 'division'
-- Tuyaux, raccords, valves, robinets → étape 'plomberie'
-- Fils, boîtes électriques, prises, disjoncteurs, NMD → étape 'électricité'
-- Laine, styromousse, pare-vapeur, isolant → étape 'isolation'
-- Gypse, vis gypse, composé, ruban → étape 'gypse'
-- Peinture, primer, rouleaux, pinceaux → étape 'peinture'
+Guide: Bois→structure, Tuyaux→plomberie, Fils/NMD→électricité, Isolant→isolation, Gypse→gypse, Peinture→peinture
 
-Retourne un JSON avec:
+JSON OBLIGATOIRE:
 {
-  \"fournisseur\": \"Nom du magasin (ex: Home Depot)\",
+  \"fournisseur\": \"NOM DU MAGASIN (regarde le logo!)\",
   \"date_facture\": \"YYYY-MM-DD\",
-  \"lignes\": [{\"description\": \"...\", \"quantite\": 1, \"prix_unitaire\": 10.00, \"total\": 10.00, \"etape_id\": 4, \"etape_nom\": \"...\", \"raison\": \"...\"}],
-  \"totaux_par_etape\": [{\"etape_id\": 4, \"etape_nom\": \"...\", \"montant\": 150.00}],
-  \"sous_total\": 500.00,
-  \"tps\": 25.00,
-  \"tvq\": 49.88,
-  \"total\": 574.88
+  \"sous_total\": 0.00,
+  \"tps\": 0.00,
+  \"tvq\": 0.00,
+  \"total\": 0.00,
+  \"lignes\": [{\"description\": \"...\", \"quantite\": 1, \"total\": 0.00, \"etape_id\": 0, \"etape_nom\": \"...\"}],
+  \"totaux_par_etape\": [{\"etape_id\": 0, \"etape_nom\": \"...\", \"montant\": 0.00}]
 }");
 ?></textarea>
                     <small class="text-muted">Tu peux modifier ce prompt avant d'analyser une facture</small>
