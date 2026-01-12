@@ -59,11 +59,21 @@ try {
             etape_id INT DEFAULT NULL,
             etape_nom VARCHAR(100),
             raison VARCHAR(255),
+            sku VARCHAR(100),
+            link VARCHAR(500),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_facture (facture_id),
             INDEX idx_etape (etape_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
+}
+
+// Migration: ajouter colonnes sku et link si elles n'existent pas
+try {
+    $pdo->query("SELECT sku FROM facture_lignes LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE facture_lignes ADD COLUMN sku VARCHAR(100) DEFAULT NULL");
+    $pdo->exec("ALTER TABLE facture_lignes ADD COLUMN link VARCHAR(500) DEFAULT NULL");
 }
 
 $pageTitle = 'Nouvelle facture';
@@ -278,8 +288,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                         // Insérer les nouvelles lignes
                         $stmtLigne = $pdo->prepare("
-                            INSERT INTO facture_lignes (facture_id, description, quantite, prix_unitaire, total, etape_id, etape_nom, raison)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO facture_lignes (facture_id, description, quantite, prix_unitaire, total, etape_id, etape_nom, raison, sku, link)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         ");
 
                         foreach ($breakdownData['lignes'] as $ligne) {
@@ -309,7 +319,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $ligne['total'] ?? 0,
                                 $etapeId,
                                 $etapeNom,
-                                $ligne['raison'] ?? ''
+                                $ligne['raison'] ?? '',
+                                $ligne['sku'] ?? $ligne['code_produit'] ?? null,
+                                $ligne['link'] ?? null
                             ]);
                         }
                     }
@@ -1200,7 +1212,9 @@ const etapesOptions = <?= json_encode($etapes) ?>;
             'total' => (float)$ligne['total'],
             'etape_id' => $ligne['etape_id'],
             'etape_nom' => $ligne['etape_nom'],
-            'raison' => $ligne['raison'] ?? ''
+            'raison' => $ligne['raison'] ?? '',
+            'sku' => $ligne['sku'] ?? '',
+            'link' => $ligne['link'] ?? ''
         ];
     }, $factureLignes)) ?>;
 
