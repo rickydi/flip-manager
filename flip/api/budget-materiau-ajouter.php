@@ -41,30 +41,12 @@ $lien = trim($input['lien'] ?? '');
 $imageBase64 = $input['image_base64'] ?? '';
 
 try {
-    // Vérifier si la table budget_materiaux existe, sinon la créer
+    // Vérifier si la table catalogue_items existe
     try {
-        $pdo->query("SELECT 1 FROM budget_materiaux LIMIT 1");
+        $pdo->query("SELECT 1 FROM catalogue_items LIMIT 1");
     } catch (Exception $e) {
-        $pdo->exec("
-            CREATE TABLE budget_materiaux (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                nom VARCHAR(255) NOT NULL,
-                description TEXT,
-                prix DECIMAL(10,2) DEFAULT 0,
-                unite VARCHAR(50) DEFAULT 'unité',
-                categorie_id INT DEFAULT NULL,
-                sous_categorie_id INT DEFAULT NULL,
-                etape_id INT DEFAULT NULL,
-                fournisseur VARCHAR(255),
-                sku VARCHAR(100),
-                lien VARCHAR(500),
-                image VARCHAR(255),
-                actif TINYINT(1) DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_etape (etape_id),
-                INDEX idx_categorie (categorie_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-        ");
+        echo json_encode(['success' => false, 'error' => 'Table catalogue_items non trouvée. Utilisez d\'abord le Budget Builder.']);
+        exit;
     }
 
     // Sauvegarder l'image si fournie
@@ -91,13 +73,34 @@ try {
         }
     }
 
-    // Insérer le matériau
+    // Trouver le parent_id basé sur l'étape (ou null pour racine)
+    $parentId = null;
+    if ($etapeId) {
+        // Chercher si un dossier existe déjà pour cette étape dans le catalogue
+        $stmt = $pdo->prepare("SELECT id FROM catalogue_items WHERE etape_id = ? AND type = 'folder' LIMIT 1");
+        $stmt->execute([$etapeId]);
+        $folder = $stmt->fetch();
+        if ($folder) {
+            $parentId = $folder['id'];
+        }
+    }
+
+    // Trouver le prochain ordre
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(ordre), 0) + 1 FROM catalogue_items WHERE parent_id " . ($parentId ? "= ?" : "IS NULL"));
+    if ($parentId) {
+        $stmt->execute([$parentId]);
+    } else {
+        $stmt->execute();
+    }
+    $ordre = $stmt->fetchColumn();
+
+    // Insérer le matériau dans catalogue_items
     $stmt = $pdo->prepare("
-        INSERT INTO budget_materiaux (nom, prix, fournisseur, etape_id, sku, lien, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat, image, actif)
+        VALUES (?, 'material', ?, ?, ?, ?, ?, ?, ?, 1)
     ");
 
-    $stmt->execute([$nom, $prix, $fournisseur, $etapeId, $sku, $lien, $imagePath]);
+    $stmt->execute([$parentId, $nom, $prix, $ordre, $etapeId, $fournisseur, $lien, $imagePath]);
 
     $newId = $pdo->lastInsertId();
 
