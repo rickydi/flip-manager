@@ -202,7 +202,7 @@ function getChildren($pdo, $parentId, $depth = 0) {
         return [];
     }
 
-    $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
+    $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
     $stmt->execute([$parentId]);
     $items = $stmt->fetchAll();
 
@@ -231,7 +231,7 @@ function getCatalogueBySection($pdo) {
 
         // Récupérer seulement les éléments RACINE de cette étape
         $stmt = $pdo->prepare("
-            SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
+            SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
             WHERE etape_id = ? AND actif = 1 AND parent_id IS NULL
             ORDER BY type DESC, ordre, nom
         ");
@@ -255,7 +255,7 @@ function getCatalogueBySection($pdo) {
 
     // Section "Non spécifié" pour les éléments sans étape
     $stmt = $pdo->query("
-        SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
+        SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
         WHERE (etape_id IS NULL OR etape_id = 0) AND parent_id IS NULL AND actif = 1
         ORDER BY type DESC, ordre, nom
     ");
@@ -289,10 +289,10 @@ function getCatalogueTree($pdo, $parentId = null, $depth = 0) {
     }
 
     if ($parentId === null) {
-        $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id IS NULL AND actif = 1 ORDER BY type DESC, ordre, nom");
+        $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id IS NULL AND actif = 1 ORDER BY type DESC, ordre, nom");
         $stmt->execute();
     } else {
-        $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
+        $stmt = $pdo->prepare("SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items WHERE parent_id = ? AND actif = 1 ORDER BY type DESC, ordre, nom");
         $stmt->execute([$parentId]);
     }
 
@@ -2156,13 +2156,14 @@ function renderPanierTree($items, $level = 0) {
                             ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary"><i class="bi bi-box-arrow-up-right"></i></a>`
                             : '';
 
+                        const skuHtml = item.sku ? `<small class="text-muted d-block">#${escapeHtml(item.sku)}</small>` : '';
                         html += `<tr class="${isChecked ? 'table-success' : ''}">
                             <td style="width:40px;" class="text-center text-nowrap">
                                 <input type="checkbox" class="form-check-input order-check me-1"
                                        data-id="${item.id}" ${isChecked ? 'checked' : ''}
                                        onchange="toggleOrderItem(${item.id}, this.checked)"><span class="print-checkbox"></span>${linkHtml}
                             </td>
-                            <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
+                            <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}${skuHtml}</td>
                             <td style="width:60px;" class="text-center">${item.quantite}</td>
                             <td style="width:80px;" class="text-end">${formatMoney(item.prix)}</td>
                             <td style="width:90px;" class="text-end fw-bold">${formatMoney(total)}</td>
@@ -2190,13 +2191,14 @@ function renderPanierTree($items, $level = 0) {
                         ? `<a href="${escapeHtml(item.lien_achat)}" target="_blank" class="text-primary"><i class="bi bi-box-arrow-up-right"></i></a>`
                         : '';
 
+                    const skuHtml = item.sku ? `<small class="text-muted d-block">#${escapeHtml(item.sku)}</small>` : '';
                     html += `<tr class="${isChecked ? 'table-success' : ''}">
                         <td style="width:40px;" class="text-center text-nowrap">
                             <input type="checkbox" class="form-check-input order-check me-1"
                                    data-id="${item.id}" ${isChecked ? 'checked' : ''}
                                    onchange="toggleOrderItem(${item.id}, this.checked)"><span class="print-checkbox"></span>${linkHtml}
                         </td>
-                        <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}</td>
+                        <td class="${isChecked ? 'text-decoration-line-through text-muted' : ''}">${escapeHtml(item.nom)}${skuHtml}</td>
                         <td style="width:60px;" class="text-center">${item.quantite}</td>
                         <td style="width:80px;" class="text-end">${formatMoney(item.prix)}</td>
                         <td style="width:90px;" class="text-end fw-bold">${formatMoney(total)}</td>

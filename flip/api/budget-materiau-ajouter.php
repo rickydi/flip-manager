@@ -105,11 +105,11 @@ try {
 
     // Insérer le matériau dans catalogue_items
     $stmt = $pdo->prepare("
-        INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat, image, actif)
-        VALUES (?, 'item', ?, ?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO catalogue_items (parent_id, type, nom, prix, ordre, etape_id, fournisseur, lien_achat, sku, image, actif)
+        VALUES (?, 'item', ?, ?, ?, ?, ?, ?, ?, ?, 1)
     ");
 
-    $stmt->execute([$parentId, $nom, $prix, $ordre, $etapeId, $fournisseur, $lien, $imageBase64]);
+    $stmt->execute([$parentId, $nom, $prix, $ordre, $etapeId, $fournisseur, $lien, $sku ?: null, $imageBase64]);
 
     $newId = $pdo->lastInsertId();
 

@@ -38,6 +38,12 @@ try {
         $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN actif TINYINT(1) NOT NULL DEFAULT 1");
         // Nouveaux items auront actif=1 par défaut
     }
+    // Ajouter colonne sku si manquante
+    try {
+        $pdo->query("SELECT sku FROM catalogue_items LIMIT 1");
+    } catch (Exception $e) {
+        $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN sku VARCHAR(50) DEFAULT NULL");
+    }
 } catch (Exception $e) {
     // Créer la table catalogue_items
     $pdo->exec("
@@ -50,6 +56,7 @@ try {
             quantite_defaut INT DEFAULT 1,
             fournisseur VARCHAR(255) DEFAULT NULL,
             lien_achat VARCHAR(500) DEFAULT NULL,
+            sku VARCHAR(50) DEFAULT NULL,
             etape_id INT DEFAULT NULL,
             ordre INT DEFAULT 0,
             actif TINYINT(1) DEFAULT 1,
@@ -1077,7 +1084,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT
                     bi.id, bi.nom, bi.prix, bi.quantite, bi.commande,
-                    ci.fournisseur, ci.lien_achat
+                    ci.fournisseur, ci.lien_achat, ci.sku
                 FROM budget_items bi
                 LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
                 WHERE bi.projet_id = ? AND (bi.type = 'item' OR bi.type IS NULL)
@@ -1187,7 +1194,7 @@ try {
             $getChildren = function($pdo, $parentId, $depth = 0) use (&$getChildren) {
                 if ($depth > 10) return [];
                 $stmt = $pdo->prepare("
-                    SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
+                    SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
                     WHERE parent_id = ? AND actif = 1
                     ORDER BY type DESC, ordre, nom
                 ");
@@ -1236,7 +1243,7 @@ try {
                 // Récupérer seulement les éléments RACINE de cette étape (parent_id IS NULL)
                 // Les enfants seront chargés via getChildren()
                 $stmt = $pdo->prepare("
-                    SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
+                    SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
                     WHERE etape_id = ? AND actif = 1 AND parent_id IS NULL
                     ORDER BY type DESC, ordre, nom
                 ");
@@ -1261,7 +1268,7 @@ try {
 
             // Éléments sans étape (qui n'ont pas de parent avec étape non plus)
             $stmt = $pdo->query("
-                SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
+                SELECT id, parent_id, type, nom, prix, quantite_defaut, ordre, etape_id, fournisseur, lien_achat, sku, sans_taxe, actif, (image IS NOT NULL AND image != '') as has_image FROM catalogue_items
                 WHERE (etape_id IS NULL OR etape_id = 0) AND actif = 1 AND parent_id IS NULL
                 ORDER BY type DESC, ordre, nom
             ");
@@ -1567,7 +1574,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT
                     bi.id, bi.nom, bi.prix, bi.quantite, bi.commande,
-                    ci.fournisseur, ci.lien_achat, ci.etape_id,
+                    ci.fournisseur, ci.lien_achat, ci.sku, ci.etape_id,
                     e.nom as etape_nom
                 FROM budget_items bi
                 LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
@@ -1609,7 +1616,7 @@ try {
             $stmt = $pdo->prepare("
                 SELECT
                     bi.id, bi.nom, bi.prix, bi.quantite, bi.commande,
-                    ci.fournisseur, ci.lien_achat, ci.etape_id,
+                    ci.fournisseur, ci.lien_achat, ci.sku, ci.etape_id,
                     e.nom as etape_nom, e.ordre as etape_ordre
                 FROM budget_items bi
                 LEFT JOIN catalogue_items ci ON bi.catalogue_item_id = ci.id
