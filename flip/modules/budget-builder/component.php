@@ -72,6 +72,13 @@ try {
     $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN etape_id INT DEFAULT NULL");
 }
 
+// Ajouter colonne sku si manquante
+try {
+    $pdo->query("SELECT sku FROM catalogue_items LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("ALTER TABLE catalogue_items ADD COLUMN sku VARCHAR(50) DEFAULT NULL");
+}
+
 // ============================================
 // AUTO-MIGRATION: Table budget_items (panier)
 // ============================================
