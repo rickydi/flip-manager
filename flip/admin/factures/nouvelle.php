@@ -364,8 +364,12 @@ include '../../includes/header.php';
 
                 <div class="mb-3">
                     <label class="form-label">Description <small class="text-muted">(remplie auto par l'IA)</small></label>
-                    <textarea class="form-control font-monospace" name="description" rows="8" style="font-size: 0.85rem;"
+                    <textarea class="form-control font-monospace" name="description" rows="6" style="font-size: 0.85rem;"
                               placeholder="Description des achats..."></textarea>
+                    <div id="linksPreview" class="mt-2 d-none">
+                        <small class="text-muted">Liens produits:</small>
+                        <div id="linksContainer" class="d-flex flex-wrap gap-1 mt-1"></div>
+                    </div>
                 </div>
 
                 <!-- Type de facture -->
@@ -975,10 +979,11 @@ function fillFormWithDetailedData(data) {
 
     calculerTotal();
 
-    // Formater les articles pour la description (avec liens si SKU disponible)
+    // Formater les articles pour la description (avec liens cliquables)
     if (data.lignes && data.lignes.length > 0) {
         const fournisseur = (data.fournisseur || '').toLowerCase();
         let descriptionLines = [];
+        let productLinks = [];
 
         data.lignes.forEach((ligne) => {
             const desc = ligne.description || 'N/A';
@@ -990,18 +995,37 @@ function fillFormWithDetailedData(data) {
             let lineText = `${desc} x${qty} ${prix}$`;
             if (etape) lineText += ` [${etape}]`;
 
-            // Ajouter lien si SKU disponible
+            descriptionLines.push(lineText);
+
+            // Collecter les liens si SKU disponible
             if (sku) {
                 const link = generateProductLink(fournisseur, sku);
                 if (link) {
-                    lineText += `\n   → ${link}`;
+                    productLinks.push({
+                        desc: desc.substring(0, 25) + (desc.length > 25 ? '...' : ''),
+                        url: link,
+                        sku: sku
+                    });
                 }
             }
-
-            descriptionLines.push(lineText);
         });
 
         document.querySelector('textarea[name="description"]').value = descriptionLines.join('\n');
+
+        // Afficher les liens cliquables
+        const linksPreview = document.getElementById('linksPreview');
+        const linksContainer = document.getElementById('linksContainer');
+
+        if (productLinks.length > 0) {
+            linksContainer.innerHTML = productLinks.map(p =>
+                `<a href="${p.url}" target="_blank" class="btn btn-sm btn-outline-primary" title="${p.desc}">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>${p.sku}
+                </a>`
+            ).join('');
+            linksPreview.classList.remove('d-none');
+        } else {
+            linksPreview.classList.add('d-none');
+        }
     }
 
     // Auto-sélectionner l'étape principale
