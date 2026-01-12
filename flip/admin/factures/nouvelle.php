@@ -10,23 +10,6 @@ require_once '../../includes/functions.php';
 
 requireAdmin();
 
-// Mode édition si ID fourni
-$factureId = (int)($_GET['id'] ?? 0);
-$isEdit = false;
-$facture = null;
-
-if ($factureId) {
-    $stmt = $pdo->prepare("SELECT * FROM factures WHERE id = ?");
-    $stmt->execute([$factureId]);
-    $facture = $stmt->fetch();
-
-    if (!$facture) {
-        setFlashMessage('danger', 'Facture non trouvée.');
-        redirect('/admin/factures/liste.php');
-    }
-    $isEdit = true;
-}
-
 // Migration automatique: ajouter colonne etape_id si elle n'existe pas
 try {
     $pdo->query("SELECT etape_id FROM factures LIMIT 1");
@@ -45,6 +28,23 @@ try {
     try {
         $pdo->exec("ALTER TABLE factures ADD COLUMN rotation INT DEFAULT 0");
     } catch (Exception $e2) {}
+}
+
+// Mode édition si ID fourni
+$factureId = (int)($_GET['id'] ?? 0);
+$isEdit = false;
+$facture = null;
+
+if ($factureId) {
+    $stmt = $pdo->prepare("SELECT * FROM factures WHERE id = ?");
+    $stmt->execute([$factureId]);
+    $facture = $stmt->fetch();
+
+    if (!$facture) {
+        setFlashMessage('danger', 'Facture non trouvée.');
+        redirect('/admin/factures/liste.php');
+    }
+    $isEdit = true;
 }
 
 // Migration: créer table facture_lignes pour stocker le breakdown par étape
