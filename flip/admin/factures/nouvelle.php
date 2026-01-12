@@ -876,22 +876,38 @@ function fillFormWithDetailedData(data) {
 
         // Chercher si le fournisseur existe dans la liste
         let found = false;
-        for (let option of fournisseurSelect.options) {
+        let bestMatch = null;
+        let bestMatchScore = 0;
+
+        for (let i = 0; i < fournisseurSelect.options.length; i++) {
+            const option = fournisseurSelect.options[i];
             if (!option.value || option.value === '' || option.value === '__autre__') continue;
 
             const optVal = option.value.toLowerCase().trim();
             const optTxt = option.text.toLowerCase().trim();
             const searchVal = fournisseurClean.toLowerCase();
 
-            // Correspondance exacte ou partielle
-            if (optVal === searchVal || optTxt === searchVal ||
-                optVal.includes(searchVal) || searchVal.includes(optVal) ||
-                optTxt.includes(searchVal) || searchVal.includes(optTxt)) {
-                console.log('Match trouvé:', option.value);
-                fournisseurSelect.value = option.value;
-                found = true;
-                break;
+            // Score de correspondance
+            let score = 0;
+            if (optVal === searchVal || optTxt === searchVal) {
+                score = 100; // Exact match
+            } else if (optVal.includes(searchVal) || optTxt.includes(searchVal)) {
+                score = 80; // Option contains search
+            } else if (searchVal.includes(optVal) || searchVal.includes(optTxt)) {
+                score = 60; // Search contains option (ex: "Home Depot Canada" contains "Home Depot")
             }
+
+            if (score > bestMatchScore) {
+                bestMatchScore = score;
+                bestMatch = i;
+                console.log('Meilleur match:', option.value, 'score:', score);
+            }
+        }
+
+        if (bestMatch !== null) {
+            console.log('Match final:', fournisseurSelect.options[bestMatch].value);
+            fournisseurSelect.selectedIndex = bestMatch;
+            found = true;
         }
 
         // Si non trouvé, ajouter au dropdown
