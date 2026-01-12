@@ -740,6 +740,8 @@ class ClaudeService {
         }
 
         $userMessage = "Analyse cette facture de quincaillerie et catégorise CHAQUE LIGNE par étape de construction.\n\n" .
+                      "FOURNISSEURS CONNUS: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.\n" .
+                      "IMPORTANT: Identifie le fournisseur depuis le LOGO ou le NOM DE L'ENTREPRISE visible sur la facture.\n\n" .
                       "ÉTAPES DISPONIBLES (utilise EXACTEMENT ces noms et ids):\n{$etapesListe}\n" .
                       "GUIDE DE CATÉGORISATION - associe les articles à l'étape la plus appropriée:\n" .
                       "- Bois (2x4, 2x6, 2x8, etc.), clous charpente, équerres, étriers → étape contenant 'structure' ou 'division'\n" .
