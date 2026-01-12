@@ -48,6 +48,60 @@ if (strpos($imageData, 'data:') === 0) {
     }
 }
 
+// Compresser l'image si elle dépasse 4.5 MB (limite Claude = 5 MB)
+$maxSize = 4.5 * 1024 * 1024; // 4.5 MB
+$currentSize = strlen(base64_decode($imageData));
+
+if ($currentSize > $maxSize) {
+    $imgBinary = base64_decode($imageData);
+    $image = @imagecreatefromstring($imgBinary);
+
+    if ($image) {
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        // Réduire progressivement jusqu'à être sous la limite
+        $quality = 85;
+        $scale = 1.0;
+
+        do {
+            // Redimensionner si nécessaire
+            if ($scale < 1.0) {
+                $newWidth = (int)($width * $scale);
+                $newHeight = (int)($height * $scale);
+                $resized = imagecreatetruecolor($newWidth, $newHeight);
+                imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                $workImage = $resized;
+            } else {
+                $workImage = $image;
+            }
+
+            // Compresser en JPEG
+            ob_start();
+            imagejpeg($workImage, null, $quality);
+            $compressed = ob_get_clean();
+
+            if ($workImage !== $image) {
+                imagedestroy($workImage);
+            }
+
+            // Réduire la qualité ou l'échelle
+            if (strlen($compressed) > $maxSize) {
+                if ($quality > 50) {
+                    $quality -= 10;
+                } else {
+                    $scale -= 0.1;
+                    $quality = 75;
+                }
+            }
+        } while (strlen($compressed) > $maxSize && $scale > 0.3);
+
+        imagedestroy($image);
+        $imageData = base64_encode($compressed);
+        $mimeType = 'image/jpeg';
+    }
+}
+
 try {
     // Récupérer les fournisseurs
     $stmt = $pdo->query("SELECT nom FROM fournisseurs WHERE actif = 1 ORDER BY nom");
