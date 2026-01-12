@@ -615,10 +615,154 @@ JSON OBLIGATOIRE:
 .card-header:hover {
     background-color: rgba(0,0,0,0.03);
 }
+/* Link preview popup */
+#linkPreviewPopup {
+    position: fixed;
+    z-index: 9999;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    padding: 10px;
+    max-width: 320px;
+    display: none;
+}
+#linkPreviewPopup.show {
+    display: block;
+    animation: fadeIn 0.2s ease;
+}
+#linkPreviewPopup img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 4px;
+}
+#linkPreviewPopup .preview-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 8px;
+    color: #333;
+}
+#linkPreviewPopup .preview-link {
+    font-size: 0.7rem;
+    color: #666;
+    word-break: break-all;
+}
+#linkPreviewPopup .preview-loading {
+    text-align: center;
+    padding: 20px;
+    color: #666;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 </style>
+
+<!-- Link Preview Popup -->
+<div id="linkPreviewPopup">
+    <div id="linkPreviewContent"></div>
+</div>
 
 <script>
 let taxesActives = true;
+let linkPreviewTimeout = null;
+let currentPreviewElement = null;
+
+// Démarrer le preview après 2 secondes de survol
+function startLinkPreview(element) {
+    cancelLinkPreview();
+    currentPreviewElement = element;
+
+    linkPreviewTimeout = setTimeout(() => {
+        showLinkPreview(element);
+    }, 2000); // 2 secondes
+}
+
+// Annuler le preview
+function cancelLinkPreview() {
+    if (linkPreviewTimeout) {
+        clearTimeout(linkPreviewTimeout);
+        linkPreviewTimeout = null;
+    }
+    hideLinkPreview();
+}
+
+// Afficher le preview
+function showLinkPreview(element) {
+    const popup = document.getElementById('linkPreviewPopup');
+    const content = document.getElementById('linkPreviewContent');
+    const link = element.dataset.link;
+    const sku = element.dataset.sku;
+    const desc = element.dataset.desc;
+
+    // Position du popup près de l'élément
+    const rect = element.getBoundingClientRect();
+    popup.style.left = Math.min(rect.left, window.innerWidth - 340) + 'px';
+    popup.style.top = (rect.bottom + 10) + 'px';
+
+    // Afficher loading
+    content.innerHTML = `
+        <div class="preview-loading">
+            <div class="spinner-border spinner-border-sm text-primary mb-2"></div>
+            <div>Chargement aperçu...</div>
+        </div>
+    `;
+    popup.classList.add('show');
+
+    // Essayer de charger l'image du produit via notre API
+    fetchProductPreview(link, sku, desc);
+}
+
+// Cacher le preview
+function hideLinkPreview() {
+    const popup = document.getElementById('linkPreviewPopup');
+    popup.classList.remove('show');
+}
+
+// Récupérer l'aperçu du produit
+function fetchProductPreview(link, sku, desc) {
+    const content = document.getElementById('linkPreviewContent');
+
+    // Utiliser notre API pour récupérer les métadonnées
+    fetch('<?= url('/api/link-preview.php') ?>?url=' + encodeURIComponent(link))
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.image) {
+                content.innerHTML = `
+                    <img src="${data.image}" alt="${desc}" onerror="this.style.display='none'">
+                    <div class="preview-title">${data.title || desc}</div>
+                    <div class="preview-link">${link}</div>
+                `;
+            } else {
+                // Fallback: juste afficher les infos
+                content.innerHTML = `
+                    <div class="text-center py-3">
+                        <i class="bi bi-box-seam display-4 text-muted"></i>
+                        <div class="preview-title mt-2">${desc}</div>
+                        <div class="preview-link">${link}</div>
+                        <small class="text-muted d-block mt-2">SKU: ${sku}</small>
+                    </div>
+                `;
+            }
+        })
+        .catch(err => {
+            // Erreur: afficher infos basiques
+            content.innerHTML = `
+                <div class="text-center py-3">
+                    <i class="bi bi-link-45deg display-4 text-muted"></i>
+                    <div class="preview-title mt-2">${desc}</div>
+                    <div class="preview-link">${link}</div>
+                </div>
+            `;
+        });
+}
+
+// Fermer le preview si on clique ailleurs
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#linkPreviewPopup') && !e.target.closest('.link-preview-trigger')) {
+        hideLinkPreview();
+    }
+});
 
 function calculerTaxesAuto() {
     if (!taxesActives) return;
@@ -954,7 +1098,10 @@ function renderArticlesTable(articles) {
             </td>
             <td class="text-center">
                 <div class="btn-group btn-group-sm">
-                    ${link ? `<a href="${link}" target="_blank" class="btn btn-outline-primary" title="Voir produit"><i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    ${link ? `<a href="${link}" target="_blank" class="btn btn-outline-primary link-preview-trigger"
+                        data-link="${link}" data-sku="${sku}" data-desc="${desc}"
+                        onmouseenter="startLinkPreview(this)" onmouseleave="cancelLinkPreview()"
+                        title="Voir produit"><i class="bi bi-box-arrow-up-right"></i></a>` : ''}
                     <button type="button" class="btn btn-outline-success" onclick="addToBudget(${idx})" title="Ajouter au catalogue">
                         <i class="bi bi-plus-lg"></i>
                     </button>
