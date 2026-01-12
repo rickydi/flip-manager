@@ -48,8 +48,8 @@ if (strpos($imageData, 'data:') === 0) {
     }
 }
 
-// Compresser l'image si elle dépasse 4.5 MB (limite Claude = 5 MB)
-$maxSize = 4.5 * 1024 * 1024; // 4.5 MB
+// Compresser l'image si elle dépasse 3.5 MB (base64 ajoute ~33%, limite Claude = 5 MB)
+$maxSize = 3.5 * 1024 * 1024; // 3.5 MB binaire = ~4.7 MB en base64
 $currentSize = strlen(base64_decode($imageData));
 
 if ($currentSize > $maxSize) {
