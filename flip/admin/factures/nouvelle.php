@@ -824,9 +824,32 @@ function analyzeImage(base64Data, mimeType) {
 
 // Remplir le formulaire avec les données détaillées
 function fillFormWithDetailedData(data) {
-    // Fournisseur
+    // Fournisseur (select dropdown)
     if (data.fournisseur) {
-        document.getElementById('fournisseur').value = data.fournisseur;
+        const fournisseurSelect = document.getElementById('fournisseur');
+        const fournisseurValue = data.fournisseur;
+
+        // Chercher si le fournisseur existe dans la liste
+        let found = false;
+        for (let option of fournisseurSelect.options) {
+            if (option.value.toLowerCase() === fournisseurValue.toLowerCase() ||
+                option.text.toLowerCase() === fournisseurValue.toLowerCase() ||
+                option.value.toLowerCase().includes(fournisseurValue.toLowerCase()) ||
+                fournisseurValue.toLowerCase().includes(option.value.toLowerCase())) {
+                fournisseurSelect.value = option.value;
+                found = true;
+                break;
+            }
+        }
+
+        // Si non trouvé, ajouter au dropdown
+        if (!found && fournisseurValue !== '__autre__') {
+            const newOption = document.createElement('option');
+            newOption.value = fournisseurValue;
+            newOption.text = fournisseurValue;
+            fournisseurSelect.insertBefore(newOption, fournisseurSelect.querySelector('option[value="__autre__"]'));
+            fournisseurSelect.value = fournisseurValue;
+        }
     }
 
     // Date
