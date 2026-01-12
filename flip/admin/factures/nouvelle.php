@@ -989,11 +989,72 @@ function clearPastedImage() {
     document.getElementById('pastedImageInfo').classList.add('d-none');
 }
 
-function analyzeImage(base64Data, mimeType) {
+// Variables pour la progression
+let analysisProgress = 0;
+let analysisInterval = null;
+
+function startProgressAnimation() {
+    analysisProgress = 0;
+    updateProgressDisplay();
+
+    // Progression simulée: rapide au début, ralentit vers 90%
+    analysisInterval = setInterval(() => {
+        if (analysisProgress < 30) {
+            analysisProgress += Math.random() * 8 + 4; // 4-12% par tick
+        } else if (analysisProgress < 60) {
+            analysisProgress += Math.random() * 5 + 2; // 2-7% par tick
+        } else if (analysisProgress < 85) {
+            analysisProgress += Math.random() * 3 + 1; // 1-4% par tick
+        } else if (analysisProgress < 95) {
+            analysisProgress += Math.random() * 1; // 0-1% par tick
+        }
+        // Ne jamais dépasser 95% avant la vraie fin
+        analysisProgress = Math.min(analysisProgress, 95);
+        updateProgressDisplay();
+    }, 300);
+}
+
+function updateProgressDisplay() {
+    const percent = Math.round(analysisProgress);
     analysisStatus.innerHTML = `
-        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-        <span class="text-primary">Analyse complète en cours par Claude AI...</span>
+        <div class="progress mb-2" style="height: 24px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                 role="progressbar"
+                 style="width: ${percent}%; transition: width 0.3s ease;"
+                 aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">
+                <span class="fw-bold">${percent}%</span>
+            </div>
+        </div>
+        <small class="text-muted">
+            <i class="bi bi-robot me-1"></i>Claude AI analyse la facture...
+        </small>
     `;
+}
+
+function completeProgress() {
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+    analysisProgress = 100;
+    updateProgressDisplay();
+
+    // Effacer après 500ms
+    setTimeout(() => {
+        analysisStatus.innerHTML = '';
+    }, 500);
+}
+
+function cancelProgress() {
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+    analysisStatus.innerHTML = '';
+}
+
+function analyzeImage(base64Data, mimeType) {
+    startProgressAnimation();
 
     // Récupérer le prompt personnalisé
     const customPrompt = document.getElementById('promptIA').value;
@@ -1011,7 +1072,7 @@ function analyzeImage(base64Data, mimeType) {
     })
     .then(response => response.json())
     .then(data => {
-        analysisStatus.innerHTML = '';
+        completeProgress();
 
         // Afficher le résultat brut dans le debug
         document.getElementById('promptResultat').value = JSON.stringify(data, null, 2);
@@ -1040,7 +1101,7 @@ function analyzeImage(base64Data, mimeType) {
         }
     })
     .catch(error => {
-        analysisStatus.innerHTML = '';
+        cancelProgress();
         showError('Erreur de connexion: ' + error.message);
     });
 }
