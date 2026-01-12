@@ -348,12 +348,17 @@ $selectedProjet = $isEdit ? $facture['projet_id'] : (int)($_GET['projet'] ?? 0);
 include '../../includes/header.php';
 ?>
 
+<?php
+// URL de retour: projet si on vient d'un projet, sinon liste générale
+$returnUrl = $selectedProjet ? url('/admin/projets/detail.php?id=' . $selectedProjet . '&tab=factures') : url('/admin/factures/liste.php');
+$returnLabel = $selectedProjet ? 'Projet' : 'Factures';
+?>
 <div class="container-fluid">
     <div class="page-header">
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
-                <li class="breadcrumb-item"><a href="<?= url('/admin/factures/liste.php') ?>">Factures</a></li>
+                <li class="breadcrumb-item"><a href="<?= $returnUrl ?>"><?= $returnLabel ?></a></li>
                 <li class="breadcrumb-item active">Nouvelle facture</li>
             </ol>
         </nav>
@@ -546,7 +551,7 @@ include '../../includes/header.php';
                             <button type="submit" class="btn btn-primary">
                                 <i class="bi bi-check-circle me-1"></i>Ajouter la facture
                             </button>
-                            <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
+                            <a href="<?= $returnUrl ?>" class="btn btn-secondary">Annuler</a>
                         </div>
                     </form>
                 </div>
