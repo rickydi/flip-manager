@@ -590,13 +590,27 @@ JSON OBLIGATOIRE:
             <div class="card mt-3">
                 <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseResultatIA" aria-expanded="false">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h6 class="mb-0"><i class="bi bi-terminal me-2"></i>Résultat IA (debug)</h6>
+                        <h6 class="mb-0"><i class="bi bi-terminal me-2"></i>Résultat IA détail</h6>
                         <i class="bi bi-chevron-down collapse-icon"></i>
                     </div>
                 </div>
                 <div class="collapse" id="collapseResultatIA">
                     <div class="card-body pt-2">
                         <textarea class="form-control font-monospace" id="promptResultat" rows="10" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Le résultat JSON de l'IA apparaîtra ici..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseItemSearch" aria-expanded="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-search me-2"></i>Résultat IA item recherché et image</h6>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="collapseItemSearch">
+                    <div class="card-body pt-2">
+                        <textarea class="form-control font-monospace" id="itemSearchLog" rows="8" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Les détails de recherche d'item apparaîtront ici..."></textarea>
                     </div>
                 </div>
             </div>
@@ -1235,9 +1249,26 @@ function updateBreakdownData() {
 }
 
 // Ajouter un article au catalogue budget
+// Logger dans la zone de debug item
+function logItemSearch(message) {
+    const logArea = document.getElementById('itemSearchLog');
+    const timestamp = new Date().toLocaleTimeString();
+    logArea.value += `[${timestamp}] ${message}\n`;
+    logArea.scrollTop = logArea.scrollHeight;
+}
+
 async function addToBudget(idx) {
     const article = currentArticlesData[idx];
     if (!article) return;
+
+    const logArea = document.getElementById('itemSearchLog');
+    logArea.value = ''; // Clear previous logs
+
+    logItemSearch('=== AJOUT AU CATALOGUE ===');
+    logItemSearch(`Article: ${article.description}`);
+    logItemSearch(`SKU: ${article.sku || 'N/A'}`);
+    logItemSearch(`Prix: ${article.total}$`);
+    logItemSearch(`Lien: ${article.link || 'Aucun'}`);
 
     const btn = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1}) .btn-outline-success`);
     if (btn) {
@@ -1246,19 +1277,35 @@ async function addToBudget(idx) {
     }
 
     const fournisseur = document.getElementById('fournisseur').value || article.fournisseur || '';
+    logItemSearch(`Fournisseur: ${fournisseur}`);
 
     // Essayer de récupérer l'image du produit depuis le site fournisseur
     let productImageUrl = null;
     if (article.link) {
+        logItemSearch('');
+        logItemSearch('--- RECHERCHE IMAGE ---');
+        logItemSearch(`Appel API link-preview: ${article.link}`);
+
         try {
             const previewResponse = await fetch('<?= url('/api/link-preview.php') ?>?url=' + encodeURIComponent(article.link));
             const previewData = await previewResponse.json();
+
+            logItemSearch(`Réponse API: ${JSON.stringify(previewData, null, 2)}`);
+
             if (previewData.success && previewData.image) {
                 productImageUrl = previewData.image;
+                logItemSearch(`✓ Image trouvée: ${productImageUrl.substring(0, 100)}...`);
+            } else {
+                logItemSearch(`✗ Pas d'image trouvée`);
+                if (previewData.error) {
+                    logItemSearch(`Erreur: ${previewData.error}`);
+                }
             }
         } catch (e) {
-            console.log('Impossible de récupérer image produit:', e);
+            logItemSearch(`✗ Erreur fetch: ${e.message}`);
         }
+    } else {
+        logItemSearch('Pas de lien produit - pas de recherche d\'image');
     }
 
     // Données à envoyer
@@ -1273,6 +1320,10 @@ async function addToBudget(idx) {
         csrf_token: '<?= generateCSRFToken() ?>'
     };
 
+    logItemSearch('');
+    logItemSearch('--- ENVOI AU CATALOGUE ---');
+    logItemSearch(`Données envoyées: ${JSON.stringify(data, null, 2)}`);
+
     // Envoyer à l'API
     fetch('<?= url('/api/budget-materiau-ajouter.php') ?>', {
         method: 'POST',
@@ -1281,15 +1332,20 @@ async function addToBudget(idx) {
     })
     .then(r => r.json())
     .then(result => {
+        logItemSearch('');
+        logItemSearch('--- RÉSULTAT ---');
+        logItemSearch(`Réponse API: ${JSON.stringify(result, null, 2)}`);
+
         if (result.success) {
+            logItemSearch(`✓ SUCCÈS - ID: ${result.id}`);
             // Marquer comme ajouté
             if (btn) {
                 btn.classList.remove('btn-outline-success');
                 btn.classList.add('btn-success');
                 btn.innerHTML = '<i class="bi bi-check-lg"></i>';
             }
-            console.log('Matériau ajouté:', result);
         } else {
+            logItemSearch(`✗ ERREUR: ${result.error || 'Inconnue'}`);
             if (btn) {
                 btn.classList.remove('btn-success');
                 btn.classList.add('btn-outline-success');
@@ -1300,7 +1356,7 @@ async function addToBudget(idx) {
         }
     })
     .catch(err => {
-        console.error('Erreur:', err);
+        logItemSearch(`✗ ERREUR CONNEXION: ${err.message}`);
         if (btn) {
             btn.classList.add('btn-outline-success');
             btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
