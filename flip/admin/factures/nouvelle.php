@@ -1,6 +1,6 @@
 <?php
 /**
- * Nouvelle facture - Admin
+ * Nouvelle facture / Modifier facture - Admin
  * Flip Manager
  */
 
@@ -9,6 +9,23 @@ require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 
 requireAdmin();
+
+// Mode édition si ID fourni
+$factureId = (int)($_GET['id'] ?? 0);
+$isEdit = false;
+$facture = null;
+
+if ($factureId) {
+    $stmt = $pdo->prepare("SELECT * FROM factures WHERE id = ?");
+    $stmt->execute([$factureId]);
+    $facture = $stmt->fetch();
+
+    if (!$facture) {
+        setFlashMessage('danger', 'Facture non trouvée.');
+        redirect('/admin/factures/liste.php');
+    }
+    $isEdit = true;
+}
 
 // Migration automatique: ajouter colonne etape_id si elle n'existe pas
 try {
@@ -19,6 +36,15 @@ try {
     } catch (Exception $e2) {
         // Colonne existe déjà ou autre erreur
     }
+}
+
+// Migration: ajouter colonne rotation si elle n'existe pas
+try {
+    $pdo->query("SELECT rotation FROM factures LIMIT 1");
+} catch (Exception $e) {
+    try {
+        $pdo->exec("ALTER TABLE factures ADD COLUMN rotation INT DEFAULT 0");
+    } catch (Exception $e2) {}
 }
 
 // Migration: créer table facture_lignes pour stocker le breakdown par étape
@@ -43,8 +69,22 @@ try {
     ");
 }
 
-$pageTitle = 'Nouvelle facture';
+$pageTitle = $isEdit ? 'Modifier facture #' . $factureId : 'Nouvelle facture';
 $errors = [];
+
+// AJAX: Sauvegarder la rotation (mode édition uniquement)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'rotate' && $isEdit) {
+    header('Content-Type: application/json');
+    $rotation = (int)($_POST['rotation'] ?? 0) % 360;
+    try {
+        $stmt = $pdo->prepare("UPDATE factures SET rotation = ? WHERE id = ?");
+        $stmt->execute([$rotation, $factureId]);
+        echo json_encode(['success' => true, 'rotation' => $rotation]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
 
 // Créer la table fournisseurs si elle n'existe pas (sans réinsérer les défauts)
 try {
@@ -121,10 +161,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         // Upload de fichier
-        $fichier = null;
+        $fichier = $isEdit ? $facture['fichier'] : null; // Garder l'existant en mode édition
         if (isset($_FILES['fichier']) && $_FILES['fichier']['error'] !== UPLOAD_ERR_NO_FILE) {
             $upload = uploadFile($_FILES['fichier']);
             if ($upload['success']) {
+                // Supprimer l'ancien fichier en mode édition
+                if ($isEdit && $facture['fichier']) {
+                    deleteUploadedFile($facture['fichier']);
+                }
                 $fichier = $upload['filename'];
             } else {
                 $errors[] = $upload['error'];
@@ -200,19 +244,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            $stmt = $pdo->prepare("
-                INSERT INTO factures (projet_id, etape_id, user_id, fournisseur, description, date_facture,
-                                     montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut,
-                                     approuve_par, date_approbation)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ");
-
-            if ($stmt->execute([
-                $projetId, $etapeId ?: null, $_SESSION['user_id'], $fournisseur, $description,
-                $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
-                $statut, $approuvePar, $dateApprobation
-            ])) {
+            if ($isEdit) {
+                // Mode édition: UPDATE
+                $statut = $_POST['statut'] ?? $facture['statut'];
+                $stmt = $pdo->prepare("
+                    UPDATE factures SET
+                        projet_id = ?, etape_id = ?, fournisseur = ?, description = ?,
+                        date_facture = ?, montant_avant_taxes = ?, tps = ?, tvq = ?,
+                        montant_total = ?, fichier = ?, notes = ?, statut = ?
+                    WHERE id = ?
+                ");
+                $success = $stmt->execute([
+                    $projetId, $etapeId ?: null, $fournisseur, $description,
+                    $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
+                    $statut, $factureId
+                ]);
+                $newFactureId = $factureId;
+            } else {
+                // Mode création: INSERT
+                $stmt = $pdo->prepare("
+                    INSERT INTO factures (projet_id, etape_id, user_id, fournisseur, description, date_facture,
+                                         montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut,
+                                         approuve_par, date_approbation)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ");
+                $success = $stmt->execute([
+                    $projetId, $etapeId ?: null, $_SESSION['user_id'], $fournisseur, $description,
+                    $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
+                    $statut, $approuvePar, $dateApprobation
+                ]);
                 $newFactureId = $pdo->lastInsertId();
+            }
+
+            if ($success) {
 
                 // Sauvegarder les lignes du breakdown si présentes
                 if (!empty($_POST['breakdown_data'])) {
@@ -268,11 +332,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                $msg = $approuverDirect ? 'Facture ajoutée et approuvée!' : 'Facture ajoutée!';
+                if ($isEdit) {
+                    $msg = 'Facture mise à jour!';
+                } else {
+                    $msg = $approuverDirect ? 'Facture ajoutée et approuvée!' : 'Facture ajoutée!';
+                }
                 setFlashMessage('success', $msg);
                 redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=factures');
             } else {
-                $errors[] = 'Erreur lors de l\'ajout de la facture.';
+                $errors[] = $isEdit ? 'Erreur lors de la mise à jour de la facture.' : 'Erreur lors de l\'ajout de la facture.';
                 if ($fichier) deleteUploadedFile($fichier);
             }
         }
@@ -280,7 +348,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Pré-sélection du projet si passé en paramètre
-$selectedProjet = (int)($_GET['projet'] ?? 0);
+$selectedProjet = $isEdit ? $facture['projet_id'] : (int)($_GET['projet'] ?? 0);
 
 include '../../includes/header.php';
 ?>
@@ -291,10 +359,10 @@ include '../../includes/header.php';
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item"><a href="<?= url('/admin/factures/liste.php') ?>">Factures</a></li>
-                <li class="breadcrumb-item active">Nouvelle facture</li>
+                <li class="breadcrumb-item active"><?= $isEdit ? 'Modifier #' . $factureId : 'Nouvelle facture' ?></li>
             </ol>
         </nav>
-        <h1><i class="bi bi-plus-circle me-2"></i>Nouvelle facture</h1>
+        <h1><i class="bi bi-<?= $isEdit ? 'pencil' : 'plus-circle' ?> me-2"></i><?= $isEdit ? 'Modifier facture #' . $factureId : 'Nouvelle facture' ?></h1>
     </div>
     
     <?php if (!empty($errors)): ?>
@@ -334,14 +402,27 @@ include '../../includes/header.php';
 
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Étape *</label>
-                        <select class="form-select" name="etape_id" required>
+                        <select class="form-select" name="etape_id" id="etapeSelect" required>
                             <option value="">Sélectionner...</option>
                             <?php foreach ($etapes as $etape): ?>
-                                <option value="<?= $etape['id'] ?>"><?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?></option>
+                                <option value="<?= $etape['id'] ?>" <?= ($isEdit && ($facture['etape_id'] ?? 0) == $etape['id']) ? 'selected' : '' ?>><?= ($etape['ordre'] + 1) ?>. <?= e($etape['nom']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
+
+                <?php if ($isEdit): ?>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Statut</label>
+                        <select class="form-select" name="statut">
+                            <option value="en_attente" <?= $facture['statut'] == 'en_attente' ? 'selected' : '' ?>>En attente</option>
+                            <option value="approuvee" <?= $facture['statut'] == 'approuvee' ? 'selected' : '' ?>>Approuvée</option>
+                            <option value="rejetee" <?= $facture['statut'] == 'rejetee' ? 'selected' : '' ?>>Rejetée</option>
+                        </select>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
@@ -349,7 +430,7 @@ include '../../includes/header.php';
                         <select class="form-select" name="fournisseur" id="fournisseur" required>
                             <option value="">Sélectionner...</option>
                             <?php foreach ($tousLesFournisseurs as $f): ?>
-                                <option value="<?= e($f) ?>"><?= e($f) ?></option>
+                                <option value="<?= e($f) ?>" <?= ($isEdit && $facture['fournisseur'] == $f) ? 'selected' : '' ?>><?= e($f) ?></option>
                             <?php endforeach; ?>
                             <option value="__autre__">➕ Autre (ajouter nouveau)</option>
                         </select>
@@ -358,7 +439,7 @@ include '../../includes/header.php';
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Date de la facture *</label>
                         <input type="date" class="form-control" name="date_facture" required
-                               value="<?= date('Y-m-d') ?>">
+                               value="<?= $isEdit ? e($facture['date_facture']) : date('Y-m-d') ?>">
                     </div>
                 </div>
 
@@ -402,33 +483,36 @@ include '../../includes/header.php';
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Montant avant taxes *</label>
                         <div class="input-group">
-                            <input type="text" class="form-control money-input" name="montant_avant_taxes" 
-                                   id="montantAvantTaxes" required placeholder="0.00">
+                            <input type="text" class="form-control money-input" name="montant_avant_taxes"
+                                   id="montantAvantTaxes" required placeholder="0.00"
+                                   value="<?= $isEdit ? formatMoney($facture['montant_avant_taxes'], false) : '' ?>">
                             <span class="input-group-text">$</span>
                         </div>
                     </div>
-                    
+
                     <div class="col-md-4 mb-3">
                         <label class="form-label">TPS (5%)</label>
                         <div class="input-group">
-                            <input type="text" class="form-control money-input" name="tps" id="tps" placeholder="0.00">
+                            <input type="text" class="form-control money-input" name="tps" id="tps" placeholder="0.00"
+                                   value="<?= $isEdit ? formatMoney($facture['tps'], false) : '' ?>">
                             <span class="input-group-text">$</span>
                         </div>
                     </div>
-                    
+
                     <div class="col-md-4 mb-3">
                         <label class="form-label">TVQ (9.975%)</label>
                         <div class="input-group">
-                            <input type="text" class="form-control money-input" name="tvq" id="tvq" placeholder="0.00">
+                            <input type="text" class="form-control money-input" name="tvq" id="tvq" placeholder="0.00"
+                                   value="<?= $isEdit ? formatMoney($facture['tvq'], false) : '' ?>">
                             <span class="input-group-text">$</span>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="mb-3">
                     <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
                         <div>
-                            <strong>Total : </strong><span id="totalFacture">0,00 $</span>
+                            <strong>Total : </strong><span id="totalFacture"><?= $isEdit ? formatMoney($facture['montant_total']) : '0,00 $' ?></span>
                         </div>
                         <div class="d-flex gap-2">
                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="recalculerTaxes()">
@@ -444,20 +528,55 @@ include '../../includes/header.php';
                 
                 <div class="mb-3">
                     <label class="form-label">Photo/PDF de la facture</label>
+                    <?php if ($isEdit && $facture['fichier']):
+                        $isImage = preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier']);
+                        $currentRotation = (int)($facture['rotation'] ?? 0);
+                    ?>
+                        <div class="mb-2">
+                            <?php if ($isImage): ?>
+                                <div class="d-flex align-items-start gap-3">
+                                    <div class="position-relative d-flex align-items-center justify-content-center"
+                                         style="width:150px;height:150px;cursor:pointer;overflow:hidden;border-radius:8px;border:2px solid #ddd;background:#f8f9fa"
+                                         onclick="openImageModal()">
+                                        <img src="<?= url('/api/thumbnail.php?file=factures/' . e($facture['fichier']) . '&w=150&h=150') ?>"
+                                             alt="Facture" id="factureImage" loading="lazy"
+                                             style="max-width:140px;max-height:140px;object-fit:contain;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
+                                    </div>
+                                    <div class="d-flex flex-column gap-2">
+                                        <div class="btn-group-vertical">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="rotateImage(-90)" title="Rotation gauche">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="rotateImage(90)" title="Rotation droite">
+                                                <i class="bi bi-arrow-clockwise"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="currentRotation" value="<?= $currentRotation ?>">
+                                <input type="hidden" id="imageUrl" value="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>">
+                            <?php else: ?>
+                                <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
+                                    <i class="bi bi-file-pdf" style="font-size:3rem"></i>
+                                </a>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                     <input type="file" class="form-control" name="fichier" id="fichierInput" accept=".jpg,.jpeg,.png,.gif,.pdf">
                     <input type="hidden" name="image_base64" id="imageBase64">
                     <div id="pastedImageInfo" class="d-none mt-2">
                         <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Image collée attachée</span>
                         <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearPastedImage()">Retirer</button>
                     </div>
-                    <small class="text-muted">Formats acceptés: JPG, PNG, GIF, PDF (max 5MB)</small>
+                    <small class="text-muted"><?= $isEdit ? 'Laisser vide pour conserver le fichier actuel. ' : '' ?>Formats acceptés: JPG, PNG, GIF, PDF (max 5MB)</small>
                 </div>
-                
+
                 <div class="mb-3">
                     <label class="form-label">Notes</label>
-                    <textarea class="form-control" name="notes" rows="2" placeholder="Notes supplémentaires..."></textarea>
+                    <textarea class="form-control" name="notes" rows="2" placeholder="Notes supplémentaires..."><?= $isEdit ? e($facture['notes']) : '' ?></textarea>
                 </div>
-                
+
+                <?php if (!$isEdit): ?>
                 <div class="mb-3">
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" name="approuver_direct" id="approuverDirect" checked>
@@ -466,10 +585,11 @@ include '../../includes/header.php';
                         </label>
                     </div>
                 </div>
+                <?php endif; ?>
                 
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-check-circle me-1"></i>Ajouter la facture
+                            <button type="submit" class="btn btn-<?= $isEdit ? 'success' : 'primary' ?>">
+                                <i class="bi bi-check-circle me-1"></i><?= $isEdit ? 'Enregistrer' : 'Ajouter la facture' ?>
                             </button>
                             <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
                         </div>
@@ -1996,6 +2116,62 @@ function addNewFournisseur() {
 
     bootstrap.Modal.getInstance(document.getElementById('fournisseurMatchModal')).hide();
 }
+
+// =============================================
+// ROTATION D'IMAGE (MODE ÉDITION)
+// =============================================
+<?php if ($isEdit && $facture && $facture['fichier']): ?>
+let currentRotation = parseInt(document.getElementById('currentRotation')?.value || 0);
+
+function rotateImage(degrees) {
+    currentRotation = (currentRotation + degrees + 360) % 360;
+    const img = document.getElementById('factureImage');
+    if (img) {
+        img.style.transform = 'rotate(' + currentRotation + 'deg)';
+    }
+    saveRotation(currentRotation);
+}
+
+function saveRotation(rotation) {
+    const formData = new FormData();
+    formData.append('ajax_action', 'rotate');
+    formData.append('rotation', rotation);
+
+    fetch(window.location.href, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('currentRotation').value = rotation;
+            console.log('Rotation sauvegardée:', rotation);
+        } else {
+            console.error('Erreur rotation:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur AJAX rotation:', error);
+    });
+}
+
+function openImageModal() {
+    const fullImageUrl = document.getElementById('imageUrl')?.value;
+    if (fullImageUrl) {
+        const modal = document.createElement('div');
+        modal.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center';
+        modal.style.cssText = 'background:rgba(0,0,0,0.9);z-index:9999;cursor:zoom-out';
+        modal.onclick = () => modal.remove();
+
+        const img = document.createElement('img');
+        img.src = fullImageUrl;
+        img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;transform:rotate(' + currentRotation + 'deg)';
+
+        modal.appendChild(img);
+        document.body.appendChild(modal);
+    }
+}
+<?php endif; ?>
 </script>
 
 <!-- Modal Breakdown par Étape -->
