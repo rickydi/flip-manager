@@ -656,6 +656,23 @@ JSON OBLIGATOIRE:
     from { opacity: 0; transform: translateY(-5px); }
     to { opacity: 1; transform: translateY(0); }
 }
+/* Dropdown étape avec flèche blanche */
+.etape-select {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+.etape-select:focus {
+    background-color: #5a6268;
+    border-color: #545b62;
+    color: white;
+    box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.5);
+}
+.etape-select option {
+    background-color: white;
+    color: #333;
+}
 </style>
 
 <!-- Link Preview Popup -->
@@ -1086,13 +1103,13 @@ function renderArticlesTable(articles) {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>
-                <small class="text-truncate d-block" style="max-width: 200px;" title="${desc}">${desc}</small>
+                <small class="d-block" style="word-wrap: break-word;">${desc}</small>
                 ${sku ? `<span class="badge bg-light text-muted" style="font-size: 0.65rem;">${sku}</span>` : ''}
             </td>
             <td class="text-center">${qty}</td>
             <td class="text-end"><strong>${prix}$</strong></td>
             <td>
-                <select class="form-select form-select-sm" onchange="updateArticleEtape(${idx}, this.value)">
+                <select class="form-select form-select-sm etape-select" onchange="updateArticleEtape(${idx}, this.value)">
                     ${etapeOptionsHtml}
                 </select>
             </td>
