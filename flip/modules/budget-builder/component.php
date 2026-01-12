@@ -1049,6 +1049,13 @@ function renderPanierTree($items, $level = 0) {
                     </small>
                 </div>
                 <div class="mb-3">
+                    <label class="form-label">SKU / Code produit</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-upc"></i></span>
+                        <input type="text" class="form-control" id="item-modal-sku" placeholder="Ex: 1001042710">
+                    </div>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">Image <small class="text-muted">(Ctrl+V pour coller)</small></label>
                     <div id="item-modal-image-zone" class="border rounded p-3 text-center" style="min-height: 80px; cursor: pointer; background: rgba(0,0,0,0.05);" tabindex="0">
                         <div id="item-modal-image-placeholder">
@@ -1311,6 +1318,7 @@ function renderPanierTree($items, $level = 0) {
                 document.getElementById('item-modal-fournisseur').value = itemResp.item.fournisseur || '';
                 document.getElementById('item-modal-etape').value = itemResp.item.etape_id || '';
                 document.getElementById('item-modal-lien').value = itemResp.item.lien_achat || '';
+                document.getElementById('item-modal-sku').value = itemResp.item.sku || '';
 
                 // Charger l'image si elle existe
                 setItemModalImage(itemResp.item.image || null);
@@ -1330,6 +1338,7 @@ function renderPanierTree($items, $level = 0) {
             fournisseur: document.getElementById('item-modal-fournisseur').value,
             etape_id: document.getElementById('item-modal-etape').value,
             lien_achat: document.getElementById('item-modal-lien').value,
+            sku: document.getElementById('item-modal-sku').value,
             image: imageData || null
         };
 

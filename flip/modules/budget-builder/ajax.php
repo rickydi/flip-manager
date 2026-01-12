@@ -386,6 +386,7 @@ try {
             $prix = (float)($input['prix'] ?? 0);
             $fournisseur = trim($input['fournisseur'] ?? '');
             $lienAchat = trim($input['lien_achat'] ?? '');
+            $sku = trim($input['sku'] ?? '');
             $etapeId = !empty($input['etape_id']) ? (int)$input['etape_id'] : null;
             $image = isset($input['image']) ? $input['image'] : null;
 
@@ -407,12 +408,12 @@ try {
             // Si l'étape change ET que l'item est racine (pas de parent), il devient racine dans la nouvelle étape
             // Si l'item a déjà un parent, on ne touche pas au parent_id
             if ($newEtapeId !== $oldEtapeId && $oldParentId === null) {
-                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
-                $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, sku = ?, etape_id = ?, parent_id = NULL, image = ? WHERE id = ?");
+                $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $sku ?: null, $etapeId, $image, $id]);
             } else {
                 // Garder le parent_id intact
-                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, etape_id = ?, image = ? WHERE id = ?");
-                $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $etapeId, $image, $id]);
+                $stmt = $pdo->prepare("UPDATE catalogue_items SET nom = ?, prix = ?, fournisseur = ?, lien_achat = ?, sku = ?, etape_id = ?, image = ? WHERE id = ?");
+                $stmt->execute([$nom, $prix, $fournisseur ?: null, $lienAchat ?: null, $sku ?: null, $etapeId, $image, $id]);
             }
 
             echo json_encode(['success' => true, 'message' => 'Item mis à jour']);
