@@ -507,9 +507,15 @@ include '../../includes/header.php';
             </div>
 
             <div class="card mt-3">
-                <div class="card-body">
-                    <h6><i class="bi bi-robot me-2"></i>Prompt IA (éditable)</h6>
-                    <textarea class="form-control font-monospace" id="promptIA" rows="12" style="font-size: 0.75rem;"><?php
+                <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapsePromptIA" aria-expanded="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Prompt IA (éditable)</h6>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="collapsePromptIA">
+                    <div class="card-body pt-2">
+                        <textarea class="form-control font-monospace" id="promptIA" rows="12" style="font-size: 0.75rem;"><?php
 // Récupérer les étapes pour le prompt
 $etapesPrompt = [];
 try {
@@ -551,19 +557,40 @@ JSON OBLIGATOIRE:
   \"totaux_par_etape\": [{\"etape_id\": 0, \"etape_nom\": \"...\", \"montant\": 0.00}]
 }");
 ?></textarea>
-                    <small class="text-muted">Tu peux modifier ce prompt avant d'analyser une facture</small>
+                        <small class="text-muted">Tu peux modifier ce prompt avant d'analyser une facture</small>
+                    </div>
                 </div>
             </div>
 
             <div class="card mt-3">
-                <div class="card-body">
-                    <h6><i class="bi bi-terminal me-2"></i>Résultat IA (debug)</h6>
-                    <textarea class="form-control font-monospace" id="promptResultat" rows="10" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Le résultat JSON de l'IA apparaîtra ici..."></textarea>
+                <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseResultatIA" aria-expanded="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-terminal me-2"></i>Résultat IA (debug)</h6>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="collapseResultatIA">
+                    <div class="card-body pt-2">
+                        <textarea class="form-control font-monospace" id="promptResultat" rows="10" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Le résultat JSON de l'IA apparaîtra ici..."></textarea>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Collapse icon rotation */
+.collapse-icon {
+    transition: transform 0.3s ease;
+}
+[aria-expanded="true"] .collapse-icon {
+    transform: rotate(180deg);
+}
+.card-header:hover {
+    background-color: rgba(0,0,0,0.03);
+}
+</style>
 
 <script>
 let taxesActives = true;
