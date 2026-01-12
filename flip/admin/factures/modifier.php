@@ -365,9 +365,62 @@ include '../../includes/header.php';
                 
                 <div class="mb-3">
                     <label class="form-label">Description <small class="text-muted">(remplie auto par l'IA)</small></label>
-                    <textarea class="form-control font-monospace" name="description" rows="8" style="font-size: 0.85rem;"><?= e($facture['description']) ?></textarea>
+                    <textarea class="form-control font-monospace" name="description" rows="4" style="font-size: 0.85rem;" id="descriptionHidden"><?= e($facture['description']) ?></textarea>
                 </div>
-                
+
+                <!-- Tableau des articles détectés -->
+                <div class="mb-3" id="articlesTableContainer" style="display: none;">
+                    <label class="form-label"><i class="bi bi-list-check me-1"></i>Articles détectés</label>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover table-bordered" id="articlesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Produit</th>
+                                    <th style="width:60px;" class="text-center">Qté</th>
+                                    <th style="width:80px;" class="text-end">Prix</th>
+                                    <th style="width:150px;">Étape</th>
+                                    <th style="width:100px;" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="articlesTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sections debug collapsibles -->
+                <div class="mb-3">
+                    <div class="card">
+                        <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseResultatIA" aria-expanded="false">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0"><i class="bi bi-terminal me-2"></i>Résultat IA détail</h6>
+                                <i class="bi bi-chevron-down collapse-icon"></i>
+                            </div>
+                        </div>
+                        <div class="collapse" id="collapseResultatIA">
+                            <div class="card-body pt-2">
+                                <textarea class="form-control font-monospace" id="promptResultat" rows="8" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Le résultat JSON de l'IA apparaîtra ici..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-2">
+                        <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseItemSearch" aria-expanded="false">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0"><i class="bi bi-search me-2"></i>Résultat IA item recherché et image</h6>
+                                <i class="bi bi-chevron-down collapse-icon"></i>
+                            </div>
+                        </div>
+                        <div class="collapse" id="collapseItemSearch">
+                            <div class="card-body pt-2">
+                                <textarea class="form-control font-monospace" id="itemSearchLog" rows="8" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Les détails de recherche d'item apparaîtront ici..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone de progression pour l'analyse -->
+                <div id="analysisProgress" class="mb-3" style="display: none;"></div>
+
                 <div class="row">
                     <div class="col-md-4 mb-3">
                         <label class="form-label">Montant avant taxes *</label>
@@ -885,6 +938,9 @@ async function analyserDetails() {
     document.getElementById('btnSaveBreakdown').style.display = 'none';
     currentBreakdownData = null;
 
+    // Démarrer la barre de progression
+    startProgressAnimation();
+
     // Afficher le modal avec loading
     contentDiv.innerHTML = `
         <div class="text-center py-5">
@@ -917,8 +973,21 @@ async function analyserDetails() {
 
             const data = await apiResponse.json();
 
+            // Compléter la progression
+            completeProgress();
+
+            // Logger dans le debug
+            const promptResultat = document.getElementById('promptResultat');
+            if (promptResultat) {
+                promptResultat.value = JSON.stringify(data, null, 2);
+            }
+
             if (data.success && data.data) {
                 displayDetailsResults(data.data);
+                // Aussi afficher le tableau d'articles sur la page
+                if (data.data.lignes) {
+                    renderArticlesTable(data.data.lignes);
+                }
             } else {
                 contentDiv.innerHTML = `
                     <div class="alert alert-danger">
@@ -932,6 +1001,7 @@ async function analyserDetails() {
         reader.readAsDataURL(finalBlob);
     } catch (err) {
         console.error('Erreur:', err);
+        cancelProgress();
         contentDiv.innerHTML = `
             <div class="alert alert-danger">
                 <i class="bi bi-exclamation-triangle me-2"></i>
@@ -1174,7 +1244,323 @@ function saveBreakdown() {
         btn.classList.remove('btn-outline-success');
         btn.classList.add('btn-success');
     }, 2000);
+
+    // Aussi afficher le tableau d'articles
+    if (currentBreakdownData.lignes) {
+        renderArticlesTable(currentBreakdownData.lignes);
+    }
 }
+
+// =============================================
+// FONCTIONS ARTICLES TABLE & ADD TO BUDGET
+// =============================================
+
+// Options des étapes pour les dropdowns
+const etapesOptions = <?= json_encode($etapes) ?>;
+let currentArticlesData = [];
+
+// Générer le lien produit basé sur le fournisseur et SKU
+function generateProductLink(sku, fournisseur) {
+    if (!sku) return null;
+    const fLower = (fournisseur || '').toLowerCase();
+    if (fLower.includes('home depot') || fLower.includes('homedepot')) {
+        return `https://www.homedepot.ca/product/${sku}`;
+    } else if (fLower.includes('rona')) {
+        return `https://www.rona.ca/fr/produit/${sku}`;
+    } else if (fLower.includes('bmr')) {
+        return `https://www.bmr.co/fr/produit/${sku}`;
+    } else if (fLower.includes('canac')) {
+        return `https://www.canac.ca/fr/produit/${sku}`;
+    } else if (fLower.includes('patrick morin')) {
+        return `https://www.patrickmorin.com/fr/produit/${sku}`;
+    }
+    return null;
+}
+
+// Afficher le tableau d'articles
+function renderArticlesTable(articles) {
+    currentArticlesData = articles;
+    const container = document.getElementById('articlesTableContainer');
+    const tbody = document.getElementById('articlesTableBody');
+
+    if (!articles || articles.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    tbody.innerHTML = '';
+
+    // Récupérer le fournisseur actuel
+    const fournisseurInput = document.querySelector('input[name="fournisseur"]');
+    const fournisseur = fournisseurInput ? fournisseurInput.value : '';
+
+    articles.forEach((article, idx) => {
+        const desc = article.description || 'N/A';
+        const qty = article.quantite || 1;
+        const prix = (article.total || 0).toFixed(2);
+        const sku = article.sku || article.code_produit || '';
+        const link = article.link || generateProductLink(sku, fournisseur);
+
+        // Stocker le lien dans l'article
+        currentArticlesData[idx].link = link;
+        currentArticlesData[idx].sku = sku;
+
+        // Dropdown des étapes
+        let etapeOptionsHtml = '<option value="">-- Étape --</option>';
+        etapesOptions.forEach((e, i) => {
+            const selected = (article.etape_id == e.id ||
+                (article.etape_nom && article.etape_nom.toLowerCase().includes(e.nom.toLowerCase()))) ? 'selected' : '';
+            etapeOptionsHtml += `<option value="${e.id}" ${selected}>${i+1}. ${e.nom}</option>`;
+        });
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><small class="d-block" style="word-wrap: break-word;">${escapeHtml(desc)}</small></td>
+            <td class="text-center">${qty}</td>
+            <td class="text-end"><strong>${prix}$</strong></td>
+            <td>
+                <select class="form-select form-select-sm etape-select" style="background-color: #6c757d; color: white;" onchange="updateArticleEtape(${idx}, this.value)">
+                    ${etapeOptionsHtml}
+                </select>
+            </td>
+            <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                    ${link ? `<a href="${link}" target="_blank" class="btn btn-outline-primary" title="Voir produit"><i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    <button type="button" class="btn btn-outline-success" onclick="addToBudget(${idx})" title="Ajouter au catalogue">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Mettre à jour l'étape d'un article
+function updateArticleEtape(idx, etapeId) {
+    if (currentArticlesData[idx]) {
+        currentArticlesData[idx].etape_id = etapeId;
+        const etape = etapesOptions.find(e => e.id == etapeId);
+        if (etape) {
+            currentArticlesData[idx].etape_nom = etape.nom;
+        }
+    }
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Logger dans la zone de debug item
+function logItemSearch(message) {
+    const logArea = document.getElementById('itemSearchLog');
+    if (!logArea) return;
+    const timestamp = new Date().toLocaleTimeString();
+    logArea.value += `[${timestamp}] ${message}\n`;
+    logArea.scrollTop = logArea.scrollHeight;
+}
+
+// Ajouter un article au catalogue budget
+async function addToBudget(idx) {
+    const article = currentArticlesData[idx];
+    if (!article) return;
+
+    const logArea = document.getElementById('itemSearchLog');
+    if (logArea) logArea.value = '';
+
+    logItemSearch('=== AJOUT AU CATALOGUE ===');
+    logItemSearch(`Article: ${article.description}`);
+    logItemSearch(`SKU: ${article.sku || 'N/A'}`);
+    logItemSearch(`Prix: ${article.total}$`);
+    logItemSearch(`Lien: ${article.link || 'Aucun'}`);
+
+    const btn = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1}) .btn-outline-success`);
+    if (btn) {
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+        btn.disabled = true;
+    }
+
+    const fournisseurInput = document.querySelector('input[name="fournisseur"]');
+    const fournisseur = fournisseurInput ? fournisseurInput.value : article.fournisseur || '';
+    logItemSearch(`Fournisseur: ${fournisseur}`);
+
+    // Essayer de récupérer l'image du produit depuis le site fournisseur
+    let productImageUrl = null;
+    if (article.link) {
+        logItemSearch('');
+        logItemSearch('--- RECHERCHE IMAGE ---');
+        logItemSearch(`Appel API link-preview: ${article.link}`);
+
+        try {
+            const previewResponse = await fetch('<?= url('/api/link-preview.php') ?>?url=' + encodeURIComponent(article.link));
+            const previewData = await previewResponse.json();
+
+            logItemSearch(`Réponse API: ${JSON.stringify(previewData, null, 2)}`);
+
+            if (previewData.success && previewData.image) {
+                productImageUrl = previewData.image;
+                logItemSearch(`✓ Image trouvée: ${productImageUrl.substring(0, 100)}...`);
+            } else {
+                logItemSearch(`✗ Pas d'image trouvée`);
+            }
+        } catch (e) {
+            logItemSearch(`✗ Erreur fetch: ${e.message}`);
+        }
+    }
+
+    // Données à envoyer
+    const data = {
+        nom: article.description,
+        prix: article.total || 0,
+        fournisseur: fournisseur,
+        etape_id: article.etape_id || null,
+        sku: article.sku || '',
+        lien: article.link || '',
+        image_url: productImageUrl,
+        csrf_token: '<?= generateCSRFToken() ?>'
+    };
+
+    logItemSearch('');
+    logItemSearch('--- ENVOI AU CATALOGUE ---');
+    logItemSearch(`Données: ${JSON.stringify(data, null, 2)}`);
+
+    // Envoyer à l'API
+    fetch('<?= url('/api/budget-materiau-ajouter.php') ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        logItemSearch('');
+        logItemSearch('--- RÉSULTAT ---');
+        logItemSearch(`Réponse: ${JSON.stringify(result, null, 2)}`);
+
+        if (result.success) {
+            logItemSearch(`✓ SUCCÈS - ID: ${result.id}`);
+            if (btn) {
+                btn.classList.remove('btn-outline-success');
+                btn.classList.add('btn-success');
+                btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+            }
+        } else {
+            logItemSearch(`✗ ERREUR: ${result.error}`);
+            if (btn) {
+                btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+                btn.disabled = false;
+            }
+            alert('Erreur: ' + (result.error || 'Impossible d\'ajouter'));
+        }
+    })
+    .catch(err => {
+        logItemSearch(`✗ ERREUR CONNEXION: ${err.message}`);
+        if (btn) {
+            btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+            btn.disabled = false;
+        }
+        alert('Erreur de connexion');
+    });
+}
+
+// =============================================
+// BARRE DE PROGRESSION
+// =============================================
+
+let analysisProgress = 0;
+let analysisInterval = null;
+const analysisProgressDiv = document.getElementById('analysisProgress');
+
+function startProgressAnimation() {
+    analysisProgress = 0;
+    if (analysisProgressDiv) {
+        analysisProgressDiv.style.display = 'block';
+    }
+    updateProgressDisplay();
+
+    analysisInterval = setInterval(() => {
+        if (analysisProgress < 30) {
+            analysisProgress += Math.random() * 8 + 4;
+        } else if (analysisProgress < 60) {
+            analysisProgress += Math.random() * 5 + 2;
+        } else if (analysisProgress < 85) {
+            analysisProgress += Math.random() * 3 + 1;
+        } else if (analysisProgress < 95) {
+            analysisProgress += Math.random() * 1;
+        }
+        analysisProgress = Math.min(analysisProgress, 95);
+        updateProgressDisplay();
+    }, 300);
+}
+
+function updateProgressDisplay() {
+    const percent = Math.round(analysisProgress);
+    if (analysisProgressDiv) {
+        analysisProgressDiv.innerHTML = `
+            <div class="progress mb-2" style="height: 24px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                     role="progressbar"
+                     style="width: ${percent}%; transition: width 0.3s ease;"
+                     aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">
+                    <span class="fw-bold">${percent}%</span>
+                </div>
+            </div>
+            <small class="text-muted">
+                <i class="bi bi-robot me-1"></i>Claude AI analyse la facture...
+            </small>
+        `;
+    }
+}
+
+function completeProgress() {
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+    analysisProgress = 100;
+    updateProgressDisplay();
+    setTimeout(() => {
+        if (analysisProgressDiv) {
+            analysisProgressDiv.style.display = 'none';
+        }
+    }, 500);
+}
+
+function cancelProgress() {
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+    if (analysisProgressDiv) {
+        analysisProgressDiv.style.display = 'none';
+    }
+}
+
+// Style pour les dropdowns d'étape
+const style = document.createElement('style');
+style.textContent = `
+    .etape-select {
+        background-color: #6c757d !important;
+        color: white !important;
+        border-color: #6c757d !important;
+    }
+    .etape-select option {
+        background-color: white;
+        color: black;
+    }
+    .collapse-icon {
+        transition: transform 0.3s;
+    }
+    .collapsed .collapse-icon,
+    [aria-expanded="false"] .collapse-icon {
+        transform: rotate(-90deg);
+    }
+`;
+document.head.appendChild(style);
 </script>
 
 <?php include '../../includes/footer.php'; ?>
