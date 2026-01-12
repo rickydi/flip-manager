@@ -554,6 +554,13 @@ JSON OBLIGATOIRE:
                     <small class="text-muted">Tu peux modifier ce prompt avant d'analyser une facture</small>
                 </div>
             </div>
+
+            <div class="card mt-3">
+                <div class="card-body">
+                    <h6><i class="bi bi-terminal me-2"></i>Résultat IA (debug)</h6>
+                    <textarea class="form-control font-monospace" id="promptResultat" rows="10" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Le résultat JSON de l'IA apparaîtra ici..."></textarea>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -792,6 +799,9 @@ function analyzeImage(base64Data, mimeType) {
     .then(response => response.json())
     .then(data => {
         analysisStatus.innerHTML = '';
+
+        // Afficher le résultat brut dans le debug
+        document.getElementById('promptResultat').value = JSON.stringify(data, null, 2);
 
         if (data.success && data.data) {
             // Remplir tous les champs avec les données détaillées
