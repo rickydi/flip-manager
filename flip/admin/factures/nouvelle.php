@@ -21,15 +21,6 @@ try {
     }
 }
 
-// Migration: ajouter colonne rotation si elle n'existe pas
-try {
-    $pdo->query("SELECT rotation FROM factures LIMIT 1");
-} catch (Exception $e) {
-    try {
-        $pdo->exec("ALTER TABLE factures ADD COLUMN rotation INT DEFAULT 0");
-    } catch (Exception $e2) {}
-}
-
 // Mode édition si ID fourni
 $factureId = (int)($_GET['id'] ?? 0);
 $isEdit = false;
@@ -69,22 +60,8 @@ try {
     ");
 }
 
-$pageTitle = $isEdit ? 'Modifier facture #' . $factureId : 'Nouvelle facture';
+$pageTitle = 'Nouvelle facture';
 $errors = [];
-
-// AJAX: Sauvegarder la rotation (mode édition uniquement)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'rotate' && $isEdit) {
-    header('Content-Type: application/json');
-    $rotation = (int)($_POST['rotation'] ?? 0) % 360;
-    try {
-        $stmt = $pdo->prepare("UPDATE factures SET rotation = ? WHERE id = ?");
-        $stmt->execute([$rotation, $factureId]);
-        echo json_encode(['success' => true, 'rotation' => $rotation]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
-    }
-    exit;
-}
 
 // Créer la table fournisseurs si elle n'existe pas (sans réinsérer les défauts)
 try {
@@ -516,38 +493,12 @@ include '../../includes/header.php';
                 
                 <div class="mb-3">
                     <label class="form-label">Photo/PDF de la facture</label>
-                    <?php if ($isEdit && $facture['fichier']):
-                        $isImage = preg_match('/\.(jpg|jpeg|png|gif)$/i', $facture['fichier']);
-                        $currentRotation = (int)($facture['rotation'] ?? 0);
-                    ?>
+                    <?php if ($isEdit && !empty($facture['fichier'])): ?>
                         <div class="mb-2">
-                            <?php if ($isImage): ?>
-                                <div class="d-flex align-items-start gap-3">
-                                    <div class="position-relative d-flex align-items-center justify-content-center"
-                                         style="width:150px;height:150px;cursor:pointer;overflow:hidden;border-radius:8px;border:2px solid #ddd;background:#f8f9fa"
-                                         onclick="openImageModal()">
-                                        <img src="<?= url('/api/thumbnail.php?file=factures/' . e($facture['fichier']) . '&w=150&h=150') ?>"
-                                             alt="Facture" id="factureImage" loading="lazy"
-                                             style="max-width:140px;max-height:140px;object-fit:contain;transform:rotate(<?= $currentRotation ?>deg);transition:transform 0.3s">
-                                    </div>
-                                    <div class="d-flex flex-column gap-2">
-                                        <div class="btn-group-vertical">
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="rotateImage(-90)" title="Rotation gauche">
-                                                <i class="bi bi-arrow-counterclockwise"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="rotateImage(90)" title="Rotation droite">
-                                                <i class="bi bi-arrow-clockwise"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <input type="hidden" id="currentRotation" value="<?= $currentRotation ?>">
-                                <input type="hidden" id="imageUrl" value="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>">
-                            <?php else: ?>
-                                <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank" class="text-danger">
-                                    <i class="bi bi-file-pdf" style="font-size:3rem"></i>
-                                </a>
-                            <?php endif; ?>
+                            <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
+                                <img src="<?= url('/api/thumbnail.php?file=factures/' . e($facture['fichier']) . '&w=100&h=100') ?>"
+                                     alt="Facture" style="max-width:100px;max-height:100px;border-radius:4px;border:1px solid #ddd">
+                            </a>
                         </div>
                     <?php endif; ?>
                     <input type="file" class="form-control" name="fichier" id="fichierInput" accept=".jpg,.jpeg,.png,.gif,.pdf">
@@ -2102,62 +2053,6 @@ function addNewFournisseur() {
 
     bootstrap.Modal.getInstance(document.getElementById('fournisseurMatchModal')).hide();
 }
-
-// =============================================
-// ROTATION D'IMAGE (MODE ÉDITION)
-// =============================================
-<?php if ($isEdit && $facture && $facture['fichier']): ?>
-let currentRotation = parseInt(document.getElementById('currentRotation')?.value || 0);
-
-function rotateImage(degrees) {
-    currentRotation = (currentRotation + degrees + 360) % 360;
-    const img = document.getElementById('factureImage');
-    if (img) {
-        img.style.transform = 'rotate(' + currentRotation + 'deg)';
-    }
-    saveRotation(currentRotation);
-}
-
-function saveRotation(rotation) {
-    const formData = new FormData();
-    formData.append('ajax_action', 'rotate');
-    formData.append('rotation', rotation);
-
-    fetch(window.location.href, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('currentRotation').value = rotation;
-            console.log('Rotation sauvegardée:', rotation);
-        } else {
-            console.error('Erreur rotation:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Erreur AJAX rotation:', error);
-    });
-}
-
-function openImageModal() {
-    const fullImageUrl = document.getElementById('imageUrl')?.value;
-    if (fullImageUrl) {
-        const modal = document.createElement('div');
-        modal.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center';
-        modal.style.cssText = 'background:rgba(0,0,0,0.9);z-index:9999;cursor:zoom-out';
-        modal.onclick = () => modal.remove();
-
-        const img = document.createElement('img');
-        img.src = fullImageUrl;
-        img.style.cssText = 'max-width:90%;max-height:90%;object-fit:contain;transform:rotate(' + currentRotation + 'deg)';
-
-        modal.appendChild(img);
-        document.body.appendChild(modal);
-    }
-}
-<?php endif; ?>
 </script>
 
 <!-- Modal Breakdown par Étape -->
