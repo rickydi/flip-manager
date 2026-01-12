@@ -245,19 +245,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($isEdit) {
-                // Mode édition: UPDATE
-                $statut = $_POST['statut'] ?? $facture['statut'];
+                // Mode édition: UPDATE - utiliser le checkbox pour le statut
                 $stmt = $pdo->prepare("
                     UPDATE factures SET
                         projet_id = ?, etape_id = ?, fournisseur = ?, description = ?,
                         date_facture = ?, montant_avant_taxes = ?, tps = ?, tvq = ?,
-                        montant_total = ?, fichier = ?, notes = ?, statut = ?
+                        montant_total = ?, fichier = ?, notes = ?, statut = ?,
+                        approuve_par = ?, date_approbation = ?
                     WHERE id = ?
                 ");
                 $success = $stmt->execute([
                     $projetId, $etapeId ?: null, $fournisseur, $description,
                     $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal, $fichier, $notes,
-                    $statut, $factureId
+                    $statut, $approuvePar, $dateApprobation, $factureId
                 ]);
                 $newFactureId = $factureId;
             } else {
@@ -359,10 +359,10 @@ include '../../includes/header.php';
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
                 <li class="breadcrumb-item"><a href="<?= url('/admin/factures/liste.php') ?>">Factures</a></li>
-                <li class="breadcrumb-item active"><?= $isEdit ? 'Modifier #' . $factureId : 'Nouvelle facture' ?></li>
+                <li class="breadcrumb-item active">Nouvelle facture</li>
             </ol>
         </nav>
-        <h1><i class="bi bi-<?= $isEdit ? 'pencil' : 'plus-circle' ?> me-2"></i><?= $isEdit ? 'Modifier facture #' . $factureId : 'Nouvelle facture' ?></h1>
+        <h1><i class="bi bi-plus-circle me-2"></i>Nouvelle facture</h1>
     </div>
     
     <?php if (!empty($errors)): ?>
@@ -411,18 +411,6 @@ include '../../includes/header.php';
                     </div>
                 </div>
 
-                <?php if ($isEdit): ?>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Statut</label>
-                        <select class="form-select" name="statut">
-                            <option value="en_attente" <?= $facture['statut'] == 'en_attente' ? 'selected' : '' ?>>En attente</option>
-                            <option value="approuvee" <?= $facture['statut'] == 'approuvee' ? 'selected' : '' ?>>Approuvée</option>
-                            <option value="rejetee" <?= $facture['statut'] == 'rejetee' ? 'selected' : '' ?>>Rejetée</option>
-                        </select>
-                    </div>
-                </div>
-                <?php endif; ?>
 
                 <div class="row">
                     <div class="col-md-6 mb-3">
@@ -576,20 +564,18 @@ include '../../includes/header.php';
                     <textarea class="form-control" name="notes" rows="2" placeholder="Notes supplémentaires..."><?= $isEdit ? e($facture['notes']) : '' ?></textarea>
                 </div>
 
-                <?php if (!$isEdit): ?>
                 <div class="mb-3">
                     <div class="form-check">
-                        <input type="checkbox" class="form-check-input" name="approuver_direct" id="approuverDirect" checked>
+                        <input type="checkbox" class="form-check-input" name="approuver_direct" id="approuverDirect" <?= !$isEdit || ($isEdit && $facture['statut'] == 'approuvee') ? 'checked' : '' ?>>
                         <label class="form-check-label" for="approuverDirect">
                             <i class="bi bi-check-circle text-success"></i> Approuver directement la facture
                         </label>
                     </div>
                 </div>
-                <?php endif; ?>
-                
+
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-<?= $isEdit ? 'success' : 'primary' ?>">
-                                <i class="bi bi-check-circle me-1"></i><?= $isEdit ? 'Enregistrer' : 'Ajouter la facture' ?>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Ajouter la facture
                             </button>
                             <a href="<?= url('/admin/factures/liste.php') ?>" class="btn btn-secondary">Annuler</a>
                         </div>
