@@ -1204,6 +1204,8 @@ const etapesOptions = <?= json_encode($etapes) ?>;
 // Charger les articles existants en mode édition
 <?php if ($isEdit && !empty($factureLignes)): ?>
 (function() {
+    const savedFournisseur = <?= json_encode($facture['fournisseur'] ?? '') ?>;
+
     currentArticlesData = <?= json_encode(array_map(function($ligne) {
         return [
             'description' => $ligne['description'],
@@ -1217,6 +1219,14 @@ const etapesOptions = <?= json_encode($etapes) ?>;
             'link' => $ligne['link'] ?? ''
         ];
     }, $factureLignes)) ?>;
+
+    // Régénérer les liens s'ils sont vides
+    currentArticlesData = currentArticlesData.map(article => {
+        if (!article.link && article.sku && savedFournisseur) {
+            article.link = generateProductLink(savedFournisseur, article.sku);
+        }
+        return article;
+    });
 
     // Afficher le tableau d'articles
     document.getElementById('articlesTableContainer').classList.remove('d-none');
