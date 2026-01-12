@@ -508,13 +508,48 @@ include '../../includes/header.php';
 
             <div class="card mt-3">
                 <div class="card-body">
-                    <h6><i class="bi bi-info-circle me-2"></i>Comment ça marche?</h6>
-                    <ol class="small mb-0">
-                        <li>Faites une capture d'écran de votre facture (<kbd>Win</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>)</li>
-                        <li>Collez l'image dans la zone ci-dessus (<kbd>Ctrl</kbd>+<kbd>V</kbd>)</li>
-                        <li>L'IA Claude analyse la facture et remplit automatiquement le formulaire</li>
-                        <li>Vérifiez les données et ajustez si nécessaire</li>
-                    </ol>
+                    <h6><i class="bi bi-robot me-2"></i>Prompt IA (éditable)</h6>
+                    <textarea class="form-control font-monospace" id="promptIA" rows="12" style="font-size: 0.75rem;"><?php
+// Récupérer les étapes pour le prompt
+$etapesPrompt = [];
+try {
+    $stmtE = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
+    $etapesPrompt = $stmtE->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {}
+
+$etapesListe = "";
+foreach ($etapesPrompt as $etape) {
+    $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
+}
+
+echo htmlspecialchars("Analyse cette facture et catégorise CHAQUE LIGNE par étape de construction.
+
+FOURNISSEURS CONNUS: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.
+IMPORTANT: Identifie le fournisseur depuis le LOGO ou le NOM visible sur la facture.
+
+ÉTAPES DISPONIBLES:
+{$etapesListe}
+GUIDE DE CATÉGORISATION:
+- Bois, clous, équerres, étriers → étape 'structure' ou 'division'
+- Tuyaux, raccords, valves, robinets → étape 'plomberie'
+- Fils, boîtes électriques, prises, disjoncteurs, NMD → étape 'électricité'
+- Laine, styromousse, pare-vapeur, isolant → étape 'isolation'
+- Gypse, vis gypse, composé, ruban → étape 'gypse'
+- Peinture, primer, rouleaux, pinceaux → étape 'peinture'
+
+Retourne un JSON avec:
+{
+  \"fournisseur\": \"Nom du magasin (ex: Home Depot)\",
+  \"date_facture\": \"YYYY-MM-DD\",
+  \"lignes\": [{\"description\": \"...\", \"quantite\": 1, \"prix_unitaire\": 10.00, \"total\": 10.00, \"etape_id\": 4, \"etape_nom\": \"...\", \"raison\": \"...\"}],
+  \"totaux_par_etape\": [{\"etape_id\": 4, \"etape_nom\": \"...\", \"montant\": 150.00}],
+  \"sous_total\": 500.00,
+  \"tps\": 25.00,
+  \"tvq\": 49.88,
+  \"total\": 574.88
+}");
+?></textarea>
+                    <small class="text-muted">Tu peux modifier ce prompt avant d'analyser une facture</small>
                 </div>
             </div>
         </div>
@@ -738,6 +773,9 @@ function analyzeImage(base64Data, mimeType) {
         <span class="text-primary">Analyse complète en cours par Claude AI...</span>
     `;
 
+    // Récupérer le prompt personnalisé
+    const customPrompt = document.getElementById('promptIA').value;
+
     // Utiliser directement l'API d'analyse détaillée qui fait tout d'un coup
     fetch('<?= url('/api/analyse-facture-details.php') ?>', {
         method: 'POST',
@@ -745,7 +783,8 @@ function analyzeImage(base64Data, mimeType) {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            image: base64Data
+            image: base64Data,
+            custom_prompt: customPrompt
         })
     })
     .then(response => response.json())

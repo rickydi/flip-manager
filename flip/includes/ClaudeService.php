@@ -706,9 +706,10 @@ class ClaudeService {
      * @param string $imageData Image en base64
      * @param string $mimeType Type MIME de l'image
      * @param array $etapes Liste des étapes de construction disponibles
+     * @param string|null $customPrompt Prompt personnalisé (optionnel)
      * @return array Détails des lignes avec étapes assignées
      */
-    public function analyserFactureDetails($imageData, $mimeType, $etapes = []) {
+    public function analyserFactureDetails($imageData, $mimeType, $etapes = [], $customPrompt = null) {
         $systemPrompt = "Tu es un expert en construction et rénovation au Québec. " .
                        "Tu analyses des factures de quincaillerie (Home Depot, Réno Dépot, BMR, etc.) " .
                        "et tu catégorises chaque article par étape de construction. " .
@@ -739,7 +740,11 @@ class ClaudeService {
                           "- id: 15, nom: Autre\n";
         }
 
-        $userMessage = "Analyse cette facture de quincaillerie et catégorise CHAQUE LIGNE par étape de construction.\n\n" .
+        // Utiliser le prompt personnalisé si fourni
+        if (!empty($customPrompt)) {
+            $userMessage = $customPrompt;
+        } else {
+            $userMessage = "Analyse cette facture de quincaillerie et catégorise CHAQUE LIGNE par étape de construction.\n\n" .
                       "FOURNISSEURS CONNUS: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.\n" .
                       "IMPORTANT: Identifie le fournisseur depuis le LOGO ou le NOM DE L'ENTREPRISE visible sur la facture.\n\n" .
                       "ÉTAPES DISPONIBLES (utilise EXACTEMENT ces noms et ids):\n{$etapesListe}\n" .
@@ -781,6 +786,7 @@ class ClaudeService {
                       "  \"total\": 574.88\n" .
                       "}\n\n" .
                       "CRITIQUE: Utilise UNIQUEMENT les étapes listées ci-dessus avec leurs IDs exacts. Choisis l'étape la plus proche même si pas parfaite.";
+        }
 
         $payload = [
             'model' => $this->model,

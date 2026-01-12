@@ -35,6 +35,7 @@ if (!$input || empty($input['image'])) {
 
 $imageData = $input['image'];
 $mimeType = $input['mime_type'] ?? 'image/png';
+$customPrompt = $input['custom_prompt'] ?? null;
 
 // Nettoyer le base64 si préfixé
 if (strpos($imageData, 'data:') === 0) {
@@ -60,7 +61,7 @@ try {
 
     // Analyser avec Claude
     $claude = new ClaudeService($pdo);
-    $result = $claude->analyserFactureDetails($imageData, $mimeType, $etapes);
+    $result = $claude->analyserFactureDetails($imageData, $mimeType, $etapes, $customPrompt);
 
     echo json_encode([
         'success' => true,
