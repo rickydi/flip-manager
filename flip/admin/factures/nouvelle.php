@@ -910,25 +910,14 @@ function fillFormWithDetailedData(data) {
             found = true;
         }
 
-        // Si non trouvé, ajouter au dropdown
+        // Si non trouvé, demander à l'utilisateur
         if (!found) {
-            console.log('Fournisseur non trouvé, ajout:', fournisseurClean);
-            const newOption = document.createElement('option');
-            newOption.value = fournisseurClean;
-            newOption.text = fournisseurClean;
-            newOption.selected = true;
-            const autreOption = fournisseurSelect.querySelector('option[value="__autre__"]');
-            if (autreOption) {
-                fournisseurSelect.insertBefore(newOption, autreOption);
-            } else {
-                fournisseurSelect.appendChild(newOption);
-            }
-            fournisseurSelect.value = fournisseurClean;
-            console.log('Valeur après ajout:', fournisseurSelect.value);
+            console.log('Fournisseur non trouvé, demander:', fournisseurClean);
+            showFournisseurMatchModal(fournisseurClean, fournisseurSelect);
+        } else {
+            // Forcer la mise à jour visuelle
+            fournisseurSelect.dispatchEvent(new Event('change'));
         }
-
-        // Forcer la mise à jour visuelle
-        fournisseurSelect.dispatchEvent(new Event('change'));
     } else {
         console.log('Pas de fournisseur dans les données');
     }
@@ -1419,6 +1408,90 @@ function confirmBreakdown() {
     if (existingAlert) existingAlert.remove();
     aiResultDiv.insertAdjacentHTML('afterend', alertHtml);
 }
+
+// =============================================
+// MODAL MATCHING FOURNISSEUR
+// =============================================
+
+let pendingFournisseurSelect = null;
+let pendingFournisseurValue = null;
+
+function showFournisseurMatchModal(detectedName, selectElement) {
+    pendingFournisseurSelect = selectElement;
+    pendingFournisseurValue = detectedName;
+
+    // Remplir le nom détecté
+    document.getElementById('detectedFournisseurName').textContent = detectedName;
+    document.getElementById('newFournisseurName').value = detectedName;
+
+    // Générer la liste des fournisseurs existants
+    const listDiv = document.getElementById('existingFournisseursList');
+    let html = '';
+
+    for (let option of selectElement.options) {
+        if (!option.value || option.value === '' || option.value === '__autre__') continue;
+        html += `
+            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+                    onclick="selectExistingFournisseur('${option.value.replace(/'/g, "\\'")}')">
+                <span>${option.text}</span>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </button>
+        `;
+    }
+
+    listDiv.innerHTML = html || '<p class="text-muted p-3">Aucun fournisseur existant</p>';
+
+    // Ouvrir le modal
+    new bootstrap.Modal(document.getElementById('fournisseurMatchModal')).show();
+}
+
+function selectExistingFournisseur(value) {
+    if (pendingFournisseurSelect) {
+        pendingFournisseurSelect.value = value;
+        pendingFournisseurSelect.dispatchEvent(new Event('change'));
+        pendingFournisseurSelect.classList.add('border-success');
+        setTimeout(() => pendingFournisseurSelect.classList.remove('border-success'), 3000);
+    }
+    bootstrap.Modal.getInstance(document.getElementById('fournisseurMatchModal')).hide();
+}
+
+function addNewFournisseur() {
+    const newName = document.getElementById('newFournisseurName').value.trim();
+    if (!newName) {
+        alert('Veuillez entrer un nom');
+        return;
+    }
+
+    if (pendingFournisseurSelect) {
+        // Ajouter au dropdown
+        const newOption = document.createElement('option');
+        newOption.value = newName;
+        newOption.text = newName;
+        newOption.selected = true;
+
+        const autreOption = pendingFournisseurSelect.querySelector('option[value="__autre__"]');
+        if (autreOption) {
+            pendingFournisseurSelect.insertBefore(newOption, autreOption);
+        } else {
+            pendingFournisseurSelect.appendChild(newOption);
+        }
+        pendingFournisseurSelect.value = newName;
+        pendingFournisseurSelect.dispatchEvent(new Event('change'));
+        pendingFournisseurSelect.classList.add('border-success');
+        setTimeout(() => pendingFournisseurSelect.classList.remove('border-success'), 3000);
+
+        // Sauvegarder en base de données
+        fetch('<?= url('/api/fournisseur-ajouter.php') ?>', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'nom=' + encodeURIComponent(newName) + '&csrf_token=<?= generateCSRFToken() ?>'
+        }).then(r => r.json()).then(result => {
+            console.log('Fournisseur sauvegardé:', result);
+        }).catch(err => console.log('Erreur sauvegarde:', err));
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('fournisseurMatchModal')).hide();
+}
 </script>
 
 <!-- Modal Breakdown par Étape -->
@@ -1440,6 +1513,42 @@ function confirmBreakdown() {
                 <button type="button" class="btn btn-success" id="btnSaveBreakdown" onclick="confirmBreakdown()" style="display:none">
                     <i class="bi bi-check-circle me-1"></i>Utiliser cette répartition
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Matching Fournisseur IA -->
+<div class="modal fade" id="fournisseurMatchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-question-circle me-2"></i>Fournisseur non reconnu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-robot me-2"></i>
+                    L'IA a détecté: <strong id="detectedFournisseurName"></strong>
+                </div>
+
+                <h6 class="mb-2">Choisir un fournisseur existant:</h6>
+                <div class="list-group mb-3" id="existingFournisseursList" style="max-height: 200px; overflow-y: auto;">
+                    <!-- Rempli dynamiquement -->
+                </div>
+
+                <hr>
+
+                <h6 class="mb-2">Ou ajouter comme nouveau:</h6>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="newFournisseurName" placeholder="Nom du fournisseur">
+                    <button class="btn btn-success" type="button" onclick="addNewFournisseur()">
+                        <i class="bi bi-plus-circle me-1"></i>Ajouter
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Ignorer</button>
             </div>
         </div>
     </div>
