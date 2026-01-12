@@ -29,13 +29,16 @@ $facture = null;
 if ($factureId) {
     $stmt = $pdo->prepare("SELECT * FROM factures WHERE id = ?");
     $stmt->execute([$factureId]);
-    $facture = $stmt->fetch();
+    $facture = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$facture) {
-        setFlashMessage('danger', 'Facture non trouvée.');
-        redirect('/admin/factures/liste.php');
+    if ($facture) {
+        $isEdit = true;
     }
-    $isEdit = true;
+}
+
+// DEBUG: Afficher les infos de la facture
+if ($factureId) {
+    error_log("FACTURE DEBUG: ID=$factureId, isEdit=" . ($isEdit ? 'true' : 'false') . ", facture=" . json_encode($facture));
 }
 
 // Migration: créer table facture_lignes pour stocker le breakdown par étape
@@ -342,6 +345,13 @@ include '../../includes/header.php';
         <h1><i class="bi bi-plus-circle me-2"></i>Nouvelle facture</h1>
     </div>
     
+    <?php if ($factureId): ?>
+        <div class="alert alert-warning">
+            <strong>DEBUG:</strong> ID=<?= $factureId ?>, isEdit=<?= $isEdit ? 'OUI' : 'NON' ?>,
+            Fournisseur=<?= $facture ? e($facture['fournisseur'] ?? 'N/A') : 'AUCUNE FACTURE' ?>
+        </div>
+    <?php endif; ?>
+
     <?php if (!empty($errors)): ?>
         <div class="alert alert-danger">
             <ul class="mb-0">
