@@ -540,20 +540,26 @@ Le fournisseur est OBLIGATOIRE - cherche le nom du magasin sur la facture.
 - Trouve le total
 - Trouve la date (format YYYY-MM-DD)
 
-ÉTAPE 3 - CATÉGORISER LES ARTICLES:
+ÉTAPE 3 - EXTRAIRE LES ARTICLES AVEC SKU:
+Pour chaque article, trouve:
+- Description du produit
+- SKU/Code produit (numéro à 6-10 chiffres, souvent près du nom)
+- Quantité et prix
+
+ÉTAPE 4 - CATÉGORISER PAR ÉTAPE:
 Utilise ces étapes de construction:
 {$etapesListe}
 Guide: Bois→structure, Tuyaux→plomberie, Fils/NMD→électricité, Isolant→isolation, Gypse→gypse, Peinture→peinture
 
 JSON OBLIGATOIRE:
 {
-  \"fournisseur\": \"NOM DU MAGASIN (regarde le logo!)\",
+  \"fournisseur\": \"NOM DU MAGASIN\",
   \"date_facture\": \"YYYY-MM-DD\",
   \"sous_total\": 0.00,
   \"tps\": 0.00,
   \"tvq\": 0.00,
   \"total\": 0.00,
-  \"lignes\": [{\"description\": \"...\", \"quantite\": 1, \"total\": 0.00, \"etape_id\": 0, \"etape_nom\": \"...\"}],
+  \"lignes\": [{\"description\": \"...\", \"sku\": \"123456\", \"quantite\": 1, \"total\": 0.00, \"etape_id\": 0, \"etape_nom\": \"...\"}],
   \"totaux_par_etape\": [{\"etape_id\": 0, \"etape_nom\": \"...\", \"montant\": 0.00}]
 }");
 ?></textarea>
@@ -859,6 +865,34 @@ function analyzeImage(base64Data, mimeType) {
     });
 }
 
+// Générer un lien vers le produit selon le fournisseur
+function generateProductLink(fournisseur, sku) {
+    if (!sku) return null;
+
+    const f = fournisseur.toLowerCase();
+    const skuClean = sku.toString().replace(/\s/g, '');
+
+    if (f.includes('home depot')) {
+        return `https://www.homedepot.ca/product/${skuClean}`;
+    } else if (f.includes('rona')) {
+        return `https://www.rona.ca/fr/produit/${skuClean}`;
+    } else if (f.includes('réno') || f.includes('reno depot') || f.includes('renodepot')) {
+        return `https://www.renodepot.com/fr/produit/${skuClean}`;
+    } else if (f.includes('bmr')) {
+        return `https://www.bmr.co/fr/produit/${skuClean}`;
+    } else if (f.includes('canac')) {
+        return `https://www.canac.ca/fr/produit/${skuClean}`;
+    } else if (f.includes('patrick morin')) {
+        return `https://www.yourlink.ca/search?q=${skuClean}`;
+    } else if (f.includes('canadian tire')) {
+        return `https://www.canadiantire.ca/fr/search.html?q=${skuClean}`;
+    } else if (f.includes('ikea')) {
+        return `https://www.ikea.com/ca/fr/search/?q=${skuClean}`;
+    }
+
+    return null;
+}
+
 // Remplir le formulaire avec les données détaillées
 function fillFormWithDetailedData(data) {
     console.log('fillFormWithDetailedData - data reçue:', data);
@@ -941,23 +975,33 @@ function fillFormWithDetailedData(data) {
 
     calculerTotal();
 
-    // Formater les articles en tableau pour la description
+    // Formater les articles pour la description (avec liens si SKU disponible)
     if (data.lignes && data.lignes.length > 0) {
-        let descriptionTable = "ARTICLES DÉTECTÉS PAR IA:\n";
-        descriptionTable += "─".repeat(60) + "\n";
+        const fournisseur = (data.fournisseur || '').toLowerCase();
+        let descriptionLines = [];
 
         data.lignes.forEach((ligne) => {
-            const desc = (ligne.description || 'N/A').substring(0, 35).padEnd(35);
-            const qty = String(ligne.quantite || 1).padStart(4);
-            const prix = (ligne.total || 0).toFixed(2).padStart(8);
-            const etape = (ligne.etape_nom || 'N/A').substring(0, 15);
-            descriptionTable += `${desc} x${qty} ${prix}$ [${etape}]\n`;
+            const desc = ligne.description || 'N/A';
+            const qty = ligne.quantite || 1;
+            const prix = (ligne.total || 0).toFixed(2);
+            const etape = ligne.etape_nom || '';
+            const sku = ligne.sku || ligne.code_produit || '';
+
+            let lineText = `${desc} x${qty} ${prix}$`;
+            if (etape) lineText += ` [${etape}]`;
+
+            // Ajouter lien si SKU disponible
+            if (sku) {
+                const link = generateProductLink(fournisseur, sku);
+                if (link) {
+                    lineText += `\n   → ${link}`;
+                }
+            }
+
+            descriptionLines.push(lineText);
         });
 
-        descriptionTable += "─".repeat(60) + "\n";
-        descriptionTable += `TOTAL: ${data.lignes.length} articles | Sous-total: ${(data.sous_total || 0).toFixed(2)}$`;
-
-        document.querySelector('textarea[name="description"]').value = descriptionTable;
+        document.querySelector('textarea[name="description"]').value = descriptionLines.join('\n');
     }
 
     // Auto-sélectionner l'étape principale
