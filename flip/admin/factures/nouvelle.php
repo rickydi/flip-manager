@@ -363,12 +363,27 @@ include '../../includes/header.php';
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Description <small class="text-muted">(remplie auto par l'IA)</small></label>
-                    <textarea class="form-control font-monospace" name="description" rows="6" style="font-size: 0.85rem;"
-                              placeholder="Description des achats..."></textarea>
-                    <div id="linksPreview" class="mt-2 d-none">
-                        <small class="text-muted">Liens produits:</small>
-                        <div id="linksContainer" class="d-flex flex-wrap gap-1 mt-1"></div>
+                    <label class="form-label">Articles <small class="text-muted">(détectés par l'IA)</small></label>
+                    <input type="hidden" name="description" id="descriptionHidden">
+                    <div id="articlesTableContainer" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0" id="articlesTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40%;">Produit</th>
+                                        <th class="text-center" style="width: 8%;">Qté</th>
+                                        <th class="text-end" style="width: 12%;">Prix</th>
+                                        <th style="width: 25%;">Étape</th>
+                                        <th class="text-center" style="width: 15%;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="articlesTableBody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="noArticlesMsg" class="text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>Collez une image pour détecter les articles
                     </div>
                 </div>
 
@@ -869,6 +884,12 @@ function analyzeImage(base64Data, mimeType) {
     });
 }
 
+// Données des articles pour le tableau
+let currentArticlesData = [];
+
+// Options étapes pour les dropdowns
+const etapesOptions = <?= json_encode($etapes) ?>;
+
 // Générer un lien vers le produit selon le fournisseur
 function generateProductLink(fournisseur, sku) {
     if (!sku) return null;
@@ -895,6 +916,145 @@ function generateProductLink(fournisseur, sku) {
     }
 
     return null;
+}
+
+// Générer le tableau des articles
+function renderArticlesTable(articles) {
+    const tbody = document.getElementById('articlesTableBody');
+    tbody.innerHTML = '';
+
+    articles.forEach((article, idx) => {
+        const desc = article.description || 'N/A';
+        const qty = article.quantite || 1;
+        const prix = (article.total || 0).toFixed(2);
+        const etapeId = article.etape_id || '';
+        const etapeNom = article.etape_nom || '';
+        const sku = article.sku || article.code_produit || '';
+        const link = article.link || '';
+
+        // Générer les options d'étapes
+        let etapeOptionsHtml = '<option value="">--</option>';
+        etapesOptions.forEach(e => {
+            const selected = (e.id == etapeId || e.nom.toLowerCase() === etapeNom.toLowerCase()) ? 'selected' : '';
+            etapeOptionsHtml += `<option value="${e.id}" ${selected}>${e.nom}</option>`;
+        });
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <small class="text-truncate d-block" style="max-width: 200px;" title="${desc}">${desc}</small>
+                ${sku ? `<span class="badge bg-light text-muted" style="font-size: 0.65rem;">${sku}</span>` : ''}
+            </td>
+            <td class="text-center">${qty}</td>
+            <td class="text-end"><strong>${prix}$</strong></td>
+            <td>
+                <select class="form-select form-select-sm" onchange="updateArticleEtape(${idx}, this.value)">
+                    ${etapeOptionsHtml}
+                </select>
+            </td>
+            <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                    ${link ? `<a href="${link}" target="_blank" class="btn btn-outline-primary" title="Voir produit"><i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    <button type="button" class="btn btn-outline-success" onclick="addToBudget(${idx})" title="Ajouter au catalogue">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Mettre à jour l'étape d'un article
+function updateArticleEtape(idx, etapeId) {
+    if (currentArticlesData[idx]) {
+        currentArticlesData[idx].etape_id = etapeId;
+        // Trouver le nom de l'étape
+        const etape = etapesOptions.find(e => e.id == etapeId);
+        if (etape) {
+            currentArticlesData[idx].etape_nom = etape.nom;
+        }
+        updateDescriptionHidden();
+        updateBreakdownData();
+    }
+}
+
+// Mettre à jour le champ hidden de description
+function updateDescriptionHidden() {
+    const lines = currentArticlesData.map(a => {
+        let line = `${a.description || 'N/A'} x${a.quantite || 1} ${(a.total || 0).toFixed(2)}$`;
+        if (a.etape_nom) line += ` [${a.etape_nom}]`;
+        return line;
+    });
+    document.getElementById('descriptionHidden').value = lines.join('\n');
+}
+
+// Mettre à jour les données de breakdown
+function updateBreakdownData() {
+    // Recalculer les totaux par étape
+    const totauxParEtape = {};
+    currentArticlesData.forEach(a => {
+        const key = a.etape_nom || 'Non spécifié';
+        if (!totauxParEtape[key]) {
+            totauxParEtape[key] = { etape_id: a.etape_id, etape_nom: key, montant: 0 };
+        }
+        totauxParEtape[key].montant += parseFloat(a.total) || 0;
+    });
+
+    const breakdownData = {
+        lignes: currentArticlesData,
+        totaux_par_etape: Object.values(totauxParEtape)
+    };
+
+    document.getElementById('breakdownData').value = JSON.stringify(breakdownData);
+}
+
+// Ajouter un article au catalogue budget
+function addToBudget(idx) {
+    const article = currentArticlesData[idx];
+    if (!article) return;
+
+    const fournisseur = document.getElementById('fournisseur').value || article.fournisseur || '';
+    const imageBase64 = document.getElementById('imageBase64').value || '';
+
+    // Données à envoyer
+    const data = {
+        nom: article.description,
+        prix: article.total || 0,
+        fournisseur: fournisseur,
+        etape_id: article.etape_id || null,
+        sku: article.sku || article.code_produit || '',
+        lien: article.link || '',
+        image_base64: imageBase64,
+        csrf_token: '<?= generateCSRFToken() ?>'
+    };
+
+    // Envoyer à l'API
+    fetch('<?= url('/api/budget-materiau-ajouter.php') ?>', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(result => {
+        if (result.success) {
+            // Marquer comme ajouté
+            const btn = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1}) .btn-outline-success`);
+            if (btn) {
+                btn.classList.remove('btn-outline-success');
+                btn.classList.add('btn-success');
+                btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                btn.disabled = true;
+            }
+            console.log('Matériau ajouté:', result);
+        } else {
+            alert('Erreur: ' + (result.error || 'Impossible d\'ajouter'));
+        }
+    })
+    .catch(err => {
+        console.error('Erreur:', err);
+        alert('Erreur de connexion');
+    });
 }
 
 // Remplir le formulaire avec les données détaillées
@@ -979,53 +1139,20 @@ function fillFormWithDetailedData(data) {
 
     calculerTotal();
 
-    // Formater les articles pour la description (avec liens cliquables)
+    // Afficher les articles dans le tableau
     if (data.lignes && data.lignes.length > 0) {
-        const fournisseur = (data.fournisseur || '').toLowerCase();
-        let descriptionLines = [];
-        let productLinks = [];
+        const fournisseur = data.fournisseur || '';
+        currentArticlesData = data.lignes.map((ligne, idx) => ({
+            ...ligne,
+            fournisseur: fournisseur,
+            link: generateProductLink(fournisseur, ligne.sku || ligne.code_produit || '')
+        }));
 
-        data.lignes.forEach((ligne) => {
-            const desc = ligne.description || 'N/A';
-            const qty = ligne.quantite || 1;
-            const prix = (ligne.total || 0).toFixed(2);
-            const etape = ligne.etape_nom || '';
-            const sku = ligne.sku || ligne.code_produit || '';
+        renderArticlesTable(currentArticlesData);
+        updateDescriptionHidden();
 
-            let lineText = `${desc} x${qty} ${prix}$`;
-            if (etape) lineText += ` [${etape}]`;
-
-            descriptionLines.push(lineText);
-
-            // Collecter les liens si SKU disponible
-            if (sku) {
-                const link = generateProductLink(fournisseur, sku);
-                if (link) {
-                    productLinks.push({
-                        desc: desc.substring(0, 25) + (desc.length > 25 ? '...' : ''),
-                        url: link,
-                        sku: sku
-                    });
-                }
-            }
-        });
-
-        document.querySelector('textarea[name="description"]').value = descriptionLines.join('\n');
-
-        // Afficher les liens cliquables
-        const linksPreview = document.getElementById('linksPreview');
-        const linksContainer = document.getElementById('linksContainer');
-
-        if (productLinks.length > 0) {
-            linksContainer.innerHTML = productLinks.map(p =>
-                `<a href="${p.url}" target="_blank" class="btn btn-sm btn-outline-primary" title="${p.desc}">
-                    <i class="bi bi-box-arrow-up-right me-1"></i>${p.sku}
-                </a>`
-            ).join('');
-            linksPreview.classList.remove('d-none');
-        } else {
-            linksPreview.classList.add('d-none');
-        }
+        document.getElementById('articlesTableContainer').classList.remove('d-none');
+        document.getElementById('noArticlesMsg').classList.add('d-none');
     }
 
     // Auto-sélectionner l'étape principale
