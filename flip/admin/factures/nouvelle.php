@@ -861,18 +861,33 @@ function analyzeImage(base64Data, mimeType) {
 
 // Remplir le formulaire avec les données détaillées
 function fillFormWithDetailedData(data) {
+    console.log('fillFormWithDetailedData - data reçue:', data);
+
     // Fournisseur (select dropdown)
-    if (data.fournisseur) {
+    const fournisseurValue = data.fournisseur || data.Fournisseur || data.supplier || '';
+    console.log('Fournisseur détecté:', fournisseurValue);
+
+    if (fournisseurValue && fournisseurValue.trim() !== '') {
         const fournisseurSelect = document.getElementById('fournisseur');
-        const fournisseurValue = data.fournisseur;
+        const fournisseurClean = fournisseurValue.trim();
+
+        console.log('Select element:', fournisseurSelect);
+        console.log('Options disponibles:', Array.from(fournisseurSelect.options).map(o => o.value));
 
         // Chercher si le fournisseur existe dans la liste
         let found = false;
         for (let option of fournisseurSelect.options) {
-            if (option.value.toLowerCase() === fournisseurValue.toLowerCase() ||
-                option.text.toLowerCase() === fournisseurValue.toLowerCase() ||
-                option.value.toLowerCase().includes(fournisseurValue.toLowerCase()) ||
-                fournisseurValue.toLowerCase().includes(option.value.toLowerCase())) {
+            if (!option.value || option.value === '' || option.value === '__autre__') continue;
+
+            const optVal = option.value.toLowerCase().trim();
+            const optTxt = option.text.toLowerCase().trim();
+            const searchVal = fournisseurClean.toLowerCase();
+
+            // Correspondance exacte ou partielle
+            if (optVal === searchVal || optTxt === searchVal ||
+                optVal.includes(searchVal) || searchVal.includes(optVal) ||
+                optTxt.includes(searchVal) || searchVal.includes(optTxt)) {
+                console.log('Match trouvé:', option.value);
                 fournisseurSelect.value = option.value;
                 found = true;
                 break;
@@ -880,13 +895,26 @@ function fillFormWithDetailedData(data) {
         }
 
         // Si non trouvé, ajouter au dropdown
-        if (!found && fournisseurValue !== '__autre__') {
+        if (!found) {
+            console.log('Fournisseur non trouvé, ajout:', fournisseurClean);
             const newOption = document.createElement('option');
-            newOption.value = fournisseurValue;
-            newOption.text = fournisseurValue;
-            fournisseurSelect.insertBefore(newOption, fournisseurSelect.querySelector('option[value="__autre__"]'));
-            fournisseurSelect.value = fournisseurValue;
+            newOption.value = fournisseurClean;
+            newOption.text = fournisseurClean;
+            newOption.selected = true;
+            const autreOption = fournisseurSelect.querySelector('option[value="__autre__"]');
+            if (autreOption) {
+                fournisseurSelect.insertBefore(newOption, autreOption);
+            } else {
+                fournisseurSelect.appendChild(newOption);
+            }
+            fournisseurSelect.value = fournisseurClean;
+            console.log('Valeur après ajout:', fournisseurSelect.value);
         }
+
+        // Forcer la mise à jour visuelle
+        fournisseurSelect.dispatchEvent(new Event('change'));
+    } else {
+        console.log('Pas de fournisseur dans les données');
     }
 
     // Date
