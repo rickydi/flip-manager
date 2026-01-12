@@ -735,17 +735,17 @@ function clearPastedImage() {
 function analyzeImage(base64Data, mimeType) {
     analysisStatus.innerHTML = `
         <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-        <span class="text-primary">Analyse en cours par Claude AI...</span>
+        <span class="text-primary">Analyse complète en cours par Claude AI...</span>
     `;
 
-    fetch('<?= url('/api/analyse-facture.php') ?>', {
+    // Utiliser directement l'API d'analyse détaillée qui fait tout d'un coup
+    fetch('<?= url('/api/analyse-facture-details.php') ?>', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            image: base64Data,
-            mime_type: mimeType
+            image: base64Data
         })
     })
     .then(response => response.json())
@@ -753,18 +753,24 @@ function analyzeImage(base64Data, mimeType) {
         analysisStatus.innerHTML = '';
 
         if (data.success && data.data) {
-            fillFormWithData(data.data);
+            // Remplir tous les champs avec les données détaillées
+            fillFormWithDetailedData(data.data);
             aiResult.classList.remove('d-none');
 
-            // Afficher le niveau de confiance
-            const confidence = data.data.confiance || 0;
-            const confidencePercent = Math.round(confidence * 100);
+            // Afficher le niveau de confiance basé sur le nombre de lignes trouvées
+            const nbLignes = data.data.lignes?.length || 0;
             const confidenceEl = document.getElementById('confidenceLevel');
-            confidenceEl.textContent = confidencePercent + '% confiance';
-            confidenceEl.className = 'badge ms-2 ' + (confidencePercent >= 80 ? 'bg-success' : confidencePercent >= 50 ? 'bg-warning' : 'bg-danger');
+            confidenceEl.textContent = nbLignes + ' articles détectés';
+            confidenceEl.className = 'badge ms-2 ' + (nbLignes > 5 ? 'bg-success' : nbLignes > 0 ? 'bg-warning' : 'bg-danger');
 
-            // Lancer automatiquement l'analyse détaillée pour le breakdown
-            analyserBreakdownAuto(base64Data);
+            // Stocker automatiquement le breakdown (pas besoin de modal)
+            if (data.data.lignes && data.data.lignes.length > 0) {
+                currentBreakdownData = data.data;
+                document.getElementById('breakdownData').value = JSON.stringify(data.data);
+
+                // Afficher résumé des étapes
+                showBreakdownSummary(data.data);
+            }
         } else {
             showError(data.error || 'Erreur lors de l\'analyse');
         }
@@ -773,6 +779,101 @@ function analyzeImage(base64Data, mimeType) {
         analysisStatus.innerHTML = '';
         showError('Erreur de connexion: ' + error.message);
     });
+}
+
+// Remplir le formulaire avec les données détaillées
+function fillFormWithDetailedData(data) {
+    // Fournisseur
+    if (data.fournisseur) {
+        document.getElementById('fournisseur').value = data.fournisseur;
+    }
+
+    // Date
+    if (data.date_facture) {
+        document.querySelector('input[name="date_facture"]').value = data.date_facture;
+    }
+
+    // Montants
+    if (data.sous_total) {
+        document.getElementById('montantAvantTaxes').value = parseFloat(data.sous_total).toFixed(2);
+    }
+    if (data.tps !== undefined) {
+        document.getElementById('tps').value = parseFloat(data.tps).toFixed(2);
+        taxesActives = false;
+    }
+    if (data.tvq !== undefined) {
+        document.getElementById('tvq').value = parseFloat(data.tvq).toFixed(2);
+    }
+
+    calculerTotal();
+
+    // Formater les articles en tableau pour la description
+    if (data.lignes && data.lignes.length > 0) {
+        let descriptionTable = "ARTICLES DÉTECTÉS PAR IA:\n";
+        descriptionTable += "─".repeat(60) + "\n";
+
+        data.lignes.forEach((ligne) => {
+            const desc = (ligne.description || 'N/A').substring(0, 35).padEnd(35);
+            const qty = String(ligne.quantite || 1).padStart(4);
+            const prix = (ligne.total || 0).toFixed(2).padStart(8);
+            const etape = (ligne.etape_nom || 'N/A').substring(0, 15);
+            descriptionTable += `${desc} x${qty} ${prix}$ [${etape}]\n`;
+        });
+
+        descriptionTable += "─".repeat(60) + "\n";
+        descriptionTable += `TOTAL: ${data.lignes.length} articles | Sous-total: ${(data.sous_total || 0).toFixed(2)}$`;
+
+        document.querySelector('textarea[name="description"]').value = descriptionTable;
+    }
+
+    // Auto-sélectionner l'étape principale
+    if (data.totaux_par_etape && data.totaux_par_etape.length > 0) {
+        const etapeSelect = document.querySelector('select[name="etape_id"]');
+        if (etapeSelect) {
+            let etapePrincipale = data.totaux_par_etape.reduce((max, e) =>
+                (e.montant > max.montant) ? e : max
+            );
+
+            if (etapePrincipale.etape_nom) {
+                const nomRecherche = etapePrincipale.etape_nom.toLowerCase().trim();
+                for (let option of etapeSelect.options) {
+                    if (!option.value || option.value === '') continue;
+                    const optionNom = option.text.toLowerCase().replace(/^\d+\.\s*/, '').trim();
+                    if (optionNom === nomRecherche || optionNom.includes(nomRecherche) || nomRecherche.includes(optionNom)) {
+                        etapeSelect.value = option.value;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    highlightFilledFields();
+}
+
+// Afficher un résumé du breakdown
+function showBreakdownSummary(data) {
+    const existingAlert = document.getElementById('breakdownConfirm');
+    if (existingAlert) existingAlert.remove();
+
+    let etapesHtml = '';
+    if (data.totaux_par_etape) {
+        etapesHtml = data.totaux_par_etape.map(e =>
+            `<span class="badge bg-secondary me-1">${e.etape_nom}: ${formatMoney(e.montant)}</span>`
+        ).join('');
+    }
+
+    const alertHtml = `
+        <div class="alert alert-success alert-dismissible fade show mt-3" id="breakdownConfirm">
+            <i class="bi bi-check-circle me-2"></i>
+            <strong>Analyse complète!</strong> ${data.lignes?.length || 0} articles répartis automatiquement:<br>
+            <div class="mt-2">${etapesHtml}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    const aiResultDiv = document.getElementById('aiResult');
+    aiResultDiv.insertAdjacentHTML('afterend', alertHtml);
 }
 
 function fillFormWithData(data) {
