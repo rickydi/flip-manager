@@ -36,9 +36,12 @@ if ($factureId) {
     }
 }
 
-// DEBUG: Afficher les infos de la facture
-if ($factureId) {
-    error_log("FACTURE DEBUG: ID=$factureId, isEdit=" . ($isEdit ? 'true' : 'false') . ", facture=" . json_encode($facture));
+// Charger les lignes d'articles si mode édition
+$factureLignes = [];
+if ($isEdit) {
+    $stmtLignes = $pdo->prepare("SELECT * FROM facture_lignes WHERE facture_id = ? ORDER BY id");
+    $stmtLignes->execute([$factureId]);
+    $factureLignes = $stmtLignes->fetchAll(PDO::FETCH_ASSOC);
 }
 
 // Migration: créer table facture_lignes pour stocker le breakdown par étape
@@ -345,13 +348,6 @@ include '../../includes/header.php';
         <h1><i class="bi bi-plus-circle me-2"></i>Nouvelle facture</h1>
     </div>
     
-    <?php if ($factureId): ?>
-        <div class="alert alert-warning">
-            <strong>DEBUG:</strong> ID=<?= $factureId ?>, isEdit=<?= $isEdit ? 'OUI' : 'NON' ?>,
-            Fournisseur=<?= $facture ? e($facture['fournisseur'] ?? 'N/A') : 'AUCUNE FACTURE' ?>
-        </div>
-    <?php endif; ?>
-
     <?php if (!empty($errors)): ?>
         <div class="alert alert-danger">
             <ul class="mb-0">
@@ -1192,6 +1188,29 @@ let currentArticlesData = [];
 
 // Options étapes pour les dropdowns
 const etapesOptions = <?= json_encode($etapes) ?>;
+
+// Charger les articles existants en mode édition
+<?php if ($isEdit && !empty($factureLignes)): ?>
+(function() {
+    currentArticlesData = <?= json_encode(array_map(function($ligne) {
+        return [
+            'description' => $ligne['description'],
+            'quantite' => (float)$ligne['quantite'],
+            'prix_unitaire' => (float)$ligne['prix_unitaire'],
+            'total' => (float)$ligne['total'],
+            'etape_id' => $ligne['etape_id'],
+            'etape_nom' => $ligne['etape_nom'],
+            'raison' => $ligne['raison'] ?? ''
+        ];
+    }, $factureLignes)) ?>;
+
+    // Afficher le tableau d'articles
+    document.getElementById('articlesTableContainer').classList.remove('d-none');
+    document.getElementById('noArticlesMsg').classList.add('d-none');
+    renderArticlesTable(currentArticlesData);
+    updateDescriptionHidden();
+})();
+<?php endif; ?>
 
 // Générer un lien vers le produit selon le fournisseur
 function generateProductLink(fournisseur, sku) {
