@@ -122,7 +122,7 @@ class GeminiService {
             ],
             'generationConfig' => [
                 'temperature' => 0,
-                'maxOutputTokens' => 2048
+                'maxOutputTokens' => 4096
             ]
         ];
 
@@ -863,6 +863,112 @@ class GeminiService {
     }
 
     /**
+     * Tente de réparer un JSON tronqué en fermant les structures ouvertes
+     * @param string $jsonStr JSON potentiellement tronqué
+     * @return array|null Données parsées ou null si échec
+     */
+    private function tryRepairTruncatedJson($jsonStr) {
+        // Compter les accolades et crochets ouverts
+        $openBraces = 0;
+        $openBrackets = 0;
+        $inString = false;
+        $escape = false;
+
+        for ($i = 0; $i < strlen($jsonStr); $i++) {
+            $char = $jsonStr[$i];
+
+            if ($escape) {
+                $escape = false;
+                continue;
+            }
+
+            if ($char === '\\' && $inString) {
+                $escape = true;
+                continue;
+            }
+
+            if ($char === '"') {
+                $inString = !$inString;
+                continue;
+            }
+
+            if (!$inString) {
+                if ($char === '{') $openBraces++;
+                if ($char === '}') $openBraces--;
+                if ($char === '[') $openBrackets++;
+                if ($char === ']') $openBrackets--;
+            }
+        }
+
+        // Si on est dans une string, la fermer
+        if ($inString) {
+            // Trouver si on est au milieu d'une valeur numérique ou string
+            // Chercher la dernière virgule ou deux-points pour tronquer proprement
+            $lastColon = strrpos($jsonStr, ':');
+            $lastComma = strrpos($jsonStr, ',');
+            $cutPoint = max($lastColon, $lastComma);
+
+            if ($cutPoint !== false) {
+                // Vérifier si après le cut point il y a une valeur partielle
+                $afterCut = trim(substr($jsonStr, $cutPoint + 1));
+
+                // Si c'est une valeur numérique partielle, on peut essayer de la terminer
+                if (preg_match('/^[\d.]+$/', $afterCut)) {
+                    // Valeur numérique tronquée - ajouter 0 pour compléter et fermer
+                    $jsonStr = substr($jsonStr, 0, $cutPoint + 1) . $afterCut . '0';
+                } elseif ($afterCut === '' || preg_match('/^"[^"]*$/', $afterCut)) {
+                    // String non fermée ou vide - tronquer à la dernière valeur complète
+                    // Remonter jusqu'à la virgule précédente
+                    $prevComma = strrpos(substr($jsonStr, 0, $cutPoint), ',');
+                    if ($prevComma !== false) {
+                        $jsonStr = substr($jsonStr, 0, $prevComma);
+                    }
+                }
+
+                // Recalculer les accolades/crochets
+                $openBraces = 0;
+                $openBrackets = 0;
+                $inString = false;
+                for ($i = 0; $i < strlen($jsonStr); $i++) {
+                    $char = $jsonStr[$i];
+                    if ($char === '\\' && $inString) { $i++; continue; }
+                    if ($char === '"') { $inString = !$inString; continue; }
+                    if (!$inString) {
+                        if ($char === '{') $openBraces++;
+                        if ($char === '}') $openBraces--;
+                        if ($char === '[') $openBrackets++;
+                        if ($char === ']') $openBrackets--;
+                    }
+                }
+            }
+        }
+
+        // Fermer les structures ouvertes
+        $jsonStr .= str_repeat(']', max(0, $openBrackets));
+        $jsonStr .= str_repeat('}', max(0, $openBraces));
+
+        // Essayer de parser
+        $result = json_decode($jsonStr, true);
+        if ($result !== null) {
+            return $result;
+        }
+
+        // Tentative alternative: supprimer la dernière propriété incomplète
+        // Chercher la dernière virgule suivie d'une clé et supprimer jusqu'à la fin
+        if (preg_match('/^(.+,)\s*"[^"]+"\s*:\s*[^,}\]]*$/s', $jsonStr, $matches)) {
+            $trimmed = rtrim($matches[1], ',');
+            $trimmed .= str_repeat(']', max(0, $openBrackets));
+            $trimmed .= str_repeat('}', max(0, $openBraces));
+            $result = json_decode($trimmed, true);
+            if ($result !== null) {
+                return $result;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Appel API Gemini
      */
     private function callApi($payload) {
@@ -959,8 +1065,18 @@ class GeminiService {
             error_log("Gemini JSON attempted: " . substr($jsonStr, 0, 500));
         }
 
+        // Tentative de réparation de JSON tronqué
+        if ($firstBrace !== false) {
+            $jsonStr = substr($content, $firstBrace);
+            $repaired = $this->tryRepairTruncatedJson($jsonStr);
+            if ($repaired !== null) {
+                error_log("Gemini JSON réparé avec succès");
+                return $repaired;
+            }
+        }
+
         // Si on n'a pas trouvé de JSON, log le contenu pour debug
         error_log("Gemini content sans JSON valide: " . substr($content, 0, 500));
-        throw new Exception("Réponse invalide de l'IA Gemini (JSON invalide). Contenu: " . substr($content, 0, 150));
+        throw new Exception("Réponse invalide de l'IA Gemini (JSON tronqué). Veuillez réessayer.");
     }
 }
