@@ -42,29 +42,11 @@ if ($filtreStatut !== '') {
     $where .= " AND statut != 'archive'";
 }
 
-// Récupérer les projets
-$sql = "SELECT * FROM projets $where ORDER BY date_creation DESC";
+// Récupérer les projets - triés par dernière consultation (plus récent en premier)
+$sql = "SELECT * FROM projets $where ORDER BY COALESCE(derniere_consultation, date_creation) DESC";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
 $projets = $stmt->fetchAll();
-
-// Récupérer la première photo de chaque projet pour la vue grille
-$photosProjet = [];
-try {
-    foreach ($projets as $projet) {
-        $stmtPhoto = $pdo->prepare("
-            SELECT fichier FROM photos_projet
-            WHERE projet_id = ?
-            ORDER BY COALESCE(ordre, 999999), date_prise ASC
-            LIMIT 1
-        ");
-        $stmtPhoto->execute([$projet['id']]);
-        $photo = $stmtPhoto->fetchColumn();
-        $photosProjet[$projet['id']] = $photo;
-    }
-} catch (Exception $e) {
-    // Table photos_projet n'existe pas, ignorer
-}
 
 include '../../includes/header.php';
 ?>
@@ -228,9 +210,25 @@ include '../../includes/header.php';
                     <div class="row g-4">
                         <?php foreach ($projets as $projet):
                             $indicateurs = calculerIndicateursProjet($pdo, $projet);
-                            $photoUrl = !empty($photosProjet[$projet['id']])
-                                ? url('/serve-photo.php?file=' . urlencode($photosProjet[$projet['id']]) . '&thumb=1')
-                                : null;
+
+                            // Utiliser photo_principale si définie, sinon chercher la première photo
+                            $photoFile = null;
+                            if (!empty($projet['photo_principale'])) {
+                                $photoFile = $projet['photo_principale'];
+                            } else {
+                                // Fallback: première photo du projet
+                                try {
+                                    $stmtPhoto = $pdo->prepare("
+                                        SELECT fichier FROM photos_projet
+                                        WHERE projet_id = ?
+                                        ORDER BY COALESCE(ordre, 999999), date_prise ASC
+                                        LIMIT 1
+                                    ");
+                                    $stmtPhoto->execute([$projet['id']]);
+                                    $photoFile = $stmtPhoto->fetchColumn();
+                                } catch (Exception $e) {}
+                            }
+                            $photoUrl = $photoFile ? url('/serve-photo.php?file=' . urlencode($photoFile) . '&thumb=1') : null;
                         ?>
                             <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
                                 <div class="projet-card" onclick="window.location='<?= url('/admin/projets/detail.php?id=' . $projet['id']) ?>'">

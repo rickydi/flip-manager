@@ -1262,6 +1262,14 @@ if (!$projet) {
     redirect('/admin/projets/liste.php');
 }
 
+// Mettre à jour la dernière consultation pour trier par récent
+try {
+    $stmtConsult = $pdo->prepare("UPDATE projets SET derniere_consultation = NOW() WHERE id = ?");
+    $stmtConsult->execute([$projetId]);
+} catch (Exception $e) {
+    // Colonne n'existe pas encore, ignorer
+}
+
 // Récupérer les étapes (remplace les anciennes catégories)
 $categoriesAvecBudget = [];
 try {
@@ -1930,6 +1938,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
     if ($deletedCount > 0) {
         setFlashMessage('success', $deletedCount . ' photo(s) supprimée(s).');
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+}
+
+// ========================================
+// DÉFINIR PHOTO DE COUVERTURE
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'set_cover_photo') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        setFlashMessage('error', 'Token de sécurité invalide.');
+        redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+    }
+
+    $photoId = (int)($_POST['photo_id'] ?? 0);
+
+    // Récupérer la photo
+    $stmt = $pdo->prepare("SELECT fichier FROM photos_projet WHERE id = ? AND projet_id = ?");
+    $stmt->execute([$photoId, $projetId]);
+    $photoFile = $stmt->fetchColumn();
+
+    if ($photoFile) {
+        // Mettre à jour la photo principale du projet
+        $stmt = $pdo->prepare("UPDATE projets SET photo_principale = ? WHERE id = ?");
+        $stmt->execute([$photoFile, $projetId]);
+        setFlashMessage('success', 'Photo de couverture définie.');
     }
     redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
 }

@@ -143,6 +143,28 @@
             .selection-mode .btn-delete-single {
                 display: none !important;
             }
+            /* Badge photo de couverture */
+            .cover-photo-badge {
+                position: absolute;
+                top: 5px;
+                left: 5px;
+                z-index: 10;
+                background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+                color: #000;
+                padding: 3px 8px;
+                border-radius: 12px;
+                font-size: 0.65rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 3px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+            .is-cover-photo .position-relative {
+                outline: 3px solid #ffc107;
+                outline-offset: -3px;
+                border-radius: 0.375rem;
+            }
             /* Plus de colonnes sur très grands écrans */
             @media (min-width: 1400px) {
                 .photo-grid-col { flex: 0 0 auto; width: 12.5%; overflow: hidden; min-width: 0; } /* 8 colonnes */
@@ -164,9 +186,16 @@
                     $extension = strtolower(pathinfo($photo['fichier'], PATHINFO_EXTENSION));
                     $isVideo = in_array($extension, ['mp4', 'mov', 'avi', 'mkv', 'webm', 'm4v']);
                     $mediaUrl = url('/serve-photo.php?file=' . urlencode($photo['fichier']));
+                    $isCoverPhoto = (!empty($projet['photo_principale']) && $projet['photo_principale'] === $photo['fichier']);
                 ?>
-                <div class="col-6 col-md-3 col-lg-2 photo-grid-col photo-item" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>" onclick="togglePhotoSelection(this, event)">
+                <div class="col-6 col-md-3 col-lg-2 photo-grid-col photo-item <?= $isCoverPhoto ? 'is-cover-photo' : '' ?>" data-id="<?= $photo['id'] ?>" data-employe="<?= e($photo['employe_nom']) ?>" data-categorie="<?= e($photo['description'] ?? '') ?>" onclick="togglePhotoSelection(this, event)">
                     <div class="position-relative">
+                        <!-- Badge photo de couverture -->
+                        <?php if ($isCoverPhoto): ?>
+                        <div class="cover-photo-badge">
+                            <i class="bi bi-star-fill"></i> Couverture
+                        </div>
+                        <?php endif; ?>
                         <!-- Checkbox pour sélection multiple -->
                         <input type="checkbox" class="photo-checkbox" data-photo-id="<?= $photo['id'] ?>" onclick="event.stopPropagation(); togglePhotoSelection(this.closest('.photo-item'), event)">
                         <a href="<?= $mediaUrl ?>" target="_blank" class="d-block photo-link">
@@ -181,16 +210,31 @@
                                 <img src="<?= $mediaUrl ?>&thumb=1" alt="Photo" class="photo-thumb" loading="lazy">
                             <?php endif; ?>
                         </a>
-                        <!-- Bouton suppression -->
-                        <form method="POST" class="position-absolute top-0 end-0 btn-delete-single" style="margin:3px;">
-                            <?php csrfField(); ?>
-                            <input type="hidden" name="action" value="delete_photo">
-                            <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
-                            <button type="submit" class="btn btn-danger btn-sm" style="padding:2px 5px;font-size:10px;line-height:1;"
-                                    onclick="return confirm('Supprimer cette photo ?')">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
+                        <!-- Boutons d'action -->
+                        <div class="position-absolute top-0 end-0 btn-delete-single d-flex gap-1" style="margin:3px;">
+                            <?php if (!$isVideo && !$isCoverPhoto): ?>
+                            <!-- Bouton définir comme couverture -->
+                            <form method="POST" class="d-inline">
+                                <?php csrfField(); ?>
+                                <input type="hidden" name="action" value="set_cover_photo">
+                                <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
+                                <button type="submit" class="btn btn-warning btn-sm" style="padding:2px 5px;font-size:10px;line-height:1;"
+                                        title="Définir comme couverture">
+                                    <i class="bi bi-star"></i>
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                            <!-- Bouton suppression -->
+                            <form method="POST" class="d-inline">
+                                <?php csrfField(); ?>
+                                <input type="hidden" name="action" value="delete_photo">
+                                <input type="hidden" name="photo_id" value="<?= $photo['id'] ?>">
+                                <button type="submit" class="btn btn-danger btn-sm" style="padding:2px 5px;font-size:10px;line-height:1;"
+                                        onclick="return confirm('Supprimer cette photo ?')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
                         <!-- Info overlay sur l'image -->
                         <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white p-1 rounded-bottom" style="font-size:0.7rem;">
                             <div class="d-flex justify-content-between align-items-center">
