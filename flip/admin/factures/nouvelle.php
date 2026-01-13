@@ -8,7 +8,11 @@ require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 
-requireAdmin();
+// Permettre aux employés ET admins d'accéder à cette page
+requireLogin();
+
+// Déterminer si l'utilisateur est admin (pour afficher certaines options)
+$isAdmin = isAdmin();
 
 // Migration automatique: ajouter colonne etape_id si elle n'existe pas
 try {
@@ -133,7 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tps = parseNumber($_POST['tps'] ?? 0);
         $tvq = parseNumber($_POST['tvq'] ?? 0);
         $notes = trim($_POST['notes'] ?? '');
-        $approuverDirect = isset($_POST['approuver_direct']);
+        // Seuls les admins peuvent approuver directement
+        $approuverDirect = $isAdmin && isset($_POST['approuver_direct']);
 
         // Validation
         if (!$projetId) $errors[] = 'Veuillez sélectionner un projet.';
@@ -538,6 +543,7 @@ $returnLabel = $selectedProjet ? 'Projet' : 'Factures';
                     <textarea class="form-control" name="notes" rows="2" placeholder="Notes supplémentaires..."><?= $isEdit ? e($facture['notes']) : '' ?></textarea>
                 </div>
 
+                <?php if ($isAdmin): ?>
                 <div class="mb-3">
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" name="approuver_direct" id="approuverDirect" <?= !$isEdit || ($isEdit && $facture['statut'] == 'approuvee') ? 'checked' : '' ?>>
@@ -546,6 +552,7 @@ $returnLabel = $selectedProjet ? 'Projet' : 'Factures';
                         </label>
                     </div>
                 </div>
+                <?php endif; ?>
 
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">
