@@ -4501,21 +4501,18 @@ document.body.addEventListener('click', function(e) {
         console.log('Edit heures - date:', dateVal, 'id:', heuresId);
 
         const modalEl = document.getElementById('modalEditHeures');
-        const modal = new bootstrap.Modal(modalEl);
 
-        // Remplir les champs APRÈS que le modal soit affiché
-        modalEl.addEventListener('shown.bs.modal', function handler() {
-            document.getElementById('edit_heures_id').value = heuresId;
-            document.getElementById('edit_heures_user').value = userId;
-            document.getElementById('edit_heures_nombre').value = heures;
-            document.getElementById('edit_heures_taux').value = taux;
-            document.getElementById('edit_heures_date').value = dateVal;
-            document.getElementById('edit_heures_statut').value = statut;
-            document.getElementById('edit_heures_description').value = description;
-            // Retirer l'event listener pour éviter les doublons
-            modalEl.removeEventListener('shown.bs.modal', handler);
-        });
+        // Remplir les champs AVANT d'ouvrir le modal
+        document.getElementById('edit_heures_id').value = heuresId;
+        document.getElementById('edit_heures_user').value = userId;
+        document.getElementById('edit_heures_nombre').value = heures;
+        document.getElementById('edit_heures_taux').value = taux;
+        document.getElementById('edit_heures_date').value = dateVal;
+        document.getElementById('edit_heures_statut').value = statut;
+        document.getElementById('edit_heures_description').value = description;
 
+        // Utiliser getOrCreateInstance pour éviter les conflits
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
     }
 });
