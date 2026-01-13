@@ -5,7 +5,7 @@
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../includes/auth.php';
-require_once __DIR__ . '/../../includes/ClaudeService.php';
+require_once __DIR__ . '/../../includes/AIServiceFactory.php';
 
 header('Content-Type: application/json');
 
@@ -1450,12 +1450,12 @@ try {
 
                 if ($imageHttpCode === 200 && !empty($imageData) && strpos($contentType, 'image') !== false) {
                     // Analyser la capture avec Claude Vision
-                    require_once __DIR__ . '/../../includes/ClaudeService.php';
-                    $claude = new ClaudeService($pdo);
+                    require_once __DIR__ . '/../../includes/AIServiceFactory.php';
+                    $aiService = AIServiceFactory::create($pdo);
                     $base64Image = base64_encode($imageData);
                     $mimeType = strpos($contentType, 'png') !== false ? 'image/png' : 'image/jpeg';
 
-                    $result = $claude->extractPriceFromImage($base64Image, $mimeType);
+                    $result = $aiService->extractPriceFromImage($base64Image, $mimeType);
                     if ($result['success'] && $result['price']) {
                         echo json_encode(['success' => true, 'price' => $result['price'], 'method' => 'screenshot']);
                         break;
@@ -1470,8 +1470,8 @@ try {
 
             // Essayer d'abord avec l'IA Claude si configurée
             try {
-                $claude = new ClaudeService($pdo);
-                $aiResult = $claude->extractPriceFromHtml($html, $url);
+                $aiService = AIServiceFactory::create($pdo);
+                $aiResult = $aiService->extractPriceFromHtml($html, $url);
                 if ($aiResult['success'] && $aiResult['price']) {
                     $price = $aiResult['price'];
                     $method = 'ia';
@@ -1549,9 +1549,9 @@ try {
             }
 
             // Utiliser Claude Vision pour extraire le prix
-            require_once __DIR__ . '/../../includes/ClaudeService.php';
-            $claude = new ClaudeService($pdo);
-            $result = $claude->extractPriceFromImage($base64Data, $mimeType);
+            require_once __DIR__ . '/../../includes/AIServiceFactory.php';
+            $aiService = AIServiceFactory::create($pdo);
+            $result = $aiService->extractPriceFromImage($base64Data, $mimeType);
 
             if ($result['success']) {
                 echo json_encode(['success' => true, 'price' => $result['price'], 'method' => 'vision']);

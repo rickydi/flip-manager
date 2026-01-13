@@ -8,7 +8,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
-require_once '../../includes/ClaudeService.php';
+require_once '../../includes/AIServiceFactory.php';
 
 requireAdmin();
 
@@ -123,9 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 'remarques' => $chunk['remarques']
             ];
 
-            // Analyser avec Claude (analyse texte approfondie)
-            $claudeService = new ClaudeService($pdo);
-            $result = $claudeService->analyzeChunkText($chunkData, $projetInfo);
+            // Analyser avec l'IA configurée (analyse texte approfondie)
+            $aiService = AIServiceFactory::create($pdo);
+            $result = $aiService->analyzeChunkText($chunkData, $projetInfo);
 
             // Mettre à jour le chunk avec les résultats
             $stmtUpdate = $pdo->prepare("
@@ -171,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             ];
 
             // Consolider les résultats
-            $claudeService = new ClaudeService($pdo);
-            $consolidated = $claudeService->consolidateChunksAnalysis($allChunks, $projetInfo);
+            $aiService = AIServiceFactory::create($pdo);
+            $consolidated = $aiService->consolidateChunksAnalysis($allChunks, $projetInfo);
 
             // Mettre à jour l'analyse
             $stmtUpdate = $pdo->prepare("

@@ -36,7 +36,7 @@ class ClaudeService {
             
             // Insérer les clés par défaut si création (vides par sécurité)
             $this->setConfiguration('ANTHROPIC_API_KEY', '', 'Clé API Claude', 1);
-            $this->setConfiguration('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022', 'Modèle Claude', 0);
+            $this->setConfiguration('CLAUDE_MODEL', 'claude-sonnet-4-20250514', 'Modèle Claude', 0);
             $this->setConfiguration('PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1);
             $this->setConfiguration('PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1);
         }
@@ -45,7 +45,7 @@ class ClaudeService {
         $this->ensurePushoverConfig();
 
         $this->apiKey = $this->getConfiguration('ANTHROPIC_API_KEY');
-        $this->model = $this->getConfiguration('CLAUDE_MODEL') ?: 'claude-3-5-sonnet-20241022';
+        $this->model = $this->getConfiguration('CLAUDE_MODEL') ?: 'claude-sonnet-4-20250514';
     }
 
     private function getConfiguration($key) {

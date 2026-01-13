@@ -7,7 +7,7 @@
 require_once '../config.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
-require_once '../includes/ClaudeService.php';
+require_once '../includes/AIServiceFactory.php';
 
 header('Content-Type: application/json');
 
@@ -59,9 +59,9 @@ try {
         // Table n'existe pas encore, utiliser les étapes par défaut
     }
 
-    // Analyser avec Claude
-    $claude = new ClaudeService($pdo);
-    $result = $claude->analyserFactureDetails($imageData, $mimeType, $etapes, $customPrompt);
+    // Analyser avec l'IA configurée (Claude ou Gemini)
+    $aiService = AIServiceFactory::create($pdo);
+    $result = $aiService->analyserFactureDetails($imageData, $mimeType, $etapes, $customPrompt);
 
     echo json_encode([
         'success' => true,

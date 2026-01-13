@@ -8,7 +8,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
-require_once '../../includes/ClaudeService.php';
+require_once '../../includes/AIServiceFactory.php';
 require_once '../../includes/PdfExtractorService.php';
 
 requireAdmin();
@@ -50,8 +50,8 @@ try {
 } catch (PDOException $ex) {}
 
 // Services
-$claudeService = new ClaudeService($pdo);
-$pdfService = new PdfExtractorService($pdo, $claudeService);
+$aiService = AIServiceFactory::create($pdo);
+$pdfService = new PdfExtractorService($pdo, $aiService);
 
 // Vérifier les dépendances système
 $dependencies = PdfExtractorService::checkDependencies();

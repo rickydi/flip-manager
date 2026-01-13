@@ -7,7 +7,7 @@
 require_once '../config.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
-require_once '../includes/ClaudeService.php';
+require_once '../includes/AIServiceFactory.php';
 
 header('Content-Type: application/json');
 
@@ -60,9 +60,9 @@ try {
         $etapes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {}
 
-    // Analyser avec Claude
-    $claude = new ClaudeService($pdo);
-    $result = $claude->analyserFacture($imageData, $mimeType, $fournisseurs, $etapes);
+    // Analyser avec l'IA configurée (Claude ou Gemini)
+    $aiService = AIServiceFactory::create($pdo);
+    $result = $aiService->analyserFacture($imageData, $mimeType, $fournisseurs, $etapes);
 
     echo json_encode([
         'success' => true,
