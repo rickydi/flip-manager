@@ -774,6 +774,41 @@ JSON OBLIGATOIRE:
     background-color: white;
     color: #333;
 }
+/* AI Loader - Belle barre de progression */
+.ai-loader {
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+.ai-loader-bar {
+    height: 100%;
+    width: 30%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+    background-size: 200% 100%;
+    border-radius: 3px;
+    animation: aiLoaderSlide 1.5s ease-in-out infinite, aiLoaderGradient 2s ease infinite;
+}
+@keyframes aiLoaderSlide {
+    0% { transform: translateX(-100%); width: 30%; }
+    50% { width: 50%; }
+    100% { transform: translateX(400%); width: 30%; }
+}
+@keyframes aiLoaderGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.ai-loader-text {
+    color: #667eea;
+    font-weight: 500;
+    animation: aiPulse 1.5s ease-in-out infinite;
+}
+@keyframes aiPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
 </style>
 
 <!-- Link Preview Popup -->
@@ -1092,15 +1127,32 @@ function clearPastedImage() {
 
 function startProgressAnimation() {
     analysisStatus.innerHTML = `
-        <div class="text-center py-2">
-            <div class="spinner-border text-primary" role="status"></div>
-            <div class="mt-2 text-muted small">Analyse en cours...</div>
+        <div class="ai-loader">
+            <div class="ai-loader-bar"></div>
+        </div>
+        <div class="text-center mt-2">
+            <small class="ai-loader-text">Analyse IA en cours...</small>
         </div>
     `;
 }
 
 function completeProgress() {
-    analysisStatus.innerHTML = '';
+    const bar = document.querySelector('.ai-loader-bar');
+    if (bar) {
+        bar.style.width = '100%';
+        bar.style.transform = 'none';
+        bar.style.animation = 'none';
+        bar.style.background = 'linear-gradient(90deg, #28a745, #20c997)';
+    }
+    const text = document.querySelector('.ai-loader-text');
+    if (text) {
+        text.textContent = 'Terminé!';
+        text.style.color = '#28a745';
+        text.style.animation = 'none';
+    }
+    setTimeout(() => {
+        analysisStatus.innerHTML = '';
+    }, 500);
 }
 
 function cancelProgress() {
