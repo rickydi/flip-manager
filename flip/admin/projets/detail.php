@@ -2055,6 +2055,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ========================================
+// ACTIONS HEURES (POST)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajouter_heures') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hUserId = (int)($_POST['heures_user_id'] ?? 0);
+        $hHeures = parseNumber($_POST['heures_nombre'] ?? 0);
+        $hDate = $_POST['heures_date'] ?? date('Y-m-d');
+        $hDescription = trim($_POST['heures_description'] ?? '');
+        $hTaux = parseNumber($_POST['heures_taux'] ?? 0);
+        $hStatut = $_POST['heures_statut'] ?? 'approuvee';
+
+        if ($hUserId > 0 && $hHeures > 0) {
+            $stmt = $pdo->prepare("INSERT INTO heures_travaillees (user_id, projet_id, date_travail, heures, description, taux_horaire, statut) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$hUserId, $projetId, $hDate, $hHeures, $hDescription, $hTaux, $hStatut]);
+            setFlashMessage('success', number_format($hHeures, 1) . ' heures ajoutées!');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'modifier_heures') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hId = (int)($_POST['heures_id'] ?? 0);
+        $hUserId = (int)($_POST['heures_user_id'] ?? 0);
+        $hHeures = parseNumber($_POST['heures_nombre'] ?? 0);
+        $hDate = $_POST['heures_date'] ?? date('Y-m-d');
+        $hDescription = trim($_POST['heures_description'] ?? '');
+        $hTaux = parseNumber($_POST['heures_taux'] ?? 0);
+        $hStatut = $_POST['heures_statut'] ?? 'approuvee';
+
+        if ($hId > 0 && $hUserId > 0 && $hHeures > 0) {
+            $stmt = $pdo->prepare("UPDATE heures_travaillees SET user_id = ?, date_travail = ?, heures = ?, description = ?, taux_horaire = ?, statut = ? WHERE id = ? AND projet_id = ?");
+            $stmt->execute([$hUserId, $hDate, $hHeures, $hDescription, $hTaux, $hStatut, $hId, $projetId]);
+            setFlashMessage('success', 'Heures modifiées!');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'supprimer_heures') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hId = (int)($_POST['heures_id'] ?? 0);
+        if ($hId > 0) {
+            $stmt = $pdo->prepare("DELETE FROM heures_travaillees WHERE id = ? AND projet_id = ?");
+            $stmt->execute([$hId, $projetId]);
+            setFlashMessage('warning', 'Entrée supprimée.');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+// ========================================
 // DONNÉES POUR ONGLET TEMPS
 // ========================================
 $heuresProjet = [];
@@ -2116,7 +2168,7 @@ try {
 
 // Liste des employés actifs pour le formulaire
 $employesActifs = $pdo->query("
-    SELECT id, CONCAT(prenom, ' ', nom) as nom_complet
+    SELECT id, CONCAT(prenom, ' ', nom) as nom_complet, taux_horaire
     FROM users WHERE actif = 1 AND role IN ('employe', 'admin')
     ORDER BY prenom, nom
 ")->fetchAll();
@@ -2412,6 +2464,132 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                         <button type="submit" class="btn btn-success">
                             <i class="bi bi-check me-1"></i>Ajouter l'avance
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ajouter des heures -->
+    <div class="modal fade" id="modalHeures" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="ajouter_heures">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-clock me-2"></i>Ajouter des heures</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Employé *</label>
+                            <select class="form-select" name="heures_user_id" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($employesActifs as $emp): ?>
+                                <option value="<?= $emp['id'] ?>" data-taux="<?= $emp['taux_horaire'] ?? 0 ?>"><?= e($emp['nom_complet']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Heures *</label>
+                                <input type="number" class="form-control" name="heures_nombre" step="0.5" min="0.5" placeholder="8" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Taux horaire</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="heures_taux" id="heures_taux_add" placeholder="Auto">
+                                    <span class="input-group-text">$/h</span>
+                                </div>
+                                <small class="text-muted">Laisser vide = taux de l'employé</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-control" name="heures_date" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" name="heures_statut">
+                                <option value="approuvee" selected>Approuvée</option>
+                                <option value="en_attente">En attente</option>
+                                <option value="rejetee">Rejetée</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="heures_description" rows="2" placeholder="Optionnel..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check me-1"></i>Ajouter les heures
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifier des heures -->
+    <div class="modal fade" id="modalEditHeures" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="modifier_heures">
+                    <input type="hidden" name="heures_id" id="edit_heures_id">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier les heures</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Employé *</label>
+                            <select class="form-select" name="heures_user_id" id="edit_heures_user" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($employesActifs as $emp): ?>
+                                <option value="<?= $emp['id'] ?>" data-taux="<?= $emp['taux_horaire'] ?? 0 ?>"><?= e($emp['nom_complet']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Heures *</label>
+                                <input type="number" class="form-control" name="heures_nombre" id="edit_heures_nombre" step="0.5" min="0.5" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Taux horaire</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="heures_taux" id="edit_heures_taux">
+                                    <span class="input-group-text">$/h</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-control" name="heures_date" id="edit_heures_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" name="heures_statut" id="edit_heures_statut">
+                                <option value="approuvee">Approuvée</option>
+                                <option value="en_attente">En attente</option>
+                                <option value="rejetee">Rejetée</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="heures_description" id="edit_heures_description" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check me-1"></i>Enregistrer
                         </button>
                     </div>
                 </form>
@@ -4137,6 +4315,33 @@ document.querySelectorAll('.change-facture-status').forEach(link => {
         });
     });
 });
+
+// ===== ÉDITION DES HEURES =====
+document.querySelectorAll('.btn-edit-heures').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('modalEditHeures'));
+
+        document.getElementById('edit_heures_id').value = this.dataset.id;
+        document.getElementById('edit_heures_user').value = this.dataset.user;
+        document.getElementById('edit_heures_nombre').value = this.dataset.heures;
+        document.getElementById('edit_heures_taux').value = this.dataset.taux;
+        document.getElementById('edit_heures_date').value = this.dataset.date;
+        document.getElementById('edit_heures_statut').value = this.dataset.statut;
+        document.getElementById('edit_heures_description').value = this.dataset.description;
+
+        modal.show();
+    });
+});
+
+// Auto-remplir le taux horaire quand on change d'employé (modal ajout)
+const selectUserAdd = document.querySelector('#modalHeures select[name="heures_user_id"]');
+if (selectUserAdd) {
+    selectUserAdd.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        const taux = option.dataset.taux || '';
+        document.getElementById('heures_taux_add').placeholder = taux > 0 ? taux + ' $/h (auto)' : 'Auto';
+    });
+}
 </script>
 
 <?php include '../../includes/footer.php'; ?>

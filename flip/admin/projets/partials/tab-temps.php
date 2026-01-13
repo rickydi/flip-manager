@@ -29,8 +29,11 @@
             </div>
             <?php endif; ?>
             <div class="ms-auto d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalHeures">
+                    <i class="bi bi-clock me-1"></i>Ajouter des heures
+                </button>
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAvance">
-                    <i class="bi bi-plus-circle me-1"></i>Nouvelle avance
+                    <i class="bi bi-wallet2 me-1"></i>Nouvelle avance
                 </button>
                 <span class="badge bg-secondary align-self-center"><?= count($heuresProjet) ?> entrées</span>
             </div>
@@ -170,6 +173,7 @@
                                     <th class="text-end">Montant</th>
                                     <th>Statut</th>
                                     <th>Description</th>
+                                    <th class="text-center" style="width: 80px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -199,6 +203,27 @@
                                         <span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span>
                                     </td>
                                     <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 btn-edit-heures"
+                                                data-id="<?= $h['id'] ?>"
+                                                data-user="<?= $h['user_id'] ?>"
+                                                data-date="<?= $h['date_travail'] ?>"
+                                                data-heures="<?= $h['heures'] ?>"
+                                                data-taux="<?= $taux ?>"
+                                                data-statut="<?= $h['statut'] ?>"
+                                                data-description="<?= e($h['description'] ?? '') ?>"
+                                                title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette entrée?');">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="supprimer_heures">
+                                            <input type="hidden" name="heures_id" value="<?= $h['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
