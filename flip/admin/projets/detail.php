@@ -4406,20 +4406,23 @@ document.querySelectorAll('.change-facture-status').forEach(link => {
 });
 
 // ===== ÉDITION DES HEURES =====
-document.querySelectorAll('.btn-edit-heures').forEach(btn => {
-    btn.addEventListener('click', function() {
+// Utiliser la délégation d'événements pour être plus robuste
+document.body.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-edit-heures');
+    if (btn) {
+        e.preventDefault();
         const modal = new bootstrap.Modal(document.getElementById('modalEditHeures'));
 
-        document.getElementById('edit_heures_id').value = this.dataset.id;
-        document.getElementById('edit_heures_user').value = this.dataset.user;
-        document.getElementById('edit_heures_nombre').value = this.dataset.heures;
-        document.getElementById('edit_heures_taux').value = this.dataset.taux;
-        document.getElementById('edit_heures_date').value = this.dataset.date;
-        document.getElementById('edit_heures_statut').value = this.dataset.statut;
-        document.getElementById('edit_heures_description').value = this.dataset.description;
+        document.getElementById('edit_heures_id').value = btn.dataset.id || '';
+        document.getElementById('edit_heures_user').value = btn.dataset.user || '';
+        document.getElementById('edit_heures_nombre').value = btn.dataset.heures || '';
+        document.getElementById('edit_heures_taux').value = btn.dataset.taux || '';
+        document.getElementById('edit_heures_date').value = btn.dataset.date || '';
+        document.getElementById('edit_heures_statut').value = btn.dataset.statut || 'approuvee';
+        document.getElementById('edit_heures_description').value = btn.dataset.description || '';
 
         modal.show();
-    });
+    }
 });
 
 // Auto-remplir le taux horaire quand on change d'employé (modal ajout)
