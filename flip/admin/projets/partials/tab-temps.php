@@ -204,10 +204,28 @@
                                     </td>
                                     <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
                                     <td class="text-center">
+                                        <?php
+                                        // Formater la date pour l'input type="date" (YYYY-MM-DD)
+                                        $dateForInput = '';
+                                        if (!empty($h['date_travail'])) {
+                                            // Si c'est déjà au format YYYY-MM-DD, l'utiliser directement
+                                            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $h['date_travail'])) {
+                                                $dateForInput = substr($h['date_travail'], 0, 10);
+                                            } else {
+                                                $ts = strtotime($h['date_travail']);
+                                                if ($ts !== false) {
+                                                    $dateForInput = date('Y-m-d', $ts);
+                                                }
+                                            }
+                                        }
+                                        if (empty($dateForInput)) {
+                                            $dateForInput = date('Y-m-d');
+                                        }
+                                        ?>
                                         <button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 btn-edit-heures"
                                                 data-id="<?= $h['id'] ?>"
                                                 data-user="<?= $h['user_id'] ?>"
-                                                data-date="<?= !empty($h['date_travail']) ? date('Y-m-d', strtotime($h['date_travail'])) : date('Y-m-d') ?>"
+                                                data-date="<?= $dateForInput ?>"
                                                 data-heures="<?= $h['heures'] ?>"
                                                 data-taux="<?= $taux ?>"
                                                 data-statut="<?= $h['statut'] ?>"
