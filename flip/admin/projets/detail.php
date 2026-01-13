@@ -4486,16 +4486,29 @@ document.body.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn-edit-heures');
     if (btn) {
         e.preventDefault();
+        e.stopPropagation();
+
+        // Récupérer les valeurs depuis les attributs data-*
+        const heuresId = btn.getAttribute('data-id') || '';
+        const userId = btn.getAttribute('data-user') || '';
+        const heures = btn.getAttribute('data-heures') || '';
+        const taux = btn.getAttribute('data-taux') || '';
+        const dateVal = btn.getAttribute('data-date') || '';
+        const statut = btn.getAttribute('data-statut') || 'approuvee';
+        const description = btn.getAttribute('data-description') || '';
+
+        // Debug
+        console.log('Edit heures - date:', dateVal, 'id:', heuresId);
+
+        document.getElementById('edit_heures_id').value = heuresId;
+        document.getElementById('edit_heures_user').value = userId;
+        document.getElementById('edit_heures_nombre').value = heures;
+        document.getElementById('edit_heures_taux').value = taux;
+        document.getElementById('edit_heures_date').value = dateVal;
+        document.getElementById('edit_heures_statut').value = statut;
+        document.getElementById('edit_heures_description').value = description;
+
         const modal = new bootstrap.Modal(document.getElementById('modalEditHeures'));
-
-        document.getElementById('edit_heures_id').value = btn.dataset.id || '';
-        document.getElementById('edit_heures_user').value = btn.dataset.user || '';
-        document.getElementById('edit_heures_nombre').value = btn.dataset.heures || '';
-        document.getElementById('edit_heures_taux').value = btn.dataset.taux || '';
-        document.getElementById('edit_heures_date').value = btn.dataset.date || '';
-        document.getElementById('edit_heures_statut').value = btn.dataset.statut || 'approuvee';
-        document.getElementById('edit_heures_description').value = btn.dataset.description || '';
-
         modal.show();
     }
 });
