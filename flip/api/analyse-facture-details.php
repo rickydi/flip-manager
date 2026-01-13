@@ -11,11 +11,18 @@ require_once '../includes/AIServiceFactory.php';
 
 header('Content-Type: application/json');
 
-// Vérifier authentification (admin ou employé)
-requireLogin();
+// Vérifier authentification (API - pas de redirection, retourne JSON)
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Non connecté']);
+    exit;
+}
+
+// Vérifier rôle (admin ou employé)
+$role = $_SESSION['role'] ?? 'inconnu';
 if (!isAdmin() && !isEmploye()) {
     http_response_code(403);
-    echo json_encode(['success' => false, 'error' => 'Accès non autorisé']);
+    echo json_encode(['success' => false, 'error' => 'Accès non autorisé (rôle: ' . $role . ')']);
     exit;
 }
 
