@@ -207,7 +207,7 @@
                                         <button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 btn-edit-heures"
                                                 data-id="<?= $h['id'] ?>"
                                                 data-user="<?= $h['user_id'] ?>"
-                                                data-date="<?= $h['date_travail'] ?>"
+                                                data-date="<?= date('Y-m-d', strtotime($h['date_travail'])) ?>"
                                                 data-heures="<?= $h['heures'] ?>"
                                                 data-taux="<?= $taux ?>"
                                                 data-statut="<?= $h['statut'] ?>"

@@ -2059,17 +2059,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajouter_heures') {
     if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
-        $hUserId = (int)($_POST['heures_user_id'] ?? 0);
         $hHeures = parseNumber($_POST['heures_nombre'] ?? 0);
         $hDate = $_POST['heures_date'] ?? date('Y-m-d');
         $hDescription = trim($_POST['heures_description'] ?? '');
-        $hTaux = parseNumber($_POST['heures_taux'] ?? 0);
+        $hTauxManuel = parseNumber($_POST['heures_taux'] ?? 0);
         $hStatut = $_POST['heures_statut'] ?? 'approuvee';
 
-        if ($hUserId > 0 && $hHeures > 0) {
-            $stmt = $pdo->prepare("INSERT INTO heures_travaillees (user_id, projet_id, date_travail, heures, description, taux_horaire, statut) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$hUserId, $projetId, $hDate, $hHeures, $hDescription, $hTaux, $hStatut]);
-            setFlashMessage('success', number_format($hHeures, 1) . ' heures ajoutées!');
+        // Gérer la sélection multiple d'employés
+        $targetUserIds = [];
+        if (!empty($_POST['heures_user_ids']) && is_array($_POST['heures_user_ids'])) {
+            // Mode multi-employés
+            $targetUserIds = array_map('intval', $_POST['heures_user_ids']);
+        } elseif (!empty($_POST['heures_user_id'])) {
+            // Mode employé unique
+            $targetUserIds = [(int)$_POST['heures_user_id']];
+        }
+
+        if (!empty($targetUserIds) && $hHeures > 0) {
+            $nbAjoutes = 0;
+            $nomsAjoutes = [];
+
+            foreach ($targetUserIds as $targetUserId) {
+                // Récupérer le taux horaire de l'employé si pas de taux manuel
+                $stmt = $pdo->prepare("SELECT taux_horaire, CONCAT(prenom, ' ', nom) as nom_complet FROM users WHERE id = ? AND actif = 1");
+                $stmt->execute([$targetUserId]);
+                $targetUser = $stmt->fetch();
+
+                if ($targetUser) {
+                    $hTaux = $hTauxManuel > 0 ? $hTauxManuel : (float)$targetUser['taux_horaire'];
+
+                    $stmt = $pdo->prepare("INSERT INTO heures_travaillees (user_id, projet_id, date_travail, heures, description, taux_horaire, statut) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$targetUserId, $projetId, $hDate, $hHeures, $hDescription, $hTaux, $hStatut]);
+
+                    $nbAjoutes++;
+                    $nomsAjoutes[] = $targetUser['nom_complet'];
+                }
+            }
+
+            if ($nbAjoutes === 1) {
+                setFlashMessage('success', number_format($hHeures, 1) . ' heures ajoutées pour ' . $nomsAjoutes[0] . '!');
+            } elseif ($nbAjoutes > 1) {
+                $listeEmployes = '<ul class="mb-0 mt-2">';
+                foreach ($nomsAjoutes as $nom) {
+                    $listeEmployes .= '<li>' . e($nom) . ' - ' . number_format($hHeures, 1) . 'h</li>';
+                }
+                $listeEmployes .= '</ul>';
+                setFlashMessage('success', 'Heures ajoutées pour ' . $nbAjoutes . ' employés:' . $listeEmployes);
+            }
         }
     }
     redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
@@ -2475,7 +2511,7 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
     <div class="modal fade" id="modalHeures" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST">
+                <form method="POST" id="formAjoutHeures">
                     <?php csrfField(); ?>
                     <input type="hidden" name="action" value="ajouter_heures">
                     <div class="modal-header">
@@ -2484,13 +2520,23 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                     </div>
                     <div class="modal-body">
                         <div class="mb-3">
-                            <label class="form-label">Employé *</label>
-                            <select class="form-select" name="heures_user_id" required>
+                            <label class="form-label d-flex justify-content-between align-items-center">
+                                <span>Employé *</span>
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiEmployesHeures">
+                                    <i class="bi bi-people me-1"></i>Plusieurs
+                                </button>
+                            </label>
+                            <select class="form-select" name="heures_user_id" id="selectEmployeHeures" required>
                                 <option value="">Sélectionner...</option>
                                 <?php foreach ($employesActifs as $emp): ?>
                                 <option value="<?= $emp['id'] ?>" data-taux="<?= $emp['taux_horaire'] ?? 0 ?>"><?= e($emp['nom_complet']) ?></option>
                                 <?php endforeach; ?>
                             </select>
+                            <!-- Hidden inputs pour les employés multiples -->
+                            <div id="multiEmployesHeuresHidden"></div>
+                            <div id="multiEmployesHeuresPreview" class="mt-2 d-none">
+                                <small class="text-primary"><i class="bi bi-people-fill me-1"></i><span id="multiEmployesHeuresCount"></span> employés sélectionnés</small>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -2593,6 +2639,49 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sélection Multiple Employés pour les heures -->
+    <div class="modal fade" id="modalMultiEmployesHeures" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-people me-2"></i>Sélectionner les employés</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllEmployesHeures()">
+                            <i class="bi bi-check-all me-1"></i>Tout sélectionner
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllEmployesHeures()">
+                            <i class="bi bi-x-lg me-1"></i>Tout désélectionner
+                        </button>
+                    </div>
+                    <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                        <?php foreach ($employesActifs as $emp): ?>
+                        <label class="list-group-item d-flex align-items-center">
+                            <input type="checkbox" class="form-check-input me-3 employe-heures-checkbox"
+                                   value="<?= $emp['id'] ?>"
+                                   data-nom="<?= e($emp['nom_complet']) ?>"
+                                   data-taux="<?= $emp['taux_horaire'] ?? 0 ?>">
+                            <span><?= e($emp['nom_complet']) ?></span>
+                            <?php if (!empty($emp['taux_horaire'])): ?>
+                            <small class="text-muted ms-auto"><?= formatMoney($emp['taux_horaire']) ?>/h</small>
+                            <?php endif; ?>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="me-auto text-muted"><span id="modalEmployeHeuresCount">0</span> sélectionné(s)</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmerMultiEmployesHeures()">
+                        <i class="bi bi-check me-1"></i>Confirmer
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -4342,6 +4431,120 @@ if (selectUserAdd) {
         document.getElementById('heures_taux_add').placeholder = taux > 0 ? taux + ' $/h (auto)' : 'Auto';
     });
 }
+
+// ===== SÉLECTION MULTIPLE EMPLOYÉS POUR LES HEURES =====
+var selectedEmployesHeures = [];
+
+document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', updateModalCountHeures);
+});
+
+function updateModalCountHeures() {
+    var count = document.querySelectorAll('.employe-heures-checkbox:checked').length;
+    document.getElementById('modalEmployeHeuresCount').textContent = count;
+}
+
+function selectAllEmployesHeures() {
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+    updateModalCountHeures();
+}
+
+function deselectAllEmployesHeures() {
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+    updateModalCountHeures();
+}
+
+function confirmerMultiEmployesHeures() {
+    var checkboxes = document.querySelectorAll('.employe-heures-checkbox:checked');
+    var hiddenDiv = document.getElementById('multiEmployesHeuresHidden');
+    var previewDiv = document.getElementById('multiEmployesHeuresPreview');
+    var countSpan = document.getElementById('multiEmployesHeuresCount');
+    var selectUnique = document.getElementById('selectEmployeHeures');
+
+    // Vider les hidden inputs précédents
+    if (hiddenDiv) hiddenDiv.innerHTML = '';
+    selectedEmployesHeures = [];
+
+    if (checkboxes.length > 1) {
+        // Mode multi-employés
+        checkboxes.forEach(function(cb) {
+            if (hiddenDiv) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'heures_user_ids[]';
+                input.value = cb.value;
+                hiddenDiv.appendChild(input);
+            }
+            selectedEmployesHeures.push(cb.dataset.nom);
+        });
+
+        // Désactiver le select unique et retirer le required
+        if (selectUnique) {
+            selectUnique.disabled = true;
+            selectUnique.name = '';
+            selectUnique.removeAttribute('required');
+        }
+        if (previewDiv) {
+            previewDiv.classList.remove('d-none');
+            countSpan.textContent = checkboxes.length;
+        }
+    } else if (checkboxes.length === 1) {
+        // Un seul sélectionné - utiliser le mode normal
+        if (selectUnique) {
+            selectUnique.disabled = false;
+            selectUnique.name = 'heures_user_id';
+            selectUnique.setAttribute('required', 'required');
+            selectUnique.value = checkboxes[0].value;
+        }
+        if (previewDiv) previewDiv.classList.add('d-none');
+    } else {
+        // Aucun sélectionné - réactiver le select
+        if (selectUnique) {
+            selectUnique.disabled = false;
+            selectUnique.name = 'heures_user_id';
+            selectUnique.setAttribute('required', 'required');
+        }
+        if (previewDiv) previewDiv.classList.add('d-none');
+    }
+
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('modalMultiEmployesHeures')).hide();
+}
+
+// Réinitialiser quand on ouvre le modal de sélection
+document.getElementById('modalMultiEmployesHeures')?.addEventListener('show.bs.modal', function() {
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = selectedEmployesHeures.includes(cb.dataset.nom);
+    });
+    updateModalCountHeures();
+});
+
+// Réinitialiser quand on ferme le modal principal d'ajout d'heures
+document.getElementById('modalHeures')?.addEventListener('hidden.bs.modal', function() {
+    // Réinitialiser le formulaire
+    var hiddenDiv = document.getElementById('multiEmployesHeuresHidden');
+    var previewDiv = document.getElementById('multiEmployesHeuresPreview');
+    var selectUnique = document.getElementById('selectEmployeHeures');
+
+    if (hiddenDiv) hiddenDiv.innerHTML = '';
+    if (previewDiv) previewDiv.classList.add('d-none');
+    if (selectUnique) {
+        selectUnique.disabled = false;
+        selectUnique.name = 'heures_user_id';
+        selectUnique.setAttribute('required', 'required');
+        selectUnique.value = '';
+    }
+    selectedEmployesHeures = [];
+
+    // Décocher toutes les checkboxes
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+});
 </script>
 
 <?php include '../../includes/footer.php'; ?>
