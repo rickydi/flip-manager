@@ -11,8 +11,9 @@ require_once '../includes/AIServiceFactory.php';
 
 header('Content-Type: application/json');
 
-// Vérifier authentification admin
-if (!isAdmin()) {
+// Vérifier authentification (admin ou employé)
+requireLogin();
+if (!isAdmin() && !isEmploye()) {
     http_response_code(403);
     echo json_encode(['success' => false, 'error' => 'Accès non autorisé']);
     exit;
