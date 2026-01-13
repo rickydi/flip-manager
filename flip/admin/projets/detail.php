@@ -187,6 +187,22 @@ try {
     }
 }
 
+// Auto-créer la table projet_tabs_config si elle n'existe pas
+try {
+    $pdo->query("SELECT 1 FROM projet_tabs_config LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_tabs_config (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            tabs_order JSON NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 // ========================================
 // HELPER: Synchroniser la table budgets depuis projet_items
 // ========================================
@@ -760,6 +776,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     try {
         $stmt = $pdo->prepare("DELETE FROM projet_google_sheets WHERE id = ? AND projet_id = ?");
         $stmt->execute([$sheetId, $projetId]);
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
+// AJAX: Sauvegarder la configuration des onglets
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_tabs_config') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $tabsOrder = $_POST['tabs_order'] ?? '';
+    $userId = $_SESSION['user_id'] ?? 0;
+
+    if (!$userId) {
+        echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté']);
+        exit;
+    }
+
+    try {
+        // Valider le JSON
+        $decoded = json_decode($tabsOrder, true);
+        if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('JSON invalide');
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO projet_tabs_config (user_id, tabs_order)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE tabs_order = VALUES(tabs_order), updated_at = NOW()
+        ");
+        $stmt->execute([$userId, $tabsOrder]);
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -1523,6 +1578,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $projet = getProjetById($pdo, $projetId);
 $tab = $_GET['tab'] ?? 'base';
 $pageTitle = $projet['nom'];
+
+// ========================================
+// CONFIGURATION DES ONGLETS (ordre et séparateurs)
+// ========================================
+$defaultTabs = [
+    ['type' => 'tab', 'id' => 'base', 'label' => 'Base', 'icon' => 'bi-house-door'],
+    ['type' => 'tab', 'id' => 'financement', 'label' => 'Financement', 'icon' => 'bi-bank'],
+    ['type' => 'tab', 'id' => 'budgets', 'label' => 'Budgets', 'icon' => 'bi-wallet2'],
+    ['type' => 'tab', 'id' => 'maindoeuvre', 'label' => "Main-d'œuvre", 'icon' => 'bi-people'],
+    ['type' => 'tab', 'id' => 'temps', 'label' => 'Temps', 'icon' => 'bi-clock'],
+    ['type' => 'tab', 'id' => 'photos', 'label' => 'Photos', 'icon' => 'bi-camera'],
+    ['type' => 'tab', 'id' => 'factures', 'label' => 'Factures', 'icon' => 'bi-receipt'],
+    ['type' => 'tab', 'id' => 'checklist', 'label' => 'Checklist', 'icon' => 'bi-list-check'],
+    ['type' => 'tab', 'id' => 'documents', 'label' => 'Documents', 'icon' => 'bi-folder'],
+    ['type' => 'tab', 'id' => 'googlesheet', 'label' => 'Google Sheet', 'icon' => 'bi-table'],
+    ['type' => 'tab', 'id' => 'construction', 'label' => 'Construction', 'icon' => 'bi-hammer'],
+];
+
+// Récupérer la config de l'utilisateur
+$userTabsConfig = $defaultTabs;
+$userId = $_SESSION['user_id'] ?? 0;
+if ($userId) {
+    try {
+        $stmt = $pdo->prepare("SELECT tabs_order FROM projet_tabs_config WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $savedConfig = $stmt->fetchColumn();
+        if ($savedConfig) {
+            $decoded = json_decode($savedConfig, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                // Fusionner avec les onglets par défaut (au cas où de nouveaux onglets ont été ajoutés)
+                $savedIds = array_column(array_filter($decoded, fn($t) => $t['type'] === 'tab'), 'id');
+                $userTabsConfig = $decoded;
+                // Ajouter les onglets manquants à la fin
+                foreach ($defaultTabs as $dt) {
+                    if (!in_array($dt['id'], $savedIds)) {
+                        $userTabsConfig[] = $dt;
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Utiliser config par défaut en cas d'erreur
+    }
+}
 
 // IMPORTANT: Synchroniser budgets AVANT de calculer les indicateurs
 // pour que calculerIndicateursProjet ait les bonnes valeurs de rénovation
@@ -2373,64 +2472,40 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
 
-        <!-- Onglets de navigation -->
-        <ul class="nav nav-tabs mb-0" id="projetTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'base' ? 'active' : '' ?>" id="base-tab" data-bs-toggle="tab" data-bs-target="#base" type="button" role="tab">
-                    <i class="bi bi-house-door me-1"></i>Base
+        <!-- Onglets de navigation (réorganisables) -->
+        <div class="d-flex align-items-center">
+            <ul class="nav nav-tabs mb-0 flex-grow-1" id="projetTabs" role="tablist">
+                <?php foreach ($userTabsConfig as $tabItem): ?>
+                    <?php if ($tabItem['type'] === 'divider'): ?>
+                        <li class="nav-item tab-divider" data-type="divider">
+                            <span class="nav-divider"></span>
+                            <button type="button" class="btn-remove-divider d-none" title="Supprimer le séparateur">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </li>
+                    <?php else: ?>
+                        <li class="nav-item" role="presentation" data-type="tab" data-tab-id="<?= $tabItem['id'] ?>">
+                            <button class="nav-link <?= $tab === $tabItem['id'] ? 'active' : '' ?>"
+                                    id="<?= $tabItem['id'] ?>-tab"
+                                    data-bs-toggle="tab"
+                                    data-bs-target="#<?= $tabItem['id'] ?>"
+                                    type="button"
+                                    role="tab">
+                                <i class="bi <?= $tabItem['icon'] ?> me-1"></i><?= $tabItem['label'] ?>
+                            </button>
+                        </li>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </ul>
+            <div class="tabs-controls ms-2 d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddDivider" title="Ajouter un séparateur" style="display: none;">
+                    <i class="bi bi-grip-vertical"></i>
                 </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'financement' ? 'active' : '' ?>" id="financement-tab" data-bs-toggle="tab" data-bs-target="#financement" type="button" role="tab">
-                    <i class="bi bi-bank me-1"></i>Financement
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnToggleTabsEdit" title="Réorganiser les onglets">
+                    <i class="bi bi-arrows-move"></i>
                 </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'budgets' ? 'active' : '' ?>" id="budgets-tab" data-bs-toggle="tab" data-bs-target="#budgets" type="button" role="tab">
-                    <i class="bi bi-wallet2 me-1"></i>Budgets
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'maindoeuvre' ? 'active' : '' ?>" id="maindoeuvre-tab" data-bs-toggle="tab" data-bs-target="#maindoeuvre" type="button" role="tab">
-                    <i class="bi bi-people me-1"></i>Main-d'œuvre
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'temps' ? 'active' : '' ?>" id="temps-tab" data-bs-toggle="tab" data-bs-target="#temps" type="button" role="tab">
-                    <i class="bi bi-clock me-1"></i>Temps
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'photos' ? 'active' : '' ?>" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button" role="tab">
-                    <i class="bi bi-camera me-1"></i>Photos
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'factures' ? 'active' : '' ?>" id="factures-tab" data-bs-toggle="tab" data-bs-target="#factures" type="button" role="tab">
-                    <i class="bi bi-receipt me-1"></i>Factures
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'checklist' ? 'active' : '' ?>" id="checklist-tab" data-bs-toggle="tab" data-bs-target="#checklist" type="button" role="tab">
-                    <i class="bi bi-list-check me-1"></i>Checklist
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'documents' ? 'active' : '' ?>" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">
-                    <i class="bi bi-folder me-1"></i>Documents
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'googlesheet' ? 'active' : '' ?>" id="googlesheet-tab" data-bs-toggle="tab" data-bs-target="#googlesheet" type="button" role="tab">
-                    <i class="bi bi-table me-1"></i>Google Sheet
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'construction' ? 'active' : '' ?>" id="construction-tab" data-bs-toggle="tab" data-bs-target="#construction" type="button" role="tab">
-                    <i class="bi bi-hammer me-1"></i>Construction
-                </button>
-            </li>
-        </ul>
+            </div>
+        </div>
     </div>
 
     <?php displayFlashMessage(); ?>
@@ -4548,6 +4623,188 @@ document.getElementById('modalHeures')?.addEventListener('hidden.bs.modal', func
         cb.checked = false;
     });
 });
+
+// ===== RÉORGANISATION DES ONGLETS =====
+(function() {
+    const tabsList = document.getElementById('projetTabs');
+    const btnToggle = document.getElementById('btnToggleTabsEdit');
+    const btnAddDivider = document.getElementById('btnAddDivider');
+    let isEditMode = false;
+    let sortableInstance = null;
+
+    // Données des onglets par défaut (pour référence)
+    const defaultTabsData = <?= json_encode($defaultTabs) ?>;
+
+    function getTabsConfig() {
+        const items = [];
+        tabsList.querySelectorAll('.nav-item').forEach(li => {
+            if (li.dataset.type === 'divider') {
+                items.push({ type: 'divider' });
+            } else if (li.dataset.tabId) {
+                const tabData = defaultTabsData.find(t => t.id === li.dataset.tabId);
+                if (tabData) {
+                    items.push(tabData);
+                }
+            }
+        });
+        return items;
+    }
+
+    function saveTabsConfig() {
+        const config = getTabsConfig();
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=save_tabs_config&tabs_order=${encodeURIComponent(JSON.stringify(config))}&csrf_token=<?= generateCSRFToken() ?>`
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Configuration sauvegardée', 'success');
+            }
+        })
+        .catch(err => console.error('Erreur sauvegarde onglets:', err));
+    }
+
+    function enterEditMode() {
+        isEditMode = true;
+        tabsList.classList.add('tabs-edit-mode');
+        btnToggle.classList.remove('btn-outline-primary');
+        btnToggle.classList.add('btn-primary');
+        btnToggle.innerHTML = '<i class="bi bi-check-lg"></i>';
+        btnAddDivider.style.display = 'inline-block';
+
+        // Afficher les boutons de suppression des séparateurs
+        tabsList.querySelectorAll('.btn-remove-divider').forEach(btn => btn.classList.remove('d-none'));
+
+        // Activer SortableJS
+        sortableInstance = new Sortable(tabsList, {
+            animation: 150,
+            ghostClass: 'tab-ghost',
+            chosenClass: 'tab-chosen',
+            dragClass: 'tab-drag',
+            handle: '.nav-item',
+            onEnd: function() {
+                saveTabsConfig();
+            }
+        });
+    }
+
+    function exitEditMode() {
+        isEditMode = false;
+        tabsList.classList.remove('tabs-edit-mode');
+        btnToggle.classList.remove('btn-primary');
+        btnToggle.classList.add('btn-outline-primary');
+        btnToggle.innerHTML = '<i class="bi bi-arrows-move"></i>';
+        btnAddDivider.style.display = 'none';
+
+        // Cacher les boutons de suppression
+        tabsList.querySelectorAll('.btn-remove-divider').forEach(btn => btn.classList.add('d-none'));
+
+        // Désactiver SortableJS
+        if (sortableInstance) {
+            sortableInstance.destroy();
+            sortableInstance = null;
+        }
+    }
+
+    btnToggle.addEventListener('click', function() {
+        if (isEditMode) {
+            exitEditMode();
+        } else {
+            enterEditMode();
+        }
+    });
+
+    btnAddDivider.addEventListener('click', function() {
+        const divider = document.createElement('li');
+        divider.className = 'nav-item tab-divider';
+        divider.dataset.type = 'divider';
+        divider.innerHTML = `
+            <span class="nav-divider"></span>
+            <button type="button" class="btn-remove-divider" title="Supprimer le séparateur">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+        tabsList.appendChild(divider);
+        saveTabsConfig();
+    });
+
+    // Supprimer un séparateur
+    tabsList.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-remove-divider');
+        if (btn) {
+            btn.closest('.tab-divider').remove();
+            saveTabsConfig();
+        }
+    });
+})();
 </script>
+
+<style>
+/* Styles pour la réorganisation des onglets */
+.tabs-edit-mode .nav-item {
+    cursor: grab;
+}
+.tabs-edit-mode .nav-item:active {
+    cursor: grabbing;
+}
+.tab-ghost {
+    opacity: 0.4;
+}
+.tab-chosen {
+    background: rgba(13, 110, 253, 0.1);
+    border-radius: 0.375rem;
+}
+.tab-drag {
+    opacity: 0.9;
+}
+
+/* Séparateur d'onglets */
+.tab-divider {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    position: relative;
+}
+.nav-divider {
+    width: 2px;
+    height: 24px;
+    background: linear-gradient(to bottom, transparent, #6c757d, transparent);
+    margin: 0 2px;
+}
+.tabs-edit-mode .nav-divider {
+    background: linear-gradient(to bottom, transparent, #0d6efd, transparent);
+}
+.btn-remove-divider {
+    position: absolute;
+    top: -8px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-remove-divider:hover {
+    background: #bb2d3b;
+}
+
+/* Animation mode édition */
+.tabs-edit-mode .nav-item {
+    transition: transform 0.15s;
+}
+.tabs-edit-mode .nav-item:hover {
+    transform: translateY(-2px);
+}
+</style>
 
 <?php include '../../includes/footer.php'; ?>
