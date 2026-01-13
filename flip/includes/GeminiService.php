@@ -936,14 +936,31 @@ class GeminiService {
         $content = preg_replace('/\s*```$/', '', $content);
         $content = trim($content);
 
-        // Extraire le JSON de la réponse
-        if (preg_match('/\{[\s\S]*\}/s', $content, $matches)) {
-            $json = json_decode($matches[0], true);
-            if ($json) return $json;
+        // Essayer de parser directement si c'est du JSON pur
+        $directJson = json_decode($content, true);
+        if ($directJson !== null) {
+            return $directJson;
+        }
+
+        // Sinon, chercher le JSON avec une approche plus robuste
+        // Trouver la première { et la dernière } pour extraire le JSON
+        $firstBrace = strpos($content, '{');
+        $lastBrace = strrpos($content, '}');
+
+        if ($firstBrace !== false && $lastBrace !== false && $lastBrace > $firstBrace) {
+            $jsonStr = substr($content, $firstBrace, $lastBrace - $firstBrace + 1);
+            $json = json_decode($jsonStr, true);
+            if ($json !== null) {
+                return $json;
+            }
+
+            // Si ça échoue, log l'erreur JSON pour debug
+            error_log("Gemini JSON parse error: " . json_last_error_msg());
+            error_log("Gemini JSON attempted: " . substr($jsonStr, 0, 500));
         }
 
         // Si on n'a pas trouvé de JSON, log le contenu pour debug
-        error_log("Gemini content sans JSON: " . substr($content, 0, 500));
-        throw new Exception("Réponse invalide de l'IA Gemini (pas de JSON trouvé). Contenu: " . substr($content, 0, 100));
+        error_log("Gemini content sans JSON valide: " . substr($content, 0, 500));
+        throw new Exception("Réponse invalide de l'IA Gemini (JSON invalide). Contenu: " . substr($content, 0, 150));
     }
 }
