@@ -121,8 +121,7 @@ class GeminiService {
                 ]
             ],
             'generationConfig' => [
-                'temperature' => 0,
-                'maxOutputTokens' => 16384
+                'temperature' => 0
             ]
         ];
 
@@ -230,8 +229,7 @@ class GeminiService {
                 ]
             ],
             'generationConfig' => [
-                'temperature' => 0,
-                'maxOutputTokens' => 16384
+                'temperature' => 0
             ]
         ];
 
