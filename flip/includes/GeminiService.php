@@ -866,13 +866,17 @@ class GeminiService {
      * Appel API Gemini
      */
     private function callApi($payload) {
+        if (empty($this->apiKey)) {
+            throw new Exception("Clé API Gemini non configurée. Allez dans Configuration > Gemini pour ajouter votre clé.");
+        }
+
         $endpoint = $this->getApiEndpoint();
 
         $ch = curl_init($endpoint);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 120);
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Content-Type: application/json'
         ]);
@@ -885,6 +889,9 @@ class GeminiService {
         }
         curl_close($ch);
 
+        // Log pour debug
+        error_log("Gemini API Response (HTTP $httpCode): " . substr($response, 0, 500));
+
         if ($httpCode !== 200) {
             $error = json_decode($response, true);
             $errorMsg = $error['error']['message'] ?? $response;
@@ -893,15 +900,50 @@ class GeminiService {
 
         $data = json_decode($response, true);
 
+        if (!$data) {
+            throw new Exception("Réponse Gemini non-JSON: " . substr($response, 0, 200));
+        }
+
+        // Vérifier si la réponse contient une erreur
+        if (isset($data['error'])) {
+            throw new Exception('Erreur Gemini: ' . ($data['error']['message'] ?? json_encode($data['error'])));
+        }
+
+        // Vérifier si candidates existe
+        if (!isset($data['candidates']) || empty($data['candidates'])) {
+            // Peut-être un blocage de sécurité
+            if (isset($data['promptFeedback']['blockReason'])) {
+                throw new Exception('Contenu bloqué par Gemini: ' . $data['promptFeedback']['blockReason']);
+            }
+            throw new Exception("Pas de réponse de Gemini. Réponse brute: " . substr(json_encode($data), 0, 300));
+        }
+
         // Gemini retourne la réponse dans candidates[0].content.parts[0].text
         $content = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
 
+        if (empty($content)) {
+            // Vérifier finishReason
+            $finishReason = $data['candidates'][0]['finishReason'] ?? 'UNKNOWN';
+            if ($finishReason === 'SAFETY') {
+                throw new Exception('Réponse bloquée pour raison de sécurité par Gemini.');
+            }
+            throw new Exception("Réponse Gemini vide. finishReason: $finishReason");
+        }
+
+        // Nettoyer le contenu (enlever les backticks markdown si présents)
+        $content = preg_replace('/^```json\s*/i', '', $content);
+        $content = preg_replace('/^```\s*/i', '', $content);
+        $content = preg_replace('/\s*```$/', '', $content);
+        $content = trim($content);
+
         // Extraire le JSON de la réponse
-        if (preg_match('/\{[\s\S]*\}/', $content, $matches)) {
+        if (preg_match('/\{[\s\S]*\}/s', $content, $matches)) {
             $json = json_decode($matches[0], true);
             if ($json) return $json;
         }
 
-        throw new Exception("Réponse invalide de l'IA Gemini (pas de JSON trouvé).");
+        // Si on n'a pas trouvé de JSON, log le contenu pour debug
+        error_log("Gemini content sans JSON: " . substr($content, 0, 500));
+        throw new Exception("Réponse invalide de l'IA Gemini (pas de JSON trouvé). Contenu: " . substr($content, 0, 100));
     }
 }
