@@ -1129,37 +1129,72 @@ function clearPastedImage() {
     document.getElementById('pastedImageInfo').classList.add('d-none');
 }
 
+let analysisProgress = 0;
+let analysisInterval = null;
+
 function startProgressAnimation() {
+    analysisProgress = 0;
     analysisStatus.innerHTML = `
         <div class="ai-loader">
-            <div class="ai-loader-bar"></div>
+            <div class="ai-loader-bar" id="aiProgressBar" style="width: 0%; transform: none; animation: aiLoaderGradient 2s ease infinite;"></div>
         </div>
         <div class="text-center mt-2">
-            <small class="ai-loader-text">Analyse IA en cours...</small>
+            <small class="ai-loader-text"><span id="aiProgressPercent">0</span>% - Analyse IA en cours...</small>
         </div>
     `;
+
+    // Progression simulée
+    analysisInterval = setInterval(() => {
+        if (analysisProgress < 30) {
+            analysisProgress += Math.random() * 6 + 3;
+        } else if (analysisProgress < 60) {
+            analysisProgress += Math.random() * 4 + 2;
+        } else if (analysisProgress < 85) {
+            analysisProgress += Math.random() * 2 + 1;
+        } else if (analysisProgress < 95) {
+            analysisProgress += Math.random() * 0.5;
+        }
+        analysisProgress = Math.min(analysisProgress, 95);
+
+        const bar = document.getElementById('aiProgressBar');
+        const percent = document.getElementById('aiProgressPercent');
+        if (bar) bar.style.width = analysisProgress + '%';
+        if (percent) percent.textContent = Math.round(analysisProgress);
+    }, 200);
 }
 
 function completeProgress() {
-    const bar = document.querySelector('.ai-loader-bar');
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
+
+    const bar = document.getElementById('aiProgressBar');
+    const percent = document.getElementById('aiProgressPercent');
+    const text = document.querySelector('.ai-loader-text');
+
     if (bar) {
         bar.style.width = '100%';
-        bar.style.transform = 'none';
         bar.style.animation = 'none';
         bar.style.background = 'linear-gradient(90deg, #28a745, #20c997)';
     }
-    const text = document.querySelector('.ai-loader-text');
+    if (percent) percent.textContent = '100';
     if (text) {
-        text.textContent = 'Terminé!';
+        text.innerHTML = '<span id="aiProgressPercent">100</span>% - Terminé!';
         text.style.color = '#28a745';
         text.style.animation = 'none';
     }
+
     setTimeout(() => {
         analysisStatus.innerHTML = '';
-    }, 500);
+    }, 600);
 }
 
 function cancelProgress() {
+    if (analysisInterval) {
+        clearInterval(analysisInterval);
+        analysisInterval = null;
+    }
     analysisStatus.innerHTML = '';
 }
 
