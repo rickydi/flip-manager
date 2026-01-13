@@ -38,6 +38,15 @@ if ($stmt->fetchColumn() == 0) {
     $stmt->execute(['PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1]);
 }
 
+// S'assurer que les clés Gemini existent (migration)
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM app_configurations WHERE cle = 'GEMINI_API_KEY'");
+$stmt->execute();
+if ($stmt->fetchColumn() == 0) {
+    $stmt = $pdo->prepare("INSERT IGNORE INTO app_configurations (cle, valeur, description, est_sensible) VALUES (?, ?, ?, ?)");
+    $stmt->execute(['GEMINI_API_KEY', '', 'Clé API Google Gemini', 1]);
+    $stmt->execute(['GEMINI_MODEL', 'gemini-2.5-flash-preview-05-20', 'Modèle Gemini (gemini-2.5-flash-preview-05-20)', 0]);
+}
+
 $errors = [];
 $success = '';
 
@@ -167,6 +176,9 @@ include '../../includes/header.php';
                                     <?php if ($conf['cle'] === 'CLAUDE_MODEL'): ?>
                                         <div class="form-text">Modèles disponibles : claude-3-5-sonnet-20241022 (recommandé), claude-3-opus-20240229.</div>
                                     <?php endif; ?>
+                                    <?php if ($conf['cle'] === 'GEMINI_MODEL'): ?>
+                                        <div class="form-text">Modèles disponibles : gemini-2.5-flash-preview-05-20 (recommandé), gemini-2.0-flash.</div>
+                                    <?php endif; ?>
                                 </div>
                             <?php endforeach; ?>
                             
@@ -186,15 +198,26 @@ include '../../includes/header.php';
                 <div class="card-body">
                     <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>À propos des clés API</h5>
                     <p class="card-text small">
-                        Les clés API permettent de connecter votre application à des services d'Intelligence Artificielle comme Claude (Anthropic).
+                        Les clés API permettent de connecter votre application à des services d'Intelligence Artificielle :
                     </p>
+                    <ul class="small">
+                        <li><strong>Claude (Anthropic)</strong> - Analyse de factures et comparables</li>
+                        <li><strong>Gemini (Google)</strong> - IA rapide pour tâches légères</li>
+                    </ul>
                     <p class="card-text small">
                         Ces clés sont stockées de manière sécurisée. Ne les partagez jamais.
                     </p>
                     <hr>
-                    <h6 class="card-subtitle mb-2 text-muted">Ajouter une nouvelle clé ?</h6>
+                    <h6 class="card-subtitle mb-2 text-muted">Obtenir les clés</h6>
+                    <p class="card-text small mb-1">
+                        <a href="https://console.anthropic.com/" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Console Anthropic (Claude)
+                        </a>
+                    </p>
                     <p class="card-text small">
-                        Pour l'instant, seules les clés configurées par le système (Claude) sont gérées ici. D'autres services pourront être ajoutés dans le futur.
+                        <a href="https://aistudio.google.com/apikey" target="_blank" class="text-decoration-none">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>Google AI Studio (Gemini)
+                        </a>
                     </p>
                 </div>
             </div>

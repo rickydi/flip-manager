@@ -44,6 +44,9 @@ class ClaudeService {
         // S'assurer que les clés Pushover existent (migration)
         $this->ensurePushoverConfig();
 
+        // S'assurer que les clés Gemini existent (migration)
+        $this->ensureGeminiConfig();
+
         $this->apiKey = $this->getConfiguration('ANTHROPIC_API_KEY');
         $this->model = $this->getConfiguration('CLAUDE_MODEL') ?: 'claude-3-5-sonnet-20241022';
     }
@@ -76,6 +79,22 @@ class ClaudeService {
             ");
             $stmt->execute(['PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1]);
             $stmt->execute(['PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1]);
+        }
+    }
+
+    /**
+     * S'assure que les clés Gemini existent (migration pour bases existantes)
+     */
+    private function ensureGeminiConfig() {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM app_configurations WHERE cle = 'GEMINI_API_KEY'");
+        $stmt->execute();
+        if ($stmt->fetchColumn() == 0) {
+            $stmt = $this->pdo->prepare("
+                INSERT IGNORE INTO app_configurations (cle, valeur, description, est_sensible)
+                VALUES (?, ?, ?, ?)
+            ");
+            $stmt->execute(['GEMINI_API_KEY', '', 'Clé API Google Gemini', 1]);
+            $stmt->execute(['GEMINI_MODEL', 'gemini-2.5-flash-preview-05-20', 'Modèle Gemini (gemini-2.5-flash-preview-05-20)', 0]);
         }
     }
 
