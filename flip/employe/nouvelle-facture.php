@@ -357,9 +357,12 @@ include '../includes/header.php';
                         <!-- Upload fichier -->
                         <div class="mb-3">
                             <label class="form-label"><?= __('invoice_photo') ?></label>
-                            <div class="upload-zone">
-                                <i class="bi bi-cloud-arrow-up"></i>
-                                <p><?= __('drag_file') ?></p>
+                            <div class="upload-zone" id="uploadZone">
+                                <i class="bi bi-cloud-arrow-up" id="uploadIcon"></i>
+                                <div id="uploadSpinner" class="spinner-border text-primary d-none" role="status">
+                                    <span class="visually-hidden">Analyse en cours...</span>
+                                </div>
+                                <p id="uploadText"><?= __('drag_file') ?></p>
                                 <small class="text-muted"><?= __('file_formats') ?></small>
                             </div>
                             <input type="file"
@@ -367,6 +370,12 @@ include '../includes/header.php';
                                    id="fichier"
                                    name="fichier"
                                    accept=".jpg,.jpeg,.png,.gif,.pdf">
+                            <div id="iaStatus" class="mt-2 d-none">
+                                <div class="alert alert-info py-2 mb-0">
+                                    <i class="bi bi-robot me-1"></i>
+                                    <span id="iaStatusText">Analyse IA en cours...</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Notes -->
@@ -482,7 +491,7 @@ document.getElementById('fournisseur_autre').addEventListener('input', function(
 (function() {
     const select = document.getElementById('fournisseur_select');
     const fournisseurValue = document.getElementById('fournisseur').value;
-    
+
     if (fournisseurValue) {
         // Vérifier si le fournisseur est dans la liste
         let found = false;
@@ -501,6 +510,162 @@ document.getElementById('fournisseur_autre').addEventListener('input', function(
         }
     }
 })();
+
+// ============================================
+// ANALYSE IA AUTOMATIQUE
+// ============================================
+document.getElementById('fichier').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Vérifier que c'est une image
+    if (!file.type.match(/^image\//)) {
+        return; // Pas une image, on ne fait pas d'analyse IA
+    }
+
+    // Afficher le spinner
+    document.getElementById('uploadIcon').classList.add('d-none');
+    document.getElementById('uploadSpinner').classList.remove('d-none');
+    document.getElementById('uploadText').textContent = 'Analyse IA en cours...';
+    document.getElementById('uploadZone').style.borderColor = '#0d6efd';
+    document.getElementById('iaStatus').classList.remove('d-none');
+    document.getElementById('iaStatusText').textContent = 'Analyse de la facture par IA...';
+
+    // Convertir en base64
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const base64 = event.target.result;
+
+        // Envoyer à l'API d'analyse
+        fetch('<?= url('/api/analyse-facture.php') ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image: base64,
+                mime_type: file.type
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Cacher le spinner
+            document.getElementById('uploadIcon').classList.remove('d-none');
+            document.getElementById('uploadSpinner').classList.add('d-none');
+            document.getElementById('uploadText').textContent = file.name;
+            document.getElementById('uploadZone').style.borderColor = '#198754';
+
+            if (data.success && data.data) {
+                // Remplir les champs avec les données extraites
+                remplirChampsIA(data.data);
+                document.getElementById('iaStatus').innerHTML = '<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle me-1"></i> Facture analysée avec succès!</div>';
+            } else {
+                document.getElementById('iaStatus').innerHTML = '<div class="alert alert-warning py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i> ' + (data.error || 'Analyse non disponible') + '</div>';
+            }
+
+            // Cacher le statut après 5 secondes
+            setTimeout(() => {
+                document.getElementById('iaStatus').classList.add('d-none');
+            }, 5000);
+        })
+        .catch(error => {
+            console.error('Erreur analyse IA:', error);
+            document.getElementById('uploadIcon').classList.remove('d-none');
+            document.getElementById('uploadSpinner').classList.add('d-none');
+            document.getElementById('uploadText').textContent = file.name;
+            document.getElementById('uploadZone').style.borderColor = '#ffc107';
+            document.getElementById('iaStatus').innerHTML = '<div class="alert alert-warning py-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i> Analyse IA non disponible</div>';
+
+            setTimeout(() => {
+                document.getElementById('iaStatus').classList.add('d-none');
+            }, 5000);
+        });
+    };
+    reader.readAsDataURL(file);
+});
+
+function remplirChampsIA(data) {
+    // Fournisseur
+    if (data.fournisseur) {
+        const select = document.getElementById('fournisseur_select');
+        const fournisseurHidden = document.getElementById('fournisseur');
+        let found = false;
+
+        // Chercher le fournisseur dans la liste (insensible à la casse)
+        for (let i = 0; i < select.options.length; i++) {
+            if (select.options[i].value.toLowerCase() === data.fournisseur.toLowerCase()) {
+                select.selectedIndex = i;
+                fournisseurHidden.value = select.options[i].value;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            // Fournisseur non trouvé, utiliser "Autre"
+            select.value = '__autre__';
+            document.getElementById('fournisseur_autre').style.display = 'block';
+            document.getElementById('fournisseur_autre').value = data.fournisseur;
+            fournisseurHidden.value = data.fournisseur;
+        }
+
+        // Animation
+        highlightField('fournisseur_select');
+    }
+
+    // Date
+    if (data.date_facture) {
+        document.getElementById('date_facture').value = data.date_facture;
+        highlightField('date_facture');
+    }
+
+    // Description
+    if (data.description) {
+        document.getElementById('description').value = data.description;
+        highlightField('description');
+    }
+
+    // Montant avant taxes
+    if (data.montant_avant_taxes) {
+        document.getElementById('montant_avant_taxes').value = parseFloat(data.montant_avant_taxes).toFixed(2);
+        highlightField('montant_avant_taxes');
+    }
+
+    // TPS
+    if (data.tps !== undefined) {
+        document.getElementById('tps').value = parseFloat(data.tps).toFixed(2);
+        highlightField('tps');
+    }
+
+    // TVQ
+    if (data.tvq !== undefined) {
+        document.getElementById('tvq').value = parseFloat(data.tvq).toFixed(2);
+        highlightField('tvq');
+    }
+
+    // Recalculer le total
+    calculerTotal();
+
+    // Notes (infos supplémentaires de l'IA)
+    if (data.notes) {
+        const notesField = document.getElementById('notes');
+        if (!notesField.value) {
+            notesField.value = data.notes;
+            highlightField('notes');
+        }
+    }
+}
+
+function highlightField(fieldId) {
+    const field = document.getElementById(fieldId);
+    if (field) {
+        field.style.transition = 'background-color 0.3s ease';
+        field.style.backgroundColor = '#d1e7dd';
+        setTimeout(() => {
+            field.style.backgroundColor = '';
+        }, 2000);
+    }
+}
 
 </script>
 
