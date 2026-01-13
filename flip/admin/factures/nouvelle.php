@@ -966,6 +966,10 @@ document.getElementById('montantAvantTaxes').addEventListener('input', function(
     document.getElementById('tps').classList.remove('bg-light');
     document.getElementById('tvq').classList.remove('bg-light');
     calculerTaxesAuto();
+    // Valider écart avec articles
+    if (typeof validateTotalArticles === 'function' && currentArticlesData.length > 0) {
+        validateTotalArticles();
+    }
 });
 
 // Réactiver les taxes si on modifie manuellement
@@ -1308,8 +1312,16 @@ function renderArticlesTable(articles) {
                 <small class="d-block" style="word-wrap: break-word;">${desc}</small>
                 ${sku ? `<span class="badge bg-light text-muted" style="font-size: 0.65rem;">${sku}</span>` : ''}
             </td>
-            <td class="text-center">${qty}</td>
-            <td class="text-end"><strong>${prix}$</strong></td>
+            <td class="text-center" style="width: 70px;">
+                <input type="number" class="form-control form-control-sm text-center"
+                    value="${qty}" min="0.01" step="0.01" style="width: 60px;"
+                    onchange="updateArticleQty(${idx}, this.value)">
+            </td>
+            <td class="text-end" style="width: 90px;">
+                <input type="number" class="form-control form-control-sm text-end"
+                    value="${prix}" min="0" step="0.01" style="width: 80px;"
+                    onchange="updateArticlePrix(${idx}, this.value)">
+            </td>
             <td>
                 <select class="form-select form-select-sm etape-select" onchange="updateArticleEtape(${idx}, this.value)">
                     ${etapeOptionsHtml}
@@ -1329,6 +1341,58 @@ function renderArticlesTable(articles) {
         `;
         tbody.appendChild(row);
     });
+
+    // Valider le total après rendu
+    validateTotalArticles();
+}
+
+// Mettre à jour la quantité d'un article
+function updateArticleQty(idx, value) {
+    if (currentArticlesData[idx]) {
+        currentArticlesData[idx].quantite = parseFloat(value) || 1;
+        updateDescriptionHidden();
+        updateBreakdownData();
+        validateTotalArticles();
+    }
+}
+
+// Mettre à jour le prix d'un article
+function updateArticlePrix(idx, value) {
+    if (currentArticlesData[idx]) {
+        currentArticlesData[idx].total = parseFloat(value) || 0;
+        updateDescriptionHidden();
+        updateBreakdownData();
+        validateTotalArticles();
+    }
+}
+
+// Valider que le total des articles correspond au montant avant taxes
+function validateTotalArticles() {
+    const totalArticles = currentArticlesData.reduce((sum, a) => sum + (parseFloat(a.total) || 0), 0);
+    const montantAvantTaxes = parseFloat(document.getElementById('montantAvantTaxes').value.replace(',', '.').replace(/\s/g, '')) || 0;
+
+    // Supprimer l'ancien avertissement
+    const oldWarning = document.getElementById('totalMismatchWarning');
+    if (oldWarning) oldWarning.remove();
+
+    // Comparer avec une tolérance de 0.02$ (erreurs d'arrondi)
+    const diff = Math.abs(totalArticles - montantAvantTaxes);
+    if (montantAvantTaxes > 0 && diff > 0.02) {
+        const warning = document.createElement('div');
+        warning.id = 'totalMismatchWarning';
+        warning.className = 'alert alert-warning py-2 mt-2 d-flex align-items-center justify-content-between';
+        warning.innerHTML = `
+            <div>
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Écart détecté:</strong> Total articles (${totalArticles.toFixed(2)}$) ≠ Montant avant taxes (${montantAvantTaxes.toFixed(2)}$)
+                <span class="badge bg-warning text-dark ms-2">Diff: ${diff.toFixed(2)}$</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="this.parentElement.remove()">
+                <i class="bi bi-x"></i> Ignorer
+            </button>
+        `;
+        document.getElementById('articlesTableContainer').appendChild(warning);
+    }
 }
 
 // Mettre à jour l'étape d'un article
