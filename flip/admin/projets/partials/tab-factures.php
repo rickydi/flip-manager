@@ -160,26 +160,6 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Options de statut -->
-                <div class="row mb-3">
-                    <div class="col-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="multiFactureApprouvee">
-                            <label class="form-check-label" for="multiFactureApprouvee">
-                                <i class="bi bi-check-circle text-success me-1"></i>Marquer comme approuvée
-                            </label>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" id="multiFacturePayee">
-                            <label class="form-check-label" for="multiFacturePayee">
-                                <i class="bi bi-cash-stack text-primary me-1"></i>Marquer comme payée
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Drop Zone -->
                 <div id="multiDropZone" class="border border-2 border-dashed rounded p-5 text-center mb-3"
                      style="border-color: #6c757d !important; transition: all 0.3s; cursor: pointer;">
@@ -194,9 +174,24 @@
                 <div id="multiFilesList" class="mb-3" style="display: none;">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Fichiers à traiter</h6>
-                        <button type="button" class="btn btn-outline-danger btn-sm" id="clearFilesBtn">
-                            <i class="bi bi-trash me-1"></i>Tout effacer
-                        </button>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Options de statut -->
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="multiFactureApprouvee">
+                                <label class="form-check-label small" for="multiFactureApprouvee">
+                                    <i class="bi bi-check-circle text-success"></i> Approuvée
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="multiFacturePayee">
+                                <label class="form-check-label small" for="multiFacturePayee">
+                                    <i class="bi bi-cash-stack text-primary"></i> Payée
+                                </label>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="clearFilesBtn">
+                                <i class="bi bi-trash me-1"></i>Tout effacer
+                            </button>
+                        </div>
                     </div>
                     <div id="filesContainer" class="border rounded" style="max-height: 300px; overflow-y: auto;"></div>
                 </div>
@@ -544,8 +539,9 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
     async function processQueue() {
         isProcessing = true;
         startBtn.disabled = true;
-        dropZone.style.opacity = '0.5';
-        dropZone.style.pointerEvents = 'none';
+
+        // Cacher la zone de drop pour laisser plus de place
+        dropZone.style.display = 'none';
 
         progressSection.style.display = 'block';
         resultSection.style.display = 'none';
@@ -597,8 +593,7 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
             resultErrors.style.display = 'none';
         }
 
-        dropZone.style.opacity = '1';
-        dropZone.style.pointerEvents = 'auto';
+        // Garder la dropzone cachée, proposer de recharger la page
         startBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Recharger la page';
         startBtn.disabled = false;
         startBtn.onclick = () => window.location.reload();
@@ -620,6 +615,7 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
             updateFilesList();
             progressSection.style.display = 'none';
             resultSection.style.display = 'none';
+            dropZone.style.display = 'block'; // Réafficher la dropzone
             startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Démarrer le traitement';
             startBtn.onclick = () => { if (filesToProcess.length > 0 && !isProcessing) processQueue(); };
         }
