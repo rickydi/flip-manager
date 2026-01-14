@@ -334,15 +334,53 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
             const size = (item.file.size / 1024).toFixed(0) + ' KB';
 
             let statusBadge = '';
+            let aiDetails = '';
+
             switch(item.status) {
                 case 'pending':
                     statusBadge = '<span class="badge bg-secondary">En attente</span>';
                     break;
                 case 'processing':
-                    statusBadge = '<span class="badge bg-warning text-dark"><span class="spinner-border spinner-border-sm me-1"></span>Analyse...</span>';
+                    statusBadge = '<span class="badge bg-warning text-dark"><span class="spinner-border spinner-border-sm me-1"></span>Analyse IA...</span>';
                     break;
                 case 'success':
-                    statusBadge = `<span class="badge bg-success"><i class="bi bi-check me-1"></i>${item.result?.data?.fournisseur || 'OK'}</span>`;
+                    statusBadge = '<span class="badge bg-success"><i class="bi bi-check me-1"></i>Créée</span>';
+                    // Afficher les données analysées par l'IA
+                    if (item.analyseData) {
+                        const data = item.analyseData;
+                        const nbLignes = data.lignes?.length || 0;
+                        const etapes = data.totaux_par_etape?.map(e => e.etape_nom).join(', ') || '-';
+                        aiDetails = `
+                            <div class="mt-2 p-2 rounded" style="background: rgba(25,135,84,0.1); font-size: 0.8rem;">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <strong class="text-success"><i class="bi bi-shop me-1"></i>Fournisseur:</strong><br>
+                                        ${data.fournisseur || 'N/A'}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong class="text-success"><i class="bi bi-calendar me-1"></i>Date:</strong><br>
+                                        ${data.date_facture || 'N/A'}
+                                    </div>
+                                    <div class="col-4">
+                                        <strong>Sous-total:</strong><br>
+                                        ${formatMoney(data.sous_total || 0)}
+                                    </div>
+                                    <div class="col-4">
+                                        <strong>TPS/TVQ:</strong><br>
+                                        ${formatMoney((data.tps || 0) + (data.tvq || 0))}
+                                    </div>
+                                    <div class="col-4">
+                                        <strong class="text-primary">Total:</strong><br>
+                                        <span class="text-primary fw-bold">${formatMoney(data.total || 0)}</span>
+                                    </div>
+                                    <div class="col-12">
+                                        <strong><i class="bi bi-list-ul me-1"></i>${nbLignes} article(s)</strong>
+                                        ${nbLignes > 0 ? `<span class="text-muted ms-2">→ ${etapes}</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
                     break;
                 case 'error':
                     statusBadge = `<span class="badge bg-danger" title="${item.error}"><i class="bi bi-x me-1"></i>Erreur</span>`;
@@ -353,21 +391,25 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 ? `<button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeMultiFile(${index})"><i class="bi bi-x"></i></button>`
                 : '';
 
-            const errorMsg = item.status === 'error' ? `<div class="text-danger small text-truncate" style="max-width: 300px;" title="${item.error}">${item.error}</div>` : '';
+            const errorMsg = item.status === 'error' ? `<div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>${item.error}</div>` : '';
 
             return `
-                <div class="d-flex align-items-center p-2 border-bottom" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : item.status === 'error' ? 'rgba(220,53,69,0.1)' : 'transparent'}">
-                    <i class="bi ${icon} me-2"></i>
-                    <div class="flex-grow-1">
-                        <div class="text-truncate" style="max-width: 300px;" title="${item.file.name}">${item.file.name}</div>
-                        <small class="text-muted">${size}</small>
-                        ${item.result?.data?.montant_total ? `<small class="text-success ms-2">${formatMoney(item.result.data.montant_total)}</small>` : ''}
-                        ${errorMsg}
+                <div class="p-2 border-bottom" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : item.status === 'error' ? 'rgba(220,53,69,0.1)' : item.status === 'success' ? 'rgba(25,135,84,0.05)' : 'transparent'}">
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${icon} me-2 fs-5"></i>
+                        <div class="flex-grow-1">
+                            <div class="text-truncate" style="max-width: 350px;" title="${item.file.name}">
+                                <strong>${item.file.name}</strong>
+                            </div>
+                            <small class="text-muted">${size}</small>
+                        </div>
+                        <div class="ms-auto d-flex align-items-center">
+                            ${statusBadge}
+                            ${removeBtn}
+                        </div>
                     </div>
-                    <div class="ms-auto d-flex align-items-center">
-                        ${statusBadge}
-                        ${removeBtn}
-                    </div>
+                    ${aiDetails}
+                    ${errorMsg}
                 </div>
             `;
         }).join('');
@@ -424,6 +466,9 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
         if (!analyseResult.success || !analyseResult.data) {
             throw new Error(analyseResult.error || 'Erreur analyse IA');
         }
+
+        // Stocker les données analysées pour l'affichage
+        item.analyseData = analyseResult.data;
 
         // Étape 3: Créer la facture avec les données analysées
         const createResponse = await fetch('<?= url('/api/factures/creer-depuis-analyse.php') ?>', {
