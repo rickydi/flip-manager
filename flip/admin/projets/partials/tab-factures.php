@@ -160,6 +160,26 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
+                <!-- Options de statut -->
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="multiFactureApprouvee">
+                            <label class="form-check-label" for="multiFactureApprouvee">
+                                <i class="bi bi-check-circle text-success me-1"></i>Marquer comme approuvée
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="multiFacturePayee">
+                            <label class="form-check-label" for="multiFacturePayee">
+                                <i class="bi bi-cash-stack text-primary me-1"></i>Marquer comme payée
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Drop Zone -->
                 <div id="multiDropZone" class="border border-2 border-dashed rounded p-5 text-center mb-3"
                      style="border-color: #6c757d !important; transition: all 0.3s; cursor: pointer;">
@@ -242,6 +262,8 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
     const resultErrors = document.getElementById('resultErrors');
     const successCount = document.getElementById('successCount');
     const errorCount = document.getElementById('errorCount');
+    const checkApprouvee = document.getElementById('multiFactureApprouvee');
+    const checkPayee = document.getElementById('multiFacturePayee');
 
     let filesToProcess = [];
     let isProcessing = false;
@@ -505,7 +527,9 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 projet_id: projetId,
                 data: analyseResult.data,
                 fichier_base64: imageBase64,
-                fichier_nom: item.file.name
+                fichier_nom: item.file.name,
+                statut: checkApprouvee.checked ? 'approuvee' : 'en_attente',
+                est_payee: checkPayee.checked ? 1 : 0
             })
         });
         const createResult = await createResponse.json();

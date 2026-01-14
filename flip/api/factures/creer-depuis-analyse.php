@@ -89,6 +89,13 @@ $projetId = (int)($input['projet_id'] ?? 0);
 $aiResult = $input['data'] ?? null;
 $fichierBase64 = $input['fichier_base64'] ?? null;
 $fichierNom = $input['fichier_nom'] ?? 'facture.png';
+$statut = $input['statut'] ?? 'en_attente';
+$estPayee = !empty($input['est_payee']) ? 1 : 0;
+
+// Valider le statut
+if (!in_array($statut, ['en_attente', 'approuvee', 'rejetee'])) {
+    $statut = 'en_attente';
+}
 
 if (!$projetId) {
     echo json_encode(['success' => false, 'error' => 'Projet non spécifié']);
@@ -178,8 +185,8 @@ try {
     // Créer la facture
     $stmt = $pdo->prepare("
         INSERT INTO factures (projet_id, etape_id, user_id, fournisseur, description, date_facture,
-                             montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_attente')
+                             montant_avant_taxes, tps, tvq, montant_total, fichier, notes, statut, est_payee)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $description = generateDescription($aiResult['lignes'] ?? []);
@@ -196,7 +203,9 @@ try {
         $tvq,
         $montantTotal,
         $fichier,
-        'Analysée par IA (upload multiple)'
+        'Analysée par IA (upload multiple)',
+        $statut,
+        $estPayee
     ]);
 
     $factureId = $pdo->lastInsertId();
