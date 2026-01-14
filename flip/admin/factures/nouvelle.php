@@ -1380,7 +1380,7 @@ function renderArticlesTable(articles) {
                         data-link="${link}" data-sku="${sku}" data-desc="${desc}"
                         onmouseenter="startLinkPreview(this)" onmouseleave="cancelLinkPreview()"
                         title="Voir produit"><i class="bi bi-box-arrow-up-right"></i></a>` : ''}
-                    <button type="button" class="btn btn-outline-secondary" onclick="editArticleLink(${idx})" title="Modifier le lien du produit">
+                    <button type="button" class="btn btn-outline-primary" onclick="editArticleLink(${idx})" title="Modifier le lien du produit">
                         <i class="bi bi-link-45deg"></i>
                     </button>
                     <button type="button" class="btn btn-outline-success" onclick="addToBudget(${idx})" title="Ajouter au catalogue">
