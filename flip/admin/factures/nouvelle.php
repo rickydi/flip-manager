@@ -1380,6 +1380,9 @@ function renderArticlesTable(articles) {
                         data-link="${link}" data-sku="${sku}" data-desc="${desc}"
                         onmouseenter="startLinkPreview(this)" onmouseleave="cancelLinkPreview()"
                         title="Voir produit"><i class="bi bi-box-arrow-up-right"></i></a>` : ''}
+                    <button type="button" class="btn btn-outline-secondary" onclick="editArticleLink(${idx})" title="Modifier le lien du produit">
+                        <i class="bi bi-link-45deg"></i>
+                    </button>
                     <button type="button" class="btn btn-outline-success" onclick="addToBudget(${idx})" title="Ajouter au catalogue">
                         <i class="bi bi-plus-lg"></i>
                     </button>
@@ -1485,6 +1488,88 @@ function updateArticleEtape(idx, etapeId) {
         if (etape) {
             currentArticlesData[idx].etape_nom = etape.nom;
         }
+        updateDescriptionHidden();
+        updateBreakdownData();
+    }
+}
+
+// Éditer le lien d'un article (ouvre un prompt)
+function editArticleLink(idx) {
+    if (!currentArticlesData[idx]) return;
+
+    const article = currentArticlesData[idx];
+    const currentLink = article.link || '';
+    const desc = article.description || 'Article';
+
+    // Créer un modal simple pour éditer le lien
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'editLinkModal';
+    modal.setAttribute('tabindex', '-1');
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-link-45deg me-2"></i>Modifier le lien du produit</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">${desc}</p>
+                    <label class="form-label">URL du produit</label>
+                    <input type="url" class="form-control" id="editLinkInput"
+                        value="${currentLink}" placeholder="https://www.homedepot.ca/product/...">
+                    <div class="form-text">Collez l'URL du site web du fournisseur pour ce produit</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="saveArticleLink(${idx})">
+                        <i class="bi bi-check-lg me-1"></i>Enregistrer
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    const bsModal = new bootstrap.Modal(modal);
+    modal.addEventListener('hidden.bs.modal', () => {
+        modal.remove();
+    });
+    bsModal.show();
+
+    // Focus sur l'input
+    modal.addEventListener('shown.bs.modal', () => {
+        document.getElementById('editLinkInput').focus();
+        document.getElementById('editLinkInput').select();
+    });
+}
+
+// Sauvegarder le lien modifié
+function saveArticleLink(idx) {
+    const input = document.getElementById('editLinkInput');
+    const newLink = input.value.trim();
+
+    if (currentArticlesData[idx]) {
+        currentArticlesData[idx].link = newLink;
+        updateDescriptionHidden();
+        updateBreakdownData();
+
+        // Fermer le modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editLinkModal'));
+        if (modal) modal.hide();
+
+        // Re-render la table pour afficher le nouveau bouton de lien
+        renderArticlesTable(currentArticlesData);
+
+        // Afficher un toast de confirmation
+        showToast('Lien mis à jour', 'success');
+    }
+}
+
+// Mettre à jour le lien d'un article (fonction utilitaire)
+function updateArticleLink(idx, link) {
+    if (currentArticlesData[idx]) {
+        currentArticlesData[idx].link = link;
         updateDescriptionHidden();
         updateBreakdownData();
     }
@@ -2268,6 +2353,33 @@ function addNewFournisseur() {
     }
 
     bootstrap.Modal.getInstance(document.getElementById('fournisseurMatchModal')).hide();
+}
+
+// Afficher un toast de notification
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+    bsToast.show();
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
 }
 </script>
 
