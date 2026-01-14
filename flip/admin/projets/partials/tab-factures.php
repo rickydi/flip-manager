@@ -52,6 +52,32 @@
 
             <!-- Spacer + Actions à droite -->
             <div class="ms-auto d-flex align-items-center gap-2">
+                <!-- Menu actions en masse (caché par défaut) -->
+                <div id="bulkActionsMenu" class="d-none">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary" id="selectedCount">0 sélectionnée(s)</span>
+                        <div class="dropdown">
+                            <button class="btn btn-warning btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-gear me-1"></i>Actions
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><h6 class="dropdown-header">Paiement</h6></li>
+                                <li><a class="dropdown-item bulk-action" href="#" data-action="payer"><i class="bi bi-check-circle text-success me-2"></i>Marquer payée</a></li>
+                                <li><a class="dropdown-item bulk-action" href="#" data-action="non_payer"><i class="bi bi-clock text-primary me-2"></i>Marquer non payée</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">Statut</h6></li>
+                                <li><a class="dropdown-item bulk-action" href="#" data-action="approuver"><i class="bi bi-check-circle text-success me-2"></i>Approuver</a></li>
+                                <li><a class="dropdown-item bulk-action" href="#" data-action="en_attente"><i class="bi bi-clock text-warning me-2"></i>En attente</a></li>
+                                <li><a class="dropdown-item bulk-action" href="#" data-action="rejeter"><i class="bi bi-x-circle text-danger me-2"></i>Rejeter</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item bulk-action text-danger" href="#" data-action="supprimer"><i class="bi bi-trash me-2"></i>Supprimer</a></li>
+                            </ul>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllFactures()" title="Désélectionner">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
                 <span class="badge bg-secondary" id="facturesCount"><?= count($facturesProjet) ?> factures</span>
                 <?php if (isAdmin()): ?>
                 <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiFactures">
@@ -73,6 +99,9 @@
                 <table class="table table-sm table-hover" id="facturesTable">
                     <thead class="table-dark">
                         <tr>
+                            <th style="width: 40px;" class="text-center">
+                                <input type="checkbox" class="form-check-input" id="selectAllFactures" title="Tout sélectionner">
+                            </th>
                             <th>Date</th>
                             <th>Fournisseur</th>
                             <th class="text-center" style="width:30px" title="Articles détectés par IA"><i class="bi bi-robot"></i></th>
@@ -85,7 +114,10 @@
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr class="facture-row" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
+                        <tr class="facture-row" data-id="<?= $f['id'] ?>" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
+                            <td class="text-center" onclick="event.stopPropagation();">
+                                <input type="checkbox" class="form-check-input facture-checkbox" value="<?= $f['id'] ?>">
+                            </td>
                             <td><?= formatDate($f['date_facture']) ?></td>
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
                             <td class="text-center">
@@ -239,6 +271,92 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
         window.location.href = this.dataset.href;
     });
 });
+
+// Sélection multiple de factures
+(function() {
+    const selectAll = document.getElementById('selectAllFactures');
+    const bulkMenu = document.getElementById('bulkActionsMenu');
+    const selectedCountBadge = document.getElementById('selectedCount');
+    const checkboxes = document.querySelectorAll('.facture-checkbox');
+
+    if (!selectAll || !bulkMenu) return;
+
+    function updateBulkMenu() {
+        const checked = document.querySelectorAll('.facture-checkbox:checked');
+        const count = checked.length;
+
+        if (count > 0) {
+            bulkMenu.classList.remove('d-none');
+            selectedCountBadge.textContent = count + ' sélectionnée(s)';
+        } else {
+            bulkMenu.classList.add('d-none');
+        }
+
+        // Mettre à jour le checkbox "tout sélectionner"
+        const visibleCheckboxes = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox');
+        const visibleChecked = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox:checked');
+        selectAll.checked = visibleCheckboxes.length > 0 && visibleCheckboxes.length === visibleChecked.length;
+        selectAll.indeterminate = visibleChecked.length > 0 && visibleChecked.length < visibleCheckboxes.length;
+    }
+
+    // Tout sélectionner / désélectionner
+    selectAll.addEventListener('change', function() {
+        const visibleCheckboxes = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox');
+        visibleCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateBulkMenu();
+    });
+
+    // Checkbox individuel
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateBulkMenu);
+    });
+
+    // Désélectionner tout
+    window.deselectAllFactures = function() {
+        checkboxes.forEach(cb => cb.checked = false);
+        selectAll.checked = false;
+        updateBulkMenu();
+    };
+
+    // Actions en masse
+    document.querySelectorAll('.bulk-action').forEach(btn => {
+        btn.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const action = this.dataset.action;
+            const checkedBoxes = document.querySelectorAll('.facture-checkbox:checked');
+            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+
+            if (ids.length === 0) return;
+
+            // Confirmation pour suppression
+            if (action === 'supprimer') {
+                if (!confirm(`Voulez-vous vraiment supprimer ${ids.length} facture(s) ? Cette action est irréversible.`)) {
+                    return;
+                }
+            }
+
+            // Exécuter l'action
+            try {
+                const response = await fetch('<?= url('/api/factures/bulk-action.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, ids: ids })
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // Recharger la page pour voir les changements
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + (result.error || 'Une erreur est survenue'));
+                }
+            } catch (err) {
+                console.error('Erreur:', err);
+                alert('Erreur de connexion');
+            }
+        });
+    });
+})();
 
 // Multi-factures upload (Admin only)
 <?php if (isAdmin()): ?>
