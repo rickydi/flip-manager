@@ -523,10 +523,21 @@ $returnLabel = $selectedProjet ? 'Projet' : 'Factures';
                 <div class="mb-3">
                     <label class="form-label">Photo/PDF de la facture</label>
                     <?php if ($isEdit && !empty($facture['fichier'])): ?>
+                        <?php
+                        $fichierExt = strtolower(pathinfo($facture['fichier'], PATHINFO_EXTENSION));
+                        $isPdfFichier = ($fichierExt === 'pdf');
+                        ?>
                         <div class="mb-2">
                             <a href="<?= url('/uploads/factures/' . e($facture['fichier'])) ?>" target="_blank">
-                                <img src="<?= url('/api/thumbnail.php?file=factures/' . e($facture['fichier']) . '&w=100&h=100') ?>"
-                                     alt="Facture" style="max-width:100px;max-height:100px;border-radius:4px;border:1px solid #ddd">
+                                <?php if ($isPdfFichier): ?>
+                                    <div class="d-inline-flex align-items-center gap-2 p-2 border rounded" style="background: rgba(220,53,69,0.1);">
+                                        <i class="bi bi-file-pdf text-danger fs-2"></i>
+                                        <span class="text-muted small"><?= e($facture['fichier']) ?></span>
+                                    </div>
+                                <?php else: ?>
+                                    <img src="<?= url('/api/thumbnail.php?file=factures/' . e($facture['fichier']) . '&w=100&h=100') ?>"
+                                         alt="Facture" style="max-width:100px;max-height:100px;border-radius:4px;border:1px solid #ddd">
+                                <?php endif; ?>
                             </a>
                         </div>
                     <?php endif; ?>
