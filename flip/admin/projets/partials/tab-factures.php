@@ -378,6 +378,73 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
         updateFilesList();
     };
 
+    // Convertir fichier en base64 (comme le formulaire simple)
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Traiter un fichier - MÊME FLUX QUE LE FORMULAIRE SIMPLE
+    async function processFile(item) {
+        let imageBase64 = null;
+
+        // Étape 1: Convertir en image base64
+        if (item.file.type === 'application/pdf') {
+            // PDF: utiliser l'API de conversion
+            const formData = new FormData();
+            formData.append('fichier', item.file);
+
+            const convResponse = await fetch('<?= url('/api/factures/convertir-pdf.php') ?>', {
+                method: 'POST',
+                body: formData
+            });
+            const convResult = await convResponse.json();
+
+            if (!convResult.success) {
+                throw new Error(convResult.error || 'Erreur conversion PDF');
+            }
+            imageBase64 = convResult.image;
+        } else {
+            // Image: lire directement en base64 (comme le formulaire simple)
+            imageBase64 = await fileToBase64(item.file);
+        }
+
+        // Étape 2: Analyser avec l'IA - EXACTEMENT COMME LE FORMULAIRE SIMPLE
+        const analyseResponse = await fetch('<?= url('/api/analyse-facture-details.php') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imageBase64 })
+        });
+        const analyseResult = await analyseResponse.json();
+
+        if (!analyseResult.success || !analyseResult.data) {
+            throw new Error(analyseResult.error || 'Erreur analyse IA');
+        }
+
+        // Étape 3: Créer la facture avec les données analysées
+        const createResponse = await fetch('<?= url('/api/factures/creer-depuis-analyse.php') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                projet_id: projetId,
+                data: analyseResult.data,
+                fichier_base64: imageBase64,
+                fichier_nom: item.file.name
+            })
+        });
+        const createResult = await createResponse.json();
+
+        if (!createResult.success) {
+            throw new Error(createResult.error || 'Erreur création facture');
+        }
+
+        return createResult;
+    }
+
     async function processQueue() {
         isProcessing = true;
         startBtn.disabled = true;
@@ -400,30 +467,16 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
             progressBar.style.width = ((i + 1) / filesToProcess.length * 100) + '%';
 
             try {
-                const formData = new FormData();
-                formData.append('fichier', item.file);
-                formData.append('projet_id', projetId);
-
-                const response = await fetch('<?= url('/api/factures/upload-auto.php') ?>', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    item.status = 'success';
-                    item.result = result;
-                    successTotal++;
-                } else {
-                    item.status = 'error';
-                    item.error = result.error || 'Erreur inconnue';
-                    errorTotal++;
-                }
+                // Utiliser le même flux que le formulaire simple
+                const result = await processFile(item);
+                item.status = 'success';
+                item.result = result;
+                successTotal++;
             } catch (err) {
                 item.status = 'error';
-                item.error = err.message || 'Erreur réseau';
+                item.error = err.message || 'Erreur inconnue';
                 errorTotal++;
+                console.error('Erreur traitement:', item.file.name, err);
             }
 
             updateFilesList();
