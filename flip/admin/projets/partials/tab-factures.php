@@ -72,6 +72,7 @@
                             <th>Fournisseur</th>
                             <th>Catégorie</th>
                             <th class="text-end">Montant</th>
+                            <th class="text-center" style="width:30px" title="Articles détectés par IA"><i class="bi bi-robot"></i></th>
                             <th>Statut</th>
                             <th>Paiement</th>
                             <th>Actions</th>
@@ -84,6 +85,11 @@
                             <td><?= e($f['fournisseur'] ?? 'N/A') ?></td>
                             <td><?php if (empty($f['etape_nom'])): ?><span class="text-danger fw-bold">N/A</span><?php else: ?><?= e($f['etape_nom']) ?><?php endif; ?></td>
                             <td class="text-end fw-bold"><?= formatMoney($f['montant_total']) ?></td>
+                            <td class="text-center">
+                                <?php if (!empty($f['nb_articles_ia']) && $f['nb_articles_ia'] > 0): ?>
+                                    <i class="bi bi-check-circle-fill text-success" title="<?= $f['nb_articles_ia'] ?> article(s) détecté(s) par IA"></i>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <?php
                                 $statusClass = match($f['statut']) {

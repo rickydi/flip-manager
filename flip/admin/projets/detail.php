@@ -2392,7 +2392,8 @@ try {
 $facturesProjet = [];
 try {
     $stmt = $pdo->prepare("
-        SELECT f.*, e.nom as etape_nom
+        SELECT f.*, e.nom as etape_nom,
+               (SELECT COUNT(*) FROM facture_lignes fl WHERE fl.facture_id = f.id) as nb_articles_ia
         FROM factures f
         LEFT JOIN budget_etapes e ON f.etape_id = e.id
         WHERE f.projet_id = ?
