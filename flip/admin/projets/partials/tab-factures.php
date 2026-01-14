@@ -161,7 +161,7 @@
             </div>
             <div class="modal-body">
                 <!-- Drop Zone avec animation porte de garage -->
-                <div id="multiDropZoneWrapper" style="max-height: 300px; overflow: hidden; transition: max-height 0.4s ease-in-out, margin-bottom 0.4s ease-in-out, opacity 0.3s ease-in-out; margin-bottom: 1rem; opacity: 1;">
+                <div id="multiDropZoneWrapper" style="max-height: 300px; overflow: hidden; transition: max-height 1.5s ease-in-out, margin-bottom 1.5s ease-in-out, opacity 1s ease-in-out; margin-bottom: 1rem; opacity: 1;">
                     <div id="multiDropZone" class="border border-2 border-dashed rounded p-5 text-center"
                          style="border-color: #6c757d !important; transition: border-color 0.3s, background 0.3s; cursor: pointer;">
                         <i class="bi bi-cloud-arrow-up display-3 text-muted mb-3 d-block"></i>
