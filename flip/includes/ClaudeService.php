@@ -788,6 +788,29 @@ class ClaudeService {
                       "CRITIQUE: Utilise UNIQUEMENT les étapes listées ci-dessus avec leurs IDs exacts. Choisis l'étape la plus proche même si pas parfaite.";
         }
 
+        // Construire le contenu selon le type de fichier (image ou PDF)
+        if ($mimeType === 'application/pdf') {
+            // PDF: utiliser le type 'document' (supporté nativement par Claude)
+            $fileContent = [
+                'type' => 'document',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => 'application/pdf',
+                    'data' => $imageData
+                ]
+            ];
+        } else {
+            // Image: utiliser le type 'image'
+            $fileContent = [
+                'type' => 'image',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => $mimeType,
+                    'data' => $imageData
+                ]
+            ];
+        }
+
         $payload = [
             'model' => $this->model,
             'max_tokens' => 4096,
@@ -796,14 +819,7 @@ class ClaudeService {
                 [
                     'role' => 'user',
                     'content' => [
-                        [
-                            'type' => 'image',
-                            'source' => [
-                                'type' => 'base64',
-                                'media_type' => $mimeType,
-                                'data' => $imageData
-                            ]
-                        ],
+                        $fileContent,
                         [
                             'type' => 'text',
                             'text' => $userMessage
@@ -814,19 +830,30 @@ class ClaudeService {
             'system' => $systemPrompt
         ];
 
-        return $this->callApiFacture($payload);
+        // Pour les PDF, utiliser l'API avec le header beta
+        $isPdf = ($mimeType === 'application/pdf');
+        return $this->callApiFacture($payload, $isPdf);
     }
 
-    private function callApiFacture($payload) {
+    private function callApiFacture($payload, $isPdf = false) {
         $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+
+        // Headers de base
+        $headers = [
             'x-api-key: ' . $this->apiKey,
             'anthropic-version: 2023-06-01',
             'content-type: application/json'
-        ]);
+        ];
+
+        // Ajouter le header beta pour les PDF
+        if ($isPdf) {
+            $headers[] = 'anthropic-beta: pdfs-2024-09-25';
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);

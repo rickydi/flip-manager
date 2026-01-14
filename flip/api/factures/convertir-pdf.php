@@ -1,7 +1,8 @@
 <?php
 /**
- * API: Convertir un PDF en image base64
- * Utilisé par l'upload multiple pour avoir la même qualité que le formulaire simple
+ * API: Convertir un fichier en base64 pour l'analyse IA
+ * - Images: retourne directement en base64
+ * - PDF: retourne en base64 (Claude supporte les PDF nativement)
  */
 
 require_once '../../config.php';
@@ -33,54 +34,31 @@ if (!isset($_FILES['fichier']) || $_FILES['fichier']['error'] !== UPLOAD_ERR_OK)
 $file = $_FILES['fichier'];
 $fileExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
 
-// Si c'est déjà une image, la retourner en base64
-if (in_array($fileExt, ['jpg', 'jpeg', 'png'])) {
-    $imageData = base64_encode(file_get_contents($file['tmp_name']));
-    $mimeType = match($fileExt) {
-        'jpg', 'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        default => 'image/png'
-    };
+// Déterminer le type MIME
+$mimeType = match($fileExt) {
+    'jpg', 'jpeg' => 'image/jpeg',
+    'png' => 'image/png',
+    'pdf' => 'application/pdf',
+    default => null
+};
 
-    echo json_encode([
-        'success' => true,
-        'image' => "data:{$mimeType};base64,{$imageData}",
-        'mime_type' => $mimeType
-    ]);
+if (!$mimeType) {
+    echo json_encode(['success' => false, 'error' => 'Format non supporté (JPG, PNG, PDF uniquement)']);
     exit;
 }
 
-// Si c'est un PDF, le convertir
-if ($fileExt !== 'pdf') {
-    echo json_encode(['success' => false, 'error' => 'Format non supporté']);
+// Lire le fichier et encoder en base64
+$fileContent = file_get_contents($file['tmp_name']);
+if ($fileContent === false) {
+    echo json_encode(['success' => false, 'error' => 'Erreur lecture fichier']);
     exit;
 }
 
-// Vérifier Imagick
-if (!extension_loaded('imagick')) {
-    echo json_encode(['success' => false, 'error' => 'Extension Imagick non disponible']);
-    exit;
-}
+$base64Data = base64_encode($fileContent);
 
-try {
-    $imagick = new Imagick();
-    $imagick->setResolution(300, 300); // 300 DPI comme le formulaire simple
-    $imagick->readImage($file['tmp_name'] . '[0]'); // Première page
-    $imagick->setImageFormat('png');
-    $imagick->setImageCompressionQuality(95);
-
-    $imageData = base64_encode($imagick->getImageBlob());
-    $imagick->destroy();
-
-    echo json_encode([
-        'success' => true,
-        'image' => "data:image/png;base64,{$imageData}",
-        'mime_type' => 'image/png'
-    ]);
-
-} catch (Exception $e) {
-    echo json_encode([
-        'success' => false,
-        'error' => 'Erreur conversion PDF: ' . $e->getMessage()
-    ]);
-}
+echo json_encode([
+    'success' => true,
+    'image' => "data:{$mimeType};base64,{$base64Data}",
+    'mime_type' => $mimeType,
+    'is_pdf' => ($fileExt === 'pdf')
+]);

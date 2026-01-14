@@ -577,15 +577,19 @@ $returnLabel = $selectedProjet ? 'Projet' : 'Factures';
                          style="min-height: 300px; cursor: pointer; border-color: #6c757d !important; transition: all 0.3s;">
                         <div id="pasteInstructions">
                             <i class="bi bi-clipboard-plus display-1 text-muted"></i>
-                            <h5 class="mt-3 text-muted">Collez une image de facture ici</h5>
+                            <h5 class="mt-3 text-muted">Collez une facture ici</h5>
                             <p class="text-muted mb-0">
-                                <kbd>Ctrl</kbd> + <kbd>V</kbd> pour coller<br>
-                                <small>ou cliquez pour sélectionner un fichier</small>
+                                <kbd>Ctrl</kbd> + <kbd>V</kbd> pour coller une image<br>
+                                <small>ou cliquez pour sélectionner un fichier (image ou PDF)</small>
                             </p>
-                            <input type="file" id="fileInput" accept="image/*" class="d-none">
+                            <input type="file" id="fileInput" accept="image/*,.pdf" class="d-none">
                         </div>
                         <div id="pastePreview" class="d-none">
                             <img id="previewImage" src="" alt="Aperçu" class="img-fluid rounded mb-3" style="max-height: 250px;">
+                            <div id="pdfPreview" class="d-none text-center">
+                                <i class="bi bi-file-pdf text-danger display-1"></i>
+                                <p class="text-muted" id="pdfFileName"></p>
+                            </div>
                             <div id="analysisStatus"></div>
                         </div>
                     </div>
@@ -1100,22 +1104,41 @@ pasteZone.addEventListener('drop', function(e) {
     this.style.backgroundColor = '';
 
     const files = e.dataTransfer?.files;
-    if (files && files[0] && files[0].type.startsWith('image/')) {
-        handleImageFile(files[0]);
+    if (files && files[0]) {
+        const file = files[0];
+        // Accepter images et PDF
+        if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+            handleFile(file);
+        }
     }
 });
 
-function handleImageFile(file) {
+function handleFile(file) {
     const reader = new FileReader();
+    const isPdf = file.type === 'application/pdf';
+
     reader.onload = function(e) {
-        // Afficher l'aperçu
-        previewImage.src = e.target.result;
+        // Afficher l'aperçu selon le type
         pasteInstructions.classList.add('d-none');
         pastePreview.classList.remove('d-none');
         aiResult.classList.add('d-none');
         aiError.classList.add('d-none');
 
-        // Stocker l'image base64 pour l'attacher à la facture
+        const pdfPreview = document.getElementById('pdfPreview');
+
+        if (isPdf) {
+            // PDF: afficher icône
+            previewImage.classList.add('d-none');
+            pdfPreview.classList.remove('d-none');
+            document.getElementById('pdfFileName').textContent = file.name;
+        } else {
+            // Image: afficher aperçu
+            previewImage.classList.remove('d-none');
+            pdfPreview.classList.add('d-none');
+            previewImage.src = e.target.result;
+        }
+
+        // Stocker le fichier base64 pour l'attacher à la facture
         document.getElementById('imageBase64').value = e.target.result;
         document.getElementById('pastedImageInfo').classList.remove('d-none');
 
@@ -1123,6 +1146,11 @@ function handleImageFile(file) {
         analyzeImage(e.target.result, file.type);
     };
     reader.readAsDataURL(file);
+}
+
+// Alias pour compatibilité
+function handleImageFile(file) {
+    handleFile(file);
 }
 
 function clearPastedImage() {
