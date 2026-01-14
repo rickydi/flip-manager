@@ -404,7 +404,7 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 formData.append('fichier', item.file);
                 formData.append('projet_id', projetId);
 
-                const response = await fetch('/api/factures/upload-auto.php', {
+                const response = await fetch('<?= url('/api/factures/upload-auto.php') ?>', {
                     method: 'POST',
                     body: formData
                 });
