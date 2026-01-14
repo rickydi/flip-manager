@@ -12,6 +12,61 @@ require_once '../../includes/AIServiceFactory.php';
 
 header('Content-Type: application/json');
 
+/**
+ * Génère un lien vers le produit selon le fournisseur et le SKU
+ * Équivalent PHP de la fonction JavaScript generateProductLink()
+ */
+function generateProductLink($fournisseur, $sku) {
+    if (empty($sku)) return null;
+
+    $f = strtolower($fournisseur);
+    $skuClean = preg_replace('/\s/', '', $sku);
+
+    if (strpos($f, 'home depot') !== false) {
+        return "https://www.homedepot.ca/product/{$skuClean}";
+    } elseif (strpos($f, 'rona') !== false) {
+        return "https://www.rona.ca/fr/produit/{$skuClean}";
+    } elseif (strpos($f, 'réno') !== false || strpos($f, 'reno depot') !== false || strpos($f, 'renodepot') !== false) {
+        return "https://www.renodepot.com/fr/produit/{$skuClean}";
+    } elseif (strpos($f, 'bmr') !== false) {
+        return "https://www.bmr.co/fr/produit/{$skuClean}";
+    } elseif (strpos($f, 'canac') !== false) {
+        return "https://www.canac.ca/fr/produit/{$skuClean}";
+    } elseif (strpos($f, 'patrick morin') !== false) {
+        return "https://www.yourlink.ca/search?q={$skuClean}";
+    } elseif (strpos($f, 'canadian tire') !== false) {
+        return "https://www.canadiantire.ca/fr/search.html?q={$skuClean}";
+    } elseif (strpos($f, 'ikea') !== false) {
+        return "https://www.ikea.com/ca/fr/search/?q={$skuClean}";
+    } elseif (strpos($f, 'lowes') !== false || strpos($f, 'lowe\'s') !== false) {
+        return "https://www.lowes.ca/search?searchTerm={$skuClean}";
+    }
+
+    return null;
+}
+
+/**
+ * Génère une description formatée à partir des lignes d'articles
+ * Équivalent PHP de la fonction JavaScript updateDescriptionHidden()
+ */
+function generateDescription($lignes) {
+    if (empty($lignes)) return 'Facture importée automatiquement';
+
+    $lines = [];
+    foreach ($lignes as $ligne) {
+        $desc = $ligne['description'] ?? 'N/A';
+        $qte = $ligne['quantite'] ?? 1;
+        $total = number_format($ligne['total'] ?? 0, 2, '.', '');
+        $line = "{$desc} x{$qte} {$total}$";
+        if (!empty($ligne['etape_nom'])) {
+            $line .= " [{$ligne['etape_nom']}]";
+        }
+        $lines[] = $line;
+    }
+
+    return implode("\n", $lines);
+}
+
 // Vérifier authentification
 if (!isLoggedIn()) {
     http_response_code(401);
@@ -196,7 +251,8 @@ try {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'en_attente')
     ");
 
-    $description = 'Facture importée automatiquement';
+    // Générer la description à partir des lignes (comme le formulaire simple)
+    $description = generateDescription($aiResult['lignes'] ?? []);
     if ($aiResult) {
         $notes = 'Analysée par IA';
     } elseif ($pdfConversionError) {
@@ -251,6 +307,13 @@ try {
                 }
             }
 
+            // Générer le lien produit automatiquement (comme le formulaire simple)
+            $sku = $ligne['sku'] ?? $ligne['code_produit'] ?? null;
+            $link = $ligne['link'] ?? null;
+            if (empty($link) && !empty($sku) && !empty($fournisseur)) {
+                $link = generateProductLink($fournisseur, $sku);
+            }
+
             $stmtLigne->execute([
                 $factureId,
                 $ligne['description'] ?? '',
@@ -260,8 +323,8 @@ try {
                 $ligneEtapeId,
                 $etapeNom,
                 $ligne['raison'] ?? '',
-                $ligne['sku'] ?? $ligne['code_produit'] ?? null,
-                $ligne['link'] ?? null
+                $sku,
+                $link
             ]);
         }
     }
