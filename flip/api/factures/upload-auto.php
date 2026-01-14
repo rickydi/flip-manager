@@ -139,14 +139,16 @@ try {
 
     if ($fileExt === 'pdf') {
         // Pour les PDF, on utilise Imagick pour convertir la première page
+        // Résolution 300 DPI pour une meilleure qualité d'OCR (comme le formulaire simple)
         if (!extension_loaded('imagick')) {
             $pdfConversionError = 'Extension Imagick non disponible';
         } else {
             try {
                 $imagick = new Imagick();
-                $imagick->setResolution(150, 150);
+                $imagick->setResolution(300, 300); // 300 DPI pour qualité OCR optimale
                 $imagick->readImage($filePath . '[0]'); // Première page
                 $imagick->setImageFormat('png');
+                $imagick->setImageCompressionQuality(95); // Haute qualité
                 $imageData = base64_encode($imagick->getImageBlob());
                 $imagick->destroy();
                 $mimeType = 'image/png';
