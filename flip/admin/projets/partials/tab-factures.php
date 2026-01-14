@@ -160,14 +160,16 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Drop Zone -->
-                <div id="multiDropZone" class="border border-2 border-dashed rounded p-5 text-center mb-3"
-                     style="border-color: #6c757d !important; transition: all 0.3s; cursor: pointer;">
-                    <i class="bi bi-cloud-arrow-up display-3 text-muted mb-3 d-block"></i>
-                    <p class="mb-1">Glissez-déposez vos factures ici</p>
-                    <p class="text-muted small mb-3">ou cliquez pour sélectionner</p>
-                    <p class="text-muted small mb-0">Formats acceptés: PDF, JPG, PNG (max 5 MB chacun)</p>
-                    <input type="file" id="multiFileInput" multiple accept=".pdf,.jpg,.jpeg,.png" class="d-none">
+                <!-- Drop Zone avec animation porte de garage -->
+                <div id="multiDropZoneWrapper" style="max-height: 300px; overflow: hidden; transition: max-height 0.4s ease-in-out, margin-bottom 0.4s ease-in-out, opacity 0.3s ease-in-out; margin-bottom: 1rem; opacity: 1;">
+                    <div id="multiDropZone" class="border border-2 border-dashed rounded p-5 text-center"
+                         style="border-color: #6c757d !important; transition: border-color 0.3s, background 0.3s; cursor: pointer;">
+                        <i class="bi bi-cloud-arrow-up display-3 text-muted mb-3 d-block"></i>
+                        <p class="mb-1">Glissez-déposez vos factures ici</p>
+                        <p class="text-muted small mb-3">ou cliquez pour sélectionner</p>
+                        <p class="text-muted small mb-0">Formats acceptés: PDF, JPG, PNG (max 5 MB chacun)</p>
+                        <input type="file" id="multiFileInput" multiple accept=".pdf,.jpg,.jpeg,.png" class="d-none">
+                    </div>
                 </div>
 
                 <!-- Liste des fichiers -->
@@ -243,6 +245,7 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
 (function() {
     const projetId = <?= (int)$projetId ?>;
     const dropZone = document.getElementById('multiDropZone');
+    const dropZoneWrapper = document.getElementById('multiDropZoneWrapper');
     const fileInput = document.getElementById('multiFileInput');
     const filesList = document.getElementById('multiFilesList');
     const filesContainer = document.getElementById('filesContainer');
@@ -540,8 +543,10 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
         isProcessing = true;
         startBtn.disabled = true;
 
-        // Cacher la zone de drop pour laisser plus de place
-        dropZone.style.display = 'none';
+        // Animation porte de garage - fermeture smooth
+        dropZoneWrapper.style.maxHeight = '0';
+        dropZoneWrapper.style.marginBottom = '0';
+        dropZoneWrapper.style.opacity = '0';
 
         progressSection.style.display = 'block';
         resultSection.style.display = 'none';
@@ -615,7 +620,10 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
             updateFilesList();
             progressSection.style.display = 'none';
             resultSection.style.display = 'none';
-            dropZone.style.display = 'block'; // Réafficher la dropzone
+            // Réouvrir la dropzone avec animation
+            dropZoneWrapper.style.maxHeight = '300px';
+            dropZoneWrapper.style.marginBottom = '1rem';
+            dropZoneWrapper.style.opacity = '1';
             startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Démarrer le traitement';
             startBtn.onclick = () => { if (filesToProcess.length > 0 && !isProcessing) processQueue(); };
         }
