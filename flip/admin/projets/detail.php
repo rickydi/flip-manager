@@ -4481,6 +4481,42 @@ document.querySelectorAll('.change-facture-status').forEach(link => {
 });
 
 // ===== ÉDITION DES HEURES =====
+// Stockage temporaire des données pour le modal d'édition
+var editHeuresData = null;
+
+// Gestionnaire pour remplir les champs APRÈS ouverture complète du modal
+document.getElementById('modalEditHeures')?.addEventListener('shown.bs.modal', function() {
+    if (!editHeuresData) return;
+
+    const { heuresId, userId, heures, taux, dateVal, statut, description } = editHeuresData;
+    const selectUser = document.getElementById('edit_heures_user');
+
+    // Remplir les champs
+    document.getElementById('edit_heures_id').value = heuresId;
+    document.getElementById('edit_heures_nombre').value = heures;
+    document.getElementById('edit_heures_taux').value = taux;
+    document.getElementById('edit_heures_date').value = dateVal;
+    document.getElementById('edit_heures_statut').value = statut;
+    document.getElementById('edit_heures_description').value = description;
+
+    // Sélectionner l'employé
+    if (selectUser && userId) {
+        let found = false;
+        for (let i = 0; i < selectUser.options.length; i++) {
+            if (selectUser.options[i].value == userId) {
+                selectUser.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            selectUser.selectedIndex = 0;
+        }
+    }
+
+    console.log('Edit heures - champs remplis après ouverture modal, date:', dateVal);
+});
+
 // Utiliser la délégation d'événements pour être plus robuste
 document.body.addEventListener('click', function(e) {
     const btn = e.target.closest('.btn-edit-heures');
@@ -4488,49 +4524,20 @@ document.body.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        // Récupérer les valeurs depuis les attributs data-*
-        const heuresId = btn.getAttribute('data-id') || '';
-        const userId = btn.getAttribute('data-user') || '';
-        const heures = btn.getAttribute('data-heures') || '';
-        const taux = btn.getAttribute('data-taux') || '';
-        const dateVal = btn.getAttribute('data-date') || '';
-        const statut = btn.getAttribute('data-statut') || 'approuvee';
-        const description = btn.getAttribute('data-description') || '';
+        // Récupérer et stocker les valeurs depuis les attributs data-*
+        editHeuresData = {
+            heuresId: btn.getAttribute('data-id') || '',
+            userId: btn.getAttribute('data-user') || '',
+            heures: btn.getAttribute('data-heures') || '',
+            taux: btn.getAttribute('data-taux') || '',
+            dateVal: btn.getAttribute('data-date') || '',
+            statut: btn.getAttribute('data-statut') || 'approuvee',
+            description: btn.getAttribute('data-description') || ''
+        };
 
-        // Debug
-        console.log('Edit heures - date:', dateVal, 'id:', heuresId, 'userId:', userId);
+        console.log('Edit heures - données stockées, date:', editHeuresData.dateVal);
 
         const modalEl = document.getElementById('modalEditHeures');
-        const selectUser = document.getElementById('edit_heures_user');
-
-        // Remplir les champs AVANT d'ouvrir le modal
-        document.getElementById('edit_heures_id').value = heuresId;
-
-        // Sélectionner l'employé - utiliser une méthode robuste
-        if (selectUser && userId) {
-            // Parcourir les options pour trouver celle avec la bonne valeur
-            let found = false;
-            for (let i = 0; i < selectUser.options.length; i++) {
-                if (selectUser.options[i].value == userId) {
-                    selectUser.selectedIndex = i;
-                    found = true;
-                    console.log('Edit heures - employé trouvé à l\'index:', i);
-                    break;
-                }
-            }
-            if (!found) {
-                console.log('Edit heures - employé non trouvé dans la liste, userId:', userId);
-                selectUser.selectedIndex = 0; // Reset à "Sélectionner..."
-            }
-        }
-
-        document.getElementById('edit_heures_nombre').value = heures;
-        document.getElementById('edit_heures_taux').value = taux;
-        document.getElementById('edit_heures_date').value = dateVal;
-        document.getElementById('edit_heures_statut').value = statut;
-        document.getElementById('edit_heures_description').value = description;
-
-        // Utiliser getOrCreateInstance pour éviter les conflits
         const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
         modal.show();
     }
