@@ -180,7 +180,8 @@ $totalImpaye = $stmtImpaye->fetchColumn();
 // Récupérer les factures
 $sql = "
     SELECT f.*, p.nom as projet_nom, e.nom as etape_nom,
-           CONCAT(u.prenom, ' ', u.nom) as employe_nom
+           CONCAT(u.prenom, ' ', u.nom) as employe_nom,
+           (SELECT COUNT(*) FROM facture_lignes fl WHERE fl.facture_id = f.id) as nb_articles_ia
     FROM factures f
     JOIN projets p ON f.projet_id = p.id
     LEFT JOIN budget_etapes e ON f.etape_id = e.id
@@ -339,6 +340,7 @@ include '../../includes/header.php';
                         <thead>
                             <tr>
                                 <th style="width:50px"></th>
+                                <th style="width:30px" class="text-center" title="Articles détectés par IA"><i class="bi bi-robot text-muted"></i></th>
                                 <th>Date</th>
                                 <th>Projet</th>
                                 <th>Fournisseur</th>
@@ -370,6 +372,11 @@ include '../../includes/header.php';
                                             </a>
                                         <?php else: ?>
                                             <span class="text-muted"><i class="bi bi-image" style="font-size:1.2rem"></i></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-center">
+                                        <?php if ($facture['nb_articles_ia'] > 0): ?>
+                                            <i class="bi bi-check-circle-fill text-success" title="<?= $facture['nb_articles_ia'] ?> article(s) détecté(s) par IA"></i>
                                         <?php endif; ?>
                                     </td>
                                     <td><?= formatDate($facture['date_facture']) ?></td>
