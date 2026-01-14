@@ -393,8 +393,12 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
 
             const errorMsg = item.status === 'error' ? `<div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>${item.error}</div>` : '';
 
+            // Ajouter un attribut data-index pour l'auto-scroll
+            const isCurrentItem = item.status === 'processing' ||
+                                  (item.status === 'success' && filesToProcess.slice(index + 1).every(f => f.status === 'pending'));
+
             return `
-                <div class="p-2 border-bottom" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : item.status === 'error' ? 'rgba(220,53,69,0.1)' : item.status === 'success' ? 'rgba(25,135,84,0.05)' : 'transparent'}">
+                <div class="p-2 border-bottom multi-file-item" data-index="${index}" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : item.status === 'error' ? 'rgba(220,53,69,0.1)' : item.status === 'success' ? 'rgba(25,135,84,0.05)' : 'transparent'}">
                     <div class="d-flex align-items-center">
                         <i class="bi ${icon} me-2 fs-5"></i>
                         <div class="flex-grow-1">
@@ -413,6 +417,29 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 </div>
             `;
         }).join('');
+
+        // Auto-scroll vers le fichier en cours de traitement ou le dernier traité
+        setTimeout(() => {
+            // Trouver l'index du fichier en cours de traitement ou le dernier traité
+            let targetIndex = -1;
+
+            for (let i = 0; i < filesToProcess.length; i++) {
+                if (filesToProcess[i].status === 'processing') {
+                    targetIndex = i;
+                    break;
+                }
+                if (filesToProcess[i].status === 'success' || filesToProcess[i].status === 'error') {
+                    targetIndex = i; // Garde le dernier traité
+                }
+            }
+
+            if (targetIndex >= 0) {
+                const targetItem = filesContainer.querySelector(`.multi-file-item[data-index="${targetIndex}"]`);
+                if (targetItem) {
+                    targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }, 50);
     }
 
     window.removeMultiFile = function(index) {
