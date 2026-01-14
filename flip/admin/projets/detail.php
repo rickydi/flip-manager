@@ -4498,13 +4498,32 @@ document.body.addEventListener('click', function(e) {
         const description = btn.getAttribute('data-description') || '';
 
         // Debug
-        console.log('Edit heures - date:', dateVal, 'id:', heuresId);
+        console.log('Edit heures - date:', dateVal, 'id:', heuresId, 'userId:', userId);
 
         const modalEl = document.getElementById('modalEditHeures');
+        const selectUser = document.getElementById('edit_heures_user');
 
         // Remplir les champs AVANT d'ouvrir le modal
         document.getElementById('edit_heures_id').value = heuresId;
-        document.getElementById('edit_heures_user').value = userId;
+
+        // Sélectionner l'employé - utiliser une méthode robuste
+        if (selectUser && userId) {
+            // Parcourir les options pour trouver celle avec la bonne valeur
+            let found = false;
+            for (let i = 0; i < selectUser.options.length; i++) {
+                if (selectUser.options[i].value == userId) {
+                    selectUser.selectedIndex = i;
+                    found = true;
+                    console.log('Edit heures - employé trouvé à l\'index:', i);
+                    break;
+                }
+            }
+            if (!found) {
+                console.log('Edit heures - employé non trouvé dans la liste, userId:', userId);
+                selectUser.selectedIndex = 0; // Reset à "Sélectionner..."
+            }
+        }
+
         document.getElementById('edit_heures_nombre').value = heures;
         document.getElementById('edit_heures_taux').value = taux;
         document.getElementById('edit_heures_date').value = dateVal;
