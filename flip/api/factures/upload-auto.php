@@ -80,20 +80,25 @@ try {
     // 2. Préparer l'image pour l'analyse AI
     $imageData = null;
     $mimeType = 'image/png';
+    $pdfConversionError = null;
 
     if ($fileExt === 'pdf') {
         // Pour les PDF, on utilise Imagick pour convertir la première page
         if (!extension_loaded('imagick')) {
-            // Si Imagick n'est pas dispo, on saute l'analyse AI
-            $imageData = null;
+            $pdfConversionError = 'Extension Imagick non disponible';
         } else {
-            $imagick = new Imagick();
-            $imagick->setResolution(150, 150);
-            $imagick->readImage($filePath . '[0]'); // Première page
-            $imagick->setImageFormat('png');
-            $imageData = base64_encode($imagick->getImageBlob());
-            $imagick->destroy();
-            $mimeType = 'image/png';
+            try {
+                $imagick = new Imagick();
+                $imagick->setResolution(150, 150);
+                $imagick->readImage($filePath . '[0]'); // Première page
+                $imagick->setImageFormat('png');
+                $imageData = base64_encode($imagick->getImageBlob());
+                $imagick->destroy();
+                $mimeType = 'image/png';
+            } catch (Exception $e) {
+                $pdfConversionError = $e->getMessage();
+                error_log("Conversion PDF échouée pour {$fileName}: " . $e->getMessage());
+            }
         }
     } else {
         // Image directe
@@ -107,17 +112,23 @@ try {
 
     // 3. Analyser avec l'IA
     $aiResult = null;
+    $aiError = null;
     if ($imageData) {
         try {
             // Récupérer les étapes du budget-builder
             $etapes = [];
-            $stmt = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
-            $etapes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            try {
+                $stmt = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
+                $etapes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (Exception $e) {
+                // Table n'existe pas
+            }
 
             $aiService = AIServiceFactory::create($pdo);
             $aiResult = $aiService->analyserFactureDetails($imageData, $mimeType, $etapes, null);
         } catch (Exception $e) {
             // L'analyse AI a échoué, on continue sans
+            $aiError = $e->getMessage();
             error_log("Analyse AI échouée pour {$fileName}: " . $e->getMessage());
         }
     }
@@ -144,9 +155,13 @@ try {
     // 5. Déterminer l'étape principale
     $etapeId = null;
     $etapesMap = [];
-    $stmtEtapes = $pdo->query("SELECT id, nom FROM budget_etapes");
-    while ($row = $stmtEtapes->fetch()) {
-        $etapesMap[strtolower(trim($row['nom']))] = $row['id'];
+    try {
+        $stmtEtapes = $pdo->query("SELECT id, nom FROM budget_etapes");
+        while ($row = $stmtEtapes->fetch()) {
+            $etapesMap[strtolower(trim($row['nom']))] = $row['id'];
+        }
+    } catch (Exception $e) {
+        // Table budget_etapes n'existe pas, on continue sans
     }
 
     if (!empty($aiResult['totaux_par_etape'])) {
@@ -182,7 +197,15 @@ try {
     ");
 
     $description = 'Facture importée automatiquement';
-    $notes = $aiResult ? 'Analysée par IA' : 'Import sans analyse IA';
+    if ($aiResult) {
+        $notes = 'Analysée par IA';
+    } elseif ($pdfConversionError) {
+        $notes = 'PDF - conversion image impossible';
+    } elseif ($aiError) {
+        $notes = 'Erreur analyse IA';
+    } else {
+        $notes = 'Import sans analyse IA';
+    }
 
     $success = $stmt->execute([
         $projetId,
@@ -253,7 +276,9 @@ try {
             'montant_total' => $montantTotal,
             'etape_nom' => $aiResult['totaux_par_etape'][0]['etape_nom'] ?? null,
             'nb_lignes' => count($aiResult['lignes'] ?? []),
-            'ai_analyzed' => $aiResult !== null
+            'ai_analyzed' => $aiResult !== null,
+            'pdf_error' => $pdfConversionError,
+            'ai_error' => $aiError
         ]
     ]);
 

@@ -353,13 +353,16 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 ? `<button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeMultiFile(${index})"><i class="bi bi-x"></i></button>`
                 : '';
 
+            const errorMsg = item.status === 'error' ? `<div class="text-danger small text-truncate" style="max-width: 300px;" title="${item.error}">${item.error}</div>` : '';
+
             return `
-                <div class="d-flex align-items-center p-2 border-bottom" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : 'transparent'}">
+                <div class="d-flex align-items-center p-2 border-bottom" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : item.status === 'error' ? 'rgba(220,53,69,0.1)' : 'transparent'}">
                     <i class="bi ${icon} me-2"></i>
                     <div class="flex-grow-1">
                         <div class="text-truncate" style="max-width: 300px;" title="${item.file.name}">${item.file.name}</div>
                         <small class="text-muted">${size}</small>
                         ${item.result?.data?.montant_total ? `<small class="text-success ms-2">${formatMoney(item.result.data.montant_total)}</small>` : ''}
+                        ${errorMsg}
                     </div>
                     <div class="ms-auto d-flex align-items-center">
                         ${statusBadge}
