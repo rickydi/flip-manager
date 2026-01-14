@@ -241,15 +241,16 @@ include '../../includes/header.php';
                                                 <i class="bi bi-building"></i>
                                             </div>
                                         <?php endif; ?>
-                                        <!-- Badge statut sur la photo -->
+                                    </div>
+
+                                    <!-- Titre avec badge statut à droite -->
+                                    <div class="projet-card-title-row">
+                                        <div class="projet-card-title">
+                                            <?= e($projet['nom']) ?>
+                                        </div>
                                         <span class="projet-card-badge <?= getStatutProjetClass($projet['statut']) ?>">
                                             <?= getStatutProjetLabel($projet['statut']) ?>
                                         </span>
-                                    </div>
-
-                                    <!-- Titre -->
-                                    <div class="projet-card-title">
-                                        <?= e($projet['nom']) ?>
                                     </div>
 
                                     <!-- Informations -->
@@ -335,26 +336,33 @@ include '../../includes/header.php';
     color: #495057;
 }
 
+.projet-card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 15px 8px;
+}
+
 .projet-card-badge {
-    position: absolute;
-    top: 10px;
-    right: 10px;
     padding: 4px 10px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 600;
     border-radius: 20px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .projet-card-title {
-    padding: 12px 15px 8px;
     font-weight: 600;
     font-size: 1rem;
     color: #fff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .projet-card-info {
