@@ -444,10 +444,11 @@ $returnLabel = $selectedProjet ? 'Projet' : 'Factures';
                             <table class="table table-sm table-hover mb-0" id="articlesTable">
                                 <thead class="table-light">
                                     <tr>
-                                        <th style="width: 40%;">Produit</th>
-                                        <th class="text-center" style="width: 8%;">Qté</th>
-                                        <th class="text-end" style="width: 12%;">Prix</th>
-                                        <th style="width: 25%;">Étape</th>
+                                        <th style="width: 35%;">Produit</th>
+                                        <th class="text-center" style="width: 6%;">Qté</th>
+                                        <th class="text-end" style="width: 10%;">Prix Unit.</th>
+                                        <th class="text-end" style="width: 10%;">Total</th>
+                                        <th style="width: 24%;">Étape</th>
                                         <th class="text-center" style="width: 15%;">Actions</th>
                                     </tr>
                                 </thead>
@@ -1328,7 +1329,15 @@ function renderArticlesTable(articles) {
     articles.forEach((article, idx) => {
         const desc = article.description || 'N/A';
         const qty = article.quantite || 1;
-        const prix = (article.total || 0).toFixed(2);
+        // Prix unitaire: utiliser prix_unitaire si disponible, sinon calculer depuis total/qty
+        const prixUnit = article.prix_unitaire ? parseFloat(article.prix_unitaire) :
+                         (article.total ? parseFloat(article.total) / qty : 0);
+        const total = article.total ? parseFloat(article.total) : (prixUnit * qty);
+
+        // S'assurer que les données sont bien stockées
+        article.prix_unitaire = prixUnit;
+        article.total = total;
+
         const etapeId = article.etape_id || '';
         const etapeNom = article.etape_nom || '';
         const sku = article.sku || article.code_produit || '';
@@ -1347,15 +1356,18 @@ function renderArticlesTable(articles) {
                 <small class="d-block" style="word-wrap: break-word;">${desc}</small>
                 ${sku ? `<span class="badge bg-light text-muted" style="font-size: 0.65rem;">${sku}</span>` : ''}
             </td>
-            <td class="text-center" style="width: 70px;">
+            <td class="text-center" style="width: 60px;">
                 <input type="number" class="form-control form-control-sm text-center"
-                    value="${qty}" min="0.01" step="0.01" style="width: 60px;"
+                    value="${qty}" min="0.01" step="0.01" style="width: 55px;"
                     onchange="updateArticleQty(${idx}, this.value)">
             </td>
-            <td class="text-end" style="width: 90px;">
+            <td class="text-end" style="width: 85px;">
                 <input type="number" class="form-control form-control-sm text-end"
-                    value="${prix}" min="0" step="0.01" style="width: 80px;"
-                    onchange="updateArticlePrix(${idx}, this.value)">
+                    value="${prixUnit.toFixed(2)}" min="0" step="0.01" style="width: 75px;"
+                    onchange="updateArticlePrixUnit(${idx}, this.value)">
+            </td>
+            <td class="text-end text-muted" style="width: 85px;">
+                <span class="article-total">${total.toFixed(2)} $</span>
             </td>
             <td>
                 <select class="form-select form-select-sm etape-select" onchange="updateArticleEtape(${idx}, this.value)">
@@ -1381,17 +1393,51 @@ function renderArticlesTable(articles) {
     validateTotalArticles();
 }
 
-// Mettre à jour la quantité d'un article
+// Mettre à jour la quantité d'un article (recalcule le total)
 function updateArticleQty(idx, value) {
     if (currentArticlesData[idx]) {
-        currentArticlesData[idx].quantite = parseFloat(value) || 1;
+        const qty = parseFloat(value) || 1;
+        currentArticlesData[idx].quantite = qty;
+        // Recalculer le total basé sur le prix unitaire
+        const prixUnit = currentArticlesData[idx].prix_unitaire || 0;
+        currentArticlesData[idx].total = prixUnit * qty;
+        // Mettre à jour l'affichage du total
+        const row = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1})`);
+        if (row) {
+            const totalSpan = row.querySelector('.article-total');
+            if (totalSpan) {
+                totalSpan.textContent = currentArticlesData[idx].total.toFixed(2) + ' $';
+            }
+        }
         updateDescriptionHidden();
         updateBreakdownData();
         validateTotalArticles();
     }
 }
 
-// Mettre à jour le prix d'un article
+// Mettre à jour le prix unitaire d'un article (recalcule le total)
+function updateArticlePrixUnit(idx, value) {
+    if (currentArticlesData[idx]) {
+        const prixUnit = parseFloat(value) || 0;
+        currentArticlesData[idx].prix_unitaire = prixUnit;
+        // Recalculer le total
+        const qty = currentArticlesData[idx].quantite || 1;
+        currentArticlesData[idx].total = prixUnit * qty;
+        // Mettre à jour l'affichage du total
+        const row = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1})`);
+        if (row) {
+            const totalSpan = row.querySelector('.article-total');
+            if (totalSpan) {
+                totalSpan.textContent = currentArticlesData[idx].total.toFixed(2) + ' $';
+            }
+        }
+        updateDescriptionHidden();
+        updateBreakdownData();
+        validateTotalArticles();
+    }
+}
+
+// Mettre à jour le prix d'un article (legacy - pour compatibilité)
 function updateArticlePrix(idx, value) {
     if (currentArticlesData[idx]) {
         currentArticlesData[idx].total = parseFloat(value) || 0;
@@ -1493,7 +1539,8 @@ async function addToBudget(idx) {
     logItemSearch('=== AJOUT AU CATALOGUE ===');
     logItemSearch(`Article: ${article.description}`);
     logItemSearch(`SKU: ${article.sku || 'N/A'}`);
-    logItemSearch(`Prix: ${article.total}$`);
+    logItemSearch(`Prix unitaire: ${article.prix_unitaire || 0}$`);
+    logItemSearch(`Prix total: ${article.total || 0}$ (qté: ${article.quantite || 1})`);
     logItemSearch(`Lien: ${article.link || 'Aucun'}`);
 
     const btn = document.querySelector(`#articlesTableBody tr:nth-child(${idx + 1}) .btn-outline-success`);
@@ -1534,10 +1581,10 @@ async function addToBudget(idx) {
         logItemSearch('Pas de lien produit - pas de recherche d\'image');
     }
 
-    // Données à envoyer
+    // Données à envoyer (IMPORTANT: utiliser prix_unitaire, pas total)
     const data = {
         nom: article.description,
-        prix: article.total || 0,
+        prix: article.prix_unitaire || 0,
         fournisseur: fournisseur,
         etape_id: article.etape_id || null,
         sku: article.sku || article.code_produit || '',
