@@ -1020,6 +1020,117 @@ class ClaudeService {
     }
 
     /**
+     * Compare sémantiquement un nouveau produit avec les items existants du catalogue
+     * Détecte si des noms différents font référence au même produit (ex: "vis gypse" vs "gypse vis")
+     *
+     * @param string $newItemName Nom du nouveau produit à vérifier
+     * @param array $catalogueItems Liste des items existants [['id' => x, 'nom' => '...', ...], ...]
+     * @param string|null $fournisseur Fournisseur (optionnel, pour contexte)
+     * @return array ['matches' => [['id' => x, 'nom' => '...', 'score' => 95, 'reason' => '...'], ...]]
+     */
+    public function findSemanticDuplicates($newItemName, $catalogueItems, $fournisseur = null) {
+        if (empty($this->apiKey)) {
+            return ['matches' => [], 'error' => 'API non configurée'];
+        }
+
+        if (empty($catalogueItems)) {
+            return ['matches' => []];
+        }
+
+        // Limiter à 30 items max pour ne pas surcharger le prompt
+        $itemsToCheck = array_slice($catalogueItems, 0, 30);
+
+        // Construire la liste des items du catalogue
+        $catalogueListe = "";
+        foreach ($itemsToCheck as $idx => $item) {
+            $catalogueListe .= sprintf("%d. [ID:%s] %s\n", $idx + 1, $item['id'], $item['nom']);
+        }
+
+        $systemPrompt = "Tu es un expert en matériaux de construction et quincaillerie au Québec. " .
+                       "Tu dois identifier si un nouveau produit correspond à un produit existant dans le catalogue, " .
+                       "même si les noms sont formulés différemment. " .
+                       "Par exemple: 'vis à gypse' = 'gypse vis' = 'vis gypse 1-1/4' = même type de produit. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        $fournisseurContext = $fournisseur ? "Fournisseur: {$fournisseur}\n" : "";
+
+        $userMessage = "NOUVEAU PRODUIT À VÉRIFIER:\n" .
+                      "\"{$newItemName}\"\n" .
+                      "{$fournisseurContext}\n" .
+                      "CATALOGUE EXISTANT:\n{$catalogueListe}\n\n" .
+                      "TÂCHE: Trouve les produits du catalogue qui sont SÉMANTIQUEMENT ÉQUIVALENTS au nouveau produit.\n" .
+                      "- Même si les mots sont dans un ordre différent (vis gypse vs gypse vis)\n" .
+                      "- Même si un a plus de détails que l'autre (vis gypse vs vis à gypse 1-1/4 pouces)\n" .
+                      "- Même si les abréviations diffèrent (2x4 vs 2\"x4\" vs bois 2x4)\n\n" .
+                      "RETOURNE un JSON avec:\n" .
+                      "{\n" .
+                      "  \"matches\": [\n" .
+                      "    {\n" .
+                      "      \"id\": \"ID du produit correspondant\",\n" .
+                      "      \"nom\": \"Nom exact du produit\",\n" .
+                      "      \"score\": 95,  // 0-100, confiance que c'est le même produit\n" .
+                      "      \"reason\": \"Explication courte de pourquoi c'est le même\"\n" .
+                      "    }\n" .
+                      "  ]\n" .
+                      "}\n\n" .
+                      "- Ne retourne que les produits avec score >= 70\n" .
+                      "- Si aucune correspondance, retourne {\"matches\": []}\n" .
+                      "- Maximum 5 correspondances";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 1024,
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $userMessage
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+
+            // Valider et enrichir les résultats
+            $matches = [];
+            if (isset($result['matches']) && is_array($result['matches'])) {
+                foreach ($result['matches'] as $match) {
+                    // Retrouver l'item complet du catalogue
+                    $fullItem = null;
+                    foreach ($itemsToCheck as $item) {
+                        if ((string)$item['id'] === (string)$match['id']) {
+                            $fullItem = $item;
+                            break;
+                        }
+                    }
+
+                    if ($fullItem) {
+                        $matches[] = [
+                            'id' => $fullItem['id'],
+                            'nom' => $fullItem['nom'],
+                            'prix' => $fullItem['prix'] ?? null,
+                            'fournisseur' => $fullItem['fournisseur'] ?? null,
+                            'sku' => $fullItem['sku'] ?? null,
+                            'image' => $fullItem['image'] ?? null,
+                            'match_type' => 'semantic_ai',
+                            'match_score' => (int)($match['score'] ?? 70),
+                            'reason' => $match['reason'] ?? 'Correspondance sémantique détectée par IA'
+                        ];
+                    }
+                }
+            }
+
+            return ['matches' => $matches];
+
+        } catch (Exception $e) {
+            error_log("Semantic duplicate check error: " . $e->getMessage());
+            return ['matches' => [], 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Appel API simplifié pour extraction de prix
      */
     private function callApiSimple($payload) {

@@ -2,11 +2,14 @@
 /**
  * API: Rechercher des articles similaires dans le catalogue
  * Avant d'ajouter un nouvel item, on vérifie s'il existe déjà quelque chose de similaire
+ *
+ * NOUVEAU: Utilise l'IA pour la comparaison sémantique (ex: "vis gypse" = "gypse vis")
  */
 
 require_once '../config.php';
 require_once '../includes/auth.php';
 require_once '../includes/functions.php';
+require_once '../includes/ClaudeService.php';
 
 header('Content-Type: application/json');
 
@@ -153,6 +156,79 @@ try {
         return $b['match_score'] - $a['match_score'];
     });
 
+    // NOUVEAU: Si pas de bons résultats (score < 60), utiliser l'IA sémantique
+    $useAI = !isset($_GET['use_ai']) || $_GET['use_ai'] !== '0'; // Activé par défaut
+    $bestScore = !empty($similar) ? $similar[0]['match_score'] : 0;
+
+    if ($useAI && !empty($nom) && $bestScore < 60) {
+        try {
+            // Récupérer plus d'items du catalogue pour la comparaison IA
+            // On prend les items qui ont au moins un mot en commun
+            $searchWords = array_filter(preg_split('/\s+/', strtolower($nom)), function($w) {
+                return strlen($w) > 2;
+            });
+
+            if (!empty($searchWords)) {
+                // Construire une requête plus large pour avoir des candidats
+                $orConditions = [];
+                $aiParams = [];
+                foreach ($searchWords as $word) {
+                    $orConditions[] = "LOWER(nom) LIKE ?";
+                    $aiParams[] = '%' . $word . '%';
+                }
+
+                $aiSql = "
+                    SELECT id, nom, prix, fournisseur, sku, lien_achat, image
+                    FROM catalogue_items
+                    WHERE type = 'item'
+                    AND actif = 1
+                    AND (" . implode(' OR ', $orConditions) . ")
+                    LIMIT 30
+                ";
+
+                $aiStmt = $pdo->prepare($aiSql);
+                $aiStmt->execute($aiParams);
+                $catalogueItems = $aiStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                if (!empty($catalogueItems)) {
+                    $claudeService = new ClaudeService($pdo);
+                    $semanticResult = $claudeService->findSemanticDuplicates($nom, $catalogueItems, $fournisseur);
+
+                    if (!empty($semanticResult['matches'])) {
+                        // Ajouter les correspondances IA (éviter doublons)
+                        foreach ($semanticResult['matches'] as $aiMatch) {
+                            $alreadyFound = false;
+                            foreach ($similar as $existing) {
+                                if ($existing['id'] === $aiMatch['id']) {
+                                    $alreadyFound = true;
+                                    // Mettre à jour le score si l'IA donne un meilleur score
+                                    if ($aiMatch['match_score'] > $existing['match_score']) {
+                                        $existing['match_score'] = $aiMatch['match_score'];
+                                        $existing['match_type'] = 'semantic_ai';
+                                        $existing['reason'] = $aiMatch['reason'];
+                                    }
+                                    break;
+                                }
+                            }
+
+                            if (!$alreadyFound) {
+                                $similar[] = $aiMatch;
+                            }
+                        }
+
+                        // Re-trier après ajout IA
+                        usort($similar, function($a, $b) {
+                            return $b['match_score'] - $a['match_score'];
+                        });
+                    }
+                }
+            }
+        } catch (Exception $aiError) {
+            // Log l'erreur mais ne pas bloquer la réponse
+            error_log("Semantic search error: " . $aiError->getMessage());
+        }
+    }
+
     // Limiter à 5 résultats
     $similar = array_slice($similar, 0, 5);
 
@@ -163,7 +239,8 @@ try {
             'nom' => $nom,
             'sku' => $sku,
             'fournisseur' => $fournisseur
-        ]
+        ],
+        'ai_used' => $useAI && $bestScore < 60
     ]);
 
 } catch (Exception $e) {

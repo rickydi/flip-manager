@@ -1722,17 +1722,27 @@ function showSimilarItemsModal(article, similarItems, idx, btn, fournisseur) {
     listContainer.innerHTML = '';
 
     similarItems.forEach(item => {
-        const matchBadge = item.match_type === 'sku_exact'
-            ? '<span class="badge bg-danger">SKU identique</span>'
-            : item.match_type === 'fournisseur_match'
-            ? '<span class="badge bg-warning text-dark">Même fournisseur</span>'
-            : '<span class="badge bg-info">Nom similaire</span>';
+        let matchBadge;
+        if (item.match_type === 'sku_exact') {
+            matchBadge = '<span class="badge bg-danger">SKU identique</span>';
+        } else if (item.match_type === 'fournisseur_match') {
+            matchBadge = '<span class="badge bg-warning text-dark">Même fournisseur</span>';
+        } else if (item.match_type === 'semantic_ai') {
+            matchBadge = '<span class="badge bg-purple" style="background-color: #6f42c1 !important;"><i class="bi bi-robot me-1"></i>IA sémantique</span>';
+        } else {
+            matchBadge = '<span class="badge bg-info">Nom similaire</span>';
+        }
 
         const scoreColor = item.match_score >= 80 ? 'danger' : item.match_score >= 50 ? 'warning' : 'info';
 
         const imageHtml = item.image
             ? `<img src="${item.image}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">`
             : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="bi bi-box text-muted"></i></div>`;
+
+        // Afficher la raison de l'IA si disponible
+        const reasonHtml = item.reason
+            ? `<small class="text-muted d-block fst-italic mt-1"><i class="bi bi-info-circle me-1"></i>${item.reason}</small>`
+            : '';
 
         const itemHtml = `
             <div class="card mb-2">
@@ -1751,6 +1761,7 @@ function showSimilarItemsModal(article, similarItems, idx, btn, fournisseur) {
                             ${item.sku ? ` <i class="bi bi-upc ms-2 me-1"></i>${item.sku}` : ''}
                             ${item.prix ? ` <i class="bi bi-currency-dollar ms-2 me-1"></i>${parseFloat(item.prix).toFixed(2)}$` : ''}
                         </small>
+                        ${reasonHtml}
                     </div>
                 </div>
             </div>
