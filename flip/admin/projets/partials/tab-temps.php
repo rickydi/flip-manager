@@ -59,17 +59,19 @@
                 <strong class="text-danger"><?= formatMoney($totalAvancesActives) ?></strong>
             </div>
             <?php endif; ?>
+            <?php if ($joursTotaux > 0): ?>
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,202,240,0.15);">
+                <i class="bi bi-calendar-week text-info me-2"></i>
+                <span class="text-muted me-1">Jours:</span>
+                <strong class="text-info"><?= $journeesTravaillees ?></strong>
+                <span class="text-muted mx-1">/</span>
+                <span class="text-muted"><?= $joursTotaux ?></span>
+            </div>
+            <?php else: ?>
             <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,202,240,0.15);">
                 <i class="bi bi-calendar-check text-info me-2"></i>
                 <span class="text-muted me-1">Jours travaillés:</span>
                 <strong class="text-info"><?= $journeesTravaillees ?></strong>
-            </div>
-            <?php if ($joursTotaux > 0): ?>
-            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(255,193,7,0.15);">
-                <i class="bi bi-calendar-x text-warning me-2"></i>
-                <span class="text-muted me-1">Jours non travaillés:</span>
-                <strong class="text-warning"><?= $journeesNonTravaillees ?></strong>
-                <small class="text-muted ms-1">/ <?= $joursTotaux ?></small>
             </div>
             <?php endif; ?>
             <div class="ms-auto d-flex gap-2">
