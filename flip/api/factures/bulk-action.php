@@ -51,9 +51,22 @@ try {
             break;
 
         case 'non_payer':
+            // Debug: vérifier avant
+            $stmtBefore = $pdo->prepare("SELECT id, est_payee FROM factures WHERE id IN ($placeholders)");
+            $stmtBefore->execute($ids);
+            $before = $stmtBefore->fetchAll(PDO::FETCH_ASSOC);
+            error_log("BULK non_payer - Avant: " . json_encode($before));
+
             $stmt = $pdo->prepare("UPDATE factures SET est_payee = 0 WHERE id IN ($placeholders)");
             $stmt->execute($ids);
-            $affected = $stmt->rowCount();
+
+            // Debug: vérifier après
+            $stmtAfter = $pdo->prepare("SELECT id, est_payee FROM factures WHERE id IN ($placeholders)");
+            $stmtAfter->execute($ids);
+            $after = $stmtAfter->fetchAll(PDO::FETCH_ASSOC);
+            error_log("BULK non_payer - Après: " . json_encode($after));
+
+            $affected = count($ids);
             break;
 
         case 'approuver':
@@ -112,6 +125,7 @@ try {
     echo json_encode([
         'success' => true,
         'affected' => $affected,
+        'ids_received' => $ids,
         'message' => "$affected facture(s) modifiée(s)"
     ]);
 
