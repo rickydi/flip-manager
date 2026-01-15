@@ -1655,6 +1655,11 @@ function logItemSearch(message) {
     logArea.scrollTop = logArea.scrollHeight;
 }
 
+// Variable pour stocker les données en attente d'ajout
+let pendingAddData = null;
+let pendingAddBtn = null;
+let pendingAddIdx = null;
+
 async function addToBudget(idx) {
     const article = currentArticlesData[idx];
     if (!article) return;
@@ -1677,6 +1682,115 @@ async function addToBudget(idx) {
 
     const fournisseur = document.getElementById('fournisseur').value || article.fournisseur || '';
     logItemSearch(`Fournisseur: ${fournisseur}`);
+
+    // ÉTAPE 1: Rechercher des articles similaires dans le catalogue
+    logItemSearch('');
+    logItemSearch('--- RECHERCHE ARTICLES SIMILAIRES ---');
+
+    const searchParams = new URLSearchParams({
+        nom: article.description || '',
+        sku: article.sku || article.code_produit || '',
+        fournisseur: fournisseur
+    });
+
+    try {
+        const searchResponse = await fetch('<?= url('/api/catalogue-search-similar.php') ?>?' + searchParams);
+        const searchResult = await searchResponse.json();
+
+        if (searchResult.success && searchResult.similar && searchResult.similar.length > 0) {
+            logItemSearch(`⚠ ${searchResult.similar.length} article(s) similaire(s) trouvé(s)!`);
+
+            // Afficher le modal avec les articles similaires
+            showSimilarItemsModal(article, searchResult.similar, idx, btn, fournisseur);
+            return; // On attend la décision de l'utilisateur
+        } else {
+            logItemSearch('✓ Aucun article similaire trouvé - ajout direct');
+        }
+    } catch (e) {
+        logItemSearch(`⚠ Erreur recherche similaires: ${e.message} - ajout direct`);
+    }
+
+    // ÉTAPE 2: Si pas de similaires, procéder à l'ajout directement
+    await proceedWithAdd(article, idx, btn, fournisseur);
+}
+
+// Afficher le modal des articles similaires
+function showSimilarItemsModal(article, similarItems, idx, btn, fournisseur) {
+    document.getElementById('newItemName').textContent = article.description;
+
+    const listContainer = document.getElementById('similarItemsList');
+    listContainer.innerHTML = '';
+
+    similarItems.forEach(item => {
+        const matchBadge = item.match_type === 'sku_exact'
+            ? '<span class="badge bg-danger">SKU identique</span>'
+            : item.match_type === 'fournisseur_match'
+            ? '<span class="badge bg-warning text-dark">Même fournisseur</span>'
+            : '<span class="badge bg-info">Nom similaire</span>';
+
+        const scoreColor = item.match_score >= 80 ? 'danger' : item.match_score >= 50 ? 'warning' : 'info';
+
+        const imageHtml = item.image
+            ? `<img src="${item.image}" class="rounded me-3" style="width: 60px; height: 60px; object-fit: cover;">`
+            : `<div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="bi bi-box text-muted"></i></div>`;
+
+        const itemHtml = `
+            <div class="card mb-2">
+                <div class="card-body p-2 d-flex align-items-center">
+                    ${imageHtml}
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${item.nom}</strong>
+                                ${matchBadge}
+                            </div>
+                            <span class="badge bg-${scoreColor}">${item.match_score}% similaire</span>
+                        </div>
+                        <small class="text-muted d-block">
+                            ${item.fournisseur ? `<i class="bi bi-shop me-1"></i>${item.fournisseur}` : ''}
+                            ${item.sku ? ` <i class="bi bi-upc ms-2 me-1"></i>${item.sku}` : ''}
+                            ${item.prix ? ` <i class="bi bi-currency-dollar ms-2 me-1"></i>${parseFloat(item.prix).toFixed(2)}$` : ''}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        `;
+        listContainer.innerHTML += itemHtml;
+    });
+
+    // Stocker les données en attente
+    pendingAddData = article;
+    pendingAddBtn = btn;
+    pendingAddIdx = idx;
+
+    // Configurer le bouton "Ajouter quand même"
+    const btnForceAdd = document.getElementById('btnForceAdd');
+    btnForceAdd.onclick = async function() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('similarItemsModal'));
+        modal.hide();
+        await proceedWithAdd(pendingAddData, pendingAddIdx, pendingAddBtn, fournisseur);
+    };
+
+    // Configurer l'annulation
+    const modal = new bootstrap.Modal(document.getElementById('similarItemsModal'));
+    document.getElementById('similarItemsModal').addEventListener('hidden.bs.modal', function handler() {
+        // Si l'utilisateur ferme le modal sans confirmer, rétablir le bouton
+        if (pendingAddBtn && !pendingAddBtn.classList.contains('btn-success')) {
+            pendingAddBtn.classList.remove('btn-success');
+            pendingAddBtn.classList.add('btn-outline-success');
+            pendingAddBtn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+            pendingAddBtn.disabled = false;
+        }
+        document.getElementById('similarItemsModal').removeEventListener('hidden.bs.modal', handler);
+    }, { once: true });
+
+    modal.show();
+}
+
+// Procéder avec l'ajout effectif au catalogue
+async function proceedWithAdd(article, idx, btn, fournisseur) {
+    logItemSearch('');
+    logItemSearch('--- PROCÉDURE D\'AJOUT ---');
 
     // Essayer de récupérer l'image du produit depuis le site fournisseur
     let productImageUrl = null;
@@ -2576,6 +2690,43 @@ function createToastContainer() {
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                 <button type="button" class="btn btn-primary" onclick="ajouterFournisseur()">
                     <i class="bi bi-plus-circle me-1"></i>Ajouter
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Articles Similaires -->
+<div class="modal fade" id="similarItemsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Articles similaires trouvés</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="bi bi-info-circle me-2"></i>
+                    L'article <strong id="newItemName"></strong> semble déjà exister dans votre catalogue.
+                </div>
+
+                <h6 class="mb-3">Articles similaires dans le catalogue:</h6>
+                <div id="similarItemsList" class="mb-3">
+                    <!-- Rempli dynamiquement -->
+                </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted">Voulez-vous quand même ajouter cet article?</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>Annuler
+                </button>
+                <button type="button" class="btn btn-warning" id="btnForceAdd">
+                    <i class="bi bi-plus-circle me-1"></i>Ajouter quand même
                 </button>
             </div>
         </div>
