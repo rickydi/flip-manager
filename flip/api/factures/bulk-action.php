@@ -4,15 +4,11 @@
  * Actions supportées: payer, non_payer, approuver, en_attente, rejeter, supprimer
  */
 
-// Debug: tester si le script est accessible
 header('Content-Type: application/json');
 
-// Vérifier que le script fonctionne
+// Lire les données UNE SEULE FOIS (php://input ne peut être lu qu'une fois)
 $rawInput = file_get_contents('php://input');
-if (empty($rawInput)) {
-    echo json_encode(['success' => false, 'error' => 'Aucune donnée reçue', 'method' => $_SERVER['REQUEST_METHOD']]);
-    exit;
-}
+$input = json_decode($rawInput, true);
 
 require_once '../../config.php';
 require_once '../../includes/auth.php';
@@ -25,21 +21,9 @@ if (!isLoggedIn()) {
     exit;
 }
 
-// Récupérer les données
-$rawInput = file_get_contents('php://input');
-$input = json_decode($rawInput, true);
-
 if (!$input || empty($input['action']) || empty($input['ids']) || !is_array($input['ids'])) {
     http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Données invalides',
-        'debug' => [
-            'raw_input' => $rawInput,
-            'parsed_input' => $input,
-            'json_error' => json_last_error_msg()
-        ]
-    ]);
+    echo json_encode(['success' => false, 'error' => 'Données invalides']);
     exit;
 }
 
@@ -68,21 +52,8 @@ try {
             break;
 
         case 'non_payer':
-            // Debug: vérifier avant
-            $stmtBefore = $pdo->prepare("SELECT id, est_payee FROM factures WHERE id IN ($placeholders)");
-            $stmtBefore->execute($ids);
-            $before = $stmtBefore->fetchAll(PDO::FETCH_ASSOC);
-            error_log("BULK non_payer - Avant: " . json_encode($before));
-
             $stmt = $pdo->prepare("UPDATE factures SET est_payee = 0 WHERE id IN ($placeholders)");
             $stmt->execute($ids);
-
-            // Debug: vérifier après
-            $stmtAfter = $pdo->prepare("SELECT id, est_payee FROM factures WHERE id IN ($placeholders)");
-            $stmtAfter->execute($ids);
-            $after = $stmtAfter->fetchAll(PDO::FETCH_ASSOC);
-            error_log("BULK non_payer - Après: " . json_encode($after));
-
             $affected = count($ids);
             break;
 
@@ -142,7 +113,6 @@ try {
     echo json_encode([
         'success' => true,
         'affected' => $affected,
-        'ids_received' => $ids,
         'message' => "$affected facture(s) modifiée(s)"
     ]);
 

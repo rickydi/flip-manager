@@ -401,10 +401,6 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 }
 
                 if (result.success) {
-                    console.log('IDs envoyés:', ids);
-                    console.log('IDs reçus par API:', result.ids_received);
-                    console.log('Résultat complet:', result);
-                    alert(`Action: ${action}\nIDs envoyés: ${ids.length}\nModifiées: ${result.affected}\nVoir console (F12) pour détails`);
                     window.location.reload();
                 } else {
                     alert('Erreur: ' + (result.error || 'Une erreur est survenue'));
