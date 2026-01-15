@@ -364,15 +364,22 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
             e.preventDefault();
             const action = this.dataset.action;
             const checkedBoxes = document.querySelectorAll('.facture-checkbox:checked');
-            const ids = Array.from(checkedBoxes).map(cb => cb.value);
+            const ids = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
 
             if (ids.length === 0) return;
 
-            // Confirmation pour suppression
-            if (action === 'supprimer') {
-                if (!confirm(`Voulez-vous vraiment supprimer ${ids.length} facture(s) ? Cette action est irréversible.`)) {
-                    return;
-                }
+            // Confirmation
+            const actionLabels = {
+                'payer': 'marquer comme payée(s)',
+                'non_payer': 'marquer comme non payée(s)',
+                'approuver': 'approuver',
+                'en_attente': 'mettre en attente',
+                'rejeter': 'rejeter',
+                'supprimer': 'SUPPRIMER définitivement'
+            };
+            const label = actionLabels[action] || action;
+            if (!confirm(`${label.toUpperCase()} ${ids.length} facture(s) ?`)) {
+                return;
             }
 
             // Exécuter l'action
