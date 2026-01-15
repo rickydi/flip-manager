@@ -401,6 +401,8 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                 }
 
                 if (result.success) {
+                    console.log('Résultat:', result);
+                    alert(`${result.affected} facture(s) modifiée(s)`);
                     window.location.reload();
                 } else {
                     alert('Erreur: ' + (result.error || 'Une erreur est survenue'));
