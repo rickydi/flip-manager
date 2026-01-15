@@ -50,6 +50,15 @@
                 <i class="bi bi-x-circle"></i>
             </button>
 
+            <!-- Barre de recherche -->
+            <div class="position-relative" style="min-width: 200px;">
+                <i class="bi bi-search position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); color: #6c757d;"></i>
+                <input type="text" class="form-control form-control-sm" id="searchFactures"
+                       placeholder="Rechercher produit, fournisseur..."
+                       oninput="filtrerFactures()"
+                       style="padding-left: 32px;">
+            </div>
+
             <!-- Spacer + Actions à droite -->
             <div class="ms-auto d-flex align-items-center gap-2">
                 <!-- Menu actions en masse (caché par défaut) -->
@@ -117,7 +126,7 @@
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr class="facture-row" data-id="<?= $f['id'] ?>" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
+                        <tr class="facture-row" data-id="<?= $f['id'] ?>" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-date="<?= e($f['date_facture'] ?? '') ?>" data-produits="<?= e(strtolower($f['lignes_texte'] ?? '')) ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
                             <td class="text-center" onclick="event.stopPropagation();">
                                 <input type="checkbox" class="form-check-input facture-checkbox" value="<?= $f['id'] ?>">
                             </td>

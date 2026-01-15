@@ -2393,7 +2393,9 @@ $facturesProjet = [];
 try {
     $stmt = $pdo->prepare("
         SELECT f.*, e.nom as etape_nom,
-               (SELECT COUNT(*) FROM facture_lignes fl WHERE fl.facture_id = f.id) as nb_articles_ia
+               (SELECT COUNT(*) FROM facture_lignes fl WHERE fl.facture_id = f.id) as nb_articles_ia,
+               (SELECT GROUP_CONCAT(CONCAT_WS(' ', fl.description, fl.sku) SEPARATOR ' || ')
+                FROM facture_lignes fl WHERE fl.facture_id = f.id) as lignes_texte
         FROM factures f
         LEFT JOIN budget_etapes e ON f.etape_id = e.id
         WHERE f.projet_id = ?
@@ -3798,6 +3800,8 @@ function filtrerFactures() {
     const statut = document.getElementById('filtreFacturesStatut').value;
     const categorie = document.getElementById('filtreFacturesCategorie').value;
     const fournisseur = document.getElementById('filtreFacturesFournisseur').value;
+    const searchInput = document.getElementById('searchFactures');
+    const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
     const factures = document.querySelectorAll('.facture-row');
     let count = 0;
     let total = 0;
@@ -3807,12 +3811,29 @@ function filtrerFactures() {
         const rowCategorie = row.dataset.categorie;
         const rowFournisseur = row.dataset.fournisseur;
         const rowMontant = parseFloat(row.dataset.montant) || 0;
+        const rowDate = row.dataset.date || '';
+        const rowProduits = row.dataset.produits || '';
 
         const matchStatut = !statut || rowStatut === statut;
         const matchCategorie = !categorie || rowCategorie === categorie;
         const matchFournisseur = !fournisseur || rowFournisseur === fournisseur;
 
-        if (matchStatut && matchCategorie && matchFournisseur) {
+        // Recherche textuelle dans fournisseur, catégorie, date, et produits
+        let matchSearch = true;
+        if (search) {
+            const searchTerms = search.split(' ').filter(t => t.length > 0);
+            const searchableText = [
+                rowFournisseur.toLowerCase(),
+                rowCategorie.toLowerCase(),
+                rowDate,
+                rowProduits
+            ].join(' ');
+
+            // Tous les termes doivent correspondre
+            matchSearch = searchTerms.every(term => searchableText.includes(term));
+        }
+
+        if (matchStatut && matchCategorie && matchFournisseur && matchSearch) {
             row.style.display = '';
             count++;
             total += rowMontant;
@@ -3829,6 +3850,8 @@ function resetFiltresFactures() {
     document.getElementById('filtreFacturesStatut').value = '';
     document.getElementById('filtreFacturesCategorie').value = '';
     document.getElementById('filtreFacturesFournisseur').value = '';
+    const searchInput = document.getElementById('searchFactures');
+    if (searchInput) searchInput.value = '';
     filtrerFactures();
 }
 
