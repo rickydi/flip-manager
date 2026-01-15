@@ -7,6 +7,40 @@
             $totalCoutTab += $h['heures'] * $taux;
         }
         $totalAvancesActives = array_sum(array_column($avancesListe, 'montant'));
+
+        // Calculer les journées travaillées (dates distinctes où des heures ont été enregistrées)
+        $datesDistinctes = array_unique(array_column($heuresProjet, 'date_travail'));
+        $journeesTravaillees = count($datesDistinctes);
+
+        // Calculer les jours ouvrables du projet
+        $dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+        $dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+        $joursOuvrables = 0;
+        $journeesNonTravaillees = 0;
+
+        if ($dateDebutTravaux && $dateFinPrevue) {
+            $debut = new DateTime($dateDebutTravaux);
+            $fin = new DateTime($dateFinPrevue);
+            $aujourdhui = new DateTime();
+
+            // Utiliser la date la plus petite entre aujourd'hui et la fin prévue
+            $finCalcul = $fin < $aujourdhui ? $fin : $aujourdhui;
+
+            if ($debut <= $finCalcul) {
+                $interval = new DateInterval('P1D');
+                $periode = new DatePeriod($debut, $interval, $finCalcul->modify('+1 day'));
+
+                foreach ($periode as $date) {
+                    $jourSemaine = $date->format('N');
+                    // Compter seulement lundi (1) à vendredi (5)
+                    if ($jourSemaine < 6) {
+                        $joursOuvrables++;
+                    }
+                }
+            }
+
+            $journeesNonTravaillees = max(0, $joursOuvrables - $journeesTravaillees);
+        }
         ?>
 
         <!-- Barre compacte : Stats -->
@@ -26,6 +60,19 @@
                 <i class="bi bi-wallet2 text-danger me-2"></i>
                 <span class="text-muted me-1">Avances:</span>
                 <strong class="text-danger"><?= formatMoney($totalAvancesActives) ?></strong>
+            </div>
+            <?php endif; ?>
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,202,240,0.15);">
+                <i class="bi bi-calendar-check text-info me-2"></i>
+                <span class="text-muted me-1">Jours travaillés:</span>
+                <strong class="text-info"><?= $journeesTravaillees ?></strong>
+            </div>
+            <?php if ($joursOuvrables > 0): ?>
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(255,193,7,0.15);">
+                <i class="bi bi-calendar-x text-warning me-2"></i>
+                <span class="text-muted me-1">Jours non travaillés:</span>
+                <strong class="text-warning"><?= $journeesNonTravaillees ?></strong>
+                <small class="text-muted ms-1">/ <?= $joursOuvrables ?></small>
             </div>
             <?php endif; ?>
             <div class="ms-auto d-flex gap-2">
