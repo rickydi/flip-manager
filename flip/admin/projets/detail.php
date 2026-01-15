@@ -43,6 +43,14 @@ if (isset($_GET['_partial']) && $_GET['_partial'] === 'base') {
         $heuresProjet = $stmt->fetchAll();
     } catch (Exception $e) {}
 
+    // Factures pour stats achats
+    $facturesProjet = [];
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM factures WHERE projet_id = ? AND statut != 'rejetee'");
+        $stmt->execute([$projetId]);
+        $facturesProjet = $stmt->fetchAll();
+    } catch (Exception $e) {}
+
     // Retourner UNIQUEMENT le HTML du tab Base
     include 'partials/tab-base.php';
     exit;

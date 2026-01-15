@@ -11,6 +11,11 @@ $nbPersonnesTravail = count(array_unique(array_column($heuresProjet ?? [], 'user
 $moyenneHeuresParJour = ($nbJoursTravailles > 0 && $nbPersonnesTravail > 0)
     ? round($totalHeuresProjet / $nbJoursTravailles / $nbPersonnesTravail, 1)
     : 0;
+
+// Stats achats pour le graphique
+$nbJoursAchats = count(array_unique(array_column($facturesProjet ?? [], 'date_facture')));
+$totalAchatsProjet = array_sum(array_column($facturesProjet ?? [], 'montant_total'));
+$moyenneAchatsParJour = $nbJoursAchats > 0 ? round($totalAchatsProjet / $nbJoursAchats, 0) : 0;
 ?>
     <div class="tab-pane fade <?= $tab === 'base' ? 'show active' : '' ?>" id="base" role="tabpanel">
 
@@ -220,6 +225,10 @@ $moyenneHeuresParJour = ($nbJoursTravailles > 0 && $nbPersonnesTravail > 0)
                     <div>
                         <div class="chart-title">Achats par jour</div>
                         <div class="chart-subtitle">Montant des factures</div>
+                    </div>
+                    <div class="ms-auto d-flex gap-2 align-items-center">
+                        <span class="badge bg-success" title="Jours d'achats"><?= $nbJoursAchats ?> j</span>
+                        <span class="badge bg-success" title="Moyenne par jour"><?= formatMoney($moyenneAchatsParJour) ?>/j</span>
                     </div>
                 </div>
                 <div class="chart-body"><canvas id="chartProfits" height="150"></canvas></div>
