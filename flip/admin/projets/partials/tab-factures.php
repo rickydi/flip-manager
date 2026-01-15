@@ -382,17 +382,25 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: action, ids: ids })
                 });
-                const result = await response.json();
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    console.error('Réponse non-JSON:', text);
+                    window.location.reload();
+                    return;
+                }
 
                 if (result.success) {
-                    // Recharger la page pour voir les changements
                     window.location.reload();
                 } else {
                     alert('Erreur: ' + (result.error || 'Une erreur est survenue'));
                 }
             } catch (err) {
                 console.error('Erreur:', err);
-                alert('Erreur de connexion');
+                window.location.reload();
             }
         });
     });
