@@ -3,6 +3,14 @@ $isPartialBase = isset($_GET['partial']) && $_GET['partial'] === 'base';
 if ($isPartialBase) {
     ob_start();
 }
+
+// Stats heures travaillées pour le graphique
+$nbJoursTravailles = count(array_unique(array_column($heuresProjet ?? [], 'date_travail')));
+$totalHeuresProjet = array_sum(array_column($heuresProjet ?? [], 'heures'));
+$nbPersonnesTravail = count(array_unique(array_column($heuresProjet ?? [], 'user_id')));
+$moyenneHeuresParJour = ($nbJoursTravailles > 0 && $nbPersonnesTravail > 0)
+    ? round($totalHeuresProjet / $nbJoursTravailles / $nbPersonnesTravail, 1)
+    : 0;
 ?>
     <div class="tab-pane fade <?= $tab === 'base' ? 'show active' : '' ?>" id="base" role="tabpanel">
 

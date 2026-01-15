@@ -35,6 +35,14 @@ if (isset($_GET['_partial']) && $_GET['_partial'] === 'base') {
     // Données utilisées par tab-base.php
     $recurrentsReels = calculerCoutsRecurrentsReels($projet);
 
+    // Heures travaillées pour stats
+    $heuresProjet = [];
+    try {
+        $stmt = $pdo->prepare("SELECT h.*, u.nom_complet as employe_nom, u.taux_horaire as taux_actuel FROM heures_travaillees h JOIN users u ON h.user_id = u.id WHERE h.projet_id = ? AND h.statut != 'rejetee' ORDER BY h.date_travail DESC");
+        $stmt->execute([$projetId]);
+        $heuresProjet = $stmt->fetchAll();
+    } catch (Exception $e) {}
+
     // Retourner UNIQUEMENT le HTML du tab Base
     include 'partials/tab-base.php';
     exit;
@@ -2909,19 +2917,6 @@ foreach ($heuresParJour as $jour => $heures) {
     $jourLabelsHeures[] = date('d M', strtotime($jour));
     $jourDataHeures[] = $heures;
 }
-
-// Stats heures: jours travaillés, moyenne par jour/personne
-$nbJoursTravailles = count($heuresParJour);
-$totalHeuresProjet = array_sum($heuresParJour);
-$nbPersonnesTravail = 0;
-try {
-    $stmt = $pdo->prepare("SELECT COUNT(DISTINCT user_id) as nb FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee'");
-    $stmt->execute([$projetId]);
-    $nbPersonnesTravail = (int)$stmt->fetchColumn();
-} catch (Exception $e) {}
-$moyenneHeuresParJour = $nbJoursTravailles > 0 && $nbPersonnesTravail > 0
-    ? round($totalHeuresProjet / $nbJoursTravailles / $nbPersonnesTravail, 1)
-    : 0;
 
 // Achats par jour (comme heures travaillées)
 $jourLabelsAchats = [];
