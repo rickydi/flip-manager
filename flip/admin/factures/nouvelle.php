@@ -656,11 +656,12 @@ echo htmlspecialchars("Analyse cette facture de quincaillerie/rénovation.
 Regarde le LOGO en haut de la facture. Fournisseurs connus: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.
 Le fournisseur est OBLIGATOIRE - cherche le nom du magasin sur la facture.
 
-ÉTAPE 2 - EXTRAIRE LES MONTANTS:
+ÉTAPE 2 - EXTRAIRE LES MONTANTS ET DEVISE:
 - Trouve le sous-total (avant taxes)
 - Trouve TPS (5%) et TVQ (9.975%)
 - Trouve le total
 - Trouve la date (format YYYY-MM-DD)
+- IMPORTANT: Identifie la devise (CAD ou USD). Cherche des symboles comme \$US, USD, US\$, ou le pays du fournisseur. Si c'est une facture américaine (Home Depot US, Lowes US, etc.), c'est USD.
 
 ÉTAPE 3 - EXTRAIRE LES ARTICLES AVEC SKU:
 Pour chaque article, trouve:
@@ -677,11 +678,12 @@ JSON OBLIGATOIRE:
 {
   \"fournisseur\": \"NOM DU MAGASIN\",
   \"date_facture\": \"YYYY-MM-DD\",
+  \"devise\": \"CAD ou USD\",
   \"sous_total\": 0.00,
   \"tps\": 0.00,
   \"tvq\": 0.00,
   \"total\": 0.00,
-  \"lignes\": [{\"description\": \"...\", \"sku\": \"123456\", \"quantite\": 1, \"total\": 0.00, \"etape_id\": 0, \"etape_nom\": \"...\"}],
+  \"lignes\": [{\"description\": \"...\", \"sku\": \"123456\", \"quantite\": 1, \"prix_unitaire\": 0.00, \"total\": 0.00, \"etape_id\": 0, \"etape_nom\": \"...\"}],
   \"totaux_par_etape\": [{\"etape_id\": 0, \"etape_nom\": \"...\", \"montant\": 0.00}]
 }");
 ?></textarea>
@@ -1763,9 +1765,82 @@ async function addToBudget(idx) {
     });
 }
 
+// Taux de conversion USD -> CAD (approximatif, peut être ajusté)
+const USD_TO_CAD_RATE = 1.40;
+
+// Afficher une alerte de conversion USD -> CAD
+function showConversionAlert(taux) {
+    // Supprimer alerte existante si présente
+    const existingAlert = document.getElementById('usdConversionAlert');
+    if (existingAlert) existingAlert.remove();
+
+    const alertHtml = `
+        <div id="usdConversionAlert" class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="bi bi-currency-exchange me-2"></i>
+            <strong>Conversion USD → CAD appliquée!</strong>
+            Les prix ont été convertis de USD en CAD au taux de <strong>${taux}</strong>.
+            <br><small class="text-muted">Vous pouvez ajuster les montants manuellement si nécessaire.</small>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fermer"></button>
+        </div>
+    `;
+
+    // Insérer l'alerte au-dessus du formulaire
+    const form = document.querySelector('form');
+    if (form) {
+        form.insertAdjacentHTML('beforebegin', alertHtml);
+    }
+}
+
+// Convertir les prix USD en CAD si nécessaire
+function convertUsdToCad(data) {
+    const devise = (data.devise || 'CAD').toUpperCase();
+
+    if (devise === 'USD' || devise === 'US') {
+        console.log('Conversion USD -> CAD appliquée (taux:', USD_TO_CAD_RATE, ')');
+
+        // Convertir les montants principaux
+        if (data.sous_total) data.sous_total = parseFloat(data.sous_total) * USD_TO_CAD_RATE;
+        if (data.tps) data.tps = parseFloat(data.tps) * USD_TO_CAD_RATE;
+        if (data.tvq) data.tvq = parseFloat(data.tvq) * USD_TO_CAD_RATE;
+        if (data.total) data.total = parseFloat(data.total) * USD_TO_CAD_RATE;
+
+        // Convertir les lignes d'articles
+        if (data.lignes && Array.isArray(data.lignes)) {
+            data.lignes = data.lignes.map(ligne => ({
+                ...ligne,
+                prix_unitaire: ligne.prix_unitaire ? parseFloat(ligne.prix_unitaire) * USD_TO_CAD_RATE : null,
+                total: ligne.total ? parseFloat(ligne.total) * USD_TO_CAD_RATE : null
+            }));
+        }
+
+        // Convertir les totaux par étape
+        if (data.totaux_par_etape && Array.isArray(data.totaux_par_etape)) {
+            data.totaux_par_etape = data.totaux_par_etape.map(etape => ({
+                ...etape,
+                montant: etape.montant ? parseFloat(etape.montant) * USD_TO_CAD_RATE : null
+            }));
+        }
+
+        // Marquer comme converti
+        data.devise_originale = 'USD';
+        data.devise = 'CAD';
+        data.taux_conversion = USD_TO_CAD_RATE;
+
+        return true; // Conversion effectuée
+    }
+
+    return false; // Pas de conversion
+}
+
 // Remplir le formulaire avec les données détaillées
 function fillFormWithDetailedData(data) {
     console.log('fillFormWithDetailedData - data reçue:', data);
+
+    // Vérifier et convertir USD -> CAD si nécessaire
+    const wasConverted = convertUsdToCad(data);
+    if (wasConverted) {
+        showConversionAlert(data.taux_conversion);
+    }
 
     // Fournisseur (select dropdown)
     const fournisseurValue = data.fournisseur || data.Fournisseur || data.supplier || '';
