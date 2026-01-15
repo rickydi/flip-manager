@@ -12,10 +12,10 @@
         $datesDistinctes = array_unique(array_column($heuresProjet, 'date_travail'));
         $journeesTravaillees = count($datesDistinctes);
 
-        // Calculer les jours ouvrables du projet
+        // Calculer tous les jours du projet (incluant samedi et dimanche)
         $dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
         $dateFinPrevue = $projet['date_fin_prevue'] ?? null;
-        $joursOuvrables = 0;
+        $joursTotaux = 0;
         $journeesNonTravaillees = 0;
 
         if ($dateDebutTravaux && $dateFinPrevue) {
@@ -31,15 +31,12 @@
                 $periode = new DatePeriod($debut, $interval, $finCalcul->modify('+1 day'));
 
                 foreach ($periode as $date) {
-                    $jourSemaine = $date->format('N');
-                    // Compter seulement lundi (1) à vendredi (5)
-                    if ($jourSemaine < 6) {
-                        $joursOuvrables++;
-                    }
+                    // Compter tous les jours (lundi à dimanche)
+                    $joursTotaux++;
                 }
             }
 
-            $journeesNonTravaillees = max(0, $joursOuvrables - $journeesTravaillees);
+            $journeesNonTravaillees = max(0, $joursTotaux - $journeesTravaillees);
         }
         ?>
 
@@ -67,12 +64,12 @@
                 <span class="text-muted me-1">Jours travaillés:</span>
                 <strong class="text-info"><?= $journeesTravaillees ?></strong>
             </div>
-            <?php if ($joursOuvrables > 0): ?>
+            <?php if ($joursTotaux > 0): ?>
             <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(255,193,7,0.15);">
                 <i class="bi bi-calendar-x text-warning me-2"></i>
                 <span class="text-muted me-1">Jours non travaillés:</span>
                 <strong class="text-warning"><?= $journeesNonTravaillees ?></strong>
-                <small class="text-muted ms-1">/ <?= $joursOuvrables ?></small>
+                <small class="text-muted ms-1">/ <?= $joursTotaux ?></small>
             </div>
             <?php endif; ?>
             <div class="ms-auto d-flex gap-2">
