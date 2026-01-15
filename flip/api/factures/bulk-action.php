@@ -4,11 +4,20 @@
  * Actions supportées: payer, non_payer, approuver, en_attente, rejeter, supprimer
  */
 
-require_once '../../config.php';
-require_once '../../includes/auth.php';
-require_once '../../includes/functions.php';
+// Activer l'affichage des erreurs pour debug
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
 
 header('Content-Type: application/json');
+
+try {
+    require_once '../../config.php';
+    require_once '../../includes/auth.php';
+    require_once '../../includes/functions.php';
+} catch (Throwable $e) {
+    echo json_encode(['success' => false, 'error' => 'Erreur include: ' . $e->getMessage()]);
+    exit;
+}
 
 // Vérifier authentification
 if (!isLoggedIn()) {
@@ -18,11 +27,20 @@ if (!isLoggedIn()) {
 }
 
 // Récupérer les données
-$input = json_decode(file_get_contents('php://input'), true);
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true);
 
 if (!$input || empty($input['action']) || empty($input['ids']) || !is_array($input['ids'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Données invalides']);
+    echo json_encode([
+        'success' => false,
+        'error' => 'Données invalides',
+        'debug' => [
+            'raw_input' => $rawInput,
+            'parsed_input' => $input,
+            'json_error' => json_last_error_msg()
+        ]
+    ]);
     exit;
 }
 
