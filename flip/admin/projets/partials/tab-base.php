@@ -195,6 +195,10 @@ if ($isPartialBase) {
                         <div class="chart-title">Heures travaillées</div>
                         <div class="chart-subtitle">Par jour de la semaine</div>
                     </div>
+                    <div class="ms-auto d-flex gap-2 align-items-center">
+                        <span class="badge bg-primary" title="Jours travaillés"><?= $nbJoursTravailles ?> j</span>
+                        <span class="badge bg-info" title="Moyenne heures/jour/personne"><?= $moyenneHeuresParJour ?> h/j</span>
+                    </div>
                 </div>
                 <div class="chart-body"><canvas id="chartBudget" height="150"></canvas></div>
             </div>

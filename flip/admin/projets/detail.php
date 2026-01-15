@@ -2910,6 +2910,19 @@ foreach ($heuresParJour as $jour => $heures) {
     $jourDataHeures[] = $heures;
 }
 
+// Stats heures: jours travaillés, moyenne par jour/personne
+$nbJoursTravailles = count($heuresParJour);
+$totalHeuresProjet = array_sum($heuresParJour);
+$nbPersonnesTravail = 0;
+try {
+    $stmt = $pdo->prepare("SELECT COUNT(DISTINCT user_id) as nb FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee'");
+    $stmt->execute([$projetId]);
+    $nbPersonnesTravail = (int)$stmt->fetchColumn();
+} catch (Exception $e) {}
+$moyenneHeuresParJour = $nbJoursTravailles > 0 && $nbPersonnesTravail > 0
+    ? round($totalHeuresProjet / $nbJoursTravailles / $nbPersonnesTravail, 1)
+    : 0;
+
 // Achats par jour (comme heures travaillées)
 $jourLabelsAchats = [];
 $jourDataAchats = [];
