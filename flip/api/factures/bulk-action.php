@@ -4,20 +4,19 @@
  * Actions supportées: payer, non_payer, approuver, en_attente, rejeter, supprimer
  */
 
-// Activer l'affichage des erreurs pour debug
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
+// Debug: tester si le script est accessible
 header('Content-Type: application/json');
 
-try {
-    require_once '../../config.php';
-    require_once '../../includes/auth.php';
-    require_once '../../includes/functions.php';
-} catch (Throwable $e) {
-    echo json_encode(['success' => false, 'error' => 'Erreur include: ' . $e->getMessage()]);
+// Vérifier que le script fonctionne
+$rawInput = file_get_contents('php://input');
+if (empty($rawInput)) {
+    echo json_encode(['success' => false, 'error' => 'Aucune donnée reçue', 'method' => $_SERVER['REQUEST_METHOD']]);
     exit;
 }
+
+require_once '../../config.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/functions.php';
 
 // Vérifier authentification
 if (!isLoggedIn()) {
