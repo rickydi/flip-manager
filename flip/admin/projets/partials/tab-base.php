@@ -205,7 +205,7 @@ $moyenneHeuresParJour = ($nbJoursTravailles > 0 && $nbPersonnesTravail > 0)
                     </div>
                     <div class="ms-auto d-flex gap-2 align-items-center">
                         <span class="badge bg-primary" title="Jours travaillés"><?= $nbJoursTravailles ?> j</span>
-                        <span class="badge bg-info" title="Moyenne heures/jour/personne"><?= $moyenneHeuresParJour ?> h/j</span>
+                        <span class="badge bg-primary" title="Moyenne heures/jour/personne"><?= $moyenneHeuresParJour ?> h/j</span>
                     </div>
                 </div>
                 <div class="chart-body"><canvas id="chartBudget" height="150"></canvas></div>
