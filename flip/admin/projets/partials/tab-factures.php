@@ -78,7 +78,7 @@
                 <!-- Bouton tout sélectionner/désélectionner -->
                 <?php if (!empty($facturesProjet)): ?>
                 <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleSelectAllBtn" onclick="toggleSelectAllFactures()" title="Tout sélectionner">
-                    <i class="bi bi-check2-square me-1"></i><span id="toggleSelectAllText">Tout</span>
+                    <i class="bi bi-check2-square" id="toggleSelectAllIcon"></i>
                 </button>
                 <?php endif; ?>
                 <span class="badge bg-secondary" id="facturesCount"><?= count($facturesProjet) ?> factures</span>
@@ -342,23 +342,19 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
     // Mettre à jour le bouton toggle
     function updateToggleButton() {
         const toggleBtn = document.getElementById('toggleSelectAllBtn');
-        const toggleText = document.getElementById('toggleSelectAllText');
-        if (!toggleBtn || !toggleText) return;
+        const toggleIcon = document.getElementById('toggleSelectAllIcon');
+        if (!toggleBtn || !toggleIcon) return;
 
         const visibleCheckboxes = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox');
         const visibleChecked = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox:checked');
         const allSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.length === visibleChecked.length;
 
         if (allSelected) {
-            toggleText.textContent = 'Aucune';
+            toggleIcon.className = 'bi bi-x-square';
             toggleBtn.title = 'Tout désélectionner';
-            toggleBtn.classList.remove('btn-outline-secondary');
-            toggleBtn.classList.add('btn-outline-warning');
         } else {
-            toggleText.textContent = 'Tout';
+            toggleIcon.className = 'bi bi-check2-square';
             toggleBtn.title = 'Tout sélectionner';
-            toggleBtn.classList.remove('btn-outline-warning');
-            toggleBtn.classList.add('btn-outline-secondary');
         }
     }
 
