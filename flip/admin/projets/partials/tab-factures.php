@@ -73,11 +73,14 @@
                                 <li><a class="dropdown-item bulk-action text-danger" href="#" data-action="supprimer"><i class="bi bi-trash me-2"></i>Supprimer</a></li>
                             </ul>
                         </div>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllFactures()" title="Désélectionner">
-                            <i class="bi bi-x"></i>
-                        </button>
                     </div>
                 </div>
+                <!-- Bouton tout sélectionner/désélectionner -->
+                <?php if (!empty($facturesProjet)): ?>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="toggleSelectAllBtn" onclick="toggleSelectAllFactures()" title="Tout sélectionner">
+                    <i class="bi bi-check2-square me-1"></i><span id="toggleSelectAllText">Tout</span>
+                </button>
+                <?php endif; ?>
                 <span class="badge bg-secondary" id="facturesCount"><?= count($facturesProjet) ?> factures</span>
                 <?php if (isAdmin()): ?>
                 <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiFactures">
@@ -304,11 +307,15 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
         const visibleCheckboxes = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox');
         visibleCheckboxes.forEach(cb => cb.checked = this.checked);
         updateBulkMenu();
+        updateToggleButton();
     });
 
     // Checkbox individuel
     checkboxes.forEach(cb => {
-        cb.addEventListener('change', updateBulkMenu);
+        cb.addEventListener('change', function() {
+            updateBulkMenu();
+            updateToggleButton();
+        });
     });
 
     // Désélectionner tout
@@ -316,7 +323,44 @@ document.querySelectorAll('#facturesTable .facture-row[data-href]').forEach(row 
         checkboxes.forEach(cb => cb.checked = false);
         selectAll.checked = false;
         updateBulkMenu();
+        updateToggleButton();
     };
+
+    // Toggle tout sélectionner / désélectionner
+    window.toggleSelectAllFactures = function() {
+        const visibleCheckboxes = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox');
+        const visibleChecked = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox:checked');
+        const allSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.length === visibleChecked.length;
+
+        // Si tout est sélectionné, on désélectionne. Sinon, on sélectionne tout
+        visibleCheckboxes.forEach(cb => cb.checked = !allSelected);
+        selectAll.checked = !allSelected;
+        updateBulkMenu();
+        updateToggleButton();
+    };
+
+    // Mettre à jour le bouton toggle
+    function updateToggleButton() {
+        const toggleBtn = document.getElementById('toggleSelectAllBtn');
+        const toggleText = document.getElementById('toggleSelectAllText');
+        if (!toggleBtn || !toggleText) return;
+
+        const visibleCheckboxes = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox');
+        const visibleChecked = document.querySelectorAll('.facture-row:not([style*="display: none"]) .facture-checkbox:checked');
+        const allSelected = visibleCheckboxes.length > 0 && visibleCheckboxes.length === visibleChecked.length;
+
+        if (allSelected) {
+            toggleText.textContent = 'Aucune';
+            toggleBtn.title = 'Tout désélectionner';
+            toggleBtn.classList.remove('btn-outline-secondary');
+            toggleBtn.classList.add('btn-outline-warning');
+        } else {
+            toggleText.textContent = 'Tout';
+            toggleBtn.title = 'Tout sélectionner';
+            toggleBtn.classList.remove('btn-outline-warning');
+            toggleBtn.classList.add('btn-outline-secondary');
+        }
+    }
 
     // Actions en masse
     document.querySelectorAll('.bulk-action').forEach(btn => {
