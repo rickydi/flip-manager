@@ -2946,11 +2946,43 @@ try {
     foreach ($stmt->fetchAll() as $row) $heuresParJour[$row['jour']] = (float)$row['total'];
 } catch (Exception $e) {}
 
+// Générer tous les jours entre début travaux et aujourd'hui (ou fin prévue)
 $jourLabelsHeures = [];
 $jourDataHeures = [];
-foreach ($heuresParJour as $jour => $heures) {
-    $jourLabelsHeures[] = date('d M', strtotime($jour));
-    $jourDataHeures[] = $heures;
+$jourColorsHeures = [];
+
+$dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+$dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+
+if ($dateDebutTravaux && !empty($heuresParJour)) {
+    $debut = new DateTime($dateDebutTravaux);
+    $aujourdhui = new DateTime();
+    $fin = $dateFinPrevue ? new DateTime($dateFinPrevue) : $aujourdhui;
+
+    // Utiliser la date la plus petite entre fin prévue et aujourd'hui
+    $finCalcul = $fin < $aujourdhui ? $fin : $aujourdhui;
+
+    if ($debut <= $finCalcul) {
+        $interval = new DateInterval('P1D');
+        $periode = new DatePeriod($debut, $interval, $finCalcul->modify('+1 day'));
+
+        foreach ($periode as $date) {
+            $dateStr = $date->format('Y-m-d');
+            $heures = $heuresParJour[$dateStr] ?? 0;
+
+            $jourLabelsHeures[] = $date->format('d M');
+            $jourDataHeures[] = $heures;
+            // Bleu pour jours travaillés, rouge pâle pour jours non travaillés
+            $jourColorsHeures[] = $heures > 0 ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.25)';
+        }
+    }
+} else {
+    // Fallback: afficher seulement les jours avec heures (ancien comportement)
+    foreach ($heuresParJour as $jour => $heures) {
+        $jourLabelsHeures[] = date('d M', strtotime($jour));
+        $jourDataHeures[] = $heures;
+        $jourColorsHeures[] = 'rgba(59, 130, 246, 0.7)';
+    }
 }
 
 // Achats par jour (comme heures travaillées)
@@ -3164,7 +3196,7 @@ window.initDetailCharts = function () {
     });
     }
 
-// Chart 2: Heures travaillées
+// Chart 2: Heures travaillées (bleu = travaillé, rouge pâle = non travaillé)
 if (canvasBudget) {
     window.chartBudget = new Chart(canvasBudget, {
         type: 'bar',
@@ -3172,10 +3204,14 @@ if (canvasBudget) {
             labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
             datasets: [{
                 data: <?= json_encode($jourDataHeures ?: [0]) ?>,
-                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                backgroundColor: <?= json_encode($jourColorsHeures ?: ['rgba(59, 130, 246, 0.7)']) ?>,
                 borderRadius: 6,
                 borderSkipped: false,
-                hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)'
+                hoverBackgroundColor: <?= json_encode(array_map(function($c) {
+                    // Rendre plus foncé au hover
+                    return str_contains($c, '246') ? 'rgba(59, 130, 246, 0.9)' : 'rgba(239, 68, 68, 0.4)';
+                }, $jourColorsHeures ?: ['rgba(59, 130, 246, 0.9)'])) ?>,
+                minBarLength: 3
             }]
         },
         options: optionsBar
