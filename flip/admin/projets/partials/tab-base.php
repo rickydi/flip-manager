@@ -12,6 +12,21 @@ $moyenneHeuresParJour = ($nbJoursTravailles > 0 && $nbPersonnesTravail > 0)
     ? round($totalHeuresProjet / $nbJoursTravailles / $nbPersonnesTravail, 1)
     : 0;
 
+// Calculer les jours non travaillés
+$nbJoursNonTravailles = 0;
+$dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+$dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+if ($dateDebutTravaux && $nbJoursTravailles > 0) {
+    $debut = new DateTime($dateDebutTravaux);
+    $aujourdhui = new DateTime();
+    $fin = $dateFinPrevue ? new DateTime($dateFinPrevue) : $aujourdhui;
+    $finCalcul = $fin < $aujourdhui ? $fin : $aujourdhui;
+    if ($debut <= $finCalcul) {
+        $joursTotaux = $debut->diff($finCalcul)->days + 1;
+        $nbJoursNonTravailles = max(0, $joursTotaux - $nbJoursTravailles);
+    }
+}
+
 // Stats achats pour le graphique
 $nbJoursAchats = count(array_unique(array_column($facturesProjet ?? [], 'date_facture')));
 $totalAchatsProjet = array_sum(array_column($facturesProjet ?? [], 'montant_total'));
@@ -210,6 +225,9 @@ $moyenneAchatsParJour = $nbJoursAchats > 0 ? round($totalAchatsProjet / $nbJours
                     </div>
                     <div class="ms-auto d-flex gap-2 align-items-center">
                         <span class="badge bg-primary" title="Jours travaillés"><?= $nbJoursTravailles ?> j</span>
+                        <?php if ($nbJoursNonTravailles > 0): ?>
+                        <span class="badge bg-danger bg-opacity-50" title="Jours non travaillés"><?= $nbJoursNonTravailles ?> j</span>
+                        <?php endif; ?>
                         <span class="badge bg-primary" title="Moyenne heures/jour/personne"><?= $moyenneHeuresParJour ?> h/j</span>
                     </div>
                 </div>
