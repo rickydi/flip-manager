@@ -3206,6 +3206,31 @@ window.initDetailCharts = function () {
 
 // Chart 2: Heures travaillées (bleu = travaillé, rouge pâle = non travaillé)
 var personnesParJourData = <?= json_encode($jourPersonnesHeures ?: [0]) ?>;
+
+// Plugin pour afficher le nombre de personnes au-dessus des barres
+var personnesLabelPlugin = {
+    id: 'personnesLabel',
+    afterDatasetsDraw: function(chart) {
+        var ctx = chart.ctx;
+        chart.data.datasets.forEach(function(dataset, i) {
+            var meta = chart.getDatasetMeta(i);
+            meta.data.forEach(function(bar, index) {
+                var nbPersonnes = personnesParJourData[index] || 0;
+                // Afficher seulement si heures > 0 et personnes > 0
+                if (dataset.data[index] > 0 && nbPersonnes > 0) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+                    ctx.font = '9px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(nbPersonnes + 'p', bar.x, bar.y - 3);
+                    ctx.restore();
+                }
+            });
+        });
+    }
+};
+
 if (canvasBudget) {
     window.chartBudget = new Chart(canvasBudget, {
         type: 'bar',
@@ -3226,6 +3251,9 @@ if (canvasBudget) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { top: 15 }
+            },
             animation: {
                 duration: 1200,
                 easing: 'easeOutQuart',
@@ -3261,7 +3289,8 @@ if (canvasBudget) {
                     ticks: { callback: v => v+'h', font: { size: 10 }, color: '#94a3b8' }
                 }
             }
-        }
+        },
+        plugins: [personnesLabelPlugin]
     });
 }
 
