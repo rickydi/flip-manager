@@ -238,7 +238,7 @@
                                         $statusClass = match($h['statut']) {
                                             'approuvee' => 'bg-success',
                                             'rejetee' => 'bg-danger',
-                                            default => 'bg-warning'
+                                            default => 'bg-warning text-dark'
                                         };
                                         $statusLabel = match($h['statut']) {
                                             'approuvee' => 'Approuvée',
@@ -246,7 +246,37 @@
                                             default => 'En attente'
                                         };
                                         ?>
+                                        <?php if ($h['statut'] === 'en_attente'): ?>
+                                        <div class="dropdown">
+                                            <span class="badge <?= $statusClass ?> dropdown-toggle" role="button" data-bs-toggle="dropdown" style="cursor: pointer;">
+                                                <?= $statusLabel ?>
+                                            </span>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <form method="POST" class="d-inline">
+                                                        <?php csrfField(); ?>
+                                                        <input type="hidden" name="action" value="approuver_heures">
+                                                        <input type="hidden" name="heures_id" value="<?= $h['id'] ?>">
+                                                        <button type="submit" class="dropdown-item text-success">
+                                                            <i class="bi bi-check-circle me-2"></i>Approuver
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form method="POST" class="d-inline">
+                                                        <?php csrfField(); ?>
+                                                        <input type="hidden" name="action" value="rejeter_heures">
+                                                        <input type="hidden" name="heures_id" value="<?= $h['id'] ?>">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="bi bi-x-circle me-2"></i>Rejeter
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <?php else: ?>
                                         <span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span>
+                                        <?php endif; ?>
                                     </td>
                                     <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
                                     <td class="text-center">

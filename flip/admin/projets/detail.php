@@ -2258,6 +2258,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ========================================
+// ACTION APPROUVER/REJETER HEURES (POST)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['approuver_heures', 'rejeter_heures'])) {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hId = (int)($_POST['heures_id'] ?? 0);
+        $action = $_POST['action'];
+
+        if ($hId > 0) {
+            $nouveauStatut = ($action === 'approuver_heures') ? 'approuvee' : 'rejetee';
+            $adminId = $_SESSION['user_id'] ?? null;
+
+            $stmt = $pdo->prepare("
+                UPDATE heures_travaillees
+                SET statut = ?, approuve_par = ?, date_approbation = NOW()
+                WHERE id = ? AND projet_id = ?
+            ");
+            $stmt->execute([$nouveauStatut, $adminId, $hId, $projetId]);
+
+            $message = ($action === 'approuver_heures') ? 'Heures approuvées!' : 'Heures rejetées.';
+            $type = ($action === 'approuver_heures') ? 'success' : 'warning';
+            setFlashMessage($type, $message);
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+// ========================================
 // DONNÉES POUR ONGLET TEMPS
 // ========================================
 $heuresProjet = [];
