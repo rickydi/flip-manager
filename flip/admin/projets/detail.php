@@ -2940,16 +2940,21 @@ $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
 // Heures travaillées
 $heuresParJour = [];
+$personnesParJour = [];
 try {
-    $stmt = $pdo->prepare("SELECT date_travail as jour, SUM(heures) as total FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_travail ORDER BY date_travail");
+    $stmt = $pdo->prepare("SELECT date_travail as jour, SUM(heures) as total, COUNT(DISTINCT user_id) as nb_personnes FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_travail ORDER BY date_travail");
     $stmt->execute([$projetId]);
-    foreach ($stmt->fetchAll() as $row) $heuresParJour[$row['jour']] = (float)$row['total'];
+    foreach ($stmt->fetchAll() as $row) {
+        $heuresParJour[$row['jour']] = (float)$row['total'];
+        $personnesParJour[$row['jour']] = (int)$row['nb_personnes'];
+    }
 } catch (Exception $e) {}
 
 // Générer tous les jours entre début travaux et aujourd'hui (ou fin prévue)
 $jourLabelsHeures = [];
 $jourDataHeures = [];
 $jourColorsHeures = [];
+$jourPersonnesHeures = [];
 
 $dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
 $dateFinPrevue = $projet['date_fin_prevue'] ?? null;
@@ -2969,9 +2974,11 @@ if ($dateDebutTravaux && !empty($heuresParJour)) {
         foreach ($periode as $date) {
             $dateStr = $date->format('Y-m-d');
             $heures = $heuresParJour[$dateStr] ?? 0;
+            $nbPersonnes = $personnesParJour[$dateStr] ?? 0;
 
             $jourLabelsHeures[] = $date->format('d M');
             $jourDataHeures[] = $heures;
+            $jourPersonnesHeures[] = $nbPersonnes;
             // Bleu pour jours travaillés, rouge pâle pour jours non travaillés
             $jourColorsHeures[] = $heures > 0 ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.25)';
         }
@@ -2981,6 +2988,7 @@ if ($dateDebutTravaux && !empty($heuresParJour)) {
     foreach ($heuresParJour as $jour => $heures) {
         $jourLabelsHeures[] = date('d M', strtotime($jour));
         $jourDataHeures[] = $heures;
+        $jourPersonnesHeures[] = $personnesParJour[$jour] ?? 0;
         $jourColorsHeures[] = 'rgba(59, 130, 246, 0.7)';
     }
 }
@@ -3197,6 +3205,7 @@ window.initDetailCharts = function () {
     }
 
 // Chart 2: Heures travaillées (bleu = travaillé, rouge pâle = non travaillé)
+var personnesParJourData = <?= json_encode($jourPersonnesHeures ?: [0]) ?>;
 if (canvasBudget) {
     window.chartBudget = new Chart(canvasBudget, {
         type: 'bar',
@@ -3214,7 +3223,45 @@ if (canvasBudget) {
                 minBarLength: 3
             }]
         },
-        options: optionsBar
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: {
+                duration: 1200,
+                easing: 'easeOutQuart',
+                delay: (context) => context.dataIndex * 150
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { size: 12, weight: '600' },
+                    bodyFont: { size: 11 },
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            var heures = context.raw;
+                            var nbPersonnes = personnesParJourData[context.dataIndex] || 0;
+                            if (heures > 0 && nbPersonnes > 0) {
+                                return heures + 'h · ' + nbPersonnes + ' pers.';
+                            }
+                            return heures > 0 ? heures + 'h' : 'Aucune heure';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 }, color: '#94a3b8' }
+                },
+                y: {
+                    grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                    ticks: { callback: v => v+'h', font: { size: 10 }, color: '#94a3b8' }
+                }
+            }
+        }
     });
 }
 
