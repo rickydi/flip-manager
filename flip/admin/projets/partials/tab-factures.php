@@ -46,6 +46,25 @@
                 <?php endforeach; ?>
             </select>
 
+            <!-- Séparateur -->
+            <div class="vr mx-1 d-none d-lg-block" style="height: 24px;"></div>
+
+            <!-- Filtre par date -->
+            <div class="d-flex align-items-center gap-1">
+                <i class="bi bi-calendar3 text-muted" title="Filtrer par date"></i>
+                <input type="date" class="form-control form-control-sm" id="filtreFacturesDateDebut" onchange="filtrerFactures()" style="width: 130px;" title="Date début">
+                <span class="text-muted">-</span>
+                <input type="date" class="form-control form-control-sm" id="filtreFacturesDateFin" onchange="filtrerFactures()" style="width: 130px;" title="Date fin">
+            </div>
+
+            <!-- Filtre par montant -->
+            <div class="d-flex align-items-center gap-1">
+                <i class="bi bi-currency-dollar text-muted" title="Filtrer par montant"></i>
+                <input type="number" class="form-control form-control-sm" id="filtreFacturesMontantMin" onchange="filtrerFactures()" placeholder="Min $" style="width: 80px;" min="0" step="0.01">
+                <span class="text-muted">-</span>
+                <input type="number" class="form-control form-control-sm" id="filtreFacturesMontantMax" onchange="filtrerFactures()" placeholder="Max $" style="width: 80px;" min="0" step="0.01">
+            </div>
+
             <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetFiltresFactures()" title="Réinitialiser">
                 <i class="bi bi-x-circle"></i>
             </button>
@@ -114,11 +133,19 @@
                             <th style="width: 40px;" class="text-center">
                                 <input type="checkbox" class="form-check-input" id="selectAllFactures" title="Tout sélectionner">
                             </th>
-                            <th>Date</th>
-                            <th>Fournisseur</th>
+                            <th class="sortable-header" data-sort="date" style="cursor: pointer;" title="Cliquer pour trier">
+                                Date <i class="bi bi-arrow-down-up text-muted ms-1 sort-icon"></i>
+                            </th>
+                            <th class="sortable-header" data-sort="fournisseur" style="cursor: pointer;" title="Cliquer pour trier">
+                                Fournisseur <i class="bi bi-arrow-down-up text-muted ms-1 sort-icon"></i>
+                            </th>
                             <th class="text-center" style="width:30px" title="Articles détectés par IA"><i class="bi bi-robot"></i></th>
-                            <th>Catégorie</th>
-                            <th class="text-end">Montant</th>
+                            <th class="sortable-header" data-sort="categorie" style="cursor: pointer;" title="Cliquer pour trier">
+                                Catégorie <i class="bi bi-arrow-down-up text-muted ms-1 sort-icon"></i>
+                            </th>
+                            <th class="text-end sortable-header" data-sort="montant" style="cursor: pointer;" title="Cliquer pour trier">
+                                Montant <i class="bi bi-arrow-down-up text-muted ms-1 sort-icon"></i>
+                            </th>
                             <th>Statut</th>
                             <th>Paiement</th>
                             <th>Actions</th>

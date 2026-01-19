@@ -3957,6 +3957,13 @@ function filtrerFactures() {
     const fournisseur = document.getElementById('filtreFacturesFournisseur').value;
     const searchInput = document.getElementById('searchFactures');
     const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // Nouveaux filtres
+    const dateDebut = document.getElementById('filtreFacturesDateDebut')?.value || '';
+    const dateFin = document.getElementById('filtreFacturesDateFin')?.value || '';
+    const montantMin = parseFloat(document.getElementById('filtreFacturesMontantMin')?.value) || 0;
+    const montantMax = parseFloat(document.getElementById('filtreFacturesMontantMax')?.value) || Infinity;
+
     const factures = document.querySelectorAll('.facture-row');
     let count = 0;
     let total = 0;
@@ -3973,6 +3980,18 @@ function filtrerFactures() {
         const matchCategorie = !categorie || rowCategorie === categorie;
         const matchFournisseur = !fournisseur || rowFournisseur === fournisseur;
 
+        // Filtre par date
+        let matchDate = true;
+        if (dateDebut && rowDate) {
+            matchDate = rowDate >= dateDebut;
+        }
+        if (dateFin && rowDate && matchDate) {
+            matchDate = rowDate <= dateFin;
+        }
+
+        // Filtre par montant
+        const matchMontant = rowMontant >= montantMin && rowMontant <= montantMax;
+
         // Recherche textuelle dans fournisseur, catégorie, date, et produits
         let matchSearch = true;
         if (search) {
@@ -3988,7 +4007,7 @@ function filtrerFactures() {
             matchSearch = searchTerms.every(term => searchableText.includes(term));
         }
 
-        if (matchStatut && matchCategorie && matchFournisseur && matchSearch) {
+        if (matchStatut && matchCategorie && matchFournisseur && matchSearch && matchDate && matchMontant) {
             row.style.display = '';
             count++;
             total += rowMontant;
@@ -4007,8 +4026,103 @@ function resetFiltresFactures() {
     document.getElementById('filtreFacturesFournisseur').value = '';
     const searchInput = document.getElementById('searchFactures');
     if (searchInput) searchInput.value = '';
+    // Réinitialiser les nouveaux filtres
+    const dateDebut = document.getElementById('filtreFacturesDateDebut');
+    const dateFin = document.getElementById('filtreFacturesDateFin');
+    const montantMin = document.getElementById('filtreFacturesMontantMin');
+    const montantMax = document.getElementById('filtreFacturesMontantMax');
+    if (dateDebut) dateDebut.value = '';
+    if (dateFin) dateFin.value = '';
+    if (montantMin) montantMin.value = '';
+    if (montantMax) montantMax.value = '';
+    // Réinitialiser le tri
+    resetFacturesSort();
     filtrerFactures();
 }
+
+// Tri des factures par colonnes
+let facturesSortColumn = null;
+let facturesSortDirection = 'asc';
+
+function sortFactures(column) {
+    const tbody = document.querySelector('#facturesTable tbody');
+    if (!tbody) return;
+
+    // Toggle direction si même colonne
+    if (facturesSortColumn === column) {
+        facturesSortDirection = facturesSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        facturesSortColumn = column;
+        facturesSortDirection = 'asc';
+    }
+
+    // Mettre à jour les icônes
+    document.querySelectorAll('.sortable-header .sort-icon').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up text-muted ms-1 sort-icon';
+    });
+    const activeHeader = document.querySelector(`.sortable-header[data-sort="${column}"] .sort-icon`);
+    if (activeHeader) {
+        activeHeader.className = `bi bi-arrow-${facturesSortDirection === 'asc' ? 'up' : 'down'} text-warning ms-1 sort-icon`;
+    }
+
+    // Trier les lignes
+    const rows = Array.from(tbody.querySelectorAll('.facture-row'));
+    rows.sort((a, b) => {
+        let valA, valB;
+
+        switch(column) {
+            case 'date':
+                valA = a.dataset.date || '';
+                valB = b.dataset.date || '';
+                break;
+            case 'fournisseur':
+                valA = (a.dataset.fournisseur || '').toLowerCase();
+                valB = (b.dataset.fournisseur || '').toLowerCase();
+                break;
+            case 'categorie':
+                valA = (a.dataset.categorie || '').toLowerCase();
+                valB = (b.dataset.categorie || '').toLowerCase();
+                break;
+            case 'montant':
+                valA = parseFloat(a.dataset.montant) || 0;
+                valB = parseFloat(b.dataset.montant) || 0;
+                break;
+            default:
+                return 0;
+        }
+
+        let comparison = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            comparison = valA - valB;
+        } else {
+            comparison = valA.localeCompare(valB, 'fr');
+        }
+
+        return facturesSortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    // Réordonner le DOM
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function resetFacturesSort() {
+    facturesSortColumn = null;
+    facturesSortDirection = 'asc';
+    document.querySelectorAll('.sortable-header .sort-icon').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up text-muted ms-1 sort-icon';
+    });
+}
+
+// Initialiser les événements de tri
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#facturesTable .sortable-header').forEach(header => {
+        header.addEventListener('click', function(e) {
+            e.preventDefault();
+            const column = this.dataset.sort;
+            if (column) sortFactures(column);
+        });
+    });
+});
 
 // Toggle paiement facture via AJAXfunction togglePaiementFacture(factureId, element) {    fetch('<?= url('/admin/factures/liste.php') ?>?toggle_paiement=1&id=' + factureId, {        headers: { 'X-Requested-With': 'XMLHttpRequest' }    })    .then(response => response.json())    .then(data => {        if (data.est_payee) {            element.className = 'badge bg-success text-white';            element.innerHTML = '<i class="bi bi-check-circle me-1"></i>Payé';        } else {            element.className = 'badge bg-primary text-white';            element.innerHTML = '<i class="bi bi-clock me-1"></i>Non payé';        }    })    .catch(err => {        window.location.reload();    });}
 // Variable pour stocker les fichiers convertis
