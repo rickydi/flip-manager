@@ -126,6 +126,20 @@ $filtreStatut = isset($_GET['statut']) ? $_GET['statut'] : '';
 $filtreCategorie = isset($_GET['categorie']) ? (int)$_GET['categorie'] : 0;
 $filtrePaiement = isset($_GET['paiement']) ? $_GET['paiement'] : '';
 
+// Tri
+$triColonnes = [
+    'date' => 'f.date_facture',
+    'projet' => 'p.nom',
+    'fournisseur' => 'f.fournisseur',
+    'categorie' => 'e.nom',
+    'employe' => 'employe_nom',
+    'montant' => 'f.montant_total',
+    'statut' => 'f.statut',
+    'paiement' => 'f.est_payee'
+];
+$tri = isset($_GET['tri']) && array_key_exists($_GET['tri'], $triColonnes) ? $_GET['tri'] : 'date';
+$ordre = isset($_GET['ordre']) && in_array($_GET['ordre'], ['asc', 'desc']) ? $_GET['ordre'] : 'desc';
+
 // Construire la requête
 $where = "WHERE 1=1";
 $params = [];
@@ -178,6 +192,11 @@ $stmtImpaye->execute($paramsImpaye);
 $totalImpaye = $stmtImpaye->fetchColumn();
 
 // Récupérer les factures
+$orderBy = $triColonnes[$tri] . ' ' . strtoupper($ordre);
+// Ajouter un tri secondaire pour les résultats cohérents
+if ($tri !== 'date') {
+    $orderBy .= ', f.date_creation DESC';
+}
 $sql = "
     SELECT f.*, p.nom as projet_nom, e.nom as etape_nom,
            CONCAT(u.prenom, ' ', u.nom) as employe_nom,
@@ -187,7 +206,7 @@ $sql = "
     LEFT JOIN budget_etapes e ON f.etape_id = e.id
     JOIN users u ON f.user_id = u.id
     $where
-    ORDER BY f.date_creation DESC
+    ORDER BY $orderBy
     LIMIT $perPage OFFSET $offset
 ";
 $stmt = $pdo->prepare($sql);
@@ -202,7 +221,52 @@ $categories = getCategories($pdo);
 $refreshInterval = 15; // secondes
 
 include '../../includes/header.php';
+
+// Fonction pour générer l'URL de tri
+function getTriUrl($colonne, $triActuel, $ordreActuel) {
+    $params = $_GET;
+    $params['tri'] = $colonne;
+    // Inverser l'ordre si on clique sur la même colonne
+    if ($colonne === $triActuel) {
+        $params['ordre'] = ($ordreActuel === 'asc') ? 'desc' : 'asc';
+    } else {
+        // Par défaut: desc pour montant et date, asc pour les autres
+        $params['ordre'] = in_array($colonne, ['montant', 'date']) ? 'desc' : 'asc';
+    }
+    // Retirer la page pour revenir à la première page lors du tri
+    unset($params['page']);
+    return '?' . http_build_query($params);
+}
+
+// Fonction pour afficher l'icône de tri
+function getTriIcon($colonne, $triActuel, $ordreActuel) {
+    if ($colonne !== $triActuel) {
+        return '<i class="bi bi-arrow-down-up sort-icon"></i>';
+    }
+    return $ordreActuel === 'asc'
+        ? '<i class="bi bi-sort-up sort-icon"></i>'
+        : '<i class="bi bi-sort-down sort-icon"></i>';
+}
 ?>
+
+<!-- Style pour colonnes triables -->
+<style>
+.sortable {
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+}
+.sortable:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.sort-icon {
+    opacity: 0.3;
+    margin-left: 4px;
+}
+.sortable.active .sort-icon {
+    opacity: 1;
+}
+</style>
 
 <!-- Auto-refresh intelligent: pause si modal ouvert -->
 <script>
@@ -341,14 +405,46 @@ include '../../includes/header.php';
                             <tr>
                                 <th style="width:50px"></th>
                                 <th style="width:30px" class="text-center" title="Articles détectés par IA"><i class="bi bi-robot text-muted"></i></th>
-                                <th>Date</th>
-                                <th>Projet</th>
-                                <th>Fournisseur</th>
-                                <th>Catégorie</th>
-                                <th>Employé</th>
-                                <th class="text-end">Montant</th>
-                                <th class="text-center">Statut</th>
-                                <th class="text-center">Paiement</th>
+                                <th class="sortable <?= $tri === 'date' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('date', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Date<?= getTriIcon('date', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?= $tri === 'projet' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('projet', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Projet<?= getTriIcon('projet', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?= $tri === 'fournisseur' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('fournisseur', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Fournisseur<?= getTriIcon('fournisseur', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?= $tri === 'categorie' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('categorie', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Catégorie<?= getTriIcon('categorie', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="sortable <?= $tri === 'employe' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('employe', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Employé<?= getTriIcon('employe', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="text-end sortable <?= $tri === 'montant' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('montant', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Montant<?= getTriIcon('montant', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="text-center sortable <?= $tri === 'statut' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('statut', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Statut<?= getTriIcon('statut', $tri, $ordre) ?>
+                                    </a>
+                                </th>
+                                <th class="text-center sortable <?= $tri === 'paiement' ? 'active' : '' ?>">
+                                    <a href="<?= getTriUrl('paiement', $tri, $ordre) ?>" class="text-decoration-none text-dark">
+                                        Paiement<?= getTriIcon('paiement', $tri, $ordre) ?>
+                                    </a>
+                                </th>
                                 <th style="width:50px"></th>
                             </tr>
                         </thead>
