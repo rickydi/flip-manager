@@ -835,6 +835,114 @@ class ClaudeService {
         return $this->callApiFacture($payload, $isPdf);
     }
 
+    /**
+     * Analyse une image de soumission sous-traitant et extrait les informations
+     * @param string $imageData Base64 encoded image/PDF data
+     * @param string $mimeType Type MIME (image/png, image/jpeg, application/pdf)
+     * @param array $etapes Liste des étapes/catégories disponibles
+     * @return array Données extraites de la soumission
+     */
+    public function analyserSoumission($imageData, $mimeType, $etapes = []) {
+        $systemPrompt = "Tu es un assistant expert en extraction de données de soumissions et factures de sous-traitants " .
+                       "pour des projets de rénovation immobilière (Flip) au Québec. " .
+                       "Tu dois analyser le document fourni et extraire les informations clés sur l'entreprise et les montants. " .
+                       "Sois précis et utilise les valeurs exactes visibles sur le document. " .
+                       "Réponds UNIQUEMENT en JSON valide, sans texte autour.";
+
+        // Construire la liste des étapes
+        $etapesListe = "";
+        if (!empty($etapes)) {
+            foreach ($etapes as $etape) {
+                $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
+            }
+        } else {
+            $etapesListe = "- id: 1, nom: Démolition\n" .
+                          "- id: 2, nom: Structure/Charpente\n" .
+                          "- id: 3, nom: Plomberie\n" .
+                          "- id: 4, nom: Électricité\n" .
+                          "- id: 5, nom: Isolation\n" .
+                          "- id: 6, nom: Gypse/Plâtre\n" .
+                          "- id: 7, nom: Finition intérieure\n" .
+                          "- id: 8, nom: Peinture\n" .
+                          "- id: 9, nom: Revêtement extérieur\n" .
+                          "- id: 10, nom: Toiture\n" .
+                          "- id: 11, nom: Planchers\n" .
+                          "- id: 12, nom: Cuisine\n" .
+                          "- id: 13, nom: Salle de bain\n" .
+                          "- id: 14, nom: Portes et fenêtres\n" .
+                          "- id: 15, nom: Autre\n";
+        }
+
+        $userMessage = "Analyse cette soumission/facture de sous-traitant et extrais les informations.\n\n" .
+                      "CATÉGORIES DISPONIBLES (utilise l'id):\n{$etapesListe}\n" .
+                      "IMPORTANT:\n" .
+                      "- Les taxes au Québec sont TPS (5%) et TVQ (9.975%)\n" .
+                      "- Si tu vois un total TTC, calcule le montant avant taxes\n" .
+                      "- La date doit être au format YYYY-MM-DD\n" .
+                      "- Identifie le TYPE DE TRAVAUX pour suggérer la bonne catégorie\n" .
+                      "- Extrais toutes les infos de contact visibles (téléphone, email)\n\n" .
+                      "Format JSON attendu:\n" .
+                      "{\n" .
+                      "  \"nom_entreprise\": \"Nom de l'entreprise ou du sous-traitant\",\n" .
+                      "  \"contact\": \"Nom de la personne contact si visible\",\n" .
+                      "  \"telephone\": \"Numéro de téléphone\",\n" .
+                      "  \"email\": \"Adresse email\",\n" .
+                      "  \"date_facture\": \"YYYY-MM-DD\",\n" .
+                      "  \"description\": \"Description des travaux à effectuer\",\n" .
+                      "  \"montant_avant_taxes\": 1234.56,\n" .
+                      "  \"tps\": 61.73,\n" .
+                      "  \"tvq\": 123.15,\n" .
+                      "  \"montant_total\": 1419.44,\n" .
+                      "  \"etape_id\": 4,\n" .
+                      "  \"etape_suggestion\": \"Électricité\",\n" .
+                      "  \"notes\": \"Informations supplémentaires utiles (numéro de soumission, conditions, etc.)\",\n" .
+                      "  \"confiance\": 0.95\n" .
+                      "}";
+
+        // Construire le contenu selon le type de fichier
+        if ($mimeType === 'application/pdf') {
+            $fileContent = [
+                'type' => 'document',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => 'application/pdf',
+                    'data' => $imageData
+                ]
+            ];
+        } else {
+            $fileContent = [
+                'type' => 'image',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => $mimeType,
+                    'data' => $imageData
+                ]
+            ];
+        }
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 2048,
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        $fileContent,
+                        [
+                            'type' => 'text',
+                            'text' => $userMessage
+                        ]
+                    ]
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        $isPdf = ($mimeType === 'application/pdf');
+        return $this->callApiFacture($payload, $isPdf);
+    }
+
     private function callApiFacture($payload, $isPdf = false) {
         $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

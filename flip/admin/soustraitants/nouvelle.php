@@ -404,6 +404,9 @@ include '../../includes/header.php';
                                         <a href="<?= url('/uploads/soustraitants/' . $soustraitant['fichier']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-file-earmark me-1"></i>Voir le fichier actuel
                                         </a>
+                                        <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="analyserFichierExistant()">
+                                            <i class="bi bi-robot me-1"></i>Analyser avec l'IA
+                                        </button>
                                     </div>
                                 <?php endif; ?>
                                 <div id="dropZone" class="border border-2 border-dashed rounded p-4 text-center mb-2"
@@ -417,11 +420,23 @@ include '../../includes/header.php';
                                     <div class="alert alert-success d-flex align-items-center">
                                         <i class="bi bi-check-circle me-2"></i>
                                         <span id="fileName"></span>
+                                        <button type="button" class="btn btn-sm btn-info ms-2" onclick="analyserAvecIA()" id="btnAnalyserIA" title="Analyser avec l'IA">
+                                            <i class="bi bi-robot"></i>
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="clearFile()">
                                             <i class="bi bi-x"></i>
                                         </button>
                                     </div>
                                 </div>
+                                <!-- Indicateur de chargement IA -->
+                                <div id="iaLoading" class="mt-2" style="display: none;">
+                                    <div class="alert alert-info d-flex align-items-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        <span>Analyse en cours par l'IA...</span>
+                                    </div>
+                                </div>
+                                <!-- Résultat IA -->
+                                <div id="iaResult" class="mt-2" style="display: none;"></div>
                             </div>
 
                             <!-- Notes -->
@@ -463,6 +478,13 @@ include '../../includes/header.php';
                     <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Aide</h6>
                 </div>
                 <div class="card-body">
+                    <h6><i class="bi bi-robot text-info me-1"></i>Analyse IA</h6>
+                    <p class="small text-muted">
+                        Téléchargez une image ou PDF de la soumission, puis cliquez sur
+                        <span class="badge bg-info"><i class="bi bi-robot"></i></span>
+                        pour remplir automatiquement les champs avec l'IA.
+                    </p>
+                    <hr>
                     <h6>Sous-traitants</h6>
                     <p class="small text-muted">
                         Utilisez ce formulaire pour enregistrer les factures de vos sous-traitants
@@ -547,14 +569,18 @@ dropZone.addEventListener('drop', (e) => {
     dropZone.style.borderColor = '#6c757d';
     dropZone.style.background = 'transparent';
     if (e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
         fileInput.files = e.dataTransfer.files;
-        showFilePreview(e.dataTransfer.files[0]);
+        showFilePreview(file);
+        storeImageForAnalysis(file);
     }
 });
 
 fileInput.addEventListener('change', () => {
     if (fileInput.files.length > 0) {
-        showFilePreview(fileInput.files[0]);
+        const file = fileInput.files[0];
+        showFilePreview(file);
+        storeImageForAnalysis(file);
     }
 });
 
@@ -570,6 +596,8 @@ document.addEventListener('paste', (e) => {
             const reader = new FileReader();
             reader.onload = function(event) {
                 imageBase64.value = event.target.result;
+                currentImageData = event.target.result;
+                currentMimeType = file.type || 'image/png';
                 fileName.textContent = 'Image collée';
                 filePreview.style.display = 'block';
                 dropZone.style.display = 'none';
@@ -592,7 +620,246 @@ function clearFile() {
     imageBase64.value = '';
     filePreview.style.display = 'none';
     dropZone.style.display = 'block';
+    document.getElementById('iaResult').style.display = 'none';
 }
+
+// Variable pour stocker les données de l'image pour l'analyse
+let currentImageData = null;
+let currentMimeType = null;
+
+// Fonction appelée après upload/paste pour stocker les données
+function storeImageForAnalysis(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        currentImageData = e.target.result;
+        // Extraire le mime type
+        const match = currentImageData.match(/^data:([^;]+);/);
+        currentMimeType = match ? match[1] : (file.type || 'image/png');
+    };
+    reader.readAsDataURL(file);
+}
+
+// Analyser avec l'IA
+async function analyserAvecIA() {
+    if (!currentImageData && !imageBase64.value) {
+        alert('Veuillez d\'abord sélectionner un fichier.');
+        return;
+    }
+
+    const iaLoading = document.getElementById('iaLoading');
+    const iaResult = document.getElementById('iaResult');
+    const btnAnalyser = document.getElementById('btnAnalyserIA');
+
+    iaLoading.style.display = 'block';
+    iaResult.style.display = 'none';
+    btnAnalyser.disabled = true;
+
+    try {
+        const dataToSend = imageBase64.value || currentImageData;
+
+        const response = await fetch('<?= url('/api/analyse-soumission.php') ?>', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image: dataToSend,
+                mime_type: currentMimeType || 'image/png'
+            })
+        });
+
+        const result = await response.json();
+        iaLoading.style.display = 'none';
+        btnAnalyser.disabled = false;
+
+        if (result.success && result.data) {
+            remplirFormulaire(result.data);
+
+            // Afficher le message de succès
+            const confiance = result.data.confiance ? Math.round(result.data.confiance * 100) : 'N/A';
+            iaResult.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Analyse terminée!</strong> Confiance: ${confiance}%
+                    ${result.data.notes ? `<br><small class="text-muted">${result.data.notes}</small>` : ''}
+                </div>
+            `;
+            iaResult.style.display = 'block';
+        } else {
+            iaResult.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    ${result.error || 'Erreur lors de l\'analyse'}
+                </div>
+            `;
+            iaResult.style.display = 'block';
+        }
+    } catch (error) {
+        iaLoading.style.display = 'none';
+        btnAnalyser.disabled = false;
+        iaResult.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur de connexion: ${error.message}
+            </div>
+        `;
+        iaResult.style.display = 'block';
+    }
+}
+
+// Remplir le formulaire avec les données extraites
+function remplirFormulaire(data) {
+    // Nom de l'entreprise
+    if (data.nom_entreprise) {
+        document.getElementById('nom_entreprise').value = data.nom_entreprise;
+    }
+
+    // Contact
+    if (data.contact) {
+        document.getElementById('contact').value = data.contact;
+    }
+
+    // Téléphone
+    if (data.telephone) {
+        document.getElementById('telephone').value = data.telephone;
+    }
+
+    // Email
+    if (data.email) {
+        document.getElementById('email').value = data.email;
+    }
+
+    // Date
+    if (data.date_facture) {
+        document.getElementById('date_facture').value = data.date_facture;
+    }
+
+    // Description
+    if (data.description) {
+        document.getElementById('description').value = data.description;
+    }
+
+    // Montants
+    if (data.montant_avant_taxes) {
+        document.getElementById('montant_avant_taxes').value = parseFloat(data.montant_avant_taxes).toFixed(2);
+    }
+    if (data.tps) {
+        document.getElementById('tps').value = parseFloat(data.tps).toFixed(2);
+    }
+    if (data.tvq) {
+        document.getElementById('tvq').value = parseFloat(data.tvq).toFixed(2);
+    }
+
+    // Calculer le total
+    calculerTotal();
+
+    // Catégorie/Étape
+    if (data.etape_id) {
+        const etapeSelect = document.getElementById('etape_id');
+        const option = etapeSelect.querySelector(`option[value="${data.etape_id}"]`);
+        if (option) {
+            etapeSelect.value = data.etape_id;
+        }
+    }
+
+    // Notes (combiner avec notes existantes si présentes)
+    if (data.notes) {
+        const notesField = document.getElementById('notes');
+        const existingNotes = notesField.value.trim();
+        if (existingNotes) {
+            notesField.value = existingNotes + '\n\n[IA] ' + data.notes;
+        } else {
+            notesField.value = '[IA] ' + data.notes;
+        }
+    }
+
+    // Flash animation sur les champs remplis
+    const fieldsToHighlight = ['nom_entreprise', 'contact', 'telephone', 'email',
+                               'date_facture', 'description', 'montant_avant_taxes',
+                               'tps', 'tvq', 'etape_id', 'notes'];
+    fieldsToHighlight.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field && field.value) {
+            field.classList.add('bg-success-subtle');
+            setTimeout(() => {
+                field.classList.remove('bg-success-subtle');
+            }, 2000);
+        }
+    });
+}
+
+// Analyser un fichier existant (mode édition)
+<?php if ($isEdit && $soustraitant['fichier']): ?>
+async function analyserFichierExistant() {
+    const iaLoading = document.getElementById('iaLoading');
+    const iaResult = document.getElementById('iaResult');
+
+    iaLoading.style.display = 'block';
+    iaResult.style.display = 'none';
+
+    try {
+        // Charger le fichier existant
+        const fileUrl = '<?= url('/uploads/soustraitants/' . $soustraitant['fichier']) ?>';
+        const response = await fetch(fileUrl);
+        const blob = await response.blob();
+
+        // Convertir en base64
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            currentImageData = e.target.result;
+            const match = currentImageData.match(/^data:([^;]+);/);
+            currentMimeType = match ? match[1] : 'application/octet-stream';
+
+            // Lancer l'analyse
+            const analyseResponse = await fetch('<?= url('/api/analyse-soumission.php') ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    image: currentImageData,
+                    mime_type: currentMimeType
+                })
+            });
+
+            const result = await analyseResponse.json();
+            iaLoading.style.display = 'none';
+
+            if (result.success && result.data) {
+                remplirFormulaire(result.data);
+
+                const confiance = result.data.confiance ? Math.round(result.data.confiance * 100) : 'N/A';
+                iaResult.innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="bi bi-check-circle me-2"></i>
+                        <strong>Analyse terminée!</strong> Confiance: ${confiance}%
+                        ${result.data.notes ? `<br><small class="text-muted">${result.data.notes}</small>` : ''}
+                    </div>
+                `;
+                iaResult.style.display = 'block';
+            } else {
+                iaResult.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        ${result.error || 'Erreur lors de l\'analyse'}
+                    </div>
+                `;
+                iaResult.style.display = 'block';
+            }
+        };
+        reader.readAsDataURL(blob);
+    } catch (error) {
+        iaLoading.style.display = 'none';
+        iaResult.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Erreur: ${error.message}
+            </div>
+        `;
+        iaResult.style.display = 'block';
+    }
+}
+<?php endif; ?>
 </script>
 
 <?php include '../../includes/footer.php'; ?>
