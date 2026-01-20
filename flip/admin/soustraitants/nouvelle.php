@@ -1,35 +1,27 @@
 <?php
 /**
  * Nouveau sous-traitant / Modifier sous-traitant - Admin
- * Flip Manager
+ * Flip Manager - Structure identique à nouvelle facture
  */
 
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
 
-// Permettre aux employés ET admins d'accéder à cette page
 requireLogin();
-
-// Déterminer si l'utilisateur est admin (pour afficher certaines options)
 $isAdmin = isAdmin();
 
 // Auto-migration: créer la table sous_traitants si elle n'existe pas
 try {
     $pdo->query("SELECT 1 FROM sous_traitants LIMIT 1");
 } catch (Exception $e) {
-    // Exécuter la migration
     $sqlFile = __DIR__ . '/../../sql/migration_sous_traitants.sql';
     if (file_exists($sqlFile)) {
         $sql = file_get_contents($sqlFile);
         $statements = array_filter(array_map('trim', explode(';', $sql)));
         foreach ($statements as $statement) {
             if (!empty($statement) && stripos($statement, '--') !== 0) {
-                try {
-                    $pdo->exec($statement);
-                } catch (Exception $e2) {
-                    // Ignorer les erreurs (table existe déjà, etc.)
-                }
+                try { $pdo->exec($statement); } catch (Exception $e2) {}
             }
         }
     }
@@ -39,9 +31,7 @@ try {
 try {
     $pdo->query("SELECT etape_id FROM sous_traitants LIMIT 1");
 } catch (Exception $e) {
-    try {
-        $pdo->exec("ALTER TABLE sous_traitants ADD COLUMN etape_id INT DEFAULT NULL");
-    } catch (Exception $e2) {}
+    try { $pdo->exec("ALTER TABLE sous_traitants ADD COLUMN etape_id INT DEFAULT NULL"); } catch (Exception $e2) {}
 }
 
 // Mode édition si ID fourni
@@ -53,10 +43,7 @@ if ($soustraitantId) {
     $stmt = $pdo->prepare("SELECT * FROM sous_traitants WHERE id = ?");
     $stmt->execute([$soustraitantId]);
     $soustraitant = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($soustraitant) {
-        $isEdit = true;
-    }
+    if ($soustraitant) $isEdit = true;
 }
 
 $pageTitle = $isEdit ? 'Modifier sous-traitant' : 'Nouveau sous-traitant';
@@ -78,16 +65,13 @@ try {
                 date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
-        // Insérer les entreprises par défaut
         $entreprisesDefaut = ['Électricien', 'Plombier', 'Couvreur', 'Maçon', 'Peintre', 'Menuisier', 'Carreleur', 'Excavation', 'Béton'];
         $stmtInsert = $pdo->prepare("INSERT IGNORE INTO entreprises_soustraitants (nom) VALUES (?)");
-        foreach ($entreprisesDefaut as $e) {
-            $stmtInsert->execute([$e]);
-        }
+        foreach ($entreprisesDefaut as $e) { $stmtInsert->execute([$e]); }
     }
 } catch (Exception $e) {}
 
-// Récupérer les entreprises depuis la table
+// Récupérer les entreprises
 $stmt = $pdo->query("SELECT nom, contact, telephone, email FROM entreprises_soustraitants WHERE actif = 1 ORDER BY nom ASC");
 $toutesLesEntreprises = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -127,7 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($dateFacture)) $errors[] = 'La date de la facture est requise.';
         if ($montantAvantTaxes <= 0) $errors[] = 'Le montant avant taxes doit être supérieur à 0.';
 
-        // Calculer le total
         $montantTotal = $montantAvantTaxes + $tps + $tvq;
 
         // Upload de fichier
@@ -142,22 +125,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $errors[] = $upload['error'];
             }
-        }
-        // Si pas de fichier uploadé mais image collée (base64)
-        elseif (!empty($_POST['image_base64'])) {
+        } elseif (!empty($_POST['image_base64'])) {
             $base64Data = $_POST['image_base64'];
             if (preg_match('/^data:image\/(\w+);base64,(.+)$/', $base64Data, $matches)) {
                 $extension = $matches[1] === 'jpeg' ? 'jpg' : $matches[1];
                 $imageData = base64_decode($matches[2]);
-
                 if ($imageData !== false) {
                     $fichier = 'soustraitant_' . time() . '_' . uniqid() . '.' . $extension;
                     $uploadDir = __DIR__ . '/../../uploads/soustraitants/';
-
-                    if (!is_dir($uploadDir)) {
-                        mkdir($uploadDir, 0755, true);
-                    }
-
+                    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
                     if (!file_put_contents($uploadDir . $fichier, $imageData)) {
                         $fichier = null;
                         $errors[] = 'Erreur lors de la sauvegarde de l\'image collée.';
@@ -171,23 +147,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $statut = $approuverDirect ? 'approuvee' : 'en_attente';
 
                 if ($isEdit) {
-                    // Mise à jour
                     $stmt = $pdo->prepare("
                         UPDATE sous_traitants SET
-                            projet_id = ?,
-                            etape_id = ?,
-                            nom_entreprise = ?,
-                            contact = ?,
-                            telephone = ?,
-                            email = ?,
-                            description = ?,
-                            date_facture = ?,
-                            montant_avant_taxes = ?,
-                            tps = ?,
-                            tvq = ?,
-                            montant_total = ?,
-                            fichier = ?,
-                            notes = ?,
+                            projet_id = ?, etape_id = ?, nom_entreprise = ?, contact = ?, telephone = ?, email = ?,
+                            description = ?, date_facture = ?, montant_avant_taxes = ?, tps = ?, tvq = ?,
+                            montant_total = ?, fichier = ?, notes = ?,
                             statut = CASE WHEN ? = 'approuvee' THEN 'approuvee' ELSE statut END,
                             date_modification = NOW()
                         WHERE id = ?
@@ -197,12 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $description, $dateFacture, $montantAvantTaxes, $tps, $tvq, $montantTotal,
                         $fichier, $notes, $statut, $soustraitantId
                     ]);
-
-                    $redirectUrl = isset($_GET['redirect']) ? $_GET['redirect'] : "/admin/projets/detail.php?id={$projetId}&tab=soustraitants";
                     setFlashMessage('success', 'Sous-traitant modifié avec succès.');
-                    redirect($redirectUrl);
                 } else {
-                    // Création
                     $stmt = $pdo->prepare("
                         INSERT INTO sous_traitants (
                             projet_id, etape_id, user_id, nom_entreprise, contact, telephone, email,
@@ -227,8 +187,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } catch (Exception $e) {}
 
                     setFlashMessage('success', 'Sous-traitant ajouté avec succès.');
-                    redirect("/admin/projets/detail.php?id={$projetId}&tab=soustraitants");
                 }
+                redirect("/admin/projets/detail.php?id={$projetId}&tab=soustraitants");
             } catch (Exception $e) {
                 $errors[] = 'Erreur lors de l\'enregistrement : ' . $e->getMessage();
             }
@@ -236,65 +196,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Pré-remplir le projet si fourni dans l'URL
-$preselectedProjet = (int)($_GET['projet'] ?? ($isEdit ? $soustraitant['projet_id'] : 0));
+$selectedProjet = $isEdit ? $soustraitant['projet_id'] : (int)($_GET['projet'] ?? 0);
 
 include '../../includes/header.php';
 ?>
 
+<?php
+$returnUrl = $selectedProjet ? url('/admin/projets/detail.php?id=' . $selectedProjet . '&tab=soustraitants') : url('/admin/index.php');
+$returnLabel = $selectedProjet ? 'Projet' : 'Tableau de bord';
+?>
 <div class="container-fluid">
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
-            <?php if ($preselectedProjet): ?>
-                <li class="breadcrumb-item"><a href="<?= url('/admin/projets/detail.php?id=' . $preselectedProjet . '&tab=soustraitants') ?>">Projet</a></li>
-            <?php endif; ?>
-            <li class="breadcrumb-item active"><?= $isEdit ? 'Modifier' : 'Nouveau' ?> sous-traitant</li>
-        </ol>
-    </nav>
+    <div class="page-header">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="<?= url('/admin/index.php') ?>">Tableau de bord</a></li>
+                <li class="breadcrumb-item"><a href="<?= $returnUrl ?>"><?= $returnLabel ?></a></li>
+                <li class="breadcrumb-item active"><?= $isEdit ? 'Modifier' : 'Nouveau' ?> sous-traitant</li>
+            </ol>
+        </nav>
+        <h1><i class="bi bi-<?= $isEdit ? 'pencil-square' : 'plus-circle' ?> me-2"></i><?= $isEdit ? 'Modifier le sous-traitant' : 'Nouveau sous-traitant' ?></h1>
+    </div>
+
+    <?php if (!empty($errors)): ?>
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                <?php foreach ($errors as $error): ?>
+                    <li><?= e($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 
     <div class="row">
-        <div class="col-lg-8">
+        <!-- Colonne gauche: Formulaire -->
+        <div class="col-lg-7">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-building me-2"></i><?= $isEdit ? 'Modifier le sous-traitant' : 'Nouveau sous-traitant' ?>
-                    </h5>
+                    <i class="bi bi-pencil-square me-2"></i>Informations du sous-traitant
                 </div>
                 <div class="card-body">
-                    <?php if (!empty($errors)): ?>
-                        <div class="alert alert-danger">
-                            <ul class="mb-0">
-                                <?php foreach ($errors as $error): ?>
-                                    <li><?= e($error) ?></li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                    <?php endif; ?>
-
                     <form method="POST" enctype="multipart/form-data" id="soustraitantForm">
                         <?php csrfField(); ?>
                         <input type="hidden" name="image_base64" id="imageBase64">
 
-                        <div class="row g-3">
-                            <!-- Projet -->
-                            <div class="col-md-6">
-                                <label for="projet_id" class="form-label">Projet <span class="text-danger">*</span></label>
-                                <select class="form-select" id="projet_id" name="projet_id" required>
-                                    <option value="">Sélectionner un projet...</option>
-                                    <?php foreach ($projets as $p): ?>
-                                        <option value="<?= $p['id'] ?>" <?= $preselectedProjet == $p['id'] ? 'selected' : '' ?>>
-                                            <?= e($p['nom']) ?> - <?= e($p['ville']) ?>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Projet *</label>
+                                <select class="form-select" name="projet_id" id="projet_id" required>
+                                    <option value="">Sélectionner...</option>
+                                    <?php foreach ($projets as $projet): ?>
+                                        <option value="<?= $projet['id'] ?>" <?= $selectedProjet == $projet['id'] ? 'selected' : '' ?>>
+                                            <?= e($projet['nom']) ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-
-                            <!-- Catégorie -->
-                            <div class="col-md-6">
-                                <label for="etape_id" class="form-label">Catégorie <span class="text-danger">*</span></label>
-                                <select class="form-select" id="etape_id" name="etape_id" required>
-                                    <option value="">Sélectionner une catégorie...</option>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Étape *</label>
+                                <select class="form-select" name="etape_id" id="etape_id" required>
+                                    <option value="">Sélectionner...</option>
                                     <?php foreach ($etapes as $etape): ?>
                                         <option value="<?= $etape['id'] ?>" <?= ($isEdit && $soustraitant['etape_id'] == $etape['id']) ? 'selected' : '' ?>>
                                             <?= e($etape['nom']) ?>
@@ -302,11 +262,12 @@ include '../../includes/header.php';
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+                        </div>
 
-                            <!-- Entreprise -->
-                            <div class="col-md-6">
-                                <label for="nom_entreprise" class="form-label">Entreprise / Sous-traitant <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="nom_entreprise" name="nom_entreprise"
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Entreprise / Sous-traitant *</label>
+                                <input type="text" class="form-control" name="nom_entreprise" id="nom_entreprise"
                                        value="<?= e($isEdit ? $soustraitant['nom_entreprise'] : '') ?>"
                                        list="entreprisesList" required autocomplete="off">
                                 <datalist id="entreprisesList">
@@ -315,226 +276,285 @@ include '../../includes/header.php';
                                     <?php endforeach; ?>
                                 </datalist>
                             </div>
-
-                            <!-- Contact -->
-                            <div class="col-md-6">
-                                <label for="contact" class="form-label">Nom du contact</label>
-                                <input type="text" class="form-control" id="contact" name="contact"
-                                       value="<?= e($isEdit ? $soustraitant['contact'] : '') ?>">
-                            </div>
-
-                            <!-- Téléphone -->
-                            <div class="col-md-6">
-                                <label for="telephone" class="form-label">Téléphone</label>
-                                <input type="tel" class="form-control" id="telephone" name="telephone"
-                                       value="<?= e($isEdit ? $soustraitant['telephone'] : '') ?>">
-                            </div>
-
-                            <!-- Email -->
-                            <div class="col-md-6">
-                                <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email"
-                                       value="<?= e($isEdit ? $soustraitant['email'] : '') ?>">
-                            </div>
-
-                            <!-- Date -->
-                            <div class="col-md-4">
-                                <label for="date_facture" class="form-label">Date de la facture <span class="text-danger">*</span></label>
-                                <input type="date" class="form-control" id="date_facture" name="date_facture"
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Date de la facture *</label>
+                                <input type="date" class="form-control" name="date_facture" id="date_facture"
                                        value="<?= e($isEdit ? $soustraitant['date_facture'] : date('Y-m-d')) ?>" required>
                             </div>
-
-                            <!-- Montants -->
-                            <div class="col-md-4">
-                                <label for="montant_avant_taxes" class="form-label">Montant avant taxes <span class="text-danger">*</span></label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" id="montant_avant_taxes" name="montant_avant_taxes"
-                                           value="<?= $isEdit ? number_format($soustraitant['montant_avant_taxes'], 2, '.', '') : '' ?>"
-                                           required>
-                                </div>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label for="tps" class="form-label">TPS</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" id="tps" name="tps"
-                                           value="<?= $isEdit ? number_format($soustraitant['tps'], 2, '.', '') : '' ?>">
-                                </div>
-                            </div>
-
-                            <div class="col-md-2">
-                                <label for="tvq" class="form-label">TVQ</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control money-input" id="tvq" name="tvq"
-                                           value="<?= $isEdit ? number_format($soustraitant['tvq'], 2, '.', '') : '' ?>">
-                                </div>
-                            </div>
-
-                            <!-- Total calculé -->
-                            <div class="col-md-4">
-                                <label class="form-label">Total (calculé)</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    <input type="text" class="form-control" id="montant_total" readonly
-                                           value="<?= $isEdit ? number_format($soustraitant['montant_total'], 2, '.', '') : '0.00' ?>">
-                                </div>
-                            </div>
-
-                            <!-- Bouton calcul taxes -->
-                            <div class="col-md-4 d-flex align-items-end">
-                                <button type="button" class="btn btn-outline-secondary" onclick="calculerTaxes()">
-                                    <i class="bi bi-calculator me-1"></i>Calculer taxes (QC)
-                                </button>
-                            </div>
-
-                            <!-- Description -->
-                            <div class="col-12">
-                                <label for="description" class="form-label">Description des travaux</label>
-                                <textarea class="form-control" id="description" name="description" rows="3"><?= e($isEdit ? $soustraitant['description'] : '') ?></textarea>
-                            </div>
-
-                            <!-- Fichier -->
-                            <div class="col-12">
-                                <label for="fichier" class="form-label">Facture / Soumission (PDF ou image)</label>
-                                <?php if ($isEdit && $soustraitant['fichier']): ?>
-                                    <div class="mb-2">
-                                        <a href="<?= url('/uploads/soustraitants/' . $soustraitant['fichier']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-file-earmark me-1"></i>Voir le fichier actuel
-                                        </a>
-                                        <button type="button" class="btn btn-sm btn-outline-info ms-2" onclick="analyserFichierExistant()">
-                                            <i class="bi bi-robot me-1"></i>Analyser avec l'IA
-                                        </button>
-                                    </div>
-                                <?php endif; ?>
-                                <div id="dropZone" class="border border-2 border-dashed rounded p-4 text-center mb-2"
-                                     style="border-color: #6c757d !important; cursor: pointer;">
-                                    <i class="bi bi-cloud-arrow-up display-6 text-muted"></i>
-                                    <p class="mb-0 mt-2">Glissez un fichier ici, collez une image (Ctrl+V), ou cliquez pour sélectionner</p>
-                                    <small class="text-muted">Formats acceptés: PDF, JPG, PNG (max 5 MB)</small>
-                                </div>
-                                <input type="file" class="form-control d-none" id="fichier" name="fichier" accept=".pdf,.jpg,.jpeg,.png">
-                                <div id="filePreview" class="mt-2" style="display: none;">
-                                    <div class="alert alert-success d-flex align-items-center">
-                                        <i class="bi bi-check-circle me-2"></i>
-                                        <span id="fileName"></span>
-                                        <button type="button" class="btn btn-sm btn-info ms-2" onclick="analyserAvecIA()" id="btnAnalyserIA" title="Analyser avec l'IA">
-                                            <i class="bi bi-robot"></i>
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-danger ms-auto" onclick="clearFile()">
-                                            <i class="bi bi-x"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                <!-- Indicateur de chargement IA -->
-                                <div id="iaLoading" class="mt-2" style="display: none;">
-                                    <div class="alert alert-info d-flex align-items-center">
-                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                                        <span>Analyse en cours par l'IA...</span>
-                                    </div>
-                                </div>
-                                <!-- Résultat IA -->
-                                <div id="iaResult" class="mt-2" style="display: none;"></div>
-                            </div>
-
-                            <!-- Notes -->
-                            <div class="col-12">
-                                <label for="notes" class="form-label">Notes internes</label>
-                                <textarea class="form-control" id="notes" name="notes" rows="2"><?= e($isEdit ? $soustraitant['notes'] : '') ?></textarea>
-                            </div>
-
-                            <?php if ($isAdmin): ?>
-                            <!-- Approuver directement -->
-                            <div class="col-12">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="approuver_direct" name="approuver_direct">
-                                    <label class="form-check-label" for="approuver_direct">
-                                        <i class="bi bi-check-circle text-success me-1"></i>Approuver directement
-                                    </label>
-                                </div>
-                            </div>
-                            <?php endif; ?>
                         </div>
 
-                        <div class="mt-4 d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                <i class="bi bi-check-lg me-1"></i><?= $isEdit ? 'Enregistrer' : 'Créer' ?>
+                        <div class="mb-3">
+                            <label class="form-label">Description des travaux</label>
+                            <textarea class="form-control" name="description" id="description" rows="2"><?= e($isEdit ? $soustraitant['description'] : '') ?></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Montant avant taxes *</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control money-input" name="montant_avant_taxes" id="montant_avant_taxes"
+                                           value="<?= $isEdit ? number_format($soustraitant['montant_avant_taxes'], 2, '.', '') : '' ?>" required>
+                                    <span class="input-group-text">$</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">TPS (5%)</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control money-input" name="tps" id="tps"
+                                           value="<?= $isEdit ? number_format($soustraitant['tps'], 2, '.', '') : '' ?>">
+                                    <span class="input-group-text">$</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">TVQ (9.975%)</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control money-input" name="tvq" id="tvq"
+                                           value="<?= $isEdit ? number_format($soustraitant['tvq'], 2, '.', '') : '' ?>">
+                                    <span class="input-group-text">$</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="alert alert-info d-flex justify-content-between align-items-center mb-0">
+                                <div>
+                                    <strong>Total : </strong><span id="totalSoustraitant"><?= $isEdit ? formatMoney($soustraitant['montant_total']) : '0,00 $' ?></span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="recalculerTaxes()">
+                                        <i class="bi bi-calculator me-1"></i>Recalculer taxes
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="sansTaxes()">
+                                        <i class="bi bi-x-circle me-1"></i>Sans taxes
+                                    </button>
+                                </div>
+                            </div>
+                            <small class="text-muted">Les taxes sont calculées automatiquement. Utilisez "Recalculer taxes" si vous modifiez le montant.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Photo/PDF de la soumission</label>
+                            <?php if ($isEdit && !empty($soustraitant['fichier'])): ?>
+                                <?php
+                                $fichierExt = strtolower(pathinfo($soustraitant['fichier'], PATHINFO_EXTENSION));
+                                $isPdfFichier = ($fichierExt === 'pdf');
+                                ?>
+                                <div class="mb-2">
+                                    <a href="<?= url('/uploads/soustraitants/' . e($soustraitant['fichier'])) ?>" target="_blank">
+                                        <?php if ($isPdfFichier): ?>
+                                            <div class="d-inline-flex align-items-center gap-2 p-2 border rounded" style="background: rgba(220,53,69,0.1);">
+                                                <i class="bi bi-file-pdf text-danger fs-2"></i>
+                                                <span class="text-muted small"><?= e($soustraitant['fichier']) ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <img src="<?= url('/api/thumbnail.php?file=soustraitants/' . e($soustraitant['fichier']) . '&w=100&h=100') ?>"
+                                                 alt="Soumission" style="max-width:100px;max-height:100px;border-radius:4px;border:1px solid #ddd">
+                                        <?php endif; ?>
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                            <input type="file" class="form-control" name="fichier" id="fichierInput" accept=".jpg,.jpeg,.png,.gif,.pdf">
+                            <div id="pastedImageInfo" class="d-none mt-2">
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Image collée attachée</span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearPastedImage()">Retirer</button>
+                            </div>
+                            <small class="text-muted"><?= $isEdit ? 'Laisser vide pour conserver le fichier actuel. ' : '' ?>Formats acceptés: JPG, PNG, GIF, PDF (max 5MB)</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" id="notes" rows="2" placeholder="Notes supplémentaires..."><?= $isEdit ? e($soustraitant['notes']) : '' ?></textarea>
+                        </div>
+
+                        <?php if ($isAdmin): ?>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" name="approuver_direct" id="approuverDirect" <?= !$isEdit || ($isEdit && $soustraitant['statut'] == 'approuvee') ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="approuverDirect">
+                                    <i class="bi bi-check-circle text-success"></i> Approuver directement
+                                </label>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i><?= $isEdit ? 'Enregistrer' : 'Ajouter' ?>
                             </button>
-                            <a href="<?= $preselectedProjet ? url('/admin/projets/detail.php?id=' . $preselectedProjet . '&tab=soustraitants') : url('/admin/index.php') ?>" class="btn btn-outline-secondary">
-                                <i class="bi bi-x me-1"></i>Annuler
-                            </a>
+                            <a href="<?= $returnUrl ?>" class="btn btn-secondary">Annuler</a>
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Aide -->
-        <div class="col-lg-4">
+        <!-- Colonne droite: Zone de collage IA -->
+        <div class="col-lg-5">
             <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Aide</h6>
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-magic me-2"></i>Remplissage automatique par IA
                 </div>
                 <div class="card-body">
-                    <h6><i class="bi bi-robot text-info me-1"></i>Analyse IA</h6>
-                    <p class="small text-muted">
-                        Téléchargez une image ou PDF de la soumission, puis cliquez sur
-                        <span class="badge bg-info"><i class="bi bi-robot"></i></span>
-                        pour remplir automatiquement les champs avec l'IA.
-                    </p>
-                    <hr>
-                    <h6>Sous-traitants</h6>
-                    <p class="small text-muted">
-                        Utilisez ce formulaire pour enregistrer les factures de vos sous-traitants
-                        (électriciens, plombiers, couvreurs, etc.).
-                    </p>
-                    <h6>Catégories</h6>
-                    <p class="small text-muted">
-                        Sélectionnez la catégorie correspondant au type de travaux effectués.
-                        Cela permettra de suivre les dépenses par catégorie.
-                    </p>
-                    <h6>Fichiers</h6>
-                    <p class="small text-muted">
-                        Vous pouvez joindre une copie de la facture ou de la soumission
-                        au format PDF ou image.
-                    </p>
+                    <div id="pasteZone" class="border border-2 border-dashed rounded p-4 text-center"
+                         style="min-height: 300px; cursor: pointer; border-color: #6c757d !important; transition: all 0.3s;">
+                        <div id="pasteInstructions">
+                            <i class="bi bi-clipboard-plus display-1 text-muted"></i>
+                            <h5 class="mt-3 text-muted">Collez une soumission ici</h5>
+                            <p class="text-muted mb-0">
+                                <kbd>Ctrl</kbd> + <kbd>V</kbd> pour coller une image<br>
+                                <small>ou cliquez pour sélectionner un fichier (image ou PDF)</small>
+                            </p>
+                            <input type="file" id="fileInput" accept="image/*,.pdf" class="d-none">
+                        </div>
+                        <div id="pastePreview" class="d-none">
+                            <img id="previewImage" src="" alt="Aperçu" class="img-fluid rounded mb-3" style="max-height: 250px;">
+                            <div id="pdfPreview" class="d-none text-center">
+                                <i class="bi bi-file-pdf text-danger display-1"></i>
+                                <p class="text-muted" id="pdfFileName"></p>
+                            </div>
+                            <div id="analysisStatus"></div>
+                        </div>
+                    </div>
+
+                    <div id="aiResult" class="mt-3 d-none">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>Données extraites!</strong>
+                            <span id="confidenceLevel" class="badge bg-success ms-2"></span>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPasteZone()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Nouvelle image
+                        </button>
+                    </div>
+
+                    <div id="aiError" class="mt-3 d-none">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetPasteZone()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Réessayer
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapsePromptIA" aria-expanded="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-robot me-2"></i>Prompt IA (éditable)</h6>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="collapsePromptIA">
+                    <div class="card-body pt-2">
+                        <textarea class="form-control font-monospace" id="promptIA" rows="12" style="font-size: 0.75rem;"><?php
+$etapesPrompt = [];
+try {
+    $stmtE = $pdo->query("SELECT id, nom FROM budget_etapes ORDER BY ordre, nom");
+    $etapesPrompt = $stmtE->fetchAll(PDO::FETCH_ASSOC);
+} catch (Exception $e) {}
+
+$etapesListe = "";
+foreach ($etapesPrompt as $etape) {
+    $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
+}
+
+echo htmlspecialchars("Analyse cette soumission de sous-traitant (électricien, plombier, couvreur, etc.).
+
+ÉTAPE 1 - IDENTIFIER L'ENTREPRISE:
+Cherche le nom de l'entreprise/sous-traitant en haut du document.
+Extrait aussi: nom du contact, téléphone, email si présents.
+
+ÉTAPE 2 - EXTRAIRE LES MONTANTS:
+- Trouve le sous-total (avant taxes)
+- Trouve TPS (5%) et TVQ (9.975%)
+- Trouve le total
+- Trouve la date (format YYYY-MM-DD)
+
+ÉTAPE 3 - CATÉGORISER PAR ÉTAPE:
+Utilise ces étapes de construction:
+{$etapesListe}
+Guide: Électricien→électricité, Plombier→plomberie, Couvreur→toiture, Maçon→fondations, Peintre→peinture
+
+ÉTAPE 4 - DESCRIPTION:
+Résume brièvement les travaux décrits.
+
+JSON OBLIGATOIRE:
+{
+  \"nom_entreprise\": \"NOM DE L'ENTREPRISE\",
+  \"contact\": \"Nom du contact\",
+  \"telephone\": \"514-XXX-XXXX\",
+  \"email\": \"email@exemple.com\",
+  \"date_facture\": \"YYYY-MM-DD\",
+  \"montant_avant_taxes\": 0.00,
+  \"tps\": 0.00,
+  \"tvq\": 0.00,
+  \"total\": 0.00,
+  \"etape_id\": 0,
+  \"etape_nom\": \"...\",
+  \"description\": \"Description des travaux\"
+}");
+?></textarea>
+                        <small class="text-muted">Tu peux modifier ce prompt avant d'analyser une soumission</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header py-2" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#collapseResultatIA" aria-expanded="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-terminal me-2"></i>Résultat IA détail</h6>
+                        <i class="bi bi-chevron-down collapse-icon"></i>
+                    </div>
+                </div>
+                <div class="collapse" id="collapseResultatIA">
+                    <div class="card-body pt-2">
+                        <textarea class="form-control font-monospace" id="promptResultat" rows="10" style="font-size: 0.7rem; background-color: #1a1a2e; color: #0f0;" readonly placeholder="Le résultat JSON de l'IA apparaîtra ici..."></textarea>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<script>
-// Auto-remplissage des informations de l'entreprise
-document.getElementById('nom_entreprise').addEventListener('input', function() {
-    const options = document.querySelectorAll('#entreprisesList option');
-    options.forEach(option => {
-        if (option.value === this.value) {
-            document.getElementById('contact').value = option.dataset.contact || '';
-            document.getElementById('telephone').value = option.dataset.telephone || '';
-            document.getElementById('email').value = option.dataset.email || '';
-        }
-    });
-});
+<style>
+.collapse-icon { transition: transform 0.3s ease; }
+[aria-expanded="true"] .collapse-icon { transform: rotate(180deg); }
+.card-header:hover { background-color: rgba(0,0,0,0.03); }
+.ai-loader { height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden; margin: 10px 0; }
+.ai-loader-bar { height: 100%; background: linear-gradient(90deg, #007bff, #00d4ff, #007bff); background-size: 200% 100%; animation: aiLoading 1.5s infinite linear; }
+@keyframes aiLoading { 0% { background-position: 200% 0; } 100% { background-position: 0 0; } }
+#pasteZone:hover { border-color: #007bff !important; background: rgba(0,123,255,0.05); }
+#pasteZone.dragover { border-color: #28a745 !important; background: rgba(40,167,69,0.1); }
+</style>
 
-// Calcul automatique du total
+<script>
+// Variables globales
+let currentImageData = null;
+let currentMimeType = null;
+
+// Calcul du total
 function calculerTotal() {
     const montant = parseFloat(document.getElementById('montant_avant_taxes').value.replace(/[^0-9.-]/g, '')) || 0;
     const tps = parseFloat(document.getElementById('tps').value.replace(/[^0-9.-]/g, '')) || 0;
     const tvq = parseFloat(document.getElementById('tvq').value.replace(/[^0-9.-]/g, '')) || 0;
     const total = montant + tps + tvq;
-    document.getElementById('montant_total').value = total.toFixed(2);
+    document.getElementById('totalSoustraitant').textContent = new Intl.NumberFormat('fr-CA', {style: 'currency', currency: 'CAD'}).format(total);
 }
 
-// Calcul des taxes (Québec)
-function calculerTaxes() {
+// Recalculer les taxes
+function recalculerTaxes() {
     const montant = parseFloat(document.getElementById('montant_avant_taxes').value.replace(/[^0-9.-]/g, '')) || 0;
-    const tps = montant * 0.05;
-    const tvq = montant * 0.09975;
-    document.getElementById('tps').value = tps.toFixed(2);
-    document.getElementById('tvq').value = tvq.toFixed(2);
+    document.getElementById('tps').value = (montant * 0.05).toFixed(2);
+    document.getElementById('tvq').value = (montant * 0.09975).toFixed(2);
+    calculerTotal();
+}
+
+// Sans taxes
+function sansTaxes() {
+    document.getElementById('tps').value = '0.00';
+    document.getElementById('tvq').value = '0.00';
     calculerTotal();
 }
 
@@ -543,48 +563,57 @@ function calculerTaxes() {
     document.getElementById(id).addEventListener('input', calculerTotal);
 });
 
-// Drag & Drop et Coller
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fichier');
-const filePreview = document.getElementById('filePreview');
-const fileName = document.getElementById('fileName');
-const imageBase64 = document.getElementById('imageBase64');
-
-dropZone.addEventListener('click', () => fileInput.click());
-
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.style.borderColor = '#198754';
-    dropZone.style.background = 'rgba(25, 135, 84, 0.1)';
+// Auto-remplissage des informations de l'entreprise
+document.getElementById('nom_entreprise').addEventListener('input', function() {
+    const options = document.querySelectorAll('#entreprisesList option');
+    options.forEach(option => {
+        if (option.value === this.value) {
+            // On ne remplit plus automatiquement - l'IA le fera
+        }
+    });
 });
 
-dropZone.addEventListener('dragleave', (e) => {
+// Zone de collage IA
+const pasteZone = document.getElementById('pasteZone');
+const fileInput = document.getElementById('fileInput');
+const pasteInstructions = document.getElementById('pasteInstructions');
+const pastePreview = document.getElementById('pastePreview');
+const previewImage = document.getElementById('previewImage');
+const pdfPreview = document.getElementById('pdfPreview');
+const pdfFileName = document.getElementById('pdfFileName');
+const analysisStatus = document.getElementById('analysisStatus');
+const aiResult = document.getElementById('aiResult');
+const aiError = document.getElementById('aiError');
+
+// Clic sur la zone = ouvrir sélecteur de fichier
+pasteZone.addEventListener('click', () => fileInput.click());
+
+// Drag & Drop
+pasteZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.style.borderColor = '#6c757d';
-    dropZone.style.background = 'transparent';
+    pasteZone.classList.add('dragover');
 });
 
-dropZone.addEventListener('drop', (e) => {
+pasteZone.addEventListener('dragleave', () => {
+    pasteZone.classList.remove('dragover');
+});
+
+pasteZone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.style.borderColor = '#6c757d';
-    dropZone.style.background = 'transparent';
+    pasteZone.classList.remove('dragover');
     if (e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        fileInput.files = e.dataTransfer.files;
-        showFilePreview(file);
-        storeImageForAnalysis(file);
+        handleFile(e.dataTransfer.files[0]);
     }
 });
 
+// Sélection de fichier
 fileInput.addEventListener('change', () => {
     if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        showFilePreview(file);
-        storeImageForAnalysis(file);
+        handleFile(fileInput.files[0]);
     }
 });
 
-// Coller une image
+// Coller une image (Ctrl+V)
 document.addEventListener('paste', (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -593,273 +622,182 @@ document.addEventListener('paste', (e) => {
         if (item.type.startsWith('image/')) {
             e.preventDefault();
             const file = item.getAsFile();
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                imageBase64.value = event.target.result;
-                currentImageData = event.target.result;
-                currentMimeType = file.type || 'image/png';
-                fileName.textContent = 'Image collée';
-                filePreview.style.display = 'block';
-                dropZone.style.display = 'none';
-            };
-            reader.readAsDataURL(file);
+            handleFile(file, true);
             break;
         }
     }
 });
 
-function showFilePreview(file) {
-    fileName.textContent = file.name;
-    filePreview.style.display = 'block';
-    dropZone.style.display = 'none';
-    imageBase64.value = ''; // Clear pasted image
+// Gérer un fichier
+function handleFile(file, isPasted = false) {
+    const isPdf = file.type === 'application/pdf';
+
+    // Afficher l'aperçu
+    pasteInstructions.classList.add('d-none');
+    pastePreview.classList.remove('d-none');
+
+    if (isPdf) {
+        previewImage.classList.add('d-none');
+        pdfPreview.classList.remove('d-none');
+        pdfFileName.textContent = file.name;
+
+        // Convertir le PDF en image pour l'analyse
+        convertPdfAndAnalyze(file);
+    } else {
+        previewImage.classList.remove('d-none');
+        pdfPreview.classList.add('d-none');
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            currentImageData = e.target.result;
+            currentMimeType = file.type || 'image/png';
+            previewImage.src = currentImageData;
+
+            // Mettre l'image dans le champ caché pour le formulaire
+            if (isPasted) {
+                document.getElementById('imageBase64').value = currentImageData;
+                document.getElementById('pastedImageInfo').classList.remove('d-none');
+            }
+
+            // Lancer l'analyse automatiquement
+            analyzeWithAI();
+        };
+        reader.readAsDataURL(file);
+    }
 }
 
-function clearFile() {
-    fileInput.value = '';
-    imageBase64.value = '';
-    filePreview.style.display = 'none';
-    dropZone.style.display = 'block';
-    document.getElementById('iaResult').style.display = 'none';
-}
+// Convertir PDF et analyser
+async function convertPdfAndAnalyze(file) {
+    analysisStatus.innerHTML = `
+        <div class="ai-loader"><div class="ai-loader-bar"></div></div>
+        <p class="text-muted mb-0">Conversion du PDF...</p>
+    `;
 
-// Variable pour stocker les données de l'image pour l'analyse
-let currentImageData = null;
-let currentMimeType = null;
+    try {
+        const formData = new FormData();
+        formData.append('fichier', file);
 
-// Fonction appelée après upload/paste pour stocker les données
-function storeImageForAnalysis(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        currentImageData = e.target.result;
-        // Extraire le mime type
-        const match = currentImageData.match(/^data:([^;]+);/);
-        currentMimeType = match ? match[1] : (file.type || 'image/png');
-    };
-    reader.readAsDataURL(file);
+        const response = await fetch('<?= url('/api/factures/convertir-pdf.php') ?>', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (result.success && result.image) {
+            currentImageData = result.image;
+            currentMimeType = 'image/png';
+            analyzeWithAI();
+        } else {
+            throw new Error(result.error || 'Erreur conversion PDF');
+        }
+    } catch (error) {
+        analysisStatus.innerHTML = '';
+        document.getElementById('errorMessage').textContent = error.message;
+        aiError.classList.remove('d-none');
+    }
 }
 
 // Analyser avec l'IA
-async function analyserAvecIA() {
-    if (!currentImageData && !imageBase64.value) {
-        alert('Veuillez d\'abord sélectionner un fichier.');
-        return;
-    }
+async function analyzeWithAI() {
+    if (!currentImageData) return;
 
-    const iaLoading = document.getElementById('iaLoading');
-    const iaResult = document.getElementById('iaResult');
-    const btnAnalyser = document.getElementById('btnAnalyserIA');
-
-    iaLoading.style.display = 'block';
-    iaResult.style.display = 'none';
-    btnAnalyser.disabled = true;
+    analysisStatus.innerHTML = `
+        <div class="ai-loader"><div class="ai-loader-bar"></div></div>
+        <p class="text-muted mb-0">Analyse en cours par l'IA...</p>
+    `;
 
     try {
-        const dataToSend = imageBase64.value || currentImageData;
+        const customPrompt = document.getElementById('promptIA').value;
 
         const response = await fetch('<?= url('/api/analyse-soumission.php') ?>', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                image: dataToSend,
-                mime_type: currentMimeType || 'image/png'
+                image: currentImageData,
+                mime_type: currentMimeType,
+                prompt: customPrompt
             })
         });
 
         const result = await response.json();
-        iaLoading.style.display = 'none';
-        btnAnalyser.disabled = false;
+
+        // Afficher le résultat brut
+        document.getElementById('promptResultat').value = JSON.stringify(result, null, 2);
 
         if (result.success && result.data) {
-            remplirFormulaire(result.data);
+            analysisStatus.innerHTML = '';
+            fillForm(result.data);
 
-            // Afficher le message de succès
-            const confiance = result.data.confiance ? Math.round(result.data.confiance * 100) : 'N/A';
-            iaResult.innerHTML = `
-                <div class="alert alert-success">
-                    <i class="bi bi-check-circle me-2"></i>
-                    <strong>Analyse terminée!</strong> Confiance: ${confiance}%
-                    ${result.data.notes ? `<br><small class="text-muted">${result.data.notes}</small>` : ''}
-                </div>
-            `;
-            iaResult.style.display = 'block';
+            const confidence = result.data.confiance ? Math.round(result.data.confiance * 100) : 'N/A';
+            document.getElementById('confidenceLevel').textContent = confidence + '%';
+            aiResult.classList.remove('d-none');
         } else {
-            iaResult.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    ${result.error || 'Erreur lors de l\'analyse'}
-                </div>
-            `;
-            iaResult.style.display = 'block';
+            throw new Error(result.error || 'Erreur analyse IA');
         }
     } catch (error) {
-        iaLoading.style.display = 'none';
-        btnAnalyser.disabled = false;
-        iaResult.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Erreur de connexion: ${error.message}
-            </div>
-        `;
-        iaResult.style.display = 'block';
+        analysisStatus.innerHTML = '';
+        document.getElementById('errorMessage').textContent = error.message;
+        aiError.classList.remove('d-none');
     }
 }
 
 // Remplir le formulaire avec les données extraites
-function remplirFormulaire(data) {
-    // Nom de l'entreprise
-    if (data.nom_entreprise) {
-        document.getElementById('nom_entreprise').value = data.nom_entreprise;
+function fillForm(data) {
+    const fields = {
+        'nom_entreprise': data.nom_entreprise || data.fournisseur,
+        'contact': data.contact,
+        'date_facture': data.date_facture || data.date_soumission,
+        'description': data.description,
+        'montant_avant_taxes': data.montant_avant_taxes || data.sous_total,
+        'tps': data.tps,
+        'tvq': data.tvq,
+        'notes': data.notes
+    };
+
+    // Remplir les champs avec animation
+    for (const [fieldId, value] of Object.entries(fields)) {
+        if (value) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.value = typeof value === 'number' ? value.toFixed(2) : value;
+                field.classList.add('bg-success-subtle');
+                setTimeout(() => field.classList.remove('bg-success-subtle'), 2000);
+            }
+        }
     }
 
-    // Contact
-    if (data.contact) {
-        document.getElementById('contact').value = data.contact;
-    }
-
-    // Téléphone
-    if (data.telephone) {
-        document.getElementById('telephone').value = data.telephone;
-    }
-
-    // Email
-    if (data.email) {
-        document.getElementById('email').value = data.email;
-    }
-
-    // Date
-    if (data.date_facture) {
-        document.getElementById('date_facture').value = data.date_facture;
-    }
-
-    // Description
-    if (data.description) {
-        document.getElementById('description').value = data.description;
-    }
-
-    // Montants
-    if (data.montant_avant_taxes) {
-        document.getElementById('montant_avant_taxes').value = parseFloat(data.montant_avant_taxes).toFixed(2);
-    }
-    if (data.tps) {
-        document.getElementById('tps').value = parseFloat(data.tps).toFixed(2);
-    }
-    if (data.tvq) {
-        document.getElementById('tvq').value = parseFloat(data.tvq).toFixed(2);
-    }
-
-    // Calculer le total
-    calculerTotal();
-
-    // Catégorie/Étape
+    // Sélectionner l'étape
     if (data.etape_id) {
         const etapeSelect = document.getElementById('etape_id');
-        const option = etapeSelect.querySelector(`option[value="${data.etape_id}"]`);
-        if (option) {
+        if (etapeSelect.querySelector(`option[value="${data.etape_id}"]`)) {
             etapeSelect.value = data.etape_id;
+            etapeSelect.classList.add('bg-success-subtle');
+            setTimeout(() => etapeSelect.classList.remove('bg-success-subtle'), 2000);
         }
     }
 
-    // Notes (combiner avec notes existantes si présentes)
-    if (data.notes) {
-        const notesField = document.getElementById('notes');
-        const existingNotes = notesField.value.trim();
-        if (existingNotes) {
-            notesField.value = existingNotes + '\n\n[IA] ' + data.notes;
-        } else {
-            notesField.value = '[IA] ' + data.notes;
-        }
-    }
-
-    // Flash animation sur les champs remplis
-    const fieldsToHighlight = ['nom_entreprise', 'contact', 'telephone', 'email',
-                               'date_facture', 'description', 'montant_avant_taxes',
-                               'tps', 'tvq', 'etape_id', 'notes'];
-    fieldsToHighlight.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field && field.value) {
-            field.classList.add('bg-success-subtle');
-            setTimeout(() => {
-                field.classList.remove('bg-success-subtle');
-            }, 2000);
-        }
-    });
+    // Recalculer le total
+    calculerTotal();
 }
 
-// Analyser un fichier existant (mode édition)
-<?php if ($isEdit && $soustraitant['fichier']): ?>
-async function analyserFichierExistant() {
-    const iaLoading = document.getElementById('iaLoading');
-    const iaResult = document.getElementById('iaResult');
-
-    iaLoading.style.display = 'block';
-    iaResult.style.display = 'none';
-
-    try {
-        // Charger le fichier existant
-        const fileUrl = '<?= url('/uploads/soustraitants/' . $soustraitant['fichier']) ?>';
-        const response = await fetch(fileUrl);
-        const blob = await response.blob();
-
-        // Convertir en base64
-        const reader = new FileReader();
-        reader.onload = async function(e) {
-            currentImageData = e.target.result;
-            const match = currentImageData.match(/^data:([^;]+);/);
-            currentMimeType = match ? match[1] : 'application/octet-stream';
-
-            // Lancer l'analyse
-            const analyseResponse = await fetch('<?= url('/api/analyse-soumission.php') ?>', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    image: currentImageData,
-                    mime_type: currentMimeType
-                })
-            });
-
-            const result = await analyseResponse.json();
-            iaLoading.style.display = 'none';
-
-            if (result.success && result.data) {
-                remplirFormulaire(result.data);
-
-                const confiance = result.data.confiance ? Math.round(result.data.confiance * 100) : 'N/A';
-                iaResult.innerHTML = `
-                    <div class="alert alert-success">
-                        <i class="bi bi-check-circle me-2"></i>
-                        <strong>Analyse terminée!</strong> Confiance: ${confiance}%
-                        ${result.data.notes ? `<br><small class="text-muted">${result.data.notes}</small>` : ''}
-                    </div>
-                `;
-                iaResult.style.display = 'block';
-            } else {
-                iaResult.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="bi bi-exclamation-triangle me-2"></i>
-                        ${result.error || 'Erreur lors de l\'analyse'}
-                    </div>
-                `;
-                iaResult.style.display = 'block';
-            }
-        };
-        reader.readAsDataURL(blob);
-    } catch (error) {
-        iaLoading.style.display = 'none';
-        iaResult.innerHTML = `
-            <div class="alert alert-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>
-                Erreur: ${error.message}
-            </div>
-        `;
-        iaResult.style.display = 'block';
-    }
+// Réinitialiser la zone de collage
+function resetPasteZone() {
+    currentImageData = null;
+    currentMimeType = null;
+    pasteInstructions.classList.remove('d-none');
+    pastePreview.classList.add('d-none');
+    previewImage.src = '';
+    analysisStatus.innerHTML = '';
+    aiResult.classList.add('d-none');
+    aiError.classList.add('d-none');
+    fileInput.value = '';
 }
-<?php endif; ?>
+
+// Retirer l'image collée
+function clearPastedImage() {
+    document.getElementById('imageBase64').value = '';
+    document.getElementById('pastedImageInfo').classList.add('d-none');
+}
 </script>
 
 <?php include '../../includes/footer.php'; ?>
