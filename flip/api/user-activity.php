@@ -17,6 +17,8 @@ $userId = (int)($_GET['user_id'] ?? 0);
 $page = max(1, (int)($_GET['page'] ?? 1));
 $perPage = min(500, max(10, (int)($_GET['per_page'] ?? 100)));
 $export = ($_GET['export'] ?? '') === 'csv';
+$dateFilter = $_GET['date'] ?? ''; // Format: YYYY-MM-DD
+$loadMore = isset($_GET['load_more']); // Mode "Voir plus"
 
 if ($userId <= 0) {
     http_response_code(400);
@@ -37,9 +39,18 @@ if (!$user) {
 
 // Export CSV
 if ($export) {
-    // Récupérer TOUT l'historique pour l'export
-    $stmt = $pdo->prepare("SELECT * FROM user_activity WHERE user_id = ? ORDER BY created_at DESC");
-    $stmt->execute([$userId]);
+    // Récupérer TOUT l'historique pour l'export (avec filtre date optionnel)
+    $sql = "SELECT * FROM user_activity WHERE user_id = ?";
+    $params = [$userId];
+
+    if (!empty($dateFilter) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
+        $sql .= " AND DATE(created_at) = ?";
+        $params[] = $dateFilter;
+    }
+
+    $sql .= " ORDER BY created_at DESC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $activities = $stmt->fetchAll();
 
     // Générer le CSV
@@ -77,8 +88,33 @@ if ($export) {
     exit;
 }
 
-// Récupérer l'historique paginé
-$result = getUserActivityPaginated($pdo, $userId, $page, $perPage);
+// Construire la requête avec filtre date optionnel
+$whereClause = "user_id = ?";
+$params = [$userId];
+
+if (!empty($dateFilter) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFilter)) {
+    $whereClause .= " AND DATE(created_at) = ?";
+    $params[] = $dateFilter;
+}
+
+// Compter le total
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM user_activity WHERE $whereClause");
+$stmt->execute($params);
+$total = (int)$stmt->fetchColumn();
+
+// Récupérer les données paginées
+$offset = ($page - 1) * $perPage;
+$stmt = $pdo->prepare("SELECT * FROM user_activity WHERE $whereClause ORDER BY created_at DESC LIMIT ? OFFSET ?");
+$stmt->execute(array_merge($params, [$perPage, $offset]));
+$data = $stmt->fetchAll();
+
+$result = [
+    'data' => $data,
+    'total' => $total,
+    'pages' => ceil($total / $perPage),
+    'current_page' => $page,
+    'per_page' => $perPage
+];
 
 // Formater les données pour l'affichage
 $formattedData = array_map(function($activity) {
@@ -94,6 +130,8 @@ $formattedData = array_map(function($activity) {
     ];
 }, $result['data']);
 
+$hasMore = ($result['current_page'] * $result['per_page']) < $result['total'];
+
 echo json_encode([
     'success' => true,
     'data' => $formattedData,
@@ -101,10 +139,15 @@ echo json_encode([
         'total' => $result['total'],
         'pages' => $result['pages'],
         'current_page' => $result['current_page'],
-        'per_page' => $result['per_page']
+        'per_page' => $result['per_page'],
+        'has_more' => $hasMore,
+        'loaded' => min($result['current_page'] * $result['per_page'], $result['total'])
     ],
     'user' => [
         'prenom' => $user['prenom'],
         'nom' => $user['nom']
+    ],
+    'filter' => [
+        'date' => $dateFilter ?: null
     ]
 ]);

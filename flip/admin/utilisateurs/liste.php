@@ -390,9 +390,24 @@ include '../../includes/header.php';
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info mb-3">
+                    <div class="alert alert-info mb-3 py-2">
                         <i class="bi bi-info-circle me-2"></i>
                         <strong>Registre permanent:</strong> L'historique des activités est conservé indéfiniment.
+                    </div>
+                    <!-- Filtre par date -->
+                    <div class="row mb-3 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label mb-1 small">Filtrer par jour</label>
+                            <input type="date" class="form-control form-control-sm" id="dateFilter<?= $user['id'] ?>"
+                                   onchange="loadActivity(<?= $user['id'] ?>, 1, this.value)">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearDateFilter(<?= $user['id'] ?>)">
+                                <i class="bi bi-x-lg"></i> Effacer
+                            </button>
+                        </div>
+                        <div class="col-auto ms-auto" id="activityStats<?= $user['id'] ?>">
+                        </div>
                     </div>
                     <div id="activityContainer<?= $user['id'] ?>" data-user-id="<?= $user['id'] ?>">
                         <div class="text-center py-4">
@@ -400,6 +415,12 @@ include '../../includes/header.php';
                                 <span class="visually-hidden">Chargement...</span>
                             </div>
                         </div>
+                    </div>
+                    <!-- Bouton Voir plus -->
+                    <div id="loadMoreContainer<?= $user['id'] ?>" class="text-center mt-3" style="display: none;">
+                        <button type="button" class="btn btn-outline-primary" onclick="loadMoreActivity(<?= $user['id'] ?>)">
+                            <i class="bi bi-arrow-down-circle me-1"></i>Voir plus
+                        </button>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -480,20 +501,35 @@ include '../../includes/header.php';
 </div>
 
 <script>
-// Charger l'activité d'un utilisateur avec pagination
-function loadActivity(userId, page = 1) {
+// État des activités par utilisateur
+const activityState = {};
+
+// Charger l'activité d'un utilisateur
+function loadActivity(userId, page = 1, dateFilter = null) {
     const container = document.getElementById('activityContainer' + userId);
+    const statsContainer = document.getElementById('activityStats' + userId);
+    const loadMoreContainer = document.getElementById('loadMoreContainer' + userId);
     if (!container) return;
 
-    container.innerHTML = `
-        <div class="text-center py-4">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Chargement...</span>
+    // Réinitialiser l'état si page 1
+    if (page === 1) {
+        activityState[userId] = { page: 1, dateFilter: dateFilter || '', data: [] };
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    }
 
-    fetch(`<?= url('/api/user-activity.php') ?>?user_id=${userId}&page=${page}&per_page=100`)
+    const state = activityState[userId];
+    let url = `<?= url('/api/user-activity.php') ?>?user_id=${userId}&page=${page}&per_page=50`;
+    if (state.dateFilter) {
+        url += `&date=${state.dateFilter}`;
+    }
+
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             if (!data.success) {
@@ -501,21 +537,31 @@ function loadActivity(userId, page = 1) {
                 return;
             }
 
-            if (data.data.length === 0) {
+            // Mettre à jour les stats
+            if (statsContainer) {
+                const filterText = data.filter.date ? ` pour le ${formatDateFr(data.filter.date)}` : '';
+                statsContainer.innerHTML = `
+                    <small class="text-muted">
+                        <i class="bi bi-database me-1"></i>
+                        <strong>${data.pagination.total}</strong> entrées${filterText}
+                    </small>
+                `;
+            }
+
+            if (data.data.length === 0 && page === 1) {
                 container.innerHTML = '<p class="text-muted text-center py-4">Aucune activité enregistrée</p>';
+                loadMoreContainer.style.display = 'none';
                 return;
             }
 
+            // Ajouter les données à l'état
+            state.data = state.data.concat(data.data);
+            state.page = data.pagination.current_page;
+
+            // Générer le HTML du tableau
             let html = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <small class="text-muted">
-                        <i class="bi bi-database me-1"></i>
-                        <strong>${data.pagination.total}</strong> entrées au total
-                    </small>
-                    ${renderPagination(userId, data.pagination)}
-                </div>
-                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                    <table class="table table-sm table-striped">
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;" id="activityTable${userId}">
+                    <table class="table table-sm table-striped table-hover">
                         <thead class="sticky-top bg-white">
                             <tr>
                                 <th style="width: 140px;">Date</th>
@@ -528,7 +574,7 @@ function loadActivity(userId, page = 1) {
                         <tbody>
             `;
 
-            data.data.forEach(activity => {
+            state.data.forEach(activity => {
                 html += `
                     <tr>
                         <td><small>${activity.date}</small></td>
@@ -544,73 +590,67 @@ function loadActivity(userId, page = 1) {
                         </tbody>
                     </table>
                 </div>
-                <div class="mt-3">
-                    ${renderPagination(userId, data.pagination)}
-                </div>
             `;
 
             container.innerHTML = html;
+
+            // Afficher/masquer le bouton "Voir plus"
+            if (data.pagination.has_more) {
+                loadMoreContainer.style.display = 'block';
+                loadMoreContainer.innerHTML = `
+                    <button type="button" class="btn btn-outline-primary" onclick="loadMoreActivity(${userId})">
+                        <i class="bi bi-arrow-down-circle me-1"></i>Voir plus
+                        <span class="badge bg-secondary ms-2">${data.pagination.loaded} / ${data.pagination.total}</span>
+                    </button>
+                `;
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
         })
         .catch(error => {
             container.innerHTML = `<div class="alert alert-danger">Erreur: ${error.message}</div>`;
         });
 }
 
-// Générer la pagination
-function renderPagination(userId, pagination) {
-    if (pagination.pages <= 1) return '';
+// Charger plus d'activités
+function loadMoreActivity(userId) {
+    const state = activityState[userId];
+    if (!state) return;
 
-    let html = '<nav><ul class="pagination pagination-sm mb-0 justify-content-center">';
+    const loadMoreContainer = document.getElementById('loadMoreContainer' + userId);
+    loadMoreContainer.innerHTML = `
+        <button type="button" class="btn btn-outline-primary" disabled>
+            <span class="spinner-border spinner-border-sm me-1"></span>Chargement...
+        </button>
+    `;
 
-    // Bouton précédent
-    if (pagination.current_page > 1) {
-        html += `<li class="page-item">
-            <a class="page-link" href="#" onclick="loadActivity(${userId}, ${pagination.current_page - 1}); return false;">
-                <i class="bi bi-chevron-left"></i>
-            </a>
-        </li>`;
+    loadActivity(userId, state.page + 1, state.dateFilter);
+}
+
+// Effacer le filtre de date
+function clearDateFilter(userId) {
+    const dateInput = document.getElementById('dateFilter' + userId);
+    if (dateInput) {
+        dateInput.value = '';
     }
+    loadActivity(userId, 1, '');
+}
 
-    // Pages
-    const startPage = Math.max(1, pagination.current_page - 2);
-    const endPage = Math.min(pagination.pages, pagination.current_page + 2);
-
-    if (startPage > 1) {
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadActivity(${userId}, 1); return false;">1</a></li>`;
-        if (startPage > 2) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-        html += `<li class="page-item ${i === pagination.current_page ? 'active' : ''}">
-            <a class="page-link" href="#" onclick="loadActivity(${userId}, ${i}); return false;">${i}</a>
-        </li>`;
-    }
-
-    if (endPage < pagination.pages) {
-        if (endPage < pagination.pages - 1) {
-            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
-        }
-        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadActivity(${userId}, ${pagination.pages}); return false;">${pagination.pages}</a></li>`;
-    }
-
-    // Bouton suivant
-    if (pagination.current_page < pagination.pages) {
-        html += `<li class="page-item">
-            <a class="page-link" href="#" onclick="loadActivity(${userId}, ${pagination.current_page + 1}); return false;">
-                <i class="bi bi-chevron-right"></i>
-            </a>
-        </li>`;
-    }
-
-    html += '</ul></nav>';
-    return html;
+// Formater une date en français
+function formatDateFr(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // Exporter l'activité en CSV
 function exportActivity(userId, userName) {
-    window.location.href = `<?= url('/api/user-activity.php') ?>?user_id=${userId}&export=csv`;
+    const state = activityState[userId];
+    let url = `<?= url('/api/user-activity.php') ?>?user_id=${userId}&export=csv`;
+    if (state && state.dateFilter) {
+        url += `&date=${state.dateFilter}`;
+    }
+    window.location.href = url;
 }
 
 // Échapper le HTML
@@ -627,7 +667,10 @@ document.querySelectorAll('[id^="modalActivite"]').forEach(modal => {
         const container = this.querySelector('[id^="activityContainer"]');
         if (container) {
             const userId = container.dataset.userId;
-            loadActivity(userId);
+            // Réinitialiser le filtre de date
+            const dateInput = document.getElementById('dateFilter' + userId);
+            if (dateInput) dateInput.value = '';
+            loadActivity(userId, 1, '');
         }
     });
 });
