@@ -1606,6 +1606,7 @@ $defaultTabs = [
     ['type' => 'tab', 'id' => 'temps', 'label' => 'Temps', 'icon' => 'bi-clock'],
     ['type' => 'tab', 'id' => 'photos', 'label' => 'Photos', 'icon' => 'bi-camera'],
     ['type' => 'tab', 'id' => 'factures', 'label' => 'Factures', 'icon' => 'bi-receipt'],
+    ['type' => 'tab', 'id' => 'soustraitants', 'label' => 'Sous-traitants', 'icon' => 'bi-building'],
     ['type' => 'tab', 'id' => 'checklist', 'label' => 'Checklist', 'icon' => 'bi-list-check'],
     ['type' => 'tab', 'id' => 'documents', 'label' => 'Documents', 'icon' => 'bi-folder'],
     ['type' => 'tab', 'id' => 'googlesheet', 'label' => 'Google Sheet', 'icon' => 'bi-table'],
@@ -2448,6 +2449,40 @@ try {
     $facturesProjet = $stmt->fetchAll();
 } catch (Exception $e) {}
 
+// ========================================
+// DONNÉES POUR ONGLET SOUS-TRAITANTS
+// ========================================
+$sousTraitantsProjet = [];
+try {
+    // Auto-créer la table si elle n'existe pas
+    $pdo->query("SELECT 1 FROM sous_traitants LIMIT 1");
+} catch (Exception $e) {
+    // Exécuter la migration
+    $sqlFile = __DIR__ . '/../../sql/migration_sous_traitants.sql';
+    if (file_exists($sqlFile)) {
+        $sql = file_get_contents($sqlFile);
+        $statements = array_filter(array_map('trim', explode(';', $sql)));
+        foreach ($statements as $statement) {
+            if (!empty($statement) && stripos($statement, '--') !== 0) {
+                try {
+                    $pdo->exec($statement);
+                } catch (Exception $e2) {}
+            }
+        }
+    }
+}
+try {
+    $stmt = $pdo->prepare("
+        SELECT st.*, e.nom as etape_nom
+        FROM sous_traitants st
+        LEFT JOIN budget_etapes e ON st.etape_id = e.id
+        WHERE st.projet_id = ?
+        ORDER BY st.date_facture DESC, st.id DESC
+    ");
+    $stmt->execute([$projetId]);
+    $sousTraitantsProjet = $stmt->fetchAll();
+} catch (Exception $e) {}
+
 include '../../includes/header.php';
 ?>
 
@@ -2878,6 +2913,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     <!-- TAB FACTURES -->
     <?php include 'partials/tab-factures.php'; ?>
+    <!-- TAB SOUS-TRAITANTS -->
+    <?php include 'partials/tab-soustraitants.php'; ?>
     <!-- TAB CHECKLIST -->
     <?php include 'partials/tab-checklist.php'; ?>
 
