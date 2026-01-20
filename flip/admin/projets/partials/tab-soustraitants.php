@@ -116,6 +116,11 @@
                 </button>
                 <?php endif; ?>
                 <span class="badge bg-secondary" id="sousTraitantsCount"><?= count($sousTraitantsProjet) ?> sous-traitants</span>
+                <?php if (isAdmin()): ?>
+                <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiSousTraitants">
+                    <i class="bi bi-files me-1"></i>Plusieurs
+                </button>
+                <?php endif; ?>
                 <a href="<?= url('/admin/soustraitants/nouvelle.php?projet=' . $projetId) ?>" class="btn btn-success btn-sm">
                     <i class="bi bi-plus me-1"></i>Nouveau
                 </a>
@@ -220,6 +225,88 @@
             </div>
         <?php endif; ?>
     </div><!-- Fin TAB SOUS-TRAITANTS -->
+
+<?php if (isAdmin()): ?>
+<!-- Modal Multi-SousTraitants -->
+<div class="modal fade" id="modalMultiSousTraitants" tabindex="-1" aria-labelledby="modalMultiSousTraitantsLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="modalMultiSousTraitantsLabel">
+                    <i class="bi bi-files me-2"></i>Ajouter plusieurs sous-traitants
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Drop Zone avec animation porte de garage -->
+                <div id="multiDropZoneWrapperST" style="max-height: 300px; overflow: hidden; transition: max-height 1.5s ease-in-out, margin-bottom 1.5s ease-in-out, opacity 1s ease-in-out; margin-bottom: 1rem; opacity: 1;">
+                    <div id="multiDropZoneST" class="border border-2 border-dashed rounded p-5 text-center"
+                         style="border-color: #6c757d !important; transition: border-color 0.3s, background 0.3s; cursor: pointer;">
+                        <i class="bi bi-cloud-arrow-up display-3 text-muted mb-3 d-block"></i>
+                        <p class="mb-1">Glissez-déposez vos soumissions ici</p>
+                        <p class="text-muted small mb-3">ou cliquez pour sélectionner</p>
+                        <p class="text-muted small mb-0">Formats acceptés: PDF, JPG, PNG (max 5 MB chacun)</p>
+                        <input type="file" id="multiFileInputST" multiple accept=".pdf,.jpg,.jpeg,.png" class="d-none">
+                    </div>
+                </div>
+
+                <!-- Liste des fichiers -->
+                <div id="multiFilesListST" class="mb-3" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0"><i class="bi bi-list-ul me-2"></i>Fichiers à traiter</h6>
+                        <div class="d-flex align-items-center gap-3">
+                            <!-- Options de statut -->
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="multiSTApprouvee">
+                                <label class="form-check-label small" for="multiSTApprouvee">
+                                    <i class="bi bi-check-circle text-success"></i> Approuvée
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input" type="checkbox" id="multiSTPayee">
+                                <label class="form-check-label small" for="multiSTPayee">
+                                    <i class="bi bi-cash-stack text-primary"></i> Payée
+                                </label>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="clearFilesBtnST">
+                                <i class="bi bi-trash me-1"></i>Tout effacer
+                            </button>
+                        </div>
+                    </div>
+                    <div id="filesContainerST" class="border rounded" style="max-height: 300px; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Progress global -->
+                <div id="multiProgressSectionST" style="display: none;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span id="progressTextST">Traitement en cours...</span>
+                        <span id="progressCountST">0/0</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated" id="multiProgressBarST" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Résumé final -->
+                <div id="multiResultSectionST" style="display: none;">
+                    <div class="alert alert-success mb-2" id="resultSuccessST" style="display: none;">
+                        <i class="bi bi-check-circle me-2"></i><span id="successCountST">0</span> sous-traitant(s) créé(s) avec succès
+                    </div>
+                    <div class="alert alert-danger mb-2" id="resultErrorsST" style="display: none;">
+                        <i class="bi bi-exclamation-triangle me-2"></i><span id="errorCountST">0</span> erreur(s)
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-success" id="startProcessingBtnST" disabled>
+                    <i class="bi bi-play-fill me-1"></i>Démarrer le traitement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <script>
 // Clic sur ligne pour ouvrir le sous-traitant
@@ -543,4 +630,381 @@ window.togglePaiementSousTraitant = async function(id, element) {
         alert('Erreur de connexion');
     }
 };
+
+// Multi-soustraitants upload (Admin only)
+<?php if (isAdmin()): ?>
+(function() {
+    const projetId = <?= (int)$projetId ?>;
+    const dropZone = document.getElementById('multiDropZoneST');
+    const dropZoneWrapper = document.getElementById('multiDropZoneWrapperST');
+    const fileInput = document.getElementById('multiFileInputST');
+    const filesList = document.getElementById('multiFilesListST');
+    const filesContainer = document.getElementById('filesContainerST');
+    const clearFilesBtn = document.getElementById('clearFilesBtnST');
+    const startBtn = document.getElementById('startProcessingBtnST');
+    const progressSection = document.getElementById('multiProgressSectionST');
+    const progressBar = document.getElementById('multiProgressBarST');
+    const progressText = document.getElementById('progressTextST');
+    const progressCount = document.getElementById('progressCountST');
+    const resultSection = document.getElementById('multiResultSectionST');
+    const resultSuccess = document.getElementById('resultSuccessST');
+    const resultErrors = document.getElementById('resultErrorsST');
+    const successCount = document.getElementById('successCountST');
+    const errorCount = document.getElementById('errorCountST');
+    const checkApprouvee = document.getElementById('multiSTApprouvee');
+    const checkPayee = document.getElementById('multiSTPayee');
+
+    let filesToProcess = [];
+    let isProcessing = false;
+
+    // Drag & Drop events
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#198754';
+        dropZone.style.background = 'rgba(25, 135, 84, 0.1)';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#6c757d';
+        dropZone.style.background = 'transparent';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#6c757d';
+        dropZone.style.background = 'transparent';
+        handleFiles(e.dataTransfer.files);
+    });
+
+    // Click to select
+    dropZone.addEventListener('click', () => {
+        if (!isProcessing) fileInput.click();
+    });
+
+    fileInput.addEventListener('change', () => {
+        handleFiles(fileInput.files);
+        fileInput.value = '';
+    });
+
+    // Clear files
+    clearFilesBtn.addEventListener('click', () => {
+        filesToProcess = [];
+        updateFilesList();
+    });
+
+    // Start processing
+    startBtn.addEventListener('click', () => {
+        if (filesToProcess.length > 0 && !isProcessing) {
+            processQueue();
+        }
+    });
+
+    function handleFiles(files) {
+        const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+        const maxSize = 5 * 1024 * 1024;
+
+        Array.from(files).forEach(file => {
+            // Check type
+            if (!allowedTypes.includes(file.type)) {
+                showToast(`${file.name}: format non supporté`, 'warning');
+                return;
+            }
+            // Check size
+            if (file.size > maxSize) {
+                showToast(`${file.name}: trop volumineux (max 5 MB)`, 'warning');
+                return;
+            }
+            // Check duplicate
+            if (filesToProcess.some(f => f.file.name === file.name && f.file.size === file.size)) {
+                return;
+            }
+            // Add to queue
+            filesToProcess.push({
+                file: file,
+                status: 'pending',
+                result: null
+            });
+        });
+
+        updateFilesList();
+    }
+
+    function updateFilesList() {
+        if (filesToProcess.length === 0) {
+            filesList.style.display = 'none';
+            startBtn.disabled = true;
+            return;
+        }
+
+        filesList.style.display = 'block';
+        startBtn.disabled = isProcessing;
+
+        filesContainer.innerHTML = filesToProcess.map((item, index) => {
+            const icon = item.file.type === 'application/pdf' ? 'bi-file-pdf text-danger' : 'bi-file-image text-primary';
+            const size = (item.file.size / 1024).toFixed(0) + ' KB';
+
+            let statusBadge = '';
+            let aiDetails = '';
+
+            switch(item.status) {
+                case 'pending':
+                    statusBadge = '<span class="badge bg-secondary">En attente</span>';
+                    break;
+                case 'processing':
+                    statusBadge = '<span class="badge bg-warning text-dark"><span class="spinner-border spinner-border-sm me-1"></span>Analyse IA...</span>';
+                    break;
+                case 'success':
+                    statusBadge = '<span class="badge bg-success"><i class="bi bi-check me-1"></i>Créé</span>';
+                    // Afficher les données analysées par l'IA
+                    if (item.analyseData) {
+                        const data = item.analyseData;
+                        aiDetails = `
+                            <div class="mt-2 p-2 rounded" style="background: rgba(25,135,84,0.1); font-size: 0.8rem;">
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <strong class="text-success"><i class="bi bi-building me-1"></i>Entreprise:</strong><br>
+                                        ${data.nom_entreprise || data.fournisseur || 'N/A'}
+                                    </div>
+                                    <div class="col-6">
+                                        <strong class="text-success"><i class="bi bi-calendar me-1"></i>Date:</strong><br>
+                                        ${data.date_facture || data.date_soumission || 'N/A'}
+                                    </div>
+                                    <div class="col-4">
+                                        <strong>Sous-total:</strong><br>
+                                        ${formatMoney(data.sous_total || data.montant_avant_taxes || 0)}
+                                    </div>
+                                    <div class="col-4">
+                                        <strong>TPS/TVQ:</strong><br>
+                                        ${formatMoney((data.tps || 0) + (data.tvq || 0))}
+                                    </div>
+                                    <div class="col-4">
+                                        <strong class="text-primary">Total:</strong><br>
+                                        <span class="text-primary fw-bold">${formatMoney(data.total || data.montant_total || 0)}</span>
+                                    </div>
+                                    ${data.description ? `<div class="col-12"><strong>Description:</strong><br><small class="text-muted">${data.description.substring(0, 100)}${data.description.length > 100 ? '...' : ''}</small></div>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }
+                    break;
+                case 'error':
+                    statusBadge = `<span class="badge bg-danger" title="${item.error}"><i class="bi bi-x me-1"></i>Erreur</span>`;
+                    break;
+            }
+
+            const removeBtn = item.status === 'pending' && !isProcessing
+                ? `<button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeMultiFileST(${index})"><i class="bi bi-x"></i></button>`
+                : '';
+
+            const errorMsg = item.status === 'error' ? `<div class="text-danger small mt-1"><i class="bi bi-exclamation-triangle me-1"></i>${item.error}</div>` : '';
+
+            return `
+                <div class="p-2 border-bottom multi-file-item-st" data-index="${index}" style="background: ${item.status === 'processing' ? 'rgba(255,193,7,0.1)' : item.status === 'error' ? 'rgba(220,53,69,0.1)' : item.status === 'success' ? 'rgba(25,135,84,0.05)' : 'transparent'}">
+                    <div class="d-flex align-items-center">
+                        <i class="bi ${icon} me-2 fs-5"></i>
+                        <div class="flex-grow-1">
+                            <div class="text-truncate" style="max-width: 350px;" title="${item.file.name}">
+                                <strong>${item.file.name}</strong>
+                            </div>
+                            <small class="text-muted">${size}</small>
+                        </div>
+                        <div class="ms-auto d-flex align-items-center">
+                            ${statusBadge}
+                            ${removeBtn}
+                        </div>
+                    </div>
+                    ${aiDetails}
+                    ${errorMsg}
+                </div>
+            `;
+        }).join('');
+
+        // Auto-scroll vers le fichier en cours de traitement
+        setTimeout(() => {
+            let targetIndex = -1;
+            for (let i = 0; i < filesToProcess.length; i++) {
+                if (filesToProcess[i].status === 'processing') {
+                    targetIndex = i;
+                    break;
+                }
+                if (filesToProcess[i].status === 'success' || filesToProcess[i].status === 'error') {
+                    targetIndex = i;
+                }
+            }
+            if (targetIndex >= 0) {
+                const targetItem = filesContainer.querySelector(`.multi-file-item-st[data-index="${targetIndex}"]`);
+                if (targetItem) {
+                    targetItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }, 50);
+    }
+
+    window.removeMultiFileST = function(index) {
+        filesToProcess.splice(index, 1);
+        updateFilesList();
+    };
+
+    // Convertir fichier en base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // Traiter un fichier
+    async function processFile(item) {
+        let imageBase64 = null;
+
+        // Étape 1: Convertir en image base64
+        if (item.file.type === 'application/pdf') {
+            // PDF: utiliser l'API de conversion
+            const formData = new FormData();
+            formData.append('fichier', item.file);
+
+            const convResponse = await fetch('<?= url('/api/factures/convertir-pdf.php') ?>', {
+                method: 'POST',
+                body: formData
+            });
+            const convResult = await convResponse.json();
+
+            if (!convResult.success) {
+                throw new Error(convResult.error || 'Erreur conversion PDF');
+            }
+            imageBase64 = convResult.image;
+        } else {
+            // Image: lire directement en base64
+            imageBase64 = await fileToBase64(item.file);
+        }
+
+        // Étape 2: Analyser avec l'IA (utiliser l'API d'analyse de soumission)
+        const analyseResponse = await fetch('<?= url('/api/analyse-soumission.php') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imageBase64 })
+        });
+        const analyseResult = await analyseResponse.json();
+
+        if (!analyseResult.success || !analyseResult.data) {
+            throw new Error(analyseResult.error || 'Erreur analyse IA');
+        }
+
+        // Stocker les données analysées pour l'affichage
+        item.analyseData = analyseResult.data;
+
+        // Étape 3: Créer le sous-traitant avec les données analysées
+        const createResponse = await fetch('<?= url('/api/soustraitants/creer-depuis-analyse.php') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                projet_id: projetId,
+                data: analyseResult.data,
+                fichier_base64: imageBase64,
+                fichier_nom: item.file.name,
+                statut: checkApprouvee.checked ? 'approuvee' : 'en_attente',
+                est_payee: checkPayee.checked ? 1 : 0
+            })
+        });
+        const createResult = await createResponse.json();
+
+        if (!createResult.success) {
+            throw new Error(createResult.error || 'Erreur création sous-traitant');
+        }
+
+        return createResult;
+    }
+
+    async function processQueue() {
+        isProcessing = true;
+        startBtn.disabled = true;
+
+        // Animation porte de garage - fermeture smooth
+        dropZoneWrapper.style.maxHeight = '0';
+        dropZoneWrapper.style.marginBottom = '0';
+        dropZoneWrapper.style.opacity = '0';
+
+        progressSection.style.display = 'block';
+        resultSection.style.display = 'none';
+
+        let successTotal = 0;
+        let errorTotal = 0;
+
+        for (let i = 0; i < filesToProcess.length; i++) {
+            const item = filesToProcess[i];
+            item.status = 'processing';
+            updateFilesList();
+
+            progressText.textContent = `Traitement: ${item.file.name}`;
+            progressCount.textContent = `${i + 1}/${filesToProcess.length}`;
+            progressBar.style.width = ((i + 1) / filesToProcess.length * 100) + '%';
+
+            try {
+                const result = await processFile(item);
+                item.status = 'success';
+                item.result = result;
+                successTotal++;
+            } catch (err) {
+                item.status = 'error';
+                item.error = err.message || 'Erreur inconnue';
+                errorTotal++;
+                console.error('Erreur traitement:', item.file.name, err);
+            }
+
+            updateFilesList();
+        }
+
+        // Show results
+        isProcessing = false;
+        progressSection.style.display = 'none';
+        resultSection.style.display = 'block';
+
+        if (successTotal > 0) {
+            resultSuccess.style.display = 'block';
+            successCount.textContent = successTotal;
+        } else {
+            resultSuccess.style.display = 'none';
+        }
+
+        if (errorTotal > 0) {
+            resultErrors.style.display = 'block';
+            errorCount.textContent = errorTotal;
+        } else {
+            resultErrors.style.display = 'none';
+        }
+
+        // Proposer de recharger la page
+        startBtn.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Recharger la page';
+        startBtn.disabled = false;
+        startBtn.onclick = () => window.location.reload();
+    }
+
+    function formatMoney(amount) {
+        return new Intl.NumberFormat('fr-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+    }
+
+    function showToast(message, type = 'info') {
+        console.log(`[${type}] ${message}`);
+    }
+
+    // Reset modal on close
+    document.getElementById('modalMultiSousTraitants').addEventListener('hidden.bs.modal', () => {
+        if (!isProcessing) {
+            filesToProcess = [];
+            updateFilesList();
+            progressSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            // Réouvrir la dropzone avec animation
+            dropZoneWrapper.style.maxHeight = '300px';
+            dropZoneWrapper.style.marginBottom = '1rem';
+            dropZoneWrapper.style.opacity = '1';
+            startBtn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Démarrer le traitement';
+            startBtn.onclick = () => { if (filesToProcess.length > 0 && !isProcessing) processQueue(); };
+        }
+    });
+})();
+<?php endif; ?>
 </script>
