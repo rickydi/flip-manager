@@ -381,53 +381,31 @@ include '../../includes/header.php';
 
     <!-- Modal Activité -->
     <div class="modal fade" id="modalActivite<?= $user['id'] ?>" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-clock-history me-2"></i>Activité de <?= e($user['prenom']) ?> <?= e($user['nom']) ?>
+                        <i class="bi bi-clock-history me-2"></i>Historique complet - <?= e($user['prenom']) ?> <?= e($user['nom']) ?>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
-                    <?php
-                    $activities = getUserActivity($pdo, $user['id'], 50);
-                    if (empty($activities)): ?>
-                        <p class="text-muted text-center py-4">Aucune activité enregistrée</p>
-                    <?php else: ?>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Action</th>
-                                    <th>Page</th>
-                                    <th>Détails</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($activities as $activity): ?>
-                                    <tr>
-                                        <td>
-                                            <small><?= formatDateTime($activity['created_at']) ?></small>
-                                        </td>
-                                        <td><?= formatActivityAction($activity['action']) ?></td>
-                                        <td>
-                                            <?php if ($activity['page']): ?>
-                                                <code><?= e($activity['page']) ?></code>
-                                            <?php else: ?>
-                                                <span class="text-muted">-</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <small class="text-muted"><?= e($activity['details'] ?? '') ?></small>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Registre permanent:</strong> L'historique des activités est conservé indéfiniment.
+                    </div>
+                    <div id="activityContainer<?= $user['id'] ?>" data-user-id="<?= $user['id'] ?>">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportActivity(<?= $user['id'] ?>, '<?= e($user['prenom']) ?> <?= e($user['nom']) ?>')">
+                        <i class="bi bi-download me-1"></i>Exporter CSV
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
                 </div>
             </div>
@@ -500,5 +478,159 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Charger l'activité d'un utilisateur avec pagination
+function loadActivity(userId, page = 1) {
+    const container = document.getElementById('activityContainer' + userId);
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+        </div>
+    `;
+
+    fetch(`<?= url('/api/user-activity.php') ?>?user_id=${userId}&page=${page}&per_page=100`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                container.innerHTML = `<div class="alert alert-danger">${data.error || 'Erreur de chargement'}</div>`;
+                return;
+            }
+
+            if (data.data.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-4">Aucune activité enregistrée</p>';
+                return;
+            }
+
+            let html = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <small class="text-muted">
+                        <i class="bi bi-database me-1"></i>
+                        <strong>${data.pagination.total}</strong> entrées au total
+                    </small>
+                    ${renderPagination(userId, data.pagination)}
+                </div>
+                <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
+                    <table class="table table-sm table-striped">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th style="width: 140px;">Date</th>
+                                <th style="width: 140px;">Action</th>
+                                <th>Page</th>
+                                <th>Détails</th>
+                                <th style="width: 120px;">IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            data.data.forEach(activity => {
+                html += `
+                    <tr>
+                        <td><small>${activity.date}</small></td>
+                        <td>${activity.action_formatted}</td>
+                        <td>${activity.page ? `<code>${escapeHtml(activity.page)}</code>` : '<span class="text-muted">-</span>'}</td>
+                        <td><small class="text-muted">${escapeHtml(activity.details || '')}</small></td>
+                        <td><small class="text-muted font-monospace">${activity.ip_address || '-'}</small></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    ${renderPagination(userId, data.pagination)}
+                </div>
+            `;
+
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            container.innerHTML = `<div class="alert alert-danger">Erreur: ${error.message}</div>`;
+        });
+}
+
+// Générer la pagination
+function renderPagination(userId, pagination) {
+    if (pagination.pages <= 1) return '';
+
+    let html = '<nav><ul class="pagination pagination-sm mb-0 justify-content-center">';
+
+    // Bouton précédent
+    if (pagination.current_page > 1) {
+        html += `<li class="page-item">
+            <a class="page-link" href="#" onclick="loadActivity(${userId}, ${pagination.current_page - 1}); return false;">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>`;
+    }
+
+    // Pages
+    const startPage = Math.max(1, pagination.current_page - 2);
+    const endPage = Math.min(pagination.pages, pagination.current_page + 2);
+
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadActivity(${userId}, 1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<li class="page-item ${i === pagination.current_page ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="loadActivity(${userId}, ${i}); return false;">${i}</a>
+        </li>`;
+    }
+
+    if (endPage < pagination.pages) {
+        if (endPage < pagination.pages - 1) {
+            html += '<li class="page-item disabled"><span class="page-link">...</span></li>';
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="loadActivity(${userId}, ${pagination.pages}); return false;">${pagination.pages}</a></li>`;
+    }
+
+    // Bouton suivant
+    if (pagination.current_page < pagination.pages) {
+        html += `<li class="page-item">
+            <a class="page-link" href="#" onclick="loadActivity(${userId}, ${pagination.current_page + 1}); return false;">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>`;
+    }
+
+    html += '</ul></nav>';
+    return html;
+}
+
+// Exporter l'activité en CSV
+function exportActivity(userId, userName) {
+    window.location.href = `<?= url('/api/user-activity.php') ?>?user_id=${userId}&export=csv`;
+}
+
+// Échapper le HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Charger l'activité quand le modal s'ouvre
+document.querySelectorAll('[id^="modalActivite"]').forEach(modal => {
+    modal.addEventListener('shown.bs.modal', function() {
+        const container = this.querySelector('[id^="activityContainer"]');
+        if (container) {
+            const userId = container.dataset.userId;
+            loadActivity(userId);
+        }
+    });
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>
