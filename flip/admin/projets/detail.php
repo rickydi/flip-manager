@@ -4124,6 +4124,10 @@ function sortFactures(column) {
                 valA = parseFloat(a.dataset.montant) || 0;
                 valB = parseFloat(b.dataset.montant) || 0;
                 break;
+            case 'paiement':
+                valA = a.dataset.paiement === '1' ? 1 : 0;
+                valB = b.dataset.paiement === '1' ? 1 : 0;
+                break;
             default:
                 return 0;
         }
@@ -4161,7 +4165,27 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Toggle paiement facture via AJAXfunction togglePaiementFacture(factureId, element) {    fetch('<?= url('/admin/factures/liste.php') ?>?toggle_paiement=1&id=' + factureId, {        headers: { 'X-Requested-With': 'XMLHttpRequest' }    })    .then(response => response.json())    .then(data => {        if (data.est_payee) {            element.className = 'badge bg-success text-white';            element.innerHTML = '<i class="bi bi-check-circle me-1"></i>Payé';        } else {            element.className = 'badge bg-primary text-white';            element.innerHTML = '<i class="bi bi-clock me-1"></i>Non payé';        }    })    .catch(err => {        window.location.reload();    });}
+// Toggle paiement facture via AJAX
+function togglePaiementFacture(factureId, element) {
+    fetch('<?= url('/admin/factures/liste.php') ?>?toggle_paiement=1&id=' + factureId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.est_payee) {
+            element.className = 'badge bg-success text-white';
+            element.innerHTML = '<i class="bi bi-check-circle me-1"></i>Payé';
+        } else {
+            element.className = 'badge bg-primary text-white';
+            element.innerHTML = '<i class="bi bi-clock me-1"></i>Non payé';
+        }
+        // Mettre à jour le data attribute pour le tri
+        element.closest('.facture-row').dataset.paiement = data.est_payee ? '1' : '0';
+    })
+    .catch(err => {
+        window.location.reload();
+    });
+}
 // Variable pour stocker les fichiers convertis
 let adminConvertedFiles = [];
 

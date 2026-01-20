@@ -147,13 +147,15 @@
                                 Montant <i class="bi bi-arrow-down-up text-muted ms-1 sort-icon"></i>
                             </th>
                             <th>Statut</th>
-                            <th>Paiement</th>
+                            <th class="sortable-header" data-sort="paiement" style="cursor: pointer;" title="Cliquer pour trier">
+                                Paiement <i class="bi bi-arrow-down-up text-muted ms-1 sort-icon"></i>
+                            </th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($facturesProjet as $f): ?>
-                        <tr class="facture-row" data-id="<?= $f['id'] ?>" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-date="<?= e($f['date_facture'] ?? '') ?>" data-produits="<?= e(strtolower($f['lignes_texte'] ?? '')) ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
+                        <tr class="facture-row" data-id="<?= $f['id'] ?>" data-statut="<?= e($f['statut']) ?>" data-categorie="<?= e($f['etape_nom'] ?? '') ?>" data-fournisseur="<?= e($f['fournisseur'] ?? '') ?>" data-montant="<?= $f['montant_total'] ?>" data-date="<?= e($f['date_facture'] ?? '') ?>" data-produits="<?= e(strtolower($f['lignes_texte'] ?? '')) ?>" data-paiement="<?= !empty($f['est_payee']) ? '1' : '0' ?>" data-href="<?= url('/admin/factures/modifier.php?id=' . $f['id']) ?>" style="cursor: pointer;">
                             <td class="text-center" onclick="event.stopPropagation();">
                                 <input type="checkbox" class="form-check-input facture-checkbox" value="<?= $f['id'] ?>">
                             </td>

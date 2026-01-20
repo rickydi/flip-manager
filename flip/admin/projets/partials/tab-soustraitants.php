@@ -165,12 +165,7 @@
                                 <input type="checkbox" class="form-check-input soustraitant-checkbox" value="<?= $st['id'] ?>">
                             </td>
                             <td><?= formatDate($st['date_facture']) ?></td>
-                            <td>
-                                <strong><?= e($st['nom_entreprise'] ?? 'N/A') ?></strong>
-                                <?php if (!empty($st['contact'])): ?>
-                                    <br><small class="text-muted"><?= e($st['contact']) ?></small>
-                                <?php endif; ?>
-                            </td>
+                            <td><?= e($st['nom_entreprise'] ?? 'N/A') ?></td>
                             <td><?php if (empty($st['etape_nom'])): ?><span class="text-danger fw-bold">N/A</span><?php else: ?><?= e($st['etape_nom']) ?><?php endif; ?></td>
                             <td class="text-end fw-bold"><?= formatMoney($st['montant_total']) ?></td>
                             <td>
