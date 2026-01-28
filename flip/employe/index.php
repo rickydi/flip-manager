@@ -697,7 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
 
-        async loadStatus: function() {
+        loadStatus: async function() {
             try {
                 const response = await fetch('<?= url('/api/pointage.php') ?>?action=status');
                 const data = await response.json();
@@ -723,7 +723,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         },
 
-        async loadProjetsGPS: function() {
+        loadProjetsGPS: async function() {
             try {
                 const response = await fetch('<?= url('/api/pointage.php') ?>?action=projets_gps');
                 const data = await response.json();
@@ -804,7 +804,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         },
 
-        async punch: function(type) {
+        punch: async function(type) {
             const projetIdMobile = document.getElementById('projetSelectMobile')?.value;
             const projetIdDesktop = document.getElementById('projetSelectDesktop')?.value;
             const projetId = projetIdMobile || projetIdDesktop;
