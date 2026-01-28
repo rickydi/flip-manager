@@ -175,8 +175,8 @@ include '../includes/header.php';
                 </div>
             </div>
         </div>
-        <?php endif; ?>
-
+        <?php else: ?>
+        <!-- Interface pour contremaîtres (pas de pointage) -->
         <div class="d-grid gap-3">
             <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary btn-lg py-4">
                 <i class="bi bi-receipt" style="font-size: 2.5rem;"></i>
@@ -202,6 +202,7 @@ include '../includes/header.php';
                 <i class="bi bi-clock-history me-1"></i><?= __('my_hours') ?>
             </a>
         </div>
+        <?php endif; ?>
 
         <!-- Petit bonhomme qui dit allo -->
         <div class="waving-guy-container">
@@ -276,27 +277,10 @@ include '../includes/header.php';
 
     <?php displayFlashMessage(); ?>
 
-    <!-- Statistiques -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-value"><?= $totalFactures ?></div>
-            <div class="stat-label"><?= __('submitted_invoices') ?></div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-value"><?= $facturesEnAttente ?></div>
-            <div class="stat-label"><?= __('pending') ?></div>
-        </div>
-        <div class="stat-card success">
-            <div class="stat-value"><?= $facturesApprouvees ?></div>
-            <div class="stat-label"><?= __('approved') ?></div>
-        </div>
-        <div class="stat-card primary">
-            <div class="stat-value"><?= formatMoney($totalMontant) ?></div>
-            <div class="stat-label"><?= __('total_approved') ?></div>
-        </div>
-    </div>
-
     <?php if ($afficherPointage): ?>
+    <!-- ========================================== -->
+    <!-- EMPLOYÉ SIMPLE - Seulement le pointage -->
+    <!-- ========================================== -->
     <!-- ========================================== -->
     <!-- POINTAGE - Interface Desktop Simple -->
     <!-- ========================================== -->
@@ -359,7 +343,30 @@ include '../includes/header.php';
             </div>
         </div>
     </div>
-    <?php endif; ?>
+    <?php else: ?>
+    <!-- ========================================== -->
+    <!-- CONTREMAÎTRE - Interface complète -->
+    <!-- ========================================== -->
+
+    <!-- Statistiques -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value"><?= $totalFactures ?></div>
+            <div class="stat-label"><?= __('submitted_invoices') ?></div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-value"><?= $facturesEnAttente ?></div>
+            <div class="stat-label"><?= __('pending') ?></div>
+        </div>
+        <div class="stat-card success">
+            <div class="stat-value"><?= $facturesApprouvees ?></div>
+            <div class="stat-label"><?= __('approved') ?></div>
+        </div>
+        <div class="stat-card primary">
+            <div class="stat-value"><?= formatMoney($totalMontant) ?></div>
+            <div class="stat-label"><?= __('total_approved') ?></div>
+        </div>
+    </div>
 
     <!-- Projets actifs -->
     <div class="card mb-4">
@@ -524,6 +531,7 @@ include '../includes/header.php';
             <?php endif; ?>
         </div>
     </div>
+    <?php endif; ?>
     </div><!-- Fin interface desktop -->
 </div>
 
