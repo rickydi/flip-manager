@@ -367,6 +367,30 @@ if ($method === 'POST') {
                 WHERE id = ?
             ");
             $stmt->execute([$now, $additionalMinutes, $sessionActive['id']]);
+
+            // Fusionner: créer automatiquement une entrée dans heures_travaillees
+            $totalMinutes = $sessionActive['duree_travail'] + $additionalMinutes;
+            if ($totalMinutes > 0 && $sessionActive['projet_id']) {
+                $heuresDecimal = round($totalMinutes / 60, 2);
+
+                // Récupérer le taux horaire de l'employé
+                $stmtTaux = $pdo->prepare("SELECT taux_horaire FROM users WHERE id = ?");
+                $stmtTaux->execute([$userId]);
+                $tauxHoraire = $stmtTaux->fetchColumn() ?: 0;
+
+                $stmtHeures = $pdo->prepare("
+                    INSERT INTO heures_travaillees (projet_id, user_id, date_travail, heures, taux_horaire, description, statut)
+                    VALUES (?, ?, ?, ?, ?, ?, 'approuvee')
+                ");
+                $stmtHeures->execute([
+                    $sessionActive['projet_id'],
+                    $userId,
+                    $sessionActive['date_travail'],
+                    $heuresDecimal,
+                    $tauxHoraire,
+                    'Pointage automatique (' . floor($totalMinutes / 60) . 'h' . str_pad($totalMinutes % 60, 2, '0', STR_PAD_LEFT) . ')'
+                ]);
+            }
         }
 
         $pdo->commit();
