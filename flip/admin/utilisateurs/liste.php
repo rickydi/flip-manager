@@ -11,6 +11,13 @@ require_once '../../includes/functions.php';
 // Vérifier que l'utilisateur est admin
 requireAdmin();
 
+// S'assurer que la colonne password_plain existe
+try {
+    $pdo->query("SELECT password_plain FROM users LIMIT 1");
+} catch (PDOException $e) {
+    $pdo->exec("ALTER TABLE users ADD COLUMN password_plain VARCHAR(255) NULL AFTER password");
+}
+
 $pageTitle = 'Utilisateurs';
 
 $errors = [];
@@ -54,10 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($errors)) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (username, nom, prenom, email, password, role, taux_horaire, est_contremaitre)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (username, nom, prenom, email, password, password_plain, role, taux_horaire, est_contremaitre)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire, $estContremaitre]);
+                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $password, $role, $tauxHoraire, $estContremaitre]);
                 setFlashMessage('success', 'Utilisateur créé avec succès. Login: ' . $email);
                 redirect('/admin/utilisateurs/liste.php');
             }
@@ -93,10 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 if (!empty($password)) {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
+                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, password_plain = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $estContremaitre, $userId]);
+                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $password, $role, $actif, $tauxHoraire, $estContremaitre, $userId]);
                 } else {
                     $stmt = $pdo->prepare("
                         UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
@@ -211,6 +218,7 @@ include '../../includes/header.php';
                     <thead>
                         <tr>
                             <th>Email (login)</th>
+                            <th>Mot de passe</th>
                             <th>Nom</th>
                             <th>Rôle</th>
                             <th>Taux horaire</th>
@@ -225,6 +233,20 @@ include '../../includes/header.php';
                             <tr>
                                 <td>
                                     <code><?= e($user['email'] ?? '-') ?></code>
+                                </td>
+                                <td>
+                                    <?php if (!empty($user['password_plain'])): ?>
+                                        <span class="password-hidden-<?= $user['id'] ?>">********</span>
+                                        <span class="password-visible-<?= $user['id'] ?>" style="display: none;">
+                                            <code><?= e($user['password_plain']) ?></code>
+                                        </span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm ms-1 btn-toggle-password"
+                                                data-user-id="<?= $user['id'] ?>" title="Afficher/Masquer">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <strong><?= e($user['prenom']) ?> <?= e($user['nom']) ?></strong>
@@ -501,6 +523,28 @@ include '../../includes/header.php';
 </div>
 
 <script>
+// Toggle affichage mot de passe
+document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const userId = this.dataset.userId;
+        const hiddenEl = document.querySelector('.password-hidden-' + userId);
+        const visibleEl = document.querySelector('.password-visible-' + userId);
+        const icon = this.querySelector('i');
+
+        if (hiddenEl.style.display !== 'none') {
+            hiddenEl.style.display = 'none';
+            visibleEl.style.display = 'inline';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            hiddenEl.style.display = 'inline';
+            visibleEl.style.display = 'none';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+});
+
 // État des activités par utilisateur
 const activityState = {};
 
