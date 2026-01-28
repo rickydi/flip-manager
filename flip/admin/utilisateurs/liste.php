@@ -235,18 +235,18 @@ include '../../includes/header.php';
                                     <code><?= e($user['email'] ?? '-') ?></code>
                                 </td>
                                 <td>
-                                    <?php if (!empty($user['password_plain'])): ?>
-                                        <span class="password-hidden-<?= $user['id'] ?>">********</span>
-                                        <span class="password-visible-<?= $user['id'] ?>" style="display: none;">
+                                    <span class="password-hidden-<?= $user['id'] ?>">********</span>
+                                    <span class="password-visible-<?= $user['id'] ?>" style="display: none;">
+                                        <?php if (!empty($user['password_plain'])): ?>
                                             <code><?= e($user['password_plain']) ?></code>
-                                        </span>
-                                        <button type="button" class="btn btn-outline-secondary btn-sm ms-1 btn-toggle-password"
-                                                data-user-id="<?= $user['id'] ?>" title="Afficher/Masquer">
-                                            <i class="bi bi-eye"></i>
-                                        </button>
-                                    <?php else: ?>
-                                        <span class="text-muted">-</span>
-                                    <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="text-muted fst-italic">Non enregistré</span>
+                                        <?php endif; ?>
+                                    </span>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm ms-1 btn-toggle-password"
+                                            data-user-id="<?= $user['id'] ?>" title="Afficher/Masquer">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
                                 </td>
                                 <td>
                                     <strong><?= e($user['prenom']) ?> <?= e($user['nom']) ?></strong>
