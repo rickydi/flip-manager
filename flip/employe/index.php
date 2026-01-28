@@ -106,27 +106,25 @@ include '../includes/header.php';
 
         <?php if ($afficherPointage): ?>
         <!-- ========================================== -->
-        <!-- POINTAGE - Interface Mobile -->
+        <!-- POINTAGE - Interface Mobile Simple -->
         <!-- ========================================== -->
         <div class="pointage-section mb-4" id="pointageMobile">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body p-3">
-                    <!-- Statut actuel -->
-                    <div class="text-center mb-3">
-                        <div class="pointage-status" id="pointageStatusMobile">
-                            <span class="badge bg-secondary fs-6 px-3 py-2">
-                                <i class="bi bi-clock me-1"></i> Chargement...
-                            </span>
+            <div class="card border-0 shadow-lg pointage-card">
+                <div class="card-body p-4">
+                    <!-- Timer et statut -->
+                    <div class="text-center mb-4">
+                        <div class="pointage-timer" id="pointageTimerMobile">
+                            <span class="timer-display" id="timerDisplayMobile">00:00:00</span>
                         </div>
-                        <div class="pointage-timer mt-2 d-none" id="pointageTimerMobile">
-                            <span class="fs-2 fw-bold text-primary" id="timerDisplayMobile">00:00:00</span>
+                        <div class="pointage-projet mt-2 d-none" id="pointageProjetMobile">
+                            <i class="bi bi-geo-alt-fill"></i> <span id="projetNomMobile"></span>
                         </div>
-                        <div class="pointage-projet mt-1 text-muted small d-none" id="pointageProjetMobile"></div>
+                        <div class="pointage-status mt-2" id="pointageStatusMobile"></div>
                     </div>
 
                     <!-- Sélection projet (visible uniquement si pas de session) -->
-                    <div class="mb-3 d-none" id="projetSelectContainerMobile">
-                        <select class="form-select form-select-lg" id="projetSelectMobile">
+                    <div class="mb-4 d-none" id="projetSelectContainerMobile">
+                        <select class="form-select form-select-lg text-center" id="projetSelectMobile">
                             <option value="">-- Choisir un projet --</option>
                             <?php foreach ($projets as $p): ?>
                                 <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
@@ -134,30 +132,42 @@ include '../includes/header.php';
                         </select>
                     </div>
 
-                    <!-- Boutons de pointage -->
-                    <div class="d-flex gap-2 justify-content-center flex-wrap" id="pointageBtnsMobile">
-                        <button type="button" class="btn btn-success btn-lg px-4 d-none" id="btnStartMobile">
-                            <i class="bi bi-play-fill me-1"></i> Start
+                    <!-- Boutons principaux -->
+                    <div class="pointage-buttons" id="pointageBtnsMobile">
+                        <!-- Punch In - gros bouton vert -->
+                        <button type="button" class="btn-punch btn-punch-in d-none" id="btnPunchInMobile">
+                            <i class="bi bi-play-circle-fill"></i>
+                            <span>PUNCH IN</span>
                         </button>
-                        <button type="button" class="btn btn-warning btn-lg px-4 d-none" id="btnPauseMobile">
-                            <i class="bi bi-pause-fill me-1"></i> Pause
+
+                        <!-- Break - bouton jaune -->
+                        <button type="button" class="btn-punch btn-punch-break d-none" id="btnBreakMobile">
+                            <i class="bi bi-cup-hot-fill"></i>
+                            <span>BREAK</span>
                         </button>
-                        <button type="button" class="btn btn-info btn-lg px-4 d-none" id="btnResumeMobile">
-                            <i class="bi bi-play-fill me-1"></i> Reprendre
-                        </button>
-                        <button type="button" class="btn btn-danger btn-lg px-4 d-none" id="btnStopMobile">
-                            <i class="bi bi-stop-fill me-1"></i> Arret
+
+                        <!-- Punch Out - bouton rouge -->
+                        <button type="button" class="btn-punch btn-punch-out d-none" id="btnPunchOutMobile">
+                            <i class="bi bi-stop-circle-fill"></i>
+                            <span>PUNCH OUT</span>
                         </button>
                     </div>
 
-                    <!-- Toggle GPS -->
-                    <div class="mt-3 pt-3 border-top">
+                    <!-- Bouton Photo (petit) -->
+                    <div class="text-center mt-4 d-none" id="photoButtonContainer">
+                        <a href="<?= url('/employe/photos.php') ?>" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-camera me-1"></i> Prendre photo
+                        </a>
+                    </div>
+
+                    <!-- Toggle GPS (discret) -->
+                    <div class="mt-4 pt-3 border-top">
                         <div class="form-check form-switch d-flex align-items-center justify-content-center gap-2">
-                            <input class="form-check-input" type="checkbox" id="gpsToggleMobile" style="width: 3em; height: 1.5em;">
-                            <label class="form-check-label" for="gpsToggleMobile">
-                                <i class="bi bi-geo-alt me-1"></i> GPS Auto-Punch
+                            <input class="form-check-input" type="checkbox" id="gpsToggleMobile" style="width: 2.5em; height: 1.25em;">
+                            <label class="form-check-label small text-muted" for="gpsToggleMobile">
+                                <i class="bi bi-geo-alt me-1"></i> GPS Auto
                             </label>
-                            <span class="badge bg-secondary ms-2 d-none" id="gpsStatusMobile">
+                            <span class="badge bg-success ms-1 d-none" id="gpsStatusMobile" style="font-size: 0.65rem;">
                                 <i class="bi bi-broadcast"></i>
                             </span>
                         </div>
@@ -288,35 +298,26 @@ include '../includes/header.php';
 
     <?php if ($afficherPointage): ?>
     <!-- ========================================== -->
-    <!-- POINTAGE - Interface Desktop -->
+    <!-- POINTAGE - Interface Desktop Simple -->
     <!-- ========================================== -->
-    <div class="card mb-4" id="pointageDesktop">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-stopwatch me-2"></i>Pointage</span>
-            <div class="form-check form-switch m-0">
-                <input class="form-check-input" type="checkbox" id="gpsToggleDesktop">
-                <label class="form-check-label small" for="gpsToggleDesktop">
-                    <i class="bi bi-geo-alt me-1"></i> GPS Auto
-                </label>
-            </div>
-        </div>
-        <div class="card-body">
+    <div class="card mb-4 pointage-card-desktop" id="pointageDesktop">
+        <div class="card-body py-4">
             <div class="row align-items-center">
-                <!-- Statut et timer -->
+                <!-- Timer et statut -->
                 <div class="col-md-4 text-center text-md-start mb-3 mb-md-0">
-                    <div class="pointage-status" id="pointageStatusDesktop">
-                        <span class="badge bg-secondary fs-6 px-3 py-2">
-                            <i class="bi bi-clock me-1"></i> Chargement...
-                        </span>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="timer-display-desktop" id="timerDisplayDesktop">00:00:00</div>
+                        <div>
+                            <div class="pointage-status" id="pointageStatusDesktop"></div>
+                            <div class="pointage-projet text-muted small d-none" id="pointageProjetDesktop">
+                                <i class="bi bi-geo-alt-fill"></i> <span id="projetNomDesktop"></span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="pointage-timer mt-2 d-none" id="pointageTimerDesktop">
-                        <span class="fs-3 fw-bold text-primary" id="timerDisplayDesktop">00:00:00</span>
-                    </div>
-                    <div class="pointage-projet mt-1 text-muted small d-none" id="pointageProjetDesktop"></div>
                 </div>
 
                 <!-- Sélection projet -->
-                <div class="col-md-4 mb-3 mb-md-0">
+                <div class="col-md-3 mb-3 mb-md-0">
                     <div class="d-none" id="projetSelectContainerDesktop">
                         <select class="form-select" id="projetSelectDesktop">
                             <option value="">-- Choisir un projet --</option>
@@ -328,20 +329,31 @@ include '../includes/header.php';
                 </div>
 
                 <!-- Boutons -->
-                <div class="col-md-4 text-center text-md-end">
-                    <div class="d-flex gap-2 justify-content-center justify-content-md-end" id="pointageBtnsDesktop">
-                        <button type="button" class="btn btn-success px-4 d-none" id="btnStartDesktop">
-                            <i class="bi bi-play-fill me-1"></i> Start
+                <div class="col-md-5 text-center text-md-end">
+                    <div class="d-flex gap-2 justify-content-center justify-content-md-end align-items-center" id="pointageBtnsDesktop">
+                        <!-- Punch In -->
+                        <button type="button" class="btn btn-success btn-lg px-4 d-none" id="btnPunchInDesktop">
+                            <i class="bi bi-play-circle-fill me-2"></i>PUNCH IN
                         </button>
-                        <button type="button" class="btn btn-warning px-4 d-none" id="btnPauseDesktop">
-                            <i class="bi bi-pause-fill me-1"></i> Pause
+                        <!-- Break -->
+                        <button type="button" class="btn btn-warning btn-lg px-4 d-none" id="btnBreakDesktop">
+                            <i class="bi bi-cup-hot-fill me-2"></i>BREAK
                         </button>
-                        <button type="button" class="btn btn-info px-4 d-none" id="btnResumeDesktop">
-                            <i class="bi bi-play-fill me-1"></i> Reprendre
+                        <!-- Punch Out -->
+                        <button type="button" class="btn btn-danger btn-lg px-4 d-none" id="btnPunchOutDesktop">
+                            <i class="bi bi-stop-circle-fill me-2"></i>PUNCH OUT
                         </button>
-                        <button type="button" class="btn btn-danger px-4 d-none" id="btnStopDesktop">
-                            <i class="bi bi-stop-fill me-1"></i> Arret
-                        </button>
+                        <!-- Photo (petit) -->
+                        <a href="<?= url('/employe/photos.php') ?>" class="btn btn-outline-secondary d-none" id="btnPhotoDesktop" title="Prendre photo">
+                            <i class="bi bi-camera"></i>
+                        </a>
+                        <!-- GPS toggle -->
+                        <div class="form-check form-switch m-0 ms-2">
+                            <input class="form-check-input" type="checkbox" id="gpsToggleDesktop" title="GPS Auto-Punch">
+                            <span class="badge bg-success ms-1 d-none" id="gpsStatusDesktop" style="font-size: 0.6rem;">
+                                <i class="bi bi-broadcast"></i>
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -623,7 +635,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ========================================
-    // SYSTÈME DE POINTAGE
+    // SYSTÈME DE POINTAGE - Interface Simplifiée
     // ========================================
     <?php if ($afficherPointage): ?>
     const PointageSystem = {
@@ -643,18 +655,16 @@ document.addEventListener('DOMContentLoaded', function() {
         },
 
         bindEvents: function() {
-            // Mobile
-            document.getElementById('btnStartMobile')?.addEventListener('click', () => this.punch('start'));
-            document.getElementById('btnPauseMobile')?.addEventListener('click', () => this.punch('pause'));
-            document.getElementById('btnResumeMobile')?.addEventListener('click', () => this.punch('resume'));
-            document.getElementById('btnStopMobile')?.addEventListener('click', () => this.punch('stop'));
+            // Mobile - Nouveaux boutons
+            document.getElementById('btnPunchInMobile')?.addEventListener('click', () => this.punch('start'));
+            document.getElementById('btnBreakMobile')?.addEventListener('click', () => this.toggleBreak());
+            document.getElementById('btnPunchOutMobile')?.addEventListener('click', () => this.punch('stop'));
             document.getElementById('gpsToggleMobile')?.addEventListener('change', (e) => this.toggleGPS(e.target.checked));
 
-            // Desktop
-            document.getElementById('btnStartDesktop')?.addEventListener('click', () => this.punch('start'));
-            document.getElementById('btnPauseDesktop')?.addEventListener('click', () => this.punch('pause'));
-            document.getElementById('btnResumeDesktop')?.addEventListener('click', () => this.punch('resume'));
-            document.getElementById('btnStopDesktop')?.addEventListener('click', () => this.punch('stop'));
+            // Desktop - Nouveaux boutons
+            document.getElementById('btnPunchInDesktop')?.addEventListener('click', () => this.punch('start'));
+            document.getElementById('btnBreakDesktop')?.addEventListener('click', () => this.toggleBreak());
+            document.getElementById('btnPunchOutDesktop')?.addEventListener('click', () => this.punch('stop'));
             document.getElementById('gpsToggleDesktop')?.addEventListener('change', (e) => this.toggleGPS(e.target.checked));
 
             // Sync GPS toggles
@@ -666,6 +676,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mobile = document.getElementById('gpsToggleMobile');
                 if (mobile) mobile.checked = e.target.checked;
             });
+        },
+
+        // Toggle Break: si en cours -> pause, si en pause -> resume
+        toggleBreak: function() {
+            if (this.session) {
+                if (this.session.statut === 'en_cours') {
+                    this.punch('pause');
+                } else if (this.session.statut === 'pause') {
+                    this.punch('resume');
+                }
+            }
         },
 
         async loadStatus: function() {
@@ -711,46 +732,63 @@ document.addEventListener('DOMContentLoaded', function() {
 
             views.forEach(view => {
                 const statusEl = document.getElementById('pointageStatus' + view);
-                const timerEl = document.getElementById('pointageTimer' + view);
+                const timerDisplay = document.getElementById('timerDisplay' + view);
                 const projetEl = document.getElementById('pointageProjet' + view);
+                const projetNomEl = document.getElementById('projetNom' + view);
                 const selectContainer = document.getElementById('projetSelectContainer' + view);
-                const btnStart = document.getElementById('btnStart' + view);
-                const btnPause = document.getElementById('btnPause' + view);
-                const btnResume = document.getElementById('btnResume' + view);
-                const btnStop = document.getElementById('btnStop' + view);
+                const btnPunchIn = document.getElementById('btnPunchIn' + view);
+                const btnBreak = document.getElementById('btnBreak' + view);
+                const btnPunchOut = document.getElementById('btnPunchOut' + view);
+                const btnPhoto = document.getElementById('btnPhoto' + view);
+                const photoContainer = document.getElementById('photoButtonContainer');
 
                 // Cacher tous les boutons
-                btnStart?.classList.add('d-none');
-                btnPause?.classList.add('d-none');
-                btnResume?.classList.add('d-none');
-                btnStop?.classList.add('d-none');
+                btnPunchIn?.classList.add('d-none');
+                btnBreak?.classList.add('d-none');
+                btnPunchOut?.classList.add('d-none');
+                btnPhoto?.classList.add('d-none');
                 selectContainer?.classList.add('d-none');
-                timerEl?.classList.add('d-none');
                 projetEl?.classList.add('d-none');
+                photoContainer?.classList.add('d-none');
 
                 if (!this.session) {
-                    // Pas de session - afficher Start
-                    statusEl.innerHTML = '<span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-clock me-1"></i> Pret</span>';
-                    btnStart?.classList.remove('d-none');
+                    // Pas de session - afficher Punch In
+                    statusEl.innerHTML = '<span class="badge bg-secondary">Pret a travailler</span>';
+                    timerDisplay.textContent = '00:00:00';
+                    btnPunchIn?.classList.remove('d-none');
                     selectContainer?.classList.remove('d-none');
                 } else if (this.session.statut === 'en_cours') {
-                    // En cours - afficher Pause et Stop
-                    statusEl.innerHTML = '<span class="badge bg-success fs-6 px-3 py-2 pulse-animation"><i class="bi bi-play-circle me-1"></i> En cours</span>';
-                    btnPause?.classList.remove('d-none');
-                    btnStop?.classList.remove('d-none');
-                    timerEl?.classList.remove('d-none');
+                    // En cours - afficher Break et Punch Out
+                    statusEl.innerHTML = '<span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size:0.5rem"></i> En cours</span>';
+                    btnBreak?.classList.remove('d-none');
+                    btnBreak?.classList.remove('on-break');
+                    btnPunchOut?.classList.remove('d-none');
+                    btnPhoto?.classList.remove('d-none');
+                    photoContainer?.classList.remove('d-none');
                     projetEl?.classList.remove('d-none');
-                    if (projetEl) projetEl.textContent = this.session.projet_nom || '';
+                    if (projetNomEl) projetNomEl.textContent = this.session.projet_nom || '';
+                    // Changer texte du bouton Break
+                    const breakBtnMobile = document.getElementById('btnBreakMobile');
+                    const breakBtnDesktop = document.getElementById('btnBreakDesktop');
+                    if (breakBtnMobile) breakBtnMobile.querySelector('span').textContent = 'BREAK';
+                    if (breakBtnDesktop) breakBtnDesktop.innerHTML = '<i class="bi bi-cup-hot-fill me-2"></i>BREAK';
 
                     this.startTimer();
                 } else if (this.session.statut === 'pause') {
-                    // En pause - afficher Resume et Stop
-                    statusEl.innerHTML = '<span class="badge bg-warning text-dark fs-6 px-3 py-2"><i class="bi bi-pause-circle me-1"></i> En pause</span>';
-                    btnResume?.classList.remove('d-none');
-                    btnStop?.classList.remove('d-none');
-                    timerEl?.classList.remove('d-none');
+                    // En pause - afficher Break (pour reprendre) et Punch Out
+                    statusEl.innerHTML = '<span class="badge bg-warning text-dark"><i class="bi bi-pause-fill me-1"></i> En pause</span>';
+                    btnBreak?.classList.remove('d-none');
+                    btnBreak?.classList.add('on-break');
+                    btnPunchOut?.classList.remove('d-none');
+                    btnPhoto?.classList.remove('d-none');
+                    photoContainer?.classList.remove('d-none');
                     projetEl?.classList.remove('d-none');
-                    if (projetEl) projetEl.textContent = this.session.projet_nom || '';
+                    if (projetNomEl) projetNomEl.textContent = this.session.projet_nom || '';
+                    // Changer texte du bouton Break -> Reprendre
+                    const breakBtnMobile = document.getElementById('btnBreakMobile');
+                    const breakBtnDesktop = document.getElementById('btnBreakDesktop');
+                    if (breakBtnMobile) breakBtnMobile.querySelector('span').textContent = 'REPRENDRE';
+                    if (breakBtnDesktop) breakBtnDesktop.innerHTML = '<i class="bi bi-play-fill me-2"></i>REPRENDRE';
 
                     this.stopTimer();
                     this.displayTime(this.session.duree_travail * 60);
@@ -1006,31 +1044,163 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Animation pulse pour le statut "en cours" */
-.pulse-animation {
-    animation: pulse 2s infinite;
+/* ========================================== */
+/* POINTAGE - Nouveau Design Simplifié */
+/* ========================================== */
+
+/* Card pointage mobile */
+.pointage-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 1.5rem !important;
 }
 
-@keyframes pulse {
+[data-theme="light"] .pointage-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Timer grand format */
+.timer-display {
+    font-family: 'SF Mono', 'Courier New', monospace;
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: #fff;
+    text-shadow: 0 0 20px rgba(255,255,255,0.3);
+    letter-spacing: 2px;
+}
+
+.timer-display-desktop {
+    font-family: 'SF Mono', 'Courier New', monospace;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Projet affiché */
+.pointage-projet {
+    color: rgba(255,255,255,0.7);
+    font-size: 0.9rem;
+}
+
+.pointage-card-desktop .pointage-projet {
+    color: var(--text-muted);
+}
+
+/* Status badges */
+.pointage-status .badge {
+    font-size: 0.75rem;
+    padding: 0.4rem 0.8rem;
+}
+
+/* Boutons de pointage - Style moderne */
+.pointage-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.btn-punch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.25rem 2rem;
+    border: none;
+    border-radius: 1rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.btn-punch i {
+    font-size: 1.5rem;
+}
+
+/* Punch In - Vert */
+.btn-punch-in {
+    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    color: #fff;
+}
+
+.btn-punch-in:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 184, 148, 0.4);
+}
+
+.btn-punch-in:active {
+    transform: scale(0.98);
+}
+
+/* Break - Jaune/Orange */
+.btn-punch-break {
+    background: linear-gradient(135deg, #fdcb6e 0%, #f39c12 100%);
+    color: #2d3436;
+}
+
+.btn-punch-break:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(253, 203, 110, 0.4);
+}
+
+.btn-punch-break.on-break {
+    background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+    color: #fff;
+    animation: pulse-break 1.5s infinite;
+}
+
+@keyframes pulse-break {
+    0%, 100% { box-shadow: 0 4px 15px rgba(116, 185, 255, 0.4); }
+    50% { box-shadow: 0 4px 25px rgba(116, 185, 255, 0.6); }
+}
+
+/* Punch Out - Rouge */
+.btn-punch-out {
+    background: linear-gradient(135deg, #ff7675 0%, #d63031 100%);
+    color: #fff;
+}
+
+.btn-punch-out:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(214, 48, 49, 0.4);
+}
+
+/* Desktop card */
+.pointage-card-desktop {
+    border: none;
+    box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.pointage-card-desktop .btn-lg {
+    padding: 0.75rem 1.5rem;
+}
+
+/* Animation entrée */
+.pointage-card {
+    animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* GPS status actif */
+#gpsStatusMobile.active,
+#gpsStatusDesktop.active {
+    animation: pulse-gps 2s infinite;
+}
+
+@keyframes pulse-gps {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-/* Style du pointage */
-.pointage-section .card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-}
-
-[data-theme="dark"] .pointage-section .card {
-    background: linear-gradient(135deg, #2d3436 0%, #1e272e 100%);
-}
-
-.pointage-timer {
-    font-family: 'Courier New', monospace;
-}
-
-#pointageDesktop .card-body {
-    min-height: 80px;
+    50% { opacity: 0.5; }
 }
 </style>
 
