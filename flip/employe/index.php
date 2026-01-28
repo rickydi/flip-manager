@@ -1061,12 +1061,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Card pointage mobile */
 .pointage-card {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: #1a1a2e;
     border-radius: 1.5rem !important;
 }
 
 [data-theme="light"] .pointage-card {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #4a5568;
 }
 
 /* Timer grand format */
@@ -1131,7 +1131,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Punch In - Vert */
 .btn-punch-in {
-    background: linear-gradient(135deg, #00b894 0%, #00cec9 100%);
+    background: #00b894;
     color: #fff;
 }
 
@@ -1146,17 +1146,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Break - Jaune/Orange */
 .btn-punch-break {
-    background: linear-gradient(135deg, #fdcb6e 0%, #f39c12 100%);
+    background: #f39c12;
     color: #2d3436;
 }
 
 .btn-punch-break:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(253, 203, 110, 0.4);
+    box-shadow: 0 6px 20px rgba(243, 156, 18, 0.4);
 }
 
 .btn-punch-break.on-break {
-    background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+    background: #0984e3;
     color: #fff;
     animation: pulse-break 1.5s infinite;
 }
@@ -1168,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Punch Out - Rouge */
 .btn-punch-out {
-    background: linear-gradient(135deg, #ff7675 0%, #d63031 100%);
+    background: #d63031;
     color: #fff;
 }
 
