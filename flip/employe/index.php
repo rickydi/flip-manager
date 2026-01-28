@@ -122,8 +122,8 @@ include '../includes/header.php';
                         <div class="pointage-status mt-2" id="pointageStatusMobile"></div>
                     </div>
 
-                    <!-- Sélection projet (visible uniquement si pas de session) -->
-                    <div class="mb-4 d-none" id="projetSelectContainerMobile">
+                    <!-- Sélection projet (visible par défaut) -->
+                    <div class="mb-4" id="projetSelectContainerMobile">
                         <select class="form-select form-select-lg text-center" id="projetSelectMobile">
                             <option value="">-- Choisir un projet --</option>
                             <?php foreach ($projets as $p): ?>
@@ -134,8 +134,8 @@ include '../includes/header.php';
 
                     <!-- Boutons principaux -->
                     <div class="pointage-buttons" id="pointageBtnsMobile">
-                        <!-- Punch In - gros bouton vert -->
-                        <button type="button" class="btn-punch btn-punch-in d-none" id="btnPunchInMobile">
+                        <!-- Punch In - gros bouton vert (visible par défaut) -->
+                        <button type="button" class="btn-punch btn-punch-in" id="btnPunchInMobile">
                             <i class="bi bi-play-circle-fill"></i>
                             <span>PUNCH IN</span>
                         </button>
