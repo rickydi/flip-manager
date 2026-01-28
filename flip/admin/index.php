@@ -2761,7 +2761,7 @@ const EmployesActifs = {
         this.intervalId = setInterval(() => this.load(), 30000);
     },
 
-    async load: function() {
+    load: async function() {
         try {
             const response = await fetch('<?= url('/api/pointage-admin.php') ?>?action=actifs');
             const data = await response.json();
