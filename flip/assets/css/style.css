@@ -20,7 +20,7 @@
     --bg-card-header: #ffffff;
     --bg-table-hover: #f8fafc;
     --bg-input: #ffffff;
-    --bg-navbar: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    --bg-navbar: #1e293b;
     --bg-navbar-solid: #1e293b;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
@@ -125,7 +125,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--dark-color) 0%, #334155 100%);
+    background: var(--dark-color);
 }
 
 .login-card {

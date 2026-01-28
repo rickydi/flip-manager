@@ -45,12 +45,12 @@
 }
 
 .catalogue-panel .panel-header {
-    background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+    background: #1e3a5f;
     color: white;
 }
 
 .projet-panel .panel-header {
-    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+    background: #059669;
     color: white;
     justify-content: space-between;
 }
@@ -203,7 +203,7 @@
 }
 
 .is-kit .tree-content {
-    background: linear-gradient(135deg, rgba(13, 110, 253, 0.05) 0%, rgba(13, 110, 253, 0.02) 100%);
+    background: rgba(13, 110, 253, 0.05);
     border-left: 3px solid var(--primary-color, #0d6efd);
 }
 
