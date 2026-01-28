@@ -330,6 +330,36 @@ $moyenneAchatsParJour = $nbJoursAchats > 0 ? round($totalAchatsProjet / $nbJours
                                 <label class="form-label">Code</label>
                                 <input type="text" class="form-control" name="code_postal" value="<?= e($projet['code_postal']) ?>">
                             </div>
+                            <!-- GPS pour pointage automatique -->
+                            <div class="col-12 mt-2">
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-auto">
+                                            <label class="form-label small mb-1"><i class="bi bi-geo-alt text-primary"></i> GPS Pointage</label>
+                                        </div>
+                                        <div class="col-3">
+                                            <input type="text" class="form-control form-control-sm" name="latitude" id="gps_latitude"
+                                                   value="<?= e($projet['latitude'] ?? '') ?>" placeholder="Latitude">
+                                        </div>
+                                        <div class="col-3">
+                                            <input type="text" class="form-control form-control-sm" name="longitude" id="gps_longitude"
+                                                   value="<?= e($projet['longitude'] ?? '') ?>" placeholder="Longitude">
+                                        </div>
+                                        <div class="col-2">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" name="rayon_gps" id="gps_rayon"
+                                                       value="<?= e($projet['rayon_gps'] ?? 100) ?>" min="50" max="500">
+                                                <span class="input-group-text">m</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="detecterGPS()">
+                                                <i class="bi bi-crosshair"></i> Detecter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="col-3">
                                 <label class="form-label">Achat</label>
                                 <input type="date" class="form-control" name="date_acquisition" id="date_acquisition" value="<?= e($projet['date_acquisition']) ?>" onchange="calculerDuree()">
@@ -603,6 +633,49 @@ $moyenneAchatsParJour = $nbJoursAchats > 0 ? round($totalAchatsProjet / $nbJours
             });
         });
     })();
+
+    // Fonction GPS pour detecter les coordonnees du projet
+    function detecterGPS() {
+        if (!navigator.geolocation) {
+            alert('GPS non supporte sur cet appareil');
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        btn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                document.getElementById('gps_latitude').value = position.coords.latitude.toFixed(8);
+                document.getElementById('gps_longitude').value = position.coords.longitude.toFixed(8);
+                btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                    btn.disabled = false;
+                }, 2000);
+
+                // Declencher le changement pour l'auto-save
+                document.getElementById('gps_latitude').dispatchEvent(new Event('change'));
+            },
+            function(error) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                alert('Erreur GPS: ' + error.message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    }
     </script>
     </form>
     </div><!-- Fin col-xxl-6 -->

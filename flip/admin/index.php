@@ -1426,6 +1426,133 @@ include '../includes/header.php';
     margin-bottom: 0.5rem;
     display: block;
 }
+
+/* === Section Employés Actifs === */
+.employes-actifs-section {
+    margin-bottom: 1rem;
+}
+
+.employes-actifs-card {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.employes-actifs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.employes-actifs-header h6 {
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.employes-actifs-header small {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.5);
+}
+
+.employes-actifs-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.employe-actif-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(255,255,255,0.08);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
+}
+
+.employe-actif-item:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.employe-actif-item.pause {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.employe-actif-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.employe-actif-item.pause .employe-actif-avatar {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.employe-actif-info {
+    min-width: 0;
+}
+
+.employe-actif-nom {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.employe-actif-projet {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.employe-actif-temps {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #10b981;
+    font-family: 'Courier New', monospace;
+    background: rgba(16, 185, 129, 0.15);
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.3rem;
+}
+
+.employe-actif-item.pause .employe-actif-temps {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.employes-vide {
+    text-align: center;
+    padding: 1rem;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+.employes-vide i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
 </style>
 
 <div class="container-fluid">
@@ -1689,6 +1816,25 @@ include '../includes/header.php';
                 </div>
             </div>
         </a>
+    </div>
+
+    <!-- Section Employés au travail -->
+    <div class="employes-actifs-section mb-4" id="employesActifsSection">
+        <div class="employes-actifs-card">
+            <div class="employes-actifs-header">
+                <h6 class="m-0">
+                    <i class="bi bi-people-fill me-2"></i>
+                    Employes au travail
+                    <span class="badge bg-success ms-2" id="employesActifsCount">0</span>
+                </h6>
+                <small class="text-muted" id="employesActifsUpdate"></small>
+            </div>
+            <div class="employes-actifs-body" id="employesActifsList">
+                <div class="text-center text-muted py-2">
+                    <i class="bi bi-hourglass-split"></i> Chargement...
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Section Fiscalité + Notes -->
@@ -2602,6 +2748,104 @@ function launchFireworks(x, y) {
 
 // Initialiser le toggle au chargement
 document.addEventListener('DOMContentLoaded', initVelocityToggle);
+
+// ========================================
+// EMPLOYÉS ACTIFS - Système de suivi
+// ========================================
+const EmployesActifs = {
+    intervalId: null,
+
+    init: function() {
+        this.load();
+        // Rafraîchir toutes les 30 secondes
+        this.intervalId = setInterval(() => this.load(), 30000);
+    },
+
+    async load: function() {
+        try {
+            const response = await fetch('<?= url('/api/pointage-admin.php') ?>?action=actifs');
+            const data = await response.json();
+
+            if (data.success) {
+                this.render(data.employes_actifs);
+                document.getElementById('employesActifsCount').textContent = data.total;
+                document.getElementById('employesActifsUpdate').textContent = 'Maj: ' + new Date().toLocaleTimeString('fr-CA', {hour: '2-digit', minute: '2-digit'});
+            }
+        } catch (error) {
+            console.error('Erreur chargement employes actifs:', error);
+        }
+    },
+
+    render: function(employes) {
+        const container = document.getElementById('employesActifsList');
+
+        if (!employes || employes.length === 0) {
+            container.innerHTML = `
+                <div class="employes-vide">
+                    <i class="bi bi-moon-stars"></i>
+                    Aucun employe au travail
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        employes.forEach(emp => {
+            const initiales = this.getInitiales(emp.employe_nom);
+            const isPause = emp.statut === 'pause';
+            const tempsFormate = emp.duree_formatee || this.formatMinutes(emp.duree_travail);
+
+            html += `
+                <div class="employe-actif-item ${isPause ? 'pause' : ''}">
+                    <div class="employe-actif-avatar">${initiales}</div>
+                    <div class="employe-actif-info">
+                        <div class="employe-actif-nom">${this.escapeHtml(emp.employe_nom)}</div>
+                        <div class="employe-actif-projet">
+                            <i class="bi bi-geo-alt"></i>
+                            ${this.escapeHtml(emp.projet_nom || 'Sans projet')}
+                        </div>
+                    </div>
+                    <div class="employe-actif-temps">
+                        ${isPause ? '<i class="bi bi-pause-fill"></i> ' : ''}
+                        ${tempsFormate}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    },
+
+    getInitiales: function(nom) {
+        if (!nom) return '?';
+        const parts = nom.trim().split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+        }
+        return nom.substring(0, 2).toUpperCase();
+    },
+
+    formatMinutes: function(minutes) {
+        if (!minutes || minutes < 1) return '0m';
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (h > 0) {
+            return h + 'h' + (m > 0 ? String(m).padStart(2, '0') : '');
+        }
+        return m + 'm';
+    },
+
+    escapeHtml: function(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    EmployesActifs.init();
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>

@@ -83,6 +83,14 @@ $stmt = $pdo->prepare("
 $stmt->execute([$userId]);
 $mesHeures = $stmt->fetchAll();
 
+// Vérifier si l'utilisateur est un contremaître (pas accès au pointage)
+$stmt = $pdo->prepare("SELECT est_contremaitre FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$estContremaitre = (bool)$stmt->fetchColumn();
+
+// Ne pas afficher le pointage aux contremaîtres ni aux admins
+$afficherPointage = !$estContremaitre && !isAdmin();
+
 include '../includes/header.php';
 ?>
 
@@ -95,6 +103,69 @@ include '../includes/header.php';
             <h4 class="mb-1"><i class="bi bi-person-circle me-2"></i><?= __('hello') ?>, <?= e(getCurrentUserName()) ?></h4>
             <p class="text-muted small mb-0"><?= __('what_to_do') ?></p>
         </div>
+
+        <?php if ($afficherPointage): ?>
+        <!-- ========================================== -->
+        <!-- POINTAGE - Interface Mobile -->
+        <!-- ========================================== -->
+        <div class="pointage-section mb-4" id="pointageMobile">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-3">
+                    <!-- Statut actuel -->
+                    <div class="text-center mb-3">
+                        <div class="pointage-status" id="pointageStatusMobile">
+                            <span class="badge bg-secondary fs-6 px-3 py-2">
+                                <i class="bi bi-clock me-1"></i> Chargement...
+                            </span>
+                        </div>
+                        <div class="pointage-timer mt-2 d-none" id="pointageTimerMobile">
+                            <span class="fs-2 fw-bold text-primary" id="timerDisplayMobile">00:00:00</span>
+                        </div>
+                        <div class="pointage-projet mt-1 text-muted small d-none" id="pointageProjetMobile"></div>
+                    </div>
+
+                    <!-- Sélection projet (visible uniquement si pas de session) -->
+                    <div class="mb-3 d-none" id="projetSelectContainerMobile">
+                        <select class="form-select form-select-lg" id="projetSelectMobile">
+                            <option value="">-- Choisir un projet --</option>
+                            <?php foreach ($projets as $p): ?>
+                                <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <!-- Boutons de pointage -->
+                    <div class="d-flex gap-2 justify-content-center flex-wrap" id="pointageBtnsMobile">
+                        <button type="button" class="btn btn-success btn-lg px-4 d-none" id="btnStartMobile">
+                            <i class="bi bi-play-fill me-1"></i> Start
+                        </button>
+                        <button type="button" class="btn btn-warning btn-lg px-4 d-none" id="btnPauseMobile">
+                            <i class="bi bi-pause-fill me-1"></i> Pause
+                        </button>
+                        <button type="button" class="btn btn-info btn-lg px-4 d-none" id="btnResumeMobile">
+                            <i class="bi bi-play-fill me-1"></i> Reprendre
+                        </button>
+                        <button type="button" class="btn btn-danger btn-lg px-4 d-none" id="btnStopMobile">
+                            <i class="bi bi-stop-fill me-1"></i> Arret
+                        </button>
+                    </div>
+
+                    <!-- Toggle GPS -->
+                    <div class="mt-3 pt-3 border-top">
+                        <div class="form-check form-switch d-flex align-items-center justify-content-center gap-2">
+                            <input class="form-check-input" type="checkbox" id="gpsToggleMobile" style="width: 3em; height: 1.5em;">
+                            <label class="form-check-label" for="gpsToggleMobile">
+                                <i class="bi bi-geo-alt me-1"></i> GPS Auto-Punch
+                            </label>
+                            <span class="badge bg-secondary ms-2 d-none" id="gpsStatusMobile">
+                                <i class="bi bi-broadcast"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <div class="d-grid gap-3">
             <a href="<?= url('/employe/nouvelle-facture.php') ?>" class="btn btn-primary btn-lg py-4">
@@ -214,7 +285,70 @@ include '../includes/header.php';
             <div class="stat-label"><?= __('total_approved') ?></div>
         </div>
     </div>
-    
+
+    <?php if ($afficherPointage): ?>
+    <!-- ========================================== -->
+    <!-- POINTAGE - Interface Desktop -->
+    <!-- ========================================== -->
+    <div class="card mb-4" id="pointageDesktop">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-stopwatch me-2"></i>Pointage</span>
+            <div class="form-check form-switch m-0">
+                <input class="form-check-input" type="checkbox" id="gpsToggleDesktop">
+                <label class="form-check-label small" for="gpsToggleDesktop">
+                    <i class="bi bi-geo-alt me-1"></i> GPS Auto
+                </label>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <!-- Statut et timer -->
+                <div class="col-md-4 text-center text-md-start mb-3 mb-md-0">
+                    <div class="pointage-status" id="pointageStatusDesktop">
+                        <span class="badge bg-secondary fs-6 px-3 py-2">
+                            <i class="bi bi-clock me-1"></i> Chargement...
+                        </span>
+                    </div>
+                    <div class="pointage-timer mt-2 d-none" id="pointageTimerDesktop">
+                        <span class="fs-3 fw-bold text-primary" id="timerDisplayDesktop">00:00:00</span>
+                    </div>
+                    <div class="pointage-projet mt-1 text-muted small d-none" id="pointageProjetDesktop"></div>
+                </div>
+
+                <!-- Sélection projet -->
+                <div class="col-md-4 mb-3 mb-md-0">
+                    <div class="d-none" id="projetSelectContainerDesktop">
+                        <select class="form-select" id="projetSelectDesktop">
+                            <option value="">-- Choisir un projet --</option>
+                            <?php foreach ($projets as $p): ?>
+                                <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Boutons -->
+                <div class="col-md-4 text-center text-md-end">
+                    <div class="d-flex gap-2 justify-content-center justify-content-md-end" id="pointageBtnsDesktop">
+                        <button type="button" class="btn btn-success px-4 d-none" id="btnStartDesktop">
+                            <i class="bi bi-play-fill me-1"></i> Start
+                        </button>
+                        <button type="button" class="btn btn-warning px-4 d-none" id="btnPauseDesktop">
+                            <i class="bi bi-pause-fill me-1"></i> Pause
+                        </button>
+                        <button type="button" class="btn btn-info px-4 d-none" id="btnResumeDesktop">
+                            <i class="bi bi-play-fill me-1"></i> Reprendre
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 d-none" id="btnStopDesktop">
+                            <i class="bi bi-stop-fill me-1"></i> Arret
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Projets actifs -->
     <div class="card mb-4">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -454,44 +588,450 @@ include '../includes/header.php';
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     var guy = document.getElementById('sombreroGuy');
-    if (!guy) return;
+    if (guy) {
+        var isPlaying = false;
 
-    var isPlaying = false;
+        guy.addEventListener('click', handleTouch);
+        guy.addEventListener('touchstart', function(e) {
+            e.preventDefault();
+            handleTouch();
+        });
 
-    guy.addEventListener('click', handleTouch);
-    guy.addEventListener('touchstart', function(e) {
-        e.preventDefault();
-        handleTouch();
-    });
+        function handleTouch() {
+            if (isPlaying) return;
+            isPlaying = true;
 
-    function handleTouch() {
-        if (isPlaying) return;
-        isPlaying = true;
+            guy.classList.add('touched');
 
-        // Animation de saut
-        guy.classList.add('touched');
+            if ('speechSynthesis' in window) {
+                var msg = new SpeechSynthesisUtterance('Allo Jason!');
+                msg.lang = 'fr-CA';
+                msg.rate = 1.1;
+                msg.pitch = 1.2;
+                window.speechSynthesis.speak(msg);
+            }
 
-        // Dire "Allo Jason!" avec synthèse vocale
-        if ('speechSynthesis' in window) {
-            var msg = new SpeechSynthesisUtterance('Allo Jason!');
-            msg.lang = 'fr-CA';
-            msg.rate = 1.1;
-            msg.pitch = 1.2;
-            window.speechSynthesis.speak(msg);
+            if (navigator.vibrate) {
+                navigator.vibrate(100);
+            }
+
+            setTimeout(function() {
+                guy.classList.remove('touched');
+                isPlaying = false;
+            }, 1200);
         }
-
-        // Faire vibrer sur mobile (si supporté)
-        if (navigator.vibrate) {
-            navigator.vibrate(100);
-        }
-
-        // Retirer la classe après l'animation
-        setTimeout(function() {
-            guy.classList.remove('touched');
-            isPlaying = false;
-        }, 1200);
     }
+
+    // ========================================
+    // SYSTÈME DE POINTAGE
+    // ========================================
+    <?php if ($afficherPointage): ?>
+    const PointageSystem = {
+        session: null,
+        gpsEnabled: false,
+        autoPunchEnabled: false,
+        timerInterval: null,
+        startTime: null,
+        pauseTime: 0,
+        watchId: null,
+        projetsGPS: [],
+
+        init: function() {
+            this.bindEvents();
+            this.loadStatus();
+            this.loadProjetsGPS();
+        },
+
+        bindEvents: function() {
+            // Mobile
+            document.getElementById('btnStartMobile')?.addEventListener('click', () => this.punch('start'));
+            document.getElementById('btnPauseMobile')?.addEventListener('click', () => this.punch('pause'));
+            document.getElementById('btnResumeMobile')?.addEventListener('click', () => this.punch('resume'));
+            document.getElementById('btnStopMobile')?.addEventListener('click', () => this.punch('stop'));
+            document.getElementById('gpsToggleMobile')?.addEventListener('change', (e) => this.toggleGPS(e.target.checked));
+
+            // Desktop
+            document.getElementById('btnStartDesktop')?.addEventListener('click', () => this.punch('start'));
+            document.getElementById('btnPauseDesktop')?.addEventListener('click', () => this.punch('pause'));
+            document.getElementById('btnResumeDesktop')?.addEventListener('click', () => this.punch('resume'));
+            document.getElementById('btnStopDesktop')?.addEventListener('click', () => this.punch('stop'));
+            document.getElementById('gpsToggleDesktop')?.addEventListener('change', (e) => this.toggleGPS(e.target.checked));
+
+            // Sync GPS toggles
+            document.getElementById('gpsToggleMobile')?.addEventListener('change', (e) => {
+                const desktop = document.getElementById('gpsToggleDesktop');
+                if (desktop) desktop.checked = e.target.checked;
+            });
+            document.getElementById('gpsToggleDesktop')?.addEventListener('change', (e) => {
+                const mobile = document.getElementById('gpsToggleMobile');
+                if (mobile) mobile.checked = e.target.checked;
+            });
+        },
+
+        async loadStatus: function() {
+            try {
+                const response = await fetch('<?= url('/api/pointage.php') ?>?action=status');
+                const data = await response.json();
+
+                if (data.success) {
+                    this.session = data.session;
+                    this.gpsEnabled = data.gps_settings.gps_enabled;
+                    this.autoPunchEnabled = data.gps_settings.auto_punch_enabled;
+
+                    // Mettre à jour les toggles GPS
+                    document.getElementById('gpsToggleMobile').checked = this.autoPunchEnabled;
+                    document.getElementById('gpsToggleDesktop').checked = this.autoPunchEnabled;
+
+                    this.updateUI();
+
+                    // Démarrer le GPS si activé
+                    if (this.autoPunchEnabled) {
+                        this.startGPSWatch();
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur chargement statut:', error);
+            }
+        },
+
+        async loadProjetsGPS: function() {
+            try {
+                const response = await fetch('<?= url('/api/pointage.php') ?>?action=projets_gps');
+                const data = await response.json();
+                if (data.success) {
+                    this.projetsGPS = data.projets;
+                }
+            } catch (error) {
+                console.error('Erreur chargement projets GPS:', error);
+            }
+        },
+
+        updateUI: function() {
+            const views = ['Mobile', 'Desktop'];
+
+            views.forEach(view => {
+                const statusEl = document.getElementById('pointageStatus' + view);
+                const timerEl = document.getElementById('pointageTimer' + view);
+                const projetEl = document.getElementById('pointageProjet' + view);
+                const selectContainer = document.getElementById('projetSelectContainer' + view);
+                const btnStart = document.getElementById('btnStart' + view);
+                const btnPause = document.getElementById('btnPause' + view);
+                const btnResume = document.getElementById('btnResume' + view);
+                const btnStop = document.getElementById('btnStop' + view);
+
+                // Cacher tous les boutons
+                btnStart?.classList.add('d-none');
+                btnPause?.classList.add('d-none');
+                btnResume?.classList.add('d-none');
+                btnStop?.classList.add('d-none');
+                selectContainer?.classList.add('d-none');
+                timerEl?.classList.add('d-none');
+                projetEl?.classList.add('d-none');
+
+                if (!this.session) {
+                    // Pas de session - afficher Start
+                    statusEl.innerHTML = '<span class="badge bg-secondary fs-6 px-3 py-2"><i class="bi bi-clock me-1"></i> Pret</span>';
+                    btnStart?.classList.remove('d-none');
+                    selectContainer?.classList.remove('d-none');
+                } else if (this.session.statut === 'en_cours') {
+                    // En cours - afficher Pause et Stop
+                    statusEl.innerHTML = '<span class="badge bg-success fs-6 px-3 py-2 pulse-animation"><i class="bi bi-play-circle me-1"></i> En cours</span>';
+                    btnPause?.classList.remove('d-none');
+                    btnStop?.classList.remove('d-none');
+                    timerEl?.classList.remove('d-none');
+                    projetEl?.classList.remove('d-none');
+                    if (projetEl) projetEl.textContent = this.session.projet_nom || '';
+
+                    this.startTimer();
+                } else if (this.session.statut === 'pause') {
+                    // En pause - afficher Resume et Stop
+                    statusEl.innerHTML = '<span class="badge bg-warning text-dark fs-6 px-3 py-2"><i class="bi bi-pause-circle me-1"></i> En pause</span>';
+                    btnResume?.classList.remove('d-none');
+                    btnStop?.classList.remove('d-none');
+                    timerEl?.classList.remove('d-none');
+                    projetEl?.classList.remove('d-none');
+                    if (projetEl) projetEl.textContent = this.session.projet_nom || '';
+
+                    this.stopTimer();
+                    this.displayTime(this.session.duree_travail * 60);
+                }
+            });
+        },
+
+        async punch: function(type) {
+            const projetIdMobile = document.getElementById('projetSelectMobile')?.value;
+            const projetIdDesktop = document.getElementById('projetSelectDesktop')?.value;
+            const projetId = projetIdMobile || projetIdDesktop;
+
+            if (type === 'start' && !projetId) {
+                alert('Veuillez selectionner un projet');
+                return;
+            }
+
+            // Obtenir la position GPS si disponible
+            let position = null;
+            if (this.gpsEnabled && navigator.geolocation) {
+                try {
+                    position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 5000,
+                            maximumAge: 0
+                        });
+                    });
+                } catch (e) {
+                    console.log('GPS non disponible');
+                }
+            }
+
+            const body = {
+                type: type,
+                projet_id: type === 'start' ? projetId : null,
+                latitude: position?.coords?.latitude || null,
+                longitude: position?.coords?.longitude || null,
+                precision: position?.coords?.accuracy || null,
+                auto_gps: false
+            };
+
+            try {
+                const response = await fetch('<?= url('/api/pointage.php') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    this.session = data.session;
+                    this.updateUI();
+
+                    // Feedback vibration
+                    if (navigator.vibrate) {
+                        navigator.vibrate(type === 'stop' ? [100, 50, 100] : 100);
+                    }
+                } else {
+                    alert(data.error || 'Erreur');
+                }
+            } catch (error) {
+                console.error('Erreur pointage:', error);
+                alert('Erreur de connexion');
+            }
+        },
+
+        startTimer: function() {
+            if (this.timerInterval) clearInterval(this.timerInterval);
+
+            // Calculer le temps depuis le début
+            if (this.session) {
+                const startDate = new Date(this.session.heure_debut);
+                this.startTime = startDate.getTime();
+                this.pauseTime = (this.session.duree_pause || 0) * 60 * 1000;
+            }
+
+            this.timerInterval = setInterval(() => {
+                const now = Date.now();
+                const elapsed = Math.floor((now - this.startTime - this.pauseTime) / 1000);
+                this.displayTime(elapsed);
+            }, 1000);
+        },
+
+        stopTimer: function() {
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+            }
+        },
+
+        displayTime: function(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = seconds % 60;
+            const display = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+
+            const timerMobile = document.getElementById('timerDisplayMobile');
+            const timerDesktop = document.getElementById('timerDisplayDesktop');
+            if (timerMobile) timerMobile.textContent = display;
+            if (timerDesktop) timerDesktop.textContent = display;
+        },
+
+        toggleGPS: function(enabled) {
+            this.autoPunchEnabled = enabled;
+
+            // Sauvegarder le paramètre
+            fetch('<?= url('/api/pointage.php') ?>', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'update_gps',
+                    gps_enabled: enabled ? 1 : 0,
+                    auto_punch_enabled: enabled ? 1 : 0
+                })
+            });
+
+            if (enabled) {
+                this.startGPSWatch();
+            } else {
+                this.stopGPSWatch();
+            }
+        },
+
+        startGPSWatch: function() {
+            if (!navigator.geolocation) {
+                alert('GPS non supporte sur cet appareil');
+                return;
+            }
+
+            const gpsStatusMobile = document.getElementById('gpsStatusMobile');
+            if (gpsStatusMobile) {
+                gpsStatusMobile.classList.remove('d-none');
+                gpsStatusMobile.innerHTML = '<i class="bi bi-broadcast"></i>';
+            }
+
+            this.watchId = navigator.geolocation.watchPosition(
+                (position) => this.handleGPSPosition(position),
+                (error) => console.log('Erreur GPS:', error),
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 30000,
+                    timeout: 30000
+                }
+            );
+        },
+
+        stopGPSWatch: function() {
+            if (this.watchId) {
+                navigator.geolocation.clearWatch(this.watchId);
+                this.watchId = null;
+            }
+
+            const gpsStatusMobile = document.getElementById('gpsStatusMobile');
+            if (gpsStatusMobile) gpsStatusMobile.classList.add('d-none');
+        },
+
+        handleGPSPosition: function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+
+            // Mettre à jour la position côté serveur
+            fetch('<?= url('/api/pointage.php') ?>', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'update_position',
+                    latitude: lat,
+                    longitude: lng
+                })
+            });
+
+            // Vérifier la proximité avec les projets
+            if (!this.session) {
+                for (const projet of this.projetsGPS) {
+                    const distance = this.calculateDistance(lat, lng, parseFloat(projet.latitude), parseFloat(projet.longitude));
+                    const rayon = parseInt(projet.rayon_gps) || 100;
+
+                    if (distance <= rayon) {
+                        // Auto-punch!
+                        this.autoPunch(projet);
+                        break;
+                    }
+                }
+            }
+        },
+
+        calculateDistance: function(lat1, lng1, lat2, lng2) {
+            // Formule Haversine
+            const R = 6371000; // Rayon de la Terre en mètres
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        },
+
+        autoPunch: async function(projet) {
+            if (confirm('Vous etes arrive sur le projet "' + projet.nom + '". Demarrer le pointage?')) {
+                // Sélectionner le projet
+                const selectMobile = document.getElementById('projetSelectMobile');
+                const selectDesktop = document.getElementById('projetSelectDesktop');
+                if (selectMobile) selectMobile.value = projet.id;
+                if (selectDesktop) selectDesktop.value = projet.id;
+
+                // Obtenir position exacte
+                let position = null;
+                try {
+                    position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 5000
+                        });
+                    });
+                } catch (e) {}
+
+                // Punch avec flag auto_gps
+                const body = {
+                    type: 'start',
+                    projet_id: projet.id,
+                    latitude: position?.coords?.latitude || null,
+                    longitude: position?.coords?.longitude || null,
+                    precision: position?.coords?.accuracy || null,
+                    auto_gps: true
+                };
+
+                try {
+                    const response = await fetch('<?= url('/api/pointage.php') ?>', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body)
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        this.session = data.session;
+                        this.updateUI();
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+                    }
+                } catch (error) {
+                    console.error('Erreur auto-punch:', error);
+                }
+            }
+        }
+    };
+
+    PointageSystem.init();
+    <?php endif; ?>
 });
 </script>
+
+<style>
+/* Animation pulse pour le statut "en cours" */
+.pulse-animation {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Style du pointage */
+.pointage-section .card {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+[data-theme="dark"] .pointage-section .card {
+    background: linear-gradient(135deg, #2d3436 0%, #1e272e 100%);
+}
+
+.pointage-timer {
+    font-family: 'Courier New', monospace;
+}
+
+#pointageDesktop .card-body {
+    min-height: 80px;
+}
+</style>
 
 <?php include '../includes/footer.php'; ?>

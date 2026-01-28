@@ -323,6 +323,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $notes = trim($_POST['notes'] ?? '');
         $dropboxLink = trim($_POST['dropbox_link'] ?? '');
 
+        // GPS pour pointage automatique
+        $latitude = !empty($_POST['latitude']) ? (float)$_POST['latitude'] : null;
+        $longitude = !empty($_POST['longitude']) ? (float)$_POST['longitude'] : null;
+        $rayonGps = (int)($_POST['rayon_gps'] ?? 100);
+
         // Validation minimale
         if (empty($nom) || empty($adresse) || empty($ville)) {
             echo json_encode(['success' => false, 'error' => 'Champs requis manquants']);
@@ -335,6 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $stmt = $pdo->prepare("
             UPDATE projets SET
                 nom = ?, adresse = ?, ville = ?, code_postal = ?,
+                latitude = ?, longitude = ?, rayon_gps = ?,
                 date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                 statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                 arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
@@ -346,6 +352,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
         $stmt->execute([
             $nom, $adresse, $ville, $codePostal,
+            $latitude, $longitude, $rayonGps,
             $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
             $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
             $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
@@ -1451,6 +1458,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $notes = trim($_POST['notes'] ?? '');
             $dropboxLink = trim($_POST['dropbox_link'] ?? '');
 
+            // GPS pour pointage automatique
+            $latitude = !empty($_POST['latitude']) ? (float)$_POST['latitude'] : null;
+            $longitude = !empty($_POST['longitude']) ? (float)$_POST['longitude'] : null;
+            $rayonGps = (int)($_POST['rayon_gps'] ?? 100);
+
             if (empty($nom)) $errors[] = 'Le nom du projet est requis.';
             if (empty($adresse)) $errors[] = 'L\'adresse est requise.';
             if (empty($ville)) $errors[] = 'La ville est requise.';
@@ -1459,6 +1471,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("
                     UPDATE projets SET
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
+                        latitude = ?, longitude = ?, rayon_gps = ?,
                         date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                         statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                         arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
@@ -1474,6 +1487,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt->execute([
                     $nom, $adresse, $ville, $codePostal,
+                    $latitude, $longitude, $rayonGps,
                     $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
                     $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
                     $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
