@@ -6,9 +6,24 @@
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center">
                 <span class="text-muted">&copy; <?= date('Y') ?> <?= APP_NAME ?> v<?= APP_VERSION ?></span>
-                <span class="text-muted">
-                    <i class="bi bi-person-circle"></i> 
-                    <?= e(getCurrentUserName()) ?>
+                <span class="text-muted d-flex align-items-center gap-2">
+                    <?php
+                    $userName = getCurrentUserName();
+                    $initials = '';
+                    $nameParts = explode(' ', trim($userName));
+                    if (count($nameParts) >= 2) {
+                        $initials = strtoupper(substr($nameParts[0], 0, 1) . substr($nameParts[count($nameParts)-1], 0, 1));
+                    } else {
+                        $initials = strtoupper(substr($userName, 0, 2));
+                    }
+                    $avatarColors = ['#4285f4', '#ea4335', '#fbbc05', '#34a853', '#673ab7', '#e91e63', '#00bcd4', '#ff5722'];
+                    $colorIndex = abs(crc32($userName)) % count($avatarColors);
+                    $avatarColor = $avatarColors[$colorIndex];
+                    ?>
+                    <span class="user-avatar-sm" style="background-color: <?= $avatarColor ?>;">
+                        <?= $initials ?>
+                    </span>
+                    <?= e($userName) ?>
                 </span>
             </div>
         </div>

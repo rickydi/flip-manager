@@ -7,6 +7,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/AIServiceFactory.php';
 
 requireAdmin();
 
@@ -29,6 +30,9 @@ try {
     ");
 }
 
+// S'assurer que toutes les configurations IA existent
+AIServiceFactory::ensureConfigurationsExist($pdo);
+
 // S'assurer que les clés Pushover existent (migration)
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM app_configurations WHERE cle = 'PUSHOVER_APP_TOKEN'");
 $stmt->execute();
@@ -37,6 +41,10 @@ if ($stmt->fetchColumn() == 0) {
     $stmt->execute(['PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1]);
     $stmt->execute(['PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1]);
 }
+
+// Récupérer les providers disponibles
+$aiProviders = AIServiceFactory::getAvailableProviders();
+$currentProvider = AIServiceFactory::getConfiguredProvider($pdo);
 
 $errors = [];
 $success = '';
@@ -134,67 +142,238 @@ include '../../includes/header.php';
 
     <div class="row">
         <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header bg-dark text-white">
-                    Paramètres et Clés API
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="">
-                        <?php csrfField(); ?>
-                        
-                        <?php if (empty($configs)): ?>
-                            <div class="alert alert-warning">Aucune configuration trouvée.</div>
-                        <?php else: ?>
-                            <?php foreach ($configs as $conf): ?>
-                                <div class="mb-4">
-                                    <label class="form-label fw-bold"><?= e($conf['description'] ?: $conf['cle']) ?></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text font-monospace bg-light"><?= e($conf['cle']) ?></span>
-                                        <?php if ($conf['est_sensible']): ?>
-                                            <input type="password" 
-                                                   class="form-control" 
-                                                   name="config[<?= $conf['cle'] ?>]" 
-                                                   value="<?= !empty($conf['valeur']) ? '********************' : '' ?>"
-                                                   placeholder="Saisir la clé pour modifier"
-                                                   autocomplete="off">
-                                        <?php else: ?>
-                                            <input type="text" 
-                                                   class="form-control" 
-                                                   name="config[<?= $conf['cle'] ?>]" 
-                                                   value="<?= e($conf['valeur']) ?>">
-                                        <?php endif; ?>
+            <form method="POST" action="">
+                <?php csrfField(); ?>
+
+                <!-- Sélection du Provider IA -->
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <i class="bi bi-robot me-2"></i>Provider IA
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Choisir le service d'IA à utiliser</label>
+                            <div class="row">
+                                <?php foreach ($aiProviders as $key => $provider): ?>
+                                    <?php $isConfigured = AIServiceFactory::isProviderConfigured($pdo, $key); ?>
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check card h-100 <?= $currentProvider === $key ? 'border-primary' : '' ?>">
+                                            <div class="card-body">
+                                                <input class="form-check-input" type="radio"
+                                                       name="config[AI_PROVIDER]"
+                                                       id="provider_<?= $key ?>"
+                                                       value="<?= $key ?>"
+                                                       <?= $currentProvider === $key ? 'checked' : '' ?>>
+                                                <label class="form-check-label w-100" for="provider_<?= $key ?>">
+                                                    <strong><?= e($provider['name']) ?></strong>
+                                                    <?php if (!$isConfigured): ?>
+                                                        <span class="badge bg-warning text-dark ms-2">Non configuré</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success ms-2">Configuré</span>
+                                                    <?php endif; ?>
+                                                    <br>
+                                                    <small class="text-muted"><?= e($provider['description']) ?></small>
+                                                </label>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <?php if ($conf['cle'] === 'CLAUDE_MODEL'): ?>
-                                        <div class="form-text">Modèles disponibles : claude-3-5-sonnet-20241022 (recommandé), claude-3-opus-20240229.</div>
-                                    <?php endif; ?>
-                                </div>
-                            <?php endforeach; ?>
-                            
-                            <div class="d-flex justify-content-end">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-save me-1"></i>Enregistrer les modifications
-                                </button>
+                                <?php endforeach; ?>
                             </div>
-                        <?php endif; ?>
-                    </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Claude -->
+                <div class="card mb-4" id="claude-config">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-cpu me-2"></i>Claude (Anthropic)
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        $claudeKey = '';
+                        $claudeModel = 'claude-sonnet-4-20250514';
+                        foreach ($configs as $conf) {
+                            if ($conf['cle'] === 'ANTHROPIC_API_KEY') $claudeKey = $conf['valeur'];
+                            if ($conf['cle'] === 'CLAUDE_MODEL') $claudeModel = $conf['valeur'];
+                        }
+                        ?>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Clé API Anthropic</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                <input type="password"
+                                       class="form-control"
+                                       name="config[ANTHROPIC_API_KEY]"
+                                       value="<?= !empty($claudeKey) ? '********************' : '' ?>"
+                                       placeholder="sk-ant-api..."
+                                       autocomplete="off">
+                            </div>
+                            <div class="form-text">Obtenez votre clé sur <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Modèle Claude</label>
+                            <select class="form-select" name="config[CLAUDE_MODEL]">
+                                <?php foreach ($aiProviders['claude']['models'] as $modelId => $modelName): ?>
+                                    <option value="<?= $modelId ?>" <?= $claudeModel === $modelId ? 'selected' : '' ?>>
+                                        <?= e($modelName) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">
+                                <strong>Sonnet 4</strong> : Équilibre performance/coût |
+                                <strong>Opus 4.5</strong> : Le plus puissant |
+                                <strong>Haiku 4.5</strong> : Rapide et économique
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Configuration Gemini -->
+                <div class="card mb-4" id="gemini-config">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-google me-2"></i>Gemini (Google)
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        $geminiKey = '';
+                        $geminiModel = 'gemini-2.5-flash';
+                        foreach ($configs as $conf) {
+                            if ($conf['cle'] === 'GEMINI_API_KEY') $geminiKey = $conf['valeur'];
+                            if ($conf['cle'] === 'GEMINI_MODEL') $geminiModel = $conf['valeur'];
+                        }
+                        ?>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Clé API Google AI</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                <input type="password"
+                                       class="form-control"
+                                       name="config[GEMINI_API_KEY]"
+                                       value="<?= !empty($geminiKey) ? '********************' : '' ?>"
+                                       placeholder="AIza..."
+                                       autocomplete="off">
+                            </div>
+                            <div class="form-text">Obtenez votre clé sur <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com</a></div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Modèle Gemini</label>
+                            <select class="form-select" name="config[GEMINI_MODEL]">
+                                <?php foreach ($aiProviders['gemini']['models'] as $modelId => $modelName): ?>
+                                    <option value="<?= $modelId ?>" <?= $geminiModel === $modelId ? 'selected' : '' ?>>
+                                        <?= e($modelName) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">
+                                <strong>2.5 Flash</strong> : Recommandé, contexte 1M tokens |
+                                <strong>Flash Lite</strong> : Plus économique
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Autres configurations (Pushover, etc.) -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <i class="bi bi-bell me-2"></i>Notifications (Pushover)
+                    </div>
+                    <div class="card-body">
+                        <?php
+                        $pushoverToken = '';
+                        $pushoverUser = '';
+                        foreach ($configs as $conf) {
+                            if ($conf['cle'] === 'PUSHOVER_APP_TOKEN') $pushoverToken = $conf['valeur'];
+                            if ($conf['cle'] === 'PUSHOVER_USER_KEY') $pushoverUser = $conf['valeur'];
+                        }
+                        ?>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Token Application Pushover</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                <input type="password"
+                                       class="form-control"
+                                       name="config[PUSHOVER_APP_TOKEN]"
+                                       value="<?= !empty($pushoverToken) ? '********************' : '' ?>"
+                                       placeholder="Token application"
+                                       autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Clé Utilisateur Pushover</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                <input type="password"
+                                       class="form-control"
+                                       name="config[PUSHOVER_USER_KEY]"
+                                       value="<?= !empty($pushoverUser) ? '********************' : '' ?>"
+                                       placeholder="Clé utilisateur"
+                                       autocomplete="off">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end mb-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="bi bi-save me-1"></i>Enregistrer les modifications
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Provider actif -->
+            <div class="card bg-success bg-opacity-10 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-check-circle me-2"></i>Provider actif</h5>
+                    <p class="card-text">
+                        <strong><?= e(AIServiceFactory::getActiveProviderName($pdo)) ?></strong>
+                    </p>
+                    <?php if (AIServiceFactory::isProviderConfigured($pdo, $currentProvider)): ?>
+                        <span class="badge bg-success"><i class="bi bi-check"></i> Configuré et prêt</span>
+                    <?php else: ?>
+                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation-triangle"></i> Clé API manquante</span>
+                    <?php endif; ?>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-lg-4">
+
+            <!-- Info Claude -->
             <div class="card bg-info bg-opacity-10 mb-4">
                 <div class="card-body">
-                    <h5 class="card-title"><i class="bi bi-info-circle me-2"></i>À propos des clés API</h5>
+                    <h5 class="card-title"><i class="bi bi-cpu me-2"></i>Claude (Anthropic)</h5>
                     <p class="card-text small">
-                        Les clés API permettent de connecter votre application à des services d'Intelligence Artificielle comme Claude (Anthropic).
+                        Excellent pour l'analyse de documents et le raisonnement complexe.
                     </p>
+                    <ul class="small mb-0">
+                        <li><strong>Contexte :</strong> 200K tokens</li>
+                        <li><strong>Vision :</strong> Images, PDF</li>
+                        <li><strong>Forces :</strong> Précision, analyse</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Info Gemini -->
+            <div class="card bg-warning bg-opacity-10 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-google me-2"></i>Gemini (Google)</h5>
                     <p class="card-text small">
-                        Ces clés sont stockées de manière sécurisée. Ne les partagez jamais.
+                        Grande fenêtre de contexte, idéal pour les longs documents.
                     </p>
-                    <hr>
-                    <h6 class="card-subtitle mb-2 text-muted">Ajouter une nouvelle clé ?</h6>
+                    <ul class="small mb-0">
+                        <li><strong>Contexte :</strong> 1M tokens</li>
+                        <li><strong>Vision :</strong> Images, PDF, Vidéo</li>
+                        <li><strong>Forces :</strong> Documents longs, multimédia</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Aide -->
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="bi bi-question-circle me-2"></i>Besoin d'aide ?</h5>
                     <p class="card-text small">
-                        Pour l'instant, seules les clés configurées par le système (Claude) sont gérées ici. D'autres services pourront être ajoutés dans le futur.
+                        <strong>Claude :</strong> <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a><br>
+                        <strong>Gemini :</strong> <a href="https://aistudio.google.com/" target="_blank">aistudio.google.com</a>
                     </p>
                 </div>
             </div>

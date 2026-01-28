@@ -1854,8 +1854,13 @@ function clearPanierSearch() {
 // ========================================
 function applyEtapeFilter() {
     const checkedEtapes = [];
-    document.querySelectorAll('.etape-filter-checkbox:checked').forEach(cb => {
-        checkedEtapes.push(cb.value);
+    const uncheckedEtapes = [];
+    document.querySelectorAll('.etape-filter-checkbox').forEach(cb => {
+        if (cb.checked) {
+            checkedEtapes.push(cb.value);
+        } else {
+            uncheckedEtapes.push(cb.value);
+        }
     });
 
     document.querySelectorAll('.etape-section').forEach(section => {
@@ -1867,8 +1872,8 @@ function applyEtapeFilter() {
         }
     });
 
-    // Sauvegarder le filtre dans la DB
-    saveFolderState('etape_filter_values', checkedEtapes.join(','));
+    // Sauvegarder les étapes DÉCOCHÉES (ainsi les nouvelles étapes restent visibles par défaut)
+    saveFolderState('etape_filter_unchecked', uncheckedEtapes.join(','));
 }
 
 function toggleAllEtapesFilter(checked) {
@@ -1880,12 +1885,29 @@ function toggleAllEtapesFilter(checked) {
 
 // Appliquer le filtre sauvegardé au chargement (après que le cache soit chargé)
 function applyStoredEtapeFilter() {
-    const savedFilter = getFolderState('etape_filter_values');
-    if (savedFilter && typeof savedFilter === 'string') {
-        const checkedEtapes = savedFilter.split(',').filter(v => v);
+    // Nouveau système: on sauvegarde les étapes DÉCOCHÉES
+    // Ainsi les nouvelles étapes restent cochées par défaut
+    const uncheckedFilter = getFolderState('etape_filter_unchecked');
+    if (uncheckedFilter && typeof uncheckedFilter === 'string') {
+        const uncheckedEtapes = uncheckedFilter.split(',').filter(v => v);
         document.querySelectorAll('.etape-filter-checkbox').forEach(cb => {
-            cb.checked = checkedEtapes.includes(cb.value);
+            // Décocher seulement si explicitement dans la liste des décochées
+            cb.checked = !uncheckedEtapes.includes(cb.value);
         });
         applyEtapeFilter();
+        return;
+    }
+
+    // Compatibilité avec ancien système (étapes cochées sauvegardées)
+    // IMPORTANT: l'ancien système cachait les nouvelles étapes par défaut, ce qui était un bug.
+    // Pour la migration, on réinitialise le filtre (tout cocher) pour corriger ce problème.
+    const savedFilter = getFolderState('etape_filter_values');
+    if (savedFilter && typeof savedFilter === 'string' && savedFilter.length > 0) {
+        // Supprimer l'ancien format - toutes les étapes seront visibles
+        saveFolderState('etape_filter_values', '');
+        // S'assurer que le nouveau format est vide aussi (tout visible)
+        saveFolderState('etape_filter_unchecked', '');
+        // Toutes les checkboxes sont déjà cochées par défaut (HTML)
+        // Pas besoin d'appeler applyEtapeFilter() car tout est déjà visible
     }
 }

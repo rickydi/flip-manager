@@ -8,6 +8,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
+require_once '../../includes/AIServiceFactory.php';
 require_once '../../includes/PdfExtractorService.php';
 
 requireAdmin();
@@ -48,12 +49,51 @@ try {
     $pdo->exec("ALTER TABLE analyses_marche MODIFY COLUMN statut ENUM('en_cours', 'termine', 'erreur', 'extraction') DEFAULT 'en_cours'");
 } catch (PDOException $ex) {}
 
+// Services
+$aiService = AIServiceFactory::create($pdo);
+$pdfService = new PdfExtractorService($pdo, $aiService);
+
 // Vérifier les dépendances système
-$pdfService = new PdfExtractorService($pdo);
 $dependencies = PdfExtractorService::checkDependencies();
 
 $errors = [];
 $success = '';
+
+// Traitement de la suppression
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $errors[] = 'Token invalide.';
+    } else {
+        $deleteId = (int)($_POST['analyse_id'] ?? 0);
+        if ($deleteId > 0) {
+            try {
+                // Récupérer le fichier source pour le supprimer aussi
+                $stmt = $pdo->prepare("SELECT fichier_source FROM analyses_marche WHERE id = ?");
+                $stmt->execute([$deleteId]);
+                $analyse = $stmt->fetch();
+
+                // Supprimer les chunks associés
+                $pdo->prepare("DELETE FROM comparables_chunks WHERE analyse_id = ?")->execute([$deleteId]);
+
+                // Supprimer les photos associées
+                $pdo->prepare("DELETE FROM comparables_photos WHERE chunk_id IN (SELECT id FROM comparables_chunks WHERE analyse_id = ?)")->execute([$deleteId]);
+
+                // Supprimer l'analyse
+                $pdo->prepare("DELETE FROM analyses_marche WHERE id = ?")->execute([$deleteId]);
+
+                // Supprimer le fichier PDF si existe
+                if ($analyse && !empty($analyse['fichier_source']) && file_exists($analyse['fichier_source'])) {
+                    @unlink($analyse['fichier_source']);
+                }
+
+                setFlashMessage('Rapport supprimé avec succès.', 'success');
+                redirect('/admin/comparables/index.php');
+            } catch (Exception $e) {
+                $errors[] = 'Erreur lors de la suppression: ' . $e->getMessage();
+            }
+        }
+    }
+}
 
 // Traitement du formulaire de nouvelle analyse
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'analyser') {
@@ -264,6 +304,14 @@ include '../../includes/header.php';
                                         <a href="detail.php?id=<?= $analyse['id'] ?>" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-eye"></i> Voir
                                         </a>
+                                        <form method="POST" action="" style="display: inline;">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="analyse_id" value="<?= $analyse['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger ms-1">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

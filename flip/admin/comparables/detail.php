@@ -8,7 +8,7 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
-require_once '../../includes/ClaudeService.php';
+require_once '../../includes/AIServiceFactory.php';
 
 requireAdmin();
 
@@ -71,38 +71,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 exit;
             }
 
-            // Récupérer les photos du chunk
-            $stmtPhotos = $pdo->prepare("SELECT * FROM comparables_photos WHERE chunk_id = ? ORDER BY ordre");
-            $stmtPhotos->execute([$chunkId]);
-            $photos = $stmtPhotos->fetchAll();
-
-            // Infos du projet sujet
+            // Infos du projet sujet (enrichies)
             $projetInfo = [
-                'adresse' => $analyse['projet_adresse'] . ', ' . $analyse['projet_ville'],
-                'type' => 'Maison unifamiliale rénové'
+                'adresse' => $analyse['projet_adresse'],
+                'ville' => $analyse['projet_ville'],
+                'type' => 'Maison unifamiliale',
+                'chambres' => 3, // TODO: Récupérer depuis le projet
+                'sdb' => 2,
+                'superficie' => 'N/A',
+                'garage' => 'Non'
             ];
 
-            // Données du chunk pour l'analyse
+            // Données COMPLÈTES du chunk pour l'analyse IA approfondie
             $chunkData = [
+                'no_centris' => $chunk['no_centris'],
                 'adresse' => $chunk['adresse'],
+                'ville' => $chunk['ville'],
                 'prix_vendu' => $chunk['prix_vendu'],
-                'renovations_texte' => $chunk['renovations_texte']
+                'date_vente' => $chunk['date_vente'],
+                'jours_marche' => $chunk['jours_marche'],
+                'type_propriete' => $chunk['type_propriete'],
+                'annee_construction' => $chunk['annee_construction'],
+                'chambres' => $chunk['chambres'],
+                'sdb' => $chunk['sdb'],
+                'superficie_terrain' => $chunk['superficie_terrain'],
+                'superficie_batiment' => $chunk['superficie_batiment'],
+                // Évaluation municipale
+                'eval_terrain' => $chunk['eval_terrain'],
+                'eval_batiment' => $chunk['eval_batiment'],
+                'eval_total' => $chunk['eval_total'],
+                // Taxes
+                'taxe_municipale' => $chunk['taxe_municipale'],
+                'taxe_scolaire' => $chunk['taxe_scolaire'],
+                // Caractéristiques
+                'fondation' => $chunk['fondation'],
+                'toiture' => $chunk['toiture'],
+                'revetement' => $chunk['revetement'],
+                'garage' => $chunk['garage'],
+                'stationnement' => $chunk['stationnement'],
+                'piscine' => $chunk['piscine'],
+                'sous_sol' => $chunk['sous_sol'],
+                'chauffage' => $chunk['chauffage'],
+                'energie' => $chunk['energie'],
+                // Rénovations
+                'renovations_total' => $chunk['renovations_total'],
+                'renovations_texte' => $chunk['renovations_texte'],
+                // Autres
+                'proximites' => $chunk['proximites'],
+                'inclusions' => $chunk['inclusions'],
+                'exclusions' => $chunk['exclusions'],
+                'remarques' => $chunk['remarques']
             ];
 
-            // Analyser les photos avec Claude
-            $claudeService = new ClaudeService($pdo);
-            $result = $claudeService->analyzeChunkPhotos($photos, $chunkData, $projetInfo);
+            // Analyser avec l'IA configurée (analyse texte approfondie)
+            $aiService = AIServiceFactory::create($pdo);
+            $result = $aiService->analyzeChunkText($chunkData, $projetInfo);
 
             // Mettre à jour le chunk avec les résultats
             $stmtUpdate = $pdo->prepare("
                 UPDATE comparables_chunks
-                SET etat_note = ?, etat_analyse = ?, ajustement = ?, commentaire_ia = ?, statut = 'done'
+                SET etat_note = ?, etat_analyse = ?, ajustement = ?, confiance = ?, commentaire_ia = ?, statut = 'done'
                 WHERE id = ?
             ");
             $stmtUpdate->execute([
                 $result['etat_note'] ?? 5,
                 $result['etat_analyse'] ?? '',
                 $result['ajustement'] ?? 0,
+                $result['confiance'] ?? 50,
                 $result['commentaire_ia'] ?? '',
                 $chunkId
             ]);
@@ -136,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             ];
 
             // Consolider les résultats
-            $claudeService = new ClaudeService($pdo);
-            $consolidated = $claudeService->consolidateChunksAnalysis($allChunks, $projetInfo);
+            $aiService = AIServiceFactory::create($pdo);
+            $consolidated = $aiService->consolidateChunksAnalysis($allChunks, $projetInfo);
 
             // Mettre à jour l'analyse
             $stmtUpdate = $pdo->prepare("
@@ -306,190 +341,300 @@ include '../../includes/header.php';
         </div>
     <?php endif; ?>
 
-    <!-- Liste des Chunks (Comparables) -->
-    <h4 class="mb-3"><i class="bi bi-houses me-2"></i>Propriétés comparables (<?= count($chunks) ?>)</h4>
+    <!-- Tableau Comparables style Spreadsheet - COLONNES -->
+    <h4 class="mb-3"><i class="bi bi-table me-2"></i>Grille des comparables (<?= count($chunks) ?>)</h4>
 
-    <div class="row" id="chunksContainer">
-        <?php foreach ($chunks as $index => $chunk): ?>
-            <div class="col-lg-6 mb-4">
-                <div class="card chunk-card h-100 <?= $chunk['statut'] === 'done' ? 'done' : '' ?>"
-                     id="chunk-<?= $chunk['id'] ?>"
-                     data-chunk-id="<?= $chunk['id'] ?>"
-                     data-status="<?= $chunk['statut'] ?>">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div>
-                            <strong>No Centris: <?= e($chunk['no_centris']) ?></strong>
-                            <?php if ($chunk['statut'] === 'done'): ?>
-                                <span class="badge bg-success ms-2"><i class="bi bi-check"></i></span>
-                            <?php elseif ($chunk['statut'] === 'error'): ?>
-                                <span class="badge bg-danger ms-2"><i class="bi bi-x"></i></span>
-                            <?php endif; ?>
+    <div class="table-responsive" id="chunksContainer">
+        <table class="table table-bordered table-sm" style="font-size: 0.8rem;">
+            <!-- En-tête: Numéros des comparables en colonnes -->
+            <thead class="table-dark">
+                <tr>
+                    <th class="bg-secondary" style="min-width: 140px;">Propriété</th>
+                    <?php foreach ($chunks as $index => $chunk): ?>
+                    <th class="text-center" style="min-width: 130px;">
+                        <span class="chunk-header" id="chunk-<?= $chunk['id'] ?>" data-chunk-id="<?= $chunk['id'] ?>" data-status="<?= $chunk['statut'] ?>">
+                            Comp. #<?= $index + 1 ?>
+                            <?php if ($chunk['statut'] === 'done'): ?><span class="badge bg-success ms-1">✓</span><?php endif; ?>
+                        </span>
+                    </th>
+                    <?php endforeach; ?>
+                    <th class="bg-warning text-dark text-center" style="min-width: 100px;">Moyenne</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- No Centris -->
+                <tr>
+                    <th class="table-light">No Centris</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><code><?= e($chunk['no_centris']) ?></code></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Adresse -->
+                <tr>
+                    <th class="table-light">Adresse</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="small"><?= e($chunk['adresse'] ?? '-') ?><br><em class="text-muted"><?= e($chunk['ville'] ?? '') ?></em></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Prix vendu -->
+                <tr class="table-primary">
+                    <th>Prix vendu</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-end fw-bold"><?= $chunk['prix_vendu'] ? formatMoney($chunk['prix_vendu']) : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-end fw-bold"><?php
+                        $prix = array_filter(array_column($chunks, 'prix_vendu'));
+                        echo count($prix) > 0 ? formatMoney(array_sum($prix) / count($prix)) : '-';
+                    ?></td>
+                </tr>
+                <!-- Date de vente -->
+                <tr>
+                    <th class="table-light">Date de vente</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['date_vente'] ? date('Y-m-d', strtotime($chunk['date_vente'])) : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Jours sur le marché -->
+                <tr>
+                    <th class="table-light">Jours marché</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['jours_marche'] ?? '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-center"><?php
+                        $jours = array_filter(array_column($chunks, 'jours_marche'));
+                        echo count($jours) > 0 ? round(array_sum($jours) / count($jours)) : '-';
+                    ?></td>
+                </tr>
+                <!-- Type -->
+                <tr>
+                    <th class="table-light">Type</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="small"><?= e($chunk['type_propriete'] ?? '-') ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Année construction -->
+                <tr>
+                    <th class="table-light">Année constr.</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['annee_construction'] ?? '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-center"><?php
+                        $annees = array_filter(array_column($chunks, 'annee_construction'));
+                        echo count($annees) > 0 ? round(array_sum($annees) / count($annees)) : '-';
+                    ?></td>
+                </tr>
+                <!-- Chambres -->
+                <tr>
+                    <th class="table-light">Chambres</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['chambres'] ?? '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-center"><?php
+                        $ch = array_filter(array_column($chunks, 'chambres'));
+                        echo count($ch) > 0 ? number_format(array_sum($ch) / count($ch), 1) : '-';
+                    ?></td>
+                </tr>
+                <!-- SdB -->
+                <tr>
+                    <th class="table-light">Salles de bain</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['sdb'] ?? '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-center"><?php
+                        $sdb = array_filter(array_column($chunks, 'sdb'));
+                        echo count($sdb) > 0 ? number_format(array_sum($sdb) / count($sdb), 1) : '-';
+                    ?></td>
+                </tr>
+                <!-- Superficie terrain -->
+                <tr>
+                    <th class="table-light">Sup. terrain</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['superficie_terrain'] ?: '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Superficie bâtiment -->
+                <tr>
+                    <th class="table-light">Sup. bâtiment</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['superficie_batiment'] ?: '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Évaluation municipale -->
+                <tr class="table-info">
+                    <th>Éval. municipale</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-end"><?= $chunk['eval_total'] ? formatMoney($chunk['eval_total']) : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-end"><?php
+                        $eval = array_filter(array_column($chunks, 'eval_total'));
+                        echo count($eval) > 0 ? formatMoney(array_sum($eval) / count($eval)) : '-';
+                    ?></td>
+                </tr>
+                <!-- Taxes -->
+                <tr>
+                    <th class="table-light">Taxes totales</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-end"><?= ($chunk['taxe_municipale'] || $chunk['taxe_scolaire']) ? formatMoney(($chunk['taxe_municipale'] ?? 0) + ($chunk['taxe_scolaire'] ?? 0)) : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-end"><?php
+                        $taxes = array_map(fn($c) => ($c['taxe_municipale'] ?? 0) + ($c['taxe_scolaire'] ?? 0), $chunks);
+                        $taxes = array_filter($taxes);
+                        echo count($taxes) > 0 ? formatMoney(array_sum($taxes) / count($taxes)) : '-';
+                    ?></td>
+                </tr>
+                <!-- Garage -->
+                <tr>
+                    <th class="table-light">Garage</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= e($chunk['garage'] ?? '-') ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Piscine -->
+                <tr>
+                    <th class="table-light">Piscine</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['piscine'] ? 'Oui' : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Sous-sol -->
+                <tr>
+                    <th class="table-light">Sous-sol</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center"><?= $chunk['sous_sol'] ? 'Oui' : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Fondation -->
+                <tr>
+                    <th class="table-light">Fondation</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="small"><?= e($chunk['fondation'] ?? '-') ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Toiture -->
+                <tr>
+                    <th class="table-light">Toiture</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="small"><?= e($chunk['toiture'] ?? '-') ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Chauffage -->
+                <tr>
+                    <th class="table-light">Chauffage</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="small"><?= e($chunk['chauffage'] ?? '-') ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning"></td>
+                </tr>
+                <!-- Rénovations -->
+                <tr class="table-success">
+                    <th>Rénovations</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-end"><?= $chunk['renovations_total'] ? formatMoney($chunk['renovations_total']) : '-' ?></td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-end"><?php
+                        $renos = array_filter(array_column($chunks, 'renovations_total'));
+                        echo count($renos) > 0 ? formatMoney(array_sum($renos) / count($renos)) : '-';
+                    ?></td>
+                </tr>
+                <!-- SECTION IA -->
+                <tr class="table-dark">
+                    <th colspan="<?= count($chunks) + 2 ?>"><i class="bi bi-robot me-2"></i>Analyse IA</th>
+                </tr>
+                <!-- Note IA -->
+                <tr>
+                    <th class="table-light">Note état</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center">
+                        <?php if ($chunk['statut'] === 'done'): ?>
+                        <span class="badge bg-<?= $chunk['etat_note'] >= 7 ? 'success' : ($chunk['etat_note'] >= 5 ? 'warning' : 'danger') ?>"><?= number_format($chunk['etat_note'], 1) ?>/10</span>
+                        <?php else: ?><span class="badge bg-secondary">-</span><?php endif; ?>
+                    </td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-center"><?php
+                        $done = array_filter($chunks, fn($c) => $c['statut'] === 'done');
+                        if (count($done) > 0):
+                            $avg = array_sum(array_column($done, 'etat_note')) / count($done);
+                            ?><span class="badge bg-<?= $avg >= 7 ? 'success' : ($avg >= 5 ? 'warning' : 'danger') ?>"><?= number_format($avg, 1) ?></span><?php
+                        else: echo '-'; endif;
+                    ?></td>
+                </tr>
+                <!-- Ajustement -->
+                <tr>
+                    <th class="table-light">Ajustement</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-end">
+                        <?php if ($chunk['statut'] === 'done'): ?>
+                        <span class="fw-bold <?= $chunk['ajustement'] >= 0 ? 'text-success' : 'text-danger' ?>"><?= $chunk['ajustement'] >= 0 ? '+' : '' ?><?= formatMoney($chunk['ajustement']) ?></span>
+                        <?php else: ?>-<?php endif; ?>
+                    </td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-end"><?php
+                        if (count($done) > 0):
+                            $avgAdj = array_sum(array_column($done, 'ajustement')) / count($done);
+                            ?><span class="fw-bold <?= $avgAdj >= 0 ? 'text-success' : 'text-danger' ?>"><?= $avgAdj >= 0 ? '+' : '' ?><?= formatMoney($avgAdj) ?></span><?php
+                        else: echo '-'; endif;
+                    ?></td>
+                </tr>
+                <!-- Confiance -->
+                <tr>
+                    <th class="table-light">Confiance</th>
+                    <?php foreach ($chunks as $chunk): ?>
+                    <td class="text-center">
+                        <?php if ($chunk['statut'] === 'done'): $conf = $chunk['confiance'] ?? 0; ?>
+                        <span class="badge bg-<?= $conf >= 70 ? 'success' : ($conf >= 40 ? 'warning' : 'danger') ?>"><?= $conf ?>%</span>
+                        <?php else: ?>-<?php endif; ?>
+                    </td>
+                    <?php endforeach; ?>
+                    <td class="table-warning text-center"><?php
+                        if (count($done) > 0):
+                            $avgConf = array_sum(array_column($done, 'confiance')) / count($done);
+                            ?><span class="badge bg-<?= $avgConf >= 70 ? 'success' : ($avgConf >= 40 ? 'warning' : 'danger') ?>"><?= round($avgConf) ?>%</span><?php
+                        else: echo '-'; endif;
+                    ?></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Détails des commentaires IA (optionnel, en accordéon) -->
+    <?php if (count(array_filter($chunks, fn($c) => $c['statut'] === 'done' && $c['commentaire_ia'])) > 0): ?>
+    <div class="accordion mt-3" id="accordionCommentaires">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCommentaires">
+                    <i class="bi bi-chat-left-text me-2"></i>Commentaires IA détaillés
+                </button>
+            </h2>
+            <div id="collapseCommentaires" class="accordion-collapse collapse" data-bs-parent="#accordionCommentaires">
+                <div class="accordion-body">
+                    <?php foreach ($chunks as $index => $chunk): ?>
+                        <?php if ($chunk['statut'] === 'done' && $chunk['commentaire_ia']): ?>
+                        <div class="mb-3 p-2 bg-light rounded">
+                            <strong>#<?= $index + 1 ?> - <?= e($chunk['no_centris']) ?></strong>
+                            <p class="mb-0 small"><?= e($chunk['commentaire_ia']) ?></p>
                         </div>
-                        <span class="badge bg-secondary"><?= $chunk['nb_photos'] ?> photos</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-7">
-                                <p class="mb-1"><strong><?= e($chunk['adresse'] ?? 'Adresse inconnue') ?></strong></p>
-                                <?php if ($chunk['ville']): ?>
-                                    <p class="text-muted mb-2"><?= e($chunk['ville']) ?></p>
-                                <?php endif; ?>
-
-                                <!-- Prix et jours -->
-                                <div class="d-flex gap-3 mb-2">
-                                    <?php if ($chunk['prix_vendu'] > 0): ?>
-                                        <span class="fw-bold text-success"><i class="bi bi-tag"></i> <?= formatMoney($chunk['prix_vendu']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['jours_marche']): ?>
-                                        <span><i class="bi bi-calendar3 text-muted"></i> <?= $chunk['jours_marche'] ?> jours</span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Caractéristiques de base -->
-                                <div class="d-flex flex-wrap gap-2 small mb-2">
-                                    <?php if ($chunk['chambres']): ?>
-                                        <span class="badge bg-light text-dark"><i class="bi bi-door-closed"></i> <?= e($chunk['chambres']) ?> ch</span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['sdb']): ?>
-                                        <span class="badge bg-light text-dark"><i class="bi bi-droplet"></i> <?= e($chunk['sdb']) ?> sdb</span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['annee_construction']): ?>
-                                        <span class="badge bg-light text-dark"><i class="bi bi-building"></i> <?= $chunk['annee_construction'] ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['type_propriete']): ?>
-                                        <span class="badge bg-info text-dark"><?= e($chunk['type_propriete']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['superficie_terrain']): ?>
-                                        <span class="badge bg-light text-dark"><i class="bi bi-rulers"></i> <?= e($chunk['superficie_terrain']) ?> pc</span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Évaluation municipale -->
-                                <?php if ($chunk['eval_total'] > 0): ?>
-                                <div class="small mb-2 p-2 bg-light rounded">
-                                    <strong><i class="bi bi-bank"></i> Évaluation:</strong>
-                                    <?= formatMoney($chunk['eval_total']) ?>
-                                    <?php if ($chunk['eval_terrain'] > 0 || $chunk['eval_batiment'] > 0): ?>
-                                        <span class="text-muted">(Terrain: <?= formatMoney($chunk['eval_terrain']) ?>, Bât: <?= formatMoney($chunk['eval_batiment']) ?>)</span>
-                                    <?php endif; ?>
-                                </div>
-                                <?php endif; ?>
-
-                                <!-- Taxes -->
-                                <?php if ($chunk['taxe_municipale'] > 0 || $chunk['taxe_scolaire'] > 0): ?>
-                                <div class="small mb-2">
-                                    <i class="bi bi-receipt"></i> <strong>Taxes:</strong>
-                                    <?php if ($chunk['taxe_municipale'] > 0): ?>
-                                        Mun: <?= formatMoney($chunk['taxe_municipale']) ?>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['taxe_scolaire'] > 0): ?>
-                                        | Scol: <?= formatMoney($chunk['taxe_scolaire']) ?>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['taxe_annee']): ?>
-                                        (<?= $chunk['taxe_annee'] ?>)
-                                    <?php endif; ?>
-                                </div>
-                                <?php endif; ?>
-
-                                <!-- Rénovations -->
-                                <?php if ($chunk['renovations_total'] > 0 || $chunk['renovations_texte']): ?>
-                                <div class="small mb-2 p-2 bg-warning bg-opacity-10 rounded">
-                                    <strong><i class="bi bi-tools"></i> Rénovations:</strong>
-                                    <?php if ($chunk['renovations_total'] > 0): ?>
-                                        <span class="text-success fw-bold"><?= formatMoney($chunk['renovations_total']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['renovations_texte']): ?>
-                                        <br><small class="text-muted"><?= e(substr($chunk['renovations_texte'], 0, 200)) ?><?= strlen($chunk['renovations_texte']) > 200 ? '...' : '' ?></small>
-                                    <?php endif; ?>
-                                </div>
-                                <?php endif; ?>
-
-                                <!-- Caractéristiques détaillées -->
-                                <div class="small text-muted mb-2">
-                                    <?php if ($chunk['fondation']): ?>
-                                        <span class="me-2">🏠 <?= e($chunk['fondation']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['toiture']): ?>
-                                        <span class="me-2">🔺 <?= e($chunk['toiture']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['garage']): ?>
-                                        <span class="me-2">🚗 <?= e($chunk['garage']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['piscine']): ?>
-                                        <span class="me-2">🏊 <?= e($chunk['piscine']) ?></span>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['sous_sol']): ?>
-                                        <span class="me-2">⬇️ <?= e(substr($chunk['sous_sol'], 0, 50)) ?></span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Remarques -->
-                                <?php if ($chunk['remarques']): ?>
-                                <div class="small mb-2">
-                                    <details>
-                                        <summary class="text-muted cursor-pointer"><i class="bi bi-chat-left-text"></i> Remarques</summary>
-                                        <p class="mt-1 p-2 bg-light rounded"><?= nl2br(e(substr($chunk['remarques'], 0, 500))) ?></p>
-                                    </details>
-                                </div>
-                                <?php endif; ?>
-
-                                <!-- Résultats IA -->
-                                <?php if ($chunk['statut'] === 'done'): ?>
-                                    <hr>
-                                    <div class="d-flex align-items-center gap-3 mb-2">
-                                        <span class="note-badge badge bg-<?= $chunk['etat_note'] >= 7 ? 'success' : ($chunk['etat_note'] >= 5 ? 'warning' : 'danger') ?>">
-                                            <?= number_format($chunk['etat_note'], 1) ?>/10
-                                        </span>
-                                        <?php if ($chunk['ajustement'] != 0): ?>
-                                            <span class="fs-5 fw-bold <?= $chunk['ajustement'] >= 0 ? 'ajustement-positif' : 'ajustement-negatif' ?>">
-                                                <?= $chunk['ajustement'] >= 0 ? '+' : '' ?><?= formatMoney($chunk['ajustement']) ?>
-                                            </span>
-                                        <?php endif; ?>
-                                    </div>
-                                    <?php if ($chunk['etat_analyse']): ?>
-                                        <p class="small mb-1"><strong>État:</strong> <?= e($chunk['etat_analyse']) ?></p>
-                                    <?php endif; ?>
-                                    <?php if ($chunk['commentaire_ia']): ?>
-                                        <p class="small text-muted mb-0"><?= e($chunk['commentaire_ia']) ?></p>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            </div>
-                            <div class="col-md-5">
-                                <?php
-                                // Récupérer les photos du chunk
-                                $stmtPhotos = $pdo->prepare("SELECT * FROM comparables_photos WHERE chunk_id = ? ORDER BY ordre LIMIT 6");
-                                $stmtPhotos->execute([$chunk['id']]);
-                                $photos = $stmtPhotos->fetchAll();
-                                ?>
-                                <?php if (!empty($photos)): ?>
-                                    <div class="photo-grid">
-                                        <?php foreach ($photos as $photo): ?>
-                                            <?php
-                                            // Convertir le chemin absolu en URL relative
-                                            $photoUrl = str_replace(dirname(dirname(__DIR__)), '', $photo['file_path']);
-                                            ?>
-                                            <img src="<?= e($photoUrl) ?>"
-                                                 alt="<?= e($photo['label'] ?? 'Photo') ?>"
-                                                 onclick="openLightbox('<?= e($photoUrl) ?>')"
-                                                 loading="lazy">
-                                        <?php endforeach; ?>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="text-center text-muted py-4">
-                                        <i class="bi bi-image fs-1"></i>
-                                        <p class="small mb-0">Aucune photo</p>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                    </div>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
                 </div>
             </div>
-        <?php endforeach; ?>
+        </div>
     </div>
+    <?php endif; ?>
+
 </div>
 
-<!-- Lightbox Modal -->
+<!-- Lightbox Modal (kept for future use) -->
 <div class="modal fade" id="lightboxModal" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content bg-dark">
@@ -513,13 +658,23 @@ document.getElementById('btnStartAnalysis')?.addEventListener('click', async fun
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyse en cours...';
 
-    const chunks = document.querySelectorAll('.chunk-card[data-status="pending"]');
+    // Sélectionner les headers des chunks qui ne sont pas encore analysés
+    const chunkHeaders = document.querySelectorAll('.chunk-header[data-status="pending"]');
     const totalChunks = <?= count($chunks) ?>;
     let doneCount = <?= $chunksDone ?>;
 
-    for (const card of chunks) {
-        const chunkId = card.dataset.chunkId;
-        card.classList.add('analyzing');
+    if (chunkHeaders.length === 0) {
+        btn.innerHTML = 'Aucun chunk à analyser';
+        location.reload();
+        return;
+    }
+
+    for (const header of chunkHeaders) {
+        const chunkId = header.dataset.chunkId;
+
+        // Ajouter un indicateur de chargement
+        const originalHTML = header.innerHTML;
+        header.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Analyse...';
 
         try {
             const response = await fetch('', {
@@ -531,9 +686,8 @@ document.getElementById('btnStartAnalysis')?.addEventListener('click', async fun
             const data = await response.json();
 
             if (data.success) {
-                card.classList.remove('analyzing');
-                card.classList.add('done');
-                card.dataset.status = 'done';
+                header.dataset.status = 'done';
+                header.innerHTML = originalHTML.replace('Comp.', '<span class="badge bg-success me-1">✓</span>Comp.');
                 doneCount++;
 
                 // Mettre à jour la progression
@@ -541,19 +695,19 @@ document.getElementById('btnStartAnalysis')?.addEventListener('click', async fun
                 document.getElementById('progressBar').style.width = progress + '%';
                 document.getElementById('progressText').textContent = doneCount + '/' + totalChunks;
 
-                // Recharger la page pour afficher les résultats (simple pour l'instant)
+                // Recharger la page si tous sont terminés
                 if (data.remaining === 0) {
                     location.reload();
                 }
             } else {
-                card.classList.remove('analyzing');
-                card.classList.add('error');
+                header.innerHTML = originalHTML + ' <span class="badge bg-danger">Erreur</span>';
                 console.error('Erreur:', data.error);
+                alert('Erreur: ' + data.error);
             }
         } catch (err) {
-            card.classList.remove('analyzing');
-            card.classList.add('error');
+            header.innerHTML = originalHTML + ' <span class="badge bg-danger">Erreur</span>';
             console.error('Erreur réseau:', err);
+            alert('Erreur réseau: ' + err.message);
         }
     }
 

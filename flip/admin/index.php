@@ -213,6 +213,57 @@ $profitExtrapolParSemaine = $profitExtrapolAnnuel / 52;
 $profitExtrapolParHeure = $profitExtrapolAnnuel / (52 * 40);
 $profitExtrapolParMinute = $profitExtrapolAnnuel / (52 * 40 * 60);
 
+// === Notes d'amélioration de l'app ===
+// Créer la table si elle n'existe pas
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS app_notes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            contenu TEXT NOT NULL,
+            terminee TINYINT(1) DEFAULT 0,
+            priorite INT DEFAULT 0,
+            user_id INT NULL,
+            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+            date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+} catch (Exception $e) {
+    // Table existe déjà
+}
+
+// Gestion des actions sur les notes
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['note_action'])) {
+    $action = $_POST['note_action'];
+
+    if ($action === 'add' && !empty(trim($_POST['note_contenu'] ?? ''))) {
+        $stmt = $pdo->prepare("INSERT INTO app_notes (contenu, user_id) VALUES (?, ?)");
+        $stmt->execute([trim($_POST['note_contenu']), $_SESSION['user_id']]);
+    }
+
+    if ($action === 'toggle' && !empty($_POST['note_id'])) {
+        $stmt = $pdo->prepare("UPDATE app_notes SET terminee = NOT terminee, date_modification = NOW() WHERE id = ?");
+        $stmt->execute([(int)$_POST['note_id']]);
+    }
+
+    if ($action === 'delete' && !empty($_POST['note_id'])) {
+        $stmt = $pdo->prepare("DELETE FROM app_notes WHERE id = ?");
+        $stmt->execute([(int)$_POST['note_id']]);
+    }
+
+    // Redirect pour éviter resoumission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
+}
+
+// Récupérer les notes
+$appNotes = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM app_notes ORDER BY terminee ASC, priorite DESC, date_creation DESC");
+    $appNotes = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas
+}
+
 include '../includes/header.php';
 ?>
 
@@ -968,12 +1019,12 @@ include '../includes/header.php';
 .fiscal-header {
     background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
     color: white;
-    padding: 1rem 1.25rem;
+    padding: 0.6rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .fiscal-header h5 {
@@ -1016,7 +1067,7 @@ include '../includes/header.php';
 }
 
 .fiscal-dpe-value {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
 }
 
@@ -1113,12 +1164,12 @@ include '../includes/header.php';
 }
 
 .fiscal-project-list h6 {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -1126,7 +1177,7 @@ include '../includes/header.php';
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.6rem 0;
+    padding: 0.35rem 0;
     border-bottom: 1px dashed var(--border-color);
 }
 
@@ -1134,6 +1185,7 @@ include '../includes/header.php';
 
 .fiscal-project-item .name {
     font-weight: 500;
+    font-size: 0.8rem;
     color: var(--text-primary);
 }
 
@@ -1147,48 +1199,360 @@ include '../includes/header.php';
 }
 
 .fiscal-project-item .date {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--text-muted);
 }
 
 .fiscal-project-item .amount {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .fiscal-project-item .amount.positive { color: #10b981; }
 .fiscal-project-item .amount.negative { color: #ef4444; }
 
 .fiscal-project-item .tax-rate {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.25rem;
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
     background: rgba(100, 116, 139, 0.1);
     color: var(--text-secondary);
 }
 
 .fiscal-empty {
     text-align: center;
-    padding: 2rem;
+    padding: 1rem;
     color: var(--text-muted);
 }
 
 .fiscal-summary {
-    margin-top: 1rem;
-    padding: 1rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
     background: rgba(59, 130, 246, 0.08);
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     border: 1px dashed rgba(59, 130, 246, 0.3);
 }
 
 .fiscal-summary-row {
     display: flex;
     justify-content: space-between;
-    font-size: 0.85rem;
+    font-size: 0.7rem;
 }
 
 .fiscal-summary-row .label { color: var(--text-secondary); }
 .fiscal-summary-row .value { font-weight: 600; color: var(--text-primary); }
+
+/* === Section Fiscalité compacte === */
+.fiscal-section.compact .fiscal-body {
+    padding: 0.75rem;
+}
+
+.fiscal-section.compact .fiscal-numbers {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.fiscal-section.compact .fiscal-number {
+    padding: 0.35rem;
+}
+
+.fiscal-section.compact .fiscal-number .num {
+    font-size: 0.85rem;
+}
+
+.fiscal-section.compact .fiscal-number .lbl {
+    font-size: 0.55rem;
+}
+
+.fiscal-section.compact .fiscal-projects {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
+}
+
+.fiscal-section.compact .fiscal-project-list {
+    /* Pas de scroll - affichage complet */
+}
+
+.fiscal-section.compact .fiscal-gauge {
+    height: 6px;
+}
+
+/* === Section Notes d'amélioration === */
+.notes-section {
+    background: var(--bg-card);
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.notes-header {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+    color: white;
+    padding: 0.6rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notes-header h5 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.notes-body {
+    padding: 0.75rem;
+    flex: 1;
+    /* Pas de scroll - affichage complet */
+}
+
+.notes-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.notes-form input {
+    flex: 1;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4rem;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+}
+
+.notes-form input:focus {
+    outline: none;
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.notes-form button {
+    padding: 0.4rem 0.6rem;
+    border: none;
+    border-radius: 0.4rem;
+    background: #f59e0b;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notes-form button:hover {
+    background: #d97706;
+}
+
+.notes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
+}
+
+.note-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(245, 158, 11, 0.05);
+    border-radius: 0.4rem;
+    border-left: 3px solid #f59e0b;
+}
+
+.note-item.terminee {
+    background: rgba(100, 116, 139, 0.05);
+    border-left-color: var(--text-muted);
+}
+
+.note-item.terminee .note-text {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.note-checkbox {
+    flex-shrink: 0;
+}
+
+.note-checkbox input {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: #f59e0b;
+}
+
+.note-text {
+    flex: 1;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+.note-delete {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.15rem;
+    opacity: 0.4;
+    transition: opacity 0.2s, color 0.2s;
+    font-size: 0.7rem;
+}
+
+.note-delete:hover {
+    opacity: 1;
+    color: #ef4444;
+}
+
+.notes-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+.notes-empty i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* === Section Employés Actifs === */
+.employes-actifs-section {
+    margin-bottom: 1rem;
+}
+
+.employes-actifs-card {
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f2744 100%);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.employes-actifs-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.employes-actifs-header h6 {
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.employes-actifs-header small {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.5);
+}
+
+.employes-actifs-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.employe-actif-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(255,255,255,0.08);
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
+}
+
+.employe-actif-item:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(16, 185, 129, 0.5);
+}
+
+.employe-actif-item.pause {
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
+.employe-actif-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.employe-actif-item.pause .employe-actif-avatar {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+}
+
+.employe-actif-info {
+    min-width: 0;
+}
+
+.employe-actif-nom {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.employe-actif-projet {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.employe-actif-temps {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #10b981;
+    font-family: 'Courier New', monospace;
+    background: rgba(16, 185, 129, 0.15);
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.3rem;
+}
+
+.employe-actif-item.pause .employe-actif-temps {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.employes-vide {
+    text-align: center;
+    padding: 1rem;
+    color: rgba(255,255,255,0.5);
+    font-size: 0.85rem;
+    width: 100%;
+}
+
+.employes-vide i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
 </style>
 
 <div class="container-fluid">
@@ -1260,20 +1624,20 @@ include '../includes/header.php';
             <svg style="position:absolute;width:0;height:0;">
                 <defs>
                     <linearGradient id="minuteGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#ef4444"/>
-                        <stop offset="100%" style="stop-color:#f87171"/>
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                     <linearGradient id="hourGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:#f59e0b"/>
                         <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                     <linearGradient id="weekGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#10b981"/>
-                        <stop offset="100%" style="stop-color:#06b6d4"/>
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                     <linearGradient id="monthGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#8b5cf6"/>
-                        <stop offset="100%" style="stop-color:#a78bfa"/>
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                 </defs>
             </svg>
@@ -1294,7 +1658,7 @@ include '../includes/header.php';
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
                         <!-- Point % sur l'arc -->
-                        <circle class="gauge-percent-dot" cx="<?= $posMinute['x'] ?>" cy="<?= $posMinute['y'] ?>" r="12" fill="#ef4444" id="gauge-dot-minute"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posMinute['x'] ?>" cy="<?= $posMinute['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-minute"/>
                         <text class="gauge-percent-arc" x="<?= $posMinute['x'] ?>" y="<?= $posMinute['y'] ?>" id="gauge-percent-minute"><?= number_format($pctMinute, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
@@ -1344,7 +1708,7 @@ include '../includes/header.php';
                               stroke-dashoffset="<?= $offsetWeek ?>"
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
-                        <circle class="gauge-percent-dot" cx="<?= $posWeek['x'] ?>" cy="<?= $posWeek['y'] ?>" r="12" fill="#10b981" id="gauge-dot-week"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posWeek['x'] ?>" cy="<?= $posWeek['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-week"/>
                         <text class="gauge-percent-arc" x="<?= $posWeek['x'] ?>" y="<?= $posWeek['y'] ?>" id="gauge-percent-week"><?= number_format($pctWeek, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
@@ -1369,7 +1733,7 @@ include '../includes/header.php';
                               stroke-dashoffset="<?= $offsetMonth ?>"
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
-                        <circle class="gauge-percent-dot" cx="<?= $posMonth['x'] ?>" cy="<?= $posMonth['y'] ?>" r="12" fill="#8b5cf6" id="gauge-dot-month"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posMonth['x'] ?>" cy="<?= $posMonth['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-month"/>
                         <text class="gauge-percent-arc" x="<?= $posMonth['x'] ?>" y="<?= $posMonth['y'] ?>" id="gauge-percent-month"><?= number_format($pctMonth, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
@@ -1454,10 +1818,78 @@ include '../includes/header.php';
         </a>
     </div>
 
-    <!-- Section Fiscalité -->
+    <!-- Section Employés au travail -->
+    <div class="employes-actifs-section mb-4" id="employesActifsSection">
+        <div class="employes-actifs-card">
+            <div class="employes-actifs-header">
+                <h6 class="m-0">
+                    <i class="bi bi-people-fill me-2"></i>
+                    Employes au travail
+                    <span class="badge bg-success ms-2" id="employesActifsCount">0</span>
+                </h6>
+                <small class="text-muted" id="employesActifsUpdate"></small>
+            </div>
+            <div class="employes-actifs-body" id="employesActifsList">
+                <div class="text-center text-muted py-2">
+                    <i class="bi bi-hourglass-split"></i> Chargement...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Section Fiscalité + Notes -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="fiscal-section">
+        <!-- Notes d'amélioration (50%) -->
+        <div class="col-md-6 mb-3 mb-md-0">
+            <div class="notes-section">
+                <div class="notes-header">
+                    <h5>
+                        <i class="bi bi-lightbulb"></i>
+                        App à améliorer
+                    </h5>
+                    <span class="badge bg-light text-dark"><?= count(array_filter($appNotes, fn($n) => !$n['terminee'])) ?> en cours</span>
+                </div>
+                <div class="notes-body">
+                    <form method="POST" class="notes-form">
+                        <input type="hidden" name="note_action" value="add">
+                        <input type="text" name="note_contenu" placeholder="Nouvelle idée d'amélioration..." required>
+                        <button type="submit"><i class="bi bi-plus-lg"></i></button>
+                    </form>
+
+                    <?php if (empty($appNotes)): ?>
+                    <div class="notes-empty">
+                        <i class="bi bi-lightbulb"></i>
+                        <div>Aucune note pour le moment</div>
+                        <small>Ajoutez vos idées d'amélioration</small>
+                    </div>
+                    <?php else: ?>
+                    <ul class="notes-list">
+                        <?php foreach ($appNotes as $note): ?>
+                        <li class="note-item <?= $note['terminee'] ? 'terminee' : '' ?>">
+                            <form method="POST" class="note-checkbox">
+                                <input type="hidden" name="note_action" value="toggle">
+                                <input type="hidden" name="note_id" value="<?= $note['id'] ?>">
+                                <input type="checkbox" <?= $note['terminee'] ? 'checked' : '' ?> onchange="this.form.submit()" title="Marquer comme terminé">
+                            </form>
+                            <span class="note-text"><?= e($note['contenu']) ?></span>
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="note_action" value="delete">
+                                <input type="hidden" name="note_id" value="<?= $note['id'] ?>">
+                                <button type="submit" class="note-delete" title="Supprimer">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fiscalité (50%) -->
+        <div class="col-md-6">
+            <div class="fiscal-section compact">
                 <!-- Header avec gradient -->
                 <div class="fiscal-header">
                     <h5>
@@ -2316,6 +2748,104 @@ function launchFireworks(x, y) {
 
 // Initialiser le toggle au chargement
 document.addEventListener('DOMContentLoaded', initVelocityToggle);
+
+// ========================================
+// EMPLOYÉS ACTIFS - Système de suivi
+// ========================================
+const EmployesActifs = {
+    intervalId: null,
+
+    init: function() {
+        this.load();
+        // Rafraîchir toutes les 30 secondes
+        this.intervalId = setInterval(() => this.load(), 30000);
+    },
+
+    load: async function() {
+        try {
+            const response = await fetch('<?= url('/api/pointage-admin.php') ?>?action=actifs');
+            const data = await response.json();
+
+            if (data.success) {
+                this.render(data.employes_actifs);
+                document.getElementById('employesActifsCount').textContent = data.total;
+                document.getElementById('employesActifsUpdate').textContent = 'Maj: ' + new Date().toLocaleTimeString('fr-CA', {hour: '2-digit', minute: '2-digit'});
+            }
+        } catch (error) {
+            console.error('Erreur chargement employes actifs:', error);
+        }
+    },
+
+    render: function(employes) {
+        const container = document.getElementById('employesActifsList');
+
+        if (!employes || employes.length === 0) {
+            container.innerHTML = `
+                <div class="employes-vide">
+                    <i class="bi bi-moon-stars"></i>
+                    Aucun employe au travail
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+        employes.forEach(emp => {
+            const initiales = this.getInitiales(emp.employe_nom);
+            const isPause = emp.statut === 'pause';
+            const tempsFormate = emp.duree_formatee || this.formatMinutes(emp.duree_travail);
+
+            html += `
+                <div class="employe-actif-item ${isPause ? 'pause' : ''}">
+                    <div class="employe-actif-avatar">${initiales}</div>
+                    <div class="employe-actif-info">
+                        <div class="employe-actif-nom">${this.escapeHtml(emp.employe_nom)}</div>
+                        <div class="employe-actif-projet">
+                            <i class="bi bi-geo-alt"></i>
+                            ${this.escapeHtml(emp.projet_nom || 'Sans projet')}
+                        </div>
+                    </div>
+                    <div class="employe-actif-temps">
+                        ${isPause ? '<i class="bi bi-pause-fill"></i> ' : ''}
+                        ${tempsFormate}
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+    },
+
+    getInitiales: function(nom) {
+        if (!nom) return '?';
+        const parts = nom.trim().split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+        }
+        return nom.substring(0, 2).toUpperCase();
+    },
+
+    formatMinutes: function(minutes) {
+        if (!minutes || minutes < 1) return '0m';
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        if (h > 0) {
+            return h + 'h' + (m > 0 ? String(m).padStart(2, '0') : '');
+        }
+        return m + 'm';
+    },
+
+    escapeHtml: function(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    EmployesActifs.init();
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>

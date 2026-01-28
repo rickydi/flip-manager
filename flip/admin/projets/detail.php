@@ -35,6 +35,22 @@ if (isset($_GET['_partial']) && $_GET['_partial'] === 'base') {
     // Données utilisées par tab-base.php
     $recurrentsReels = calculerCoutsRecurrentsReels($projet);
 
+    // Heures travaillées pour stats
+    $heuresProjet = [];
+    try {
+        $stmt = $pdo->prepare("SELECT h.*, u.nom_complet as employe_nom, u.taux_horaire as taux_actuel FROM heures_travaillees h JOIN users u ON h.user_id = u.id WHERE h.projet_id = ? AND h.statut != 'rejetee' ORDER BY h.date_travail DESC");
+        $stmt->execute([$projetId]);
+        $heuresProjet = $stmt->fetchAll();
+    } catch (Exception $e) {}
+
+    // Factures pour stats achats
+    $facturesProjet = [];
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM factures WHERE projet_id = ? AND statut != 'rejetee'");
+        $stmt->execute([$projetId]);
+        $facturesProjet = $stmt->fetchAll();
+    } catch (Exception $e) {}
+
     // Retourner UNIQUEMENT le HTML du tab Base
     include 'partials/tab-base.php';
     exit;
@@ -187,6 +203,22 @@ try {
     }
 }
 
+// Auto-créer la table projet_tabs_config si elle n'existe pas
+try {
+    $pdo->query("SELECT 1 FROM projet_tabs_config LIMIT 1");
+} catch (Exception $e) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS projet_tabs_config (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            tabs_order JSON NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY unique_user (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+}
+
 // ========================================
 // HELPER: Synchroniser la table budgets depuis projet_items
 // ========================================
@@ -291,6 +323,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $notes = trim($_POST['notes'] ?? '');
         $dropboxLink = trim($_POST['dropbox_link'] ?? '');
 
+        // GPS pour pointage automatique
+        $latitude = !empty($_POST['latitude']) ? (float)$_POST['latitude'] : null;
+        $longitude = !empty($_POST['longitude']) ? (float)$_POST['longitude'] : null;
+        $rayonGps = (int)($_POST['rayon_gps'] ?? 100);
+
         // Validation minimale
         if (empty($nom) || empty($adresse) || empty($ville)) {
             echo json_encode(['success' => false, 'error' => 'Champs requis manquants']);
@@ -303,6 +340,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
         $stmt = $pdo->prepare("
             UPDATE projets SET
                 nom = ?, adresse = ?, ville = ?, code_postal = ?,
+                latitude = ?, longitude = ?, rayon_gps = ?,
                 date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                 statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                 arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
@@ -314,6 +352,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
 
         $stmt->execute([
             $nom, $adresse, $ville, $codePostal,
+            $latitude, $longitude, $rayonGps,
             $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
             $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
             $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
@@ -760,6 +799,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_P
     try {
         $stmt = $pdo->prepare("DELETE FROM projet_google_sheets WHERE id = ? AND projet_id = ?");
         $stmt->execute([$sheetId, $projetId]);
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+    exit;
+}
+
+// ========================================
+// AJAX: Sauvegarder la configuration des onglets
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'save_tabs_config') {
+    header('Content-Type: application/json');
+
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        echo json_encode(['success' => false, 'error' => 'Token invalide']);
+        exit;
+    }
+
+    $tabsOrder = $_POST['tabs_order'] ?? '';
+    $userId = $_SESSION['user_id'] ?? 0;
+
+    if (!$userId) {
+        echo json_encode(['success' => false, 'error' => 'Utilisateur non connecté']);
+        exit;
+    }
+
+    try {
+        // Valider le JSON
+        $decoded = json_decode($tabsOrder, true);
+        if ($decoded === null && json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('JSON invalide');
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO projet_tabs_config (user_id, tabs_order)
+            VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE tabs_order = VALUES(tabs_order), updated_at = NOW()
+        ");
+        $stmt->execute([$userId, $tabsOrder]);
         echo json_encode(['success' => true]);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
@@ -1262,6 +1340,14 @@ if (!$projet) {
     redirect('/admin/projets/liste.php');
 }
 
+// Mettre à jour la dernière consultation pour trier par récent
+try {
+    $stmtConsult = $pdo->prepare("UPDATE projets SET derniere_consultation = NOW() WHERE id = ?");
+    $stmtConsult->execute([$projetId]);
+} catch (Exception $e) {
+    // Colonne n'existe pas encore, ignorer
+}
+
 // Récupérer les étapes (remplace les anciennes catégories)
 $categoriesAvecBudget = [];
 try {
@@ -1372,6 +1458,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $notes = trim($_POST['notes'] ?? '');
             $dropboxLink = trim($_POST['dropbox_link'] ?? '');
 
+            // GPS pour pointage automatique
+            $latitude = !empty($_POST['latitude']) ? (float)$_POST['latitude'] : null;
+            $longitude = !empty($_POST['longitude']) ? (float)$_POST['longitude'] : null;
+            $rayonGps = (int)($_POST['rayon_gps'] ?? 100);
+
             if (empty($nom)) $errors[] = 'Le nom du projet est requis.';
             if (empty($adresse)) $errors[] = 'L\'adresse est requise.';
             if (empty($ville)) $errors[] = 'La ville est requise.';
@@ -1380,6 +1471,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $pdo->prepare("
                     UPDATE projets SET
                         nom = ?, adresse = ?, ville = ?, code_postal = ?,
+                        latitude = ?, longitude = ?, rayon_gps = ?,
                         date_acquisition = ?, date_debut_travaux = ?, date_fin_prevue = ?, date_vente = ?,
                         statut = ?, prix_achat = ?, role_evaluation = ?, cession = ?, notaire = ?, taxe_mutation = ?, quittance = ?,
                         arpenteurs = ?, assurance_titre = ?, solde_vendeur = ?, solde_acheteur = ?,
@@ -1395,6 +1487,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt->execute([
                     $nom, $adresse, $ville, $codePostal,
+                    $latitude, $longitude, $rayonGps,
                     $dateAcquisition, $dateDebutTravaux, $dateFinPrevue, $dateVente,
                     $statut, $prixAchat, $roleEvaluation, $cession, $notaire, $taxeMutation, $quittance,
                     $arpenteurs, $assuranceTitre, $soldeVendeur, $soldeAcheteur,
@@ -1515,6 +1608,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $projet = getProjetById($pdo, $projetId);
 $tab = $_GET['tab'] ?? 'base';
 $pageTitle = $projet['nom'];
+
+// ========================================
+// CONFIGURATION DES ONGLETS (ordre et séparateurs)
+// ========================================
+$defaultTabs = [
+    ['type' => 'tab', 'id' => 'base', 'label' => 'Base', 'icon' => 'bi-house-door'],
+    ['type' => 'tab', 'id' => 'financement', 'label' => 'Financement', 'icon' => 'bi-bank'],
+    ['type' => 'tab', 'id' => 'budgets', 'label' => 'Budgets', 'icon' => 'bi-wallet2'],
+    ['type' => 'tab', 'id' => 'maindoeuvre', 'label' => "Main-d'œuvre", 'icon' => 'bi-people'],
+    ['type' => 'tab', 'id' => 'temps', 'label' => 'Temps', 'icon' => 'bi-clock'],
+    ['type' => 'tab', 'id' => 'photos', 'label' => 'Photos', 'icon' => 'bi-camera'],
+    ['type' => 'tab', 'id' => 'factures', 'label' => 'Factures', 'icon' => 'bi-receipt'],
+    ['type' => 'tab', 'id' => 'soustraitants', 'label' => 'Sous-traitants', 'icon' => 'bi-building'],
+    ['type' => 'tab', 'id' => 'checklist', 'label' => 'Checklist', 'icon' => 'bi-list-check'],
+    ['type' => 'tab', 'id' => 'documents', 'label' => 'Documents', 'icon' => 'bi-folder'],
+    ['type' => 'tab', 'id' => 'googlesheet', 'label' => 'Google Sheet', 'icon' => 'bi-table'],
+    ['type' => 'tab', 'id' => 'construction', 'label' => 'Construction', 'icon' => 'bi-hammer'],
+];
+
+// Récupérer la config de l'utilisateur
+$userTabsConfig = $defaultTabs;
+$userId = $_SESSION['user_id'] ?? 0;
+if ($userId) {
+    try {
+        $stmt = $pdo->prepare("SELECT tabs_order FROM projet_tabs_config WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        $savedConfig = $stmt->fetchColumn();
+        if ($savedConfig) {
+            $decoded = json_decode($savedConfig, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                // Fusionner avec les onglets par défaut (au cas où de nouveaux onglets ont été ajoutés)
+                $savedIds = array_column(array_filter($decoded, fn($t) => $t['type'] === 'tab'), 'id');
+                $userTabsConfig = $decoded;
+                // Ajouter les onglets manquants à la fin
+                foreach ($defaultTabs as $dt) {
+                    if (!in_array($dt['id'], $savedIds)) {
+                        $userTabsConfig[] = $dt;
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Utiliser config par défaut en cas d'erreur
+    }
+}
 
 // IMPORTANT: Synchroniser budgets AVANT de calculer les indicateurs
 // pour que calculerIndicateursProjet ait les bonnes valeurs de rénovation
@@ -1935,6 +2073,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ========================================
+// DÉFINIR PHOTO DE COUVERTURE
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'set_cover_photo') {
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        setFlashMessage('error', 'Token de sécurité invalide.');
+        redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+    }
+
+    $photoId = (int)($_POST['photo_id'] ?? 0);
+
+    // Récupérer la photo
+    $stmt = $pdo->prepare("SELECT fichier FROM photos_projet WHERE id = ? AND projet_id = ?");
+    $stmt->execute([$photoId, $projetId]);
+    $photoFile = $stmt->fetchColumn();
+
+    if ($photoFile) {
+        // Mettre à jour la photo principale du projet
+        $stmt = $pdo->prepare("UPDATE projets SET photo_principale = ? WHERE id = ?");
+        $stmt->execute([$photoFile, $projetId]);
+        setFlashMessage('success', 'Photo de couverture définie.');
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=photos');
+}
+
+// ========================================
 // AJAX: Mise à jour de l'ordre des photos
 // ========================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ajax_action']) && $_POST['ajax_action'] === 'update_photos_order') {
@@ -2022,6 +2185,121 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // ========================================
+// ACTIONS HEURES (POST)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'ajouter_heures') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hHeures = parseNumber($_POST['heures_nombre'] ?? 0);
+        $hDate = $_POST['heures_date'] ?? date('Y-m-d');
+        $hDescription = trim($_POST['heures_description'] ?? '');
+        $hTauxManuel = parseNumber($_POST['heures_taux'] ?? 0);
+        $hStatut = $_POST['heures_statut'] ?? 'approuvee';
+
+        // Gérer la sélection multiple d'employés
+        $targetUserIds = [];
+        if (!empty($_POST['heures_user_ids']) && is_array($_POST['heures_user_ids'])) {
+            // Mode multi-employés
+            $targetUserIds = array_map('intval', $_POST['heures_user_ids']);
+        } elseif (!empty($_POST['heures_user_id'])) {
+            // Mode employé unique
+            $targetUserIds = [(int)$_POST['heures_user_id']];
+        }
+
+        if (!empty($targetUserIds) && $hHeures > 0) {
+            $nbAjoutes = 0;
+            $nomsAjoutes = [];
+
+            foreach ($targetUserIds as $targetUserId) {
+                // Récupérer le taux horaire de l'employé si pas de taux manuel
+                $stmt = $pdo->prepare("SELECT taux_horaire, CONCAT(prenom, ' ', nom) as nom_complet FROM users WHERE id = ? AND actif = 1");
+                $stmt->execute([$targetUserId]);
+                $targetUser = $stmt->fetch();
+
+                if ($targetUser) {
+                    $hTaux = $hTauxManuel > 0 ? $hTauxManuel : (float)$targetUser['taux_horaire'];
+
+                    $stmt = $pdo->prepare("INSERT INTO heures_travaillees (user_id, projet_id, date_travail, heures, description, taux_horaire, statut) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$targetUserId, $projetId, $hDate, $hHeures, $hDescription, $hTaux, $hStatut]);
+
+                    $nbAjoutes++;
+                    $nomsAjoutes[] = $targetUser['nom_complet'];
+                }
+            }
+
+            if ($nbAjoutes === 1) {
+                setFlashMessage('success', number_format($hHeures, 1) . ' heures ajoutées pour ' . $nomsAjoutes[0] . '!');
+            } elseif ($nbAjoutes > 1) {
+                $listeEmployes = '<ul class="mb-0 mt-2">';
+                foreach ($nomsAjoutes as $nom) {
+                    $listeEmployes .= '<li>' . e($nom) . ' - ' . number_format($hHeures, 1) . 'h</li>';
+                }
+                $listeEmployes .= '</ul>';
+                setFlashMessage('success', 'Heures ajoutées pour ' . $nbAjoutes . ' employés:' . $listeEmployes);
+            }
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'modifier_heures') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hId = (int)($_POST['heures_id'] ?? 0);
+        $hUserId = (int)($_POST['heures_user_id'] ?? 0);
+        $hHeures = parseNumber($_POST['heures_nombre'] ?? 0);
+        $hDate = $_POST['heures_date'] ?? date('Y-m-d');
+        $hDescription = trim($_POST['heures_description'] ?? '');
+        $hTaux = parseNumber($_POST['heures_taux'] ?? 0);
+        $hStatut = $_POST['heures_statut'] ?? 'approuvee';
+
+        if ($hId > 0 && $hUserId > 0 && $hHeures > 0) {
+            $stmt = $pdo->prepare("UPDATE heures_travaillees SET user_id = ?, date_travail = ?, heures = ?, description = ?, taux_horaire = ?, statut = ? WHERE id = ? AND projet_id = ?");
+            $stmt->execute([$hUserId, $hDate, $hHeures, $hDescription, $hTaux, $hStatut, $hId, $projetId]);
+            setFlashMessage('success', 'Heures modifiées!');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'supprimer_heures') {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hId = (int)($_POST['heures_id'] ?? 0);
+        if ($hId > 0) {
+            $stmt = $pdo->prepare("DELETE FROM heures_travaillees WHERE id = ? AND projet_id = ?");
+            $stmt->execute([$hId, $projetId]);
+            setFlashMessage('warning', 'Entrée supprimée.');
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+// ========================================
+// ACTION APPROUVER/REJETER HEURES (POST)
+// ========================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['approuver_heures', 'rejeter_heures'])) {
+    if (verifyCSRFToken($_POST['csrf_token'] ?? '')) {
+        $hId = (int)($_POST['heures_id'] ?? 0);
+        $action = $_POST['action'];
+
+        if ($hId > 0) {
+            $nouveauStatut = ($action === 'approuver_heures') ? 'approuvee' : 'rejetee';
+            $adminId = $_SESSION['user_id'] ?? null;
+
+            $stmt = $pdo->prepare("
+                UPDATE heures_travaillees
+                SET statut = ?, approuve_par = ?, date_approbation = NOW()
+                WHERE id = ? AND projet_id = ?
+            ");
+            $stmt->execute([$nouveauStatut, $adminId, $hId, $projetId]);
+
+            $message = ($action === 'approuver_heures') ? 'Heures approuvées!' : 'Heures rejetées.';
+            $type = ($action === 'approuver_heures') ? 'success' : 'warning';
+            setFlashMessage($type, $message);
+        }
+    }
+    redirect('/admin/projets/detail.php?id=' . $projetId . '&tab=temps');
+}
+
+// ========================================
 // DONNÉES POUR ONGLET TEMPS
 // ========================================
 $heuresProjet = [];
@@ -2083,7 +2361,7 @@ try {
 
 // Liste des employés actifs pour le formulaire
 $employesActifs = $pdo->query("
-    SELECT id, CONCAT(prenom, ' ', nom) as nom_complet
+    SELECT id, CONCAT(prenom, ' ', nom) as nom_complet, taux_horaire
     FROM users WHERE actif = 1 AND role IN ('employe', 'admin')
     ORDER BY prenom, nom
 ")->fetchAll();
@@ -2172,7 +2450,10 @@ try {
 $facturesProjet = [];
 try {
     $stmt = $pdo->prepare("
-        SELECT f.*, e.nom as etape_nom
+        SELECT f.*, e.nom as etape_nom,
+               (SELECT COUNT(*) FROM facture_lignes fl WHERE fl.facture_id = f.id) as nb_articles_ia,
+               (SELECT GROUP_CONCAT(CONCAT_WS(' ', fl.description, fl.sku) SEPARATOR ' || ')
+                FROM facture_lignes fl WHERE fl.facture_id = f.id) as lignes_texte
         FROM factures f
         LEFT JOIN budget_etapes e ON f.etape_id = e.id
         WHERE f.projet_id = ?
@@ -2180,6 +2461,40 @@ try {
     ");
     $stmt->execute([$projetId]);
     $facturesProjet = $stmt->fetchAll();
+} catch (Exception $e) {}
+
+// ========================================
+// DONNÉES POUR ONGLET SOUS-TRAITANTS
+// ========================================
+$sousTraitantsProjet = [];
+try {
+    // Auto-créer la table si elle n'existe pas
+    $pdo->query("SELECT 1 FROM sous_traitants LIMIT 1");
+} catch (Exception $e) {
+    // Exécuter la migration
+    $sqlFile = __DIR__ . '/../../sql/migration_sous_traitants.sql';
+    if (file_exists($sqlFile)) {
+        $sql = file_get_contents($sqlFile);
+        $statements = array_filter(array_map('trim', explode(';', $sql)));
+        foreach ($statements as $statement) {
+            if (!empty($statement) && stripos($statement, '--') !== 0) {
+                try {
+                    $pdo->exec($statement);
+                } catch (Exception $e2) {}
+            }
+        }
+    }
+}
+try {
+    $stmt = $pdo->prepare("
+        SELECT st.*, e.nom as etape_nom
+        FROM sous_traitants st
+        LEFT JOIN budget_etapes e ON st.etape_id = e.id
+        WHERE st.projet_id = ?
+        ORDER BY st.date_facture DESC, st.id DESC
+    ");
+    $stmt->execute([$projetId]);
+    $sousTraitantsProjet = $stmt->fetchAll();
 } catch (Exception $e) {}
 
 include '../../includes/header.php';
@@ -2252,64 +2567,40 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
             </div>
         </div>
 
-        <!-- Onglets de navigation -->
-        <ul class="nav nav-tabs mb-0" id="projetTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'base' ? 'active' : '' ?>" id="base-tab" data-bs-toggle="tab" data-bs-target="#base" type="button" role="tab">
-                    <i class="bi bi-house-door me-1"></i>Base
+        <!-- Onglets de navigation (réorganisables) -->
+        <div class="d-flex align-items-center">
+            <ul class="nav nav-tabs mb-0 flex-grow-1" id="projetTabs" role="tablist">
+                <?php foreach ($userTabsConfig as $tabItem): ?>
+                    <?php if ($tabItem['type'] === 'divider'): ?>
+                        <li class="nav-item tab-divider" data-type="divider">
+                            <span class="nav-divider"></span>
+                            <button type="button" class="btn-remove-divider d-none" title="Supprimer le séparateur">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </li>
+                    <?php else: ?>
+                        <li class="nav-item" role="presentation" data-type="tab" data-tab-id="<?= $tabItem['id'] ?>">
+                            <button class="nav-link <?= $tab === $tabItem['id'] ? 'active' : '' ?>"
+                                    id="<?= $tabItem['id'] ?>-tab"
+                                    data-bs-toggle="tab"
+                                    data-bs-target="#<?= $tabItem['id'] ?>"
+                                    type="button"
+                                    role="tab">
+                                <i class="bi <?= $tabItem['icon'] ?> me-1"></i><?= $tabItem['label'] ?>
+                            </button>
+                        </li>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </ul>
+            <div class="tabs-controls ms-2 d-flex gap-1">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddDivider" title="Ajouter un séparateur" style="display: none;">
+                    <i class="bi bi-grip-vertical"></i>
                 </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'financement' ? 'active' : '' ?>" id="financement-tab" data-bs-toggle="tab" data-bs-target="#financement" type="button" role="tab">
-                    <i class="bi bi-bank me-1"></i>Financement
+                <button type="button" class="btn btn-sm btn-outline-primary" id="btnToggleTabsEdit" title="Réorganiser les onglets">
+                    <i class="bi bi-arrows-move"></i>
                 </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'budgets' ? 'active' : '' ?>" id="budgets-tab" data-bs-toggle="tab" data-bs-target="#budgets" type="button" role="tab">
-                    <i class="bi bi-wallet2 me-1"></i>Budgets
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'maindoeuvre' ? 'active' : '' ?>" id="maindoeuvre-tab" data-bs-toggle="tab" data-bs-target="#maindoeuvre" type="button" role="tab">
-                    <i class="bi bi-people me-1"></i>Main-d'œuvre
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'temps' ? 'active' : '' ?>" id="temps-tab" data-bs-toggle="tab" data-bs-target="#temps" type="button" role="tab">
-                    <i class="bi bi-clock me-1"></i>Temps
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'photos' ? 'active' : '' ?>" id="photos-tab" data-bs-toggle="tab" data-bs-target="#photos" type="button" role="tab">
-                    <i class="bi bi-camera me-1"></i>Photos
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'factures' ? 'active' : '' ?>" id="factures-tab" data-bs-toggle="tab" data-bs-target="#factures" type="button" role="tab">
-                    <i class="bi bi-receipt me-1"></i>Factures
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'checklist' ? 'active' : '' ?>" id="checklist-tab" data-bs-toggle="tab" data-bs-target="#checklist" type="button" role="tab">
-                    <i class="bi bi-list-check me-1"></i>Checklist
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'documents' ? 'active' : '' ?>" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documents" type="button" role="tab">
-                    <i class="bi bi-folder me-1"></i>Documents
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'googlesheet' ? 'active' : '' ?>" id="googlesheet-tab" data-bs-toggle="tab" data-bs-target="#googlesheet" type="button" role="tab">
-                    <i class="bi bi-table me-1"></i>Google Sheet
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link <?= $tab === 'construction' ? 'active' : '' ?>" id="construction-tab" data-bs-toggle="tab" data-bs-target="#construction" type="button" role="tab">
-                    <i class="bi bi-hammer me-1"></i>Construction
-                </button>
-            </li>
-        </ul>
+            </div>
+        </div>
     </div>
 
     <?php displayFlashMessage(); ?>
@@ -2386,6 +2677,185 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
         </div>
     </div>
 
+    <!-- Modal Ajouter des heures -->
+    <div class="modal fade" id="modalHeures" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" id="formAjoutHeures">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="ajouter_heures">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-clock me-2"></i>Ajouter des heures</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between align-items-center">
+                                <span>Employé *</span>
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalMultiEmployesHeures">
+                                    <i class="bi bi-people me-1"></i>Plusieurs
+                                </button>
+                            </label>
+                            <select class="form-select" name="heures_user_id" id="selectEmployeHeures" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($employesActifs as $emp): ?>
+                                <option value="<?= $emp['id'] ?>" data-taux="<?= $emp['taux_horaire'] ?? 0 ?>"><?= e($emp['nom_complet']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <!-- Hidden inputs pour les employés multiples -->
+                            <div id="multiEmployesHeuresHidden"></div>
+                            <div id="multiEmployesHeuresPreview" class="mt-2 d-none">
+                                <small class="text-primary"><i class="bi bi-people-fill me-1"></i><span id="multiEmployesHeuresCount"></span> employés sélectionnés</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Heures *</label>
+                                <input type="number" class="form-control" name="heures_nombre" step="0.5" min="0.5" placeholder="8" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Taux horaire</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="heures_taux" id="heures_taux_add" placeholder="Auto">
+                                    <span class="input-group-text">$/h</span>
+                                </div>
+                                <small class="text-muted">Laisser vide = taux de l'employé</small>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-control" name="heures_date" value="<?= date('Y-m-d') ?>" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" name="heures_statut">
+                                <option value="approuvee" selected>Approuvée</option>
+                                <option value="en_attente">En attente</option>
+                                <option value="rejetee">Rejetée</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="heures_description" rows="2" placeholder="Optionnel..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check me-1"></i>Ajouter les heures
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Modifier des heures -->
+    <div class="modal fade" id="modalEditHeures" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST">
+                    <?php csrfField(); ?>
+                    <input type="hidden" name="action" value="modifier_heures">
+                    <input type="hidden" name="heures_id" id="edit_heures_id">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier les heures</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Employé *</label>
+                            <select class="form-select" name="heures_user_id" id="edit_heures_user" required>
+                                <option value="">Sélectionner...</option>
+                                <?php foreach ($employesActifs as $emp): ?>
+                                <option value="<?= $emp['id'] ?>" data-taux="<?= $emp['taux_horaire'] ?? 0 ?>"><?= e($emp['nom_complet']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Heures *</label>
+                                <input type="number" class="form-control" name="heures_nombre" id="edit_heures_nombre" step="0.5" min="0.5" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="form-label">Taux horaire</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="heures_taux" id="edit_heures_taux">
+                                    <span class="input-group-text">$/h</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Date *</label>
+                            <input type="date" class="form-control" name="heures_date" id="edit_heures_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" name="heures_statut" id="edit_heures_statut">
+                                <option value="approuvee">Approuvée</option>
+                                <option value="en_attente">En attente</option>
+                                <option value="rejetee">Rejetée</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" name="heures_description" id="edit_heures_description" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check me-1"></i>Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Sélection Multiple Employés pour les heures -->
+    <div class="modal fade" id="modalMultiEmployesHeures" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-people me-2"></i>Sélectionner les employés</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex gap-2 mb-3">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllEmployesHeures()">
+                            <i class="bi bi-check-all me-1"></i>Tout sélectionner
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAllEmployesHeures()">
+                            <i class="bi bi-x-lg me-1"></i>Tout désélectionner
+                        </button>
+                    </div>
+                    <div class="list-group" style="max-height: 400px; overflow-y: auto;">
+                        <?php foreach ($employesActifs as $emp): ?>
+                        <label class="list-group-item d-flex align-items-center">
+                            <input type="checkbox" class="form-check-input me-3 employe-heures-checkbox"
+                                   value="<?= $emp['id'] ?>"
+                                   data-nom="<?= e($emp['nom_complet']) ?>"
+                                   data-taux="<?= $emp['taux_horaire'] ?? 0 ?>">
+                            <span><?= e($emp['nom_complet']) ?></span>
+                            <?php if (!empty($emp['taux_horaire'])): ?>
+                            <small class="text-muted ms-auto"><?= formatMoney($emp['taux_horaire']) ?>/h</small>
+                            <?php endif; ?>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <span class="me-auto text-muted"><span id="modalEmployeHeuresCount">0</span> sélectionné(s)</span>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="confirmerMultiEmployesHeures()">
+                        <i class="bi bi-check me-1"></i>Confirmer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- TAB PHOTOS --> <?php include 'partials/tab-photos.php'; ?>
 
     <!-- MODAL AJOUT PHOTO -->
@@ -2457,6 +2927,8 @@ button:not(.collapsed) .cat-chevron { transform: rotate(90deg); }
 
     <!-- TAB FACTURES -->
     <?php include 'partials/tab-factures.php'; ?>
+    <!-- TAB SOUS-TRAITANTS -->
+    <?php include 'partials/tab-soustraitants.php'; ?>
     <!-- TAB CHECKLIST -->
     <?php include 'partials/tab-checklist.php'; ?>
 
@@ -2519,17 +2991,57 @@ $valeurPotentielle = $indicateurs['valeur_potentielle'];
 
 // Heures travaillées
 $heuresParJour = [];
+$personnesParJour = [];
 try {
-    $stmt = $pdo->prepare("SELECT date_travail as jour, SUM(heures) as total FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_travail ORDER BY date_travail");
+    $stmt = $pdo->prepare("SELECT date_travail as jour, SUM(heures) as total, COUNT(DISTINCT user_id) as nb_personnes FROM heures_travaillees WHERE projet_id = ? AND statut != 'rejetee' GROUP BY date_travail ORDER BY date_travail");
     $stmt->execute([$projetId]);
-    foreach ($stmt->fetchAll() as $row) $heuresParJour[$row['jour']] = (float)$row['total'];
+    foreach ($stmt->fetchAll() as $row) {
+        $heuresParJour[$row['jour']] = (float)$row['total'];
+        $personnesParJour[$row['jour']] = (int)$row['nb_personnes'];
+    }
 } catch (Exception $e) {}
 
+// Générer tous les jours entre début travaux et aujourd'hui (ou fin prévue)
 $jourLabelsHeures = [];
 $jourDataHeures = [];
-foreach ($heuresParJour as $jour => $heures) {
-    $jourLabelsHeures[] = date('d M', strtotime($jour));
-    $jourDataHeures[] = $heures;
+$jourColorsHeures = [];
+$jourPersonnesHeures = [];
+
+$dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+$dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+
+if ($dateDebutTravaux && !empty($heuresParJour)) {
+    $debut = new DateTime($dateDebutTravaux);
+    $aujourdhui = new DateTime();
+    $fin = $dateFinPrevue ? new DateTime($dateFinPrevue) : $aujourdhui;
+
+    // Utiliser la date la plus petite entre fin prévue et aujourd'hui
+    $finCalcul = $fin < $aujourdhui ? $fin : $aujourdhui;
+
+    if ($debut <= $finCalcul) {
+        $interval = new DateInterval('P1D');
+        $periode = new DatePeriod($debut, $interval, $finCalcul->modify('+1 day'));
+
+        foreach ($periode as $date) {
+            $dateStr = $date->format('Y-m-d');
+            $heures = $heuresParJour[$dateStr] ?? 0;
+            $nbPersonnes = $personnesParJour[$dateStr] ?? 0;
+
+            $jourLabelsHeures[] = $date->format('d M');
+            $jourDataHeures[] = $heures;
+            $jourPersonnesHeures[] = $nbPersonnes;
+            // Bleu pour jours travaillés, rouge pâle pour jours non travaillés
+            $jourColorsHeures[] = $heures > 0 ? 'rgba(59, 130, 246, 0.7)' : 'rgba(239, 68, 68, 0.25)';
+        }
+    }
+} else {
+    // Fallback: afficher seulement les jours avec heures (ancien comportement)
+    foreach ($heuresParJour as $jour => $heures) {
+        $jourLabelsHeures[] = date('d M', strtotime($jour));
+        $jourDataHeures[] = $heures;
+        $jourPersonnesHeures[] = $personnesParJour[$jour] ?? 0;
+        $jourColorsHeures[] = 'rgba(59, 130, 246, 0.7)';
+    }
 }
 
 // Achats par jour (comme heures travaillées)
@@ -2743,7 +3255,33 @@ window.initDetailCharts = function () {
     });
     }
 
-// Chart 2: Heures travaillées
+// Chart 2: Heures travaillées (bleu = travaillé, rouge pâle = non travaillé)
+var personnesParJourData = <?= json_encode($jourPersonnesHeures ?: [0]) ?>;
+
+// Plugin pour afficher le nombre de personnes au-dessus des barres
+var personnesLabelPlugin = {
+    id: 'personnesLabel',
+    afterDatasetsDraw: function(chart) {
+        var ctx = chart.ctx;
+        chart.data.datasets.forEach(function(dataset, i) {
+            var meta = chart.getDatasetMeta(i);
+            meta.data.forEach(function(bar, index) {
+                var nbPersonnes = personnesParJourData[index] || 0;
+                // Afficher seulement si heures > 0 et personnes > 0
+                if (dataset.data[index] > 0 && nbPersonnes > 0) {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(148, 163, 184, 0.7)';
+                    ctx.font = '9px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    ctx.fillText(nbPersonnes + 'p', bar.x, bar.y - 3);
+                    ctx.restore();
+                }
+            });
+        });
+    }
+};
+
 if (canvasBudget) {
     window.chartBudget = new Chart(canvasBudget, {
         type: 'bar',
@@ -2751,13 +3289,59 @@ if (canvasBudget) {
             labels: <?= json_encode($jourLabelsHeures ?: ['Aucune']) ?>,
             datasets: [{
                 data: <?= json_encode($jourDataHeures ?: [0]) ?>,
-                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                backgroundColor: <?= json_encode($jourColorsHeures ?: ['rgba(59, 130, 246, 0.7)']) ?>,
                 borderRadius: 6,
                 borderSkipped: false,
-                hoverBackgroundColor: 'rgba(59, 130, 246, 0.9)'
+                hoverBackgroundColor: <?= json_encode(array_map(function($c) {
+                    // Rendre plus foncé au hover
+                    return str_contains($c, '246') ? 'rgba(59, 130, 246, 0.9)' : 'rgba(239, 68, 68, 0.4)';
+                }, $jourColorsHeures ?: ['rgba(59, 130, 246, 0.9)'])) ?>,
+                minBarLength: 3
             }]
         },
-        options: optionsBar
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: { top: 15 }
+            },
+            animation: {
+                duration: 1200,
+                easing: 'easeOutQuart',
+                delay: (context) => context.dataIndex * 150
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                    titleFont: { size: 12, weight: '600' },
+                    bodyFont: { size: 11 },
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context) {
+                            var heures = context.raw;
+                            var nbPersonnes = personnesParJourData[context.dataIndex] || 0;
+                            if (heures > 0 && nbPersonnes > 0) {
+                                return heures + 'h · ' + nbPersonnes + ' pers.';
+                            }
+                            return heures > 0 ? heures + 'h' : 'Aucune heure';
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10 }, color: '#94a3b8' }
+                },
+                y: {
+                    grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                    ticks: { callback: v => v+'h', font: { size: 10 }, color: '#94a3b8' }
+                }
+            }
+        },
+        plugins: [personnesLabelPlugin]
     });
 }
 
@@ -3422,6 +4006,15 @@ function filtrerFactures() {
     const statut = document.getElementById('filtreFacturesStatut').value;
     const categorie = document.getElementById('filtreFacturesCategorie').value;
     const fournisseur = document.getElementById('filtreFacturesFournisseur').value;
+    const searchInput = document.getElementById('searchFactures');
+    const search = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // Nouveaux filtres
+    const dateDebut = document.getElementById('filtreFacturesDateDebut')?.value || '';
+    const dateFin = document.getElementById('filtreFacturesDateFin')?.value || '';
+    const montantMin = parseFloat(document.getElementById('filtreFacturesMontantMin')?.value) || 0;
+    const montantMax = parseFloat(document.getElementById('filtreFacturesMontantMax')?.value) || Infinity;
+
     const factures = document.querySelectorAll('.facture-row');
     let count = 0;
     let total = 0;
@@ -3431,12 +4024,41 @@ function filtrerFactures() {
         const rowCategorie = row.dataset.categorie;
         const rowFournisseur = row.dataset.fournisseur;
         const rowMontant = parseFloat(row.dataset.montant) || 0;
+        const rowDate = row.dataset.date || '';
+        const rowProduits = row.dataset.produits || '';
 
         const matchStatut = !statut || rowStatut === statut;
         const matchCategorie = !categorie || rowCategorie === categorie;
         const matchFournisseur = !fournisseur || rowFournisseur === fournisseur;
 
-        if (matchStatut && matchCategorie && matchFournisseur) {
+        // Filtre par date
+        let matchDate = true;
+        if (dateDebut && rowDate) {
+            matchDate = rowDate >= dateDebut;
+        }
+        if (dateFin && rowDate && matchDate) {
+            matchDate = rowDate <= dateFin;
+        }
+
+        // Filtre par montant
+        const matchMontant = rowMontant >= montantMin && rowMontant <= montantMax;
+
+        // Recherche textuelle dans fournisseur, catégorie, date, et produits
+        let matchSearch = true;
+        if (search) {
+            const searchTerms = search.split(' ').filter(t => t.length > 0);
+            const searchableText = [
+                rowFournisseur.toLowerCase(),
+                rowCategorie.toLowerCase(),
+                rowDate,
+                rowProduits
+            ].join(' ');
+
+            // Tous les termes doivent correspondre
+            matchSearch = searchTerms.every(term => searchableText.includes(term));
+        }
+
+        if (matchStatut && matchCategorie && matchFournisseur && matchSearch && matchDate && matchMontant) {
             row.style.display = '';
             count++;
             total += rowMontant;
@@ -3453,10 +4075,131 @@ function resetFiltresFactures() {
     document.getElementById('filtreFacturesStatut').value = '';
     document.getElementById('filtreFacturesCategorie').value = '';
     document.getElementById('filtreFacturesFournisseur').value = '';
+    const searchInput = document.getElementById('searchFactures');
+    if (searchInput) searchInput.value = '';
+    // Réinitialiser les nouveaux filtres
+    const dateDebut = document.getElementById('filtreFacturesDateDebut');
+    const dateFin = document.getElementById('filtreFacturesDateFin');
+    const montantMin = document.getElementById('filtreFacturesMontantMin');
+    const montantMax = document.getElementById('filtreFacturesMontantMax');
+    if (dateDebut) dateDebut.value = '';
+    if (dateFin) dateFin.value = '';
+    if (montantMin) montantMin.value = '';
+    if (montantMax) montantMax.value = '';
+    // Réinitialiser le tri
+    resetFacturesSort();
     filtrerFactures();
 }
 
-// Toggle paiement facture via AJAXfunction togglePaiementFacture(factureId, element) {    fetch('<?= url('/admin/factures/liste.php') ?>?toggle_paiement=1&id=' + factureId, {        headers: { 'X-Requested-With': 'XMLHttpRequest' }    })    .then(response => response.json())    .then(data => {        if (data.est_payee) {            element.className = 'badge bg-success text-white';            element.innerHTML = '<i class="bi bi-check-circle me-1"></i>Payé';        } else {            element.className = 'badge bg-primary text-white';            element.innerHTML = '<i class="bi bi-clock me-1"></i>Non payé';        }    })    .catch(err => {        window.location.reload();    });}
+// Tri des factures par colonnes
+let facturesSortColumn = null;
+let facturesSortDirection = 'asc';
+
+function sortFactures(column) {
+    const tbody = document.querySelector('#facturesTable tbody');
+    if (!tbody) return;
+
+    // Toggle direction si même colonne
+    if (facturesSortColumn === column) {
+        facturesSortDirection = facturesSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+        facturesSortColumn = column;
+        facturesSortDirection = 'asc';
+    }
+
+    // Mettre à jour les icônes
+    document.querySelectorAll('.sortable-header .sort-icon').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up text-muted ms-1 sort-icon';
+    });
+    const activeHeader = document.querySelector(`.sortable-header[data-sort="${column}"] .sort-icon`);
+    if (activeHeader) {
+        activeHeader.className = `bi bi-arrow-${facturesSortDirection === 'asc' ? 'up' : 'down'} text-warning ms-1 sort-icon`;
+    }
+
+    // Trier les lignes
+    const rows = Array.from(tbody.querySelectorAll('.facture-row'));
+    rows.sort((a, b) => {
+        let valA, valB;
+
+        switch(column) {
+            case 'date':
+                valA = a.dataset.date || '';
+                valB = b.dataset.date || '';
+                break;
+            case 'fournisseur':
+                valA = (a.dataset.fournisseur || '').toLowerCase();
+                valB = (b.dataset.fournisseur || '').toLowerCase();
+                break;
+            case 'categorie':
+                valA = (a.dataset.categorie || '').toLowerCase();
+                valB = (b.dataset.categorie || '').toLowerCase();
+                break;
+            case 'montant':
+                valA = parseFloat(a.dataset.montant) || 0;
+                valB = parseFloat(b.dataset.montant) || 0;
+                break;
+            case 'paiement':
+                valA = a.dataset.paiement === '1' ? 1 : 0;
+                valB = b.dataset.paiement === '1' ? 1 : 0;
+                break;
+            default:
+                return 0;
+        }
+
+        let comparison = 0;
+        if (typeof valA === 'number' && typeof valB === 'number') {
+            comparison = valA - valB;
+        } else {
+            comparison = valA.localeCompare(valB, 'fr');
+        }
+
+        return facturesSortDirection === 'asc' ? comparison : -comparison;
+    });
+
+    // Réordonner le DOM
+    rows.forEach(row => tbody.appendChild(row));
+}
+
+function resetFacturesSort() {
+    facturesSortColumn = null;
+    facturesSortDirection = 'asc';
+    document.querySelectorAll('.sortable-header .sort-icon').forEach(icon => {
+        icon.className = 'bi bi-arrow-down-up text-muted ms-1 sort-icon';
+    });
+}
+
+// Initialiser les événements de tri
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#facturesTable .sortable-header').forEach(header => {
+        header.addEventListener('click', function(e) {
+            e.preventDefault();
+            const column = this.dataset.sort;
+            if (column) sortFactures(column);
+        });
+    });
+});
+
+// Toggle paiement facture via AJAX
+function togglePaiementFacture(factureId, element) {
+    fetch('<?= url('/admin/factures/liste.php') ?>?toggle_paiement=1&id=' + factureId, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.est_payee) {
+            element.className = 'badge bg-success text-white';
+            element.innerHTML = '<i class="bi bi-check-circle me-1"></i>Payé';
+        } else {
+            element.className = 'badge bg-primary text-white';
+            element.innerHTML = '<i class="bi bi-clock me-1"></i>Non payé';
+        }
+        // Mettre à jour le data attribute pour le tri
+        element.closest('.facture-row').dataset.paiement = data.est_payee ? '1' : '0';
+    })
+    .catch(err => {
+        window.location.reload();
+    });
+}
 // Variable pour stocker les fichiers convertis
 let adminConvertedFiles = [];
 
@@ -4104,6 +4847,375 @@ document.querySelectorAll('.change-facture-status').forEach(link => {
         });
     });
 });
+
+// ===== ÉDITION DES HEURES =====
+// Stockage temporaire des données pour le modal d'édition
+var editHeuresData = null;
+
+// Gestionnaire pour remplir les champs APRÈS ouverture complète du modal
+document.getElementById('modalEditHeures')?.addEventListener('shown.bs.modal', function() {
+    if (!editHeuresData) return;
+
+    const { heuresId, userId, heures, taux, dateVal, statut, description } = editHeuresData;
+    const selectUser = document.getElementById('edit_heures_user');
+
+    // Remplir les champs
+    document.getElementById('edit_heures_id').value = heuresId;
+    document.getElementById('edit_heures_nombre').value = heures;
+    document.getElementById('edit_heures_taux').value = taux;
+    document.getElementById('edit_heures_date').value = dateVal;
+    document.getElementById('edit_heures_statut').value = statut;
+    document.getElementById('edit_heures_description').value = description;
+
+    // Sélectionner l'employé
+    if (selectUser && userId) {
+        let found = false;
+        for (let i = 0; i < selectUser.options.length; i++) {
+            if (selectUser.options[i].value == userId) {
+                selectUser.selectedIndex = i;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            selectUser.selectedIndex = 0;
+        }
+    }
+
+    console.log('Edit heures - champs remplis après ouverture modal, date:', dateVal);
+});
+
+// Utiliser la délégation d'événements pour être plus robuste
+document.body.addEventListener('click', function(e) {
+    const btn = e.target.closest('.btn-edit-heures');
+    if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Récupérer et stocker les valeurs depuis les attributs data-*
+        editHeuresData = {
+            heuresId: btn.getAttribute('data-id') || '',
+            userId: btn.getAttribute('data-user') || '',
+            heures: btn.getAttribute('data-heures') || '',
+            taux: btn.getAttribute('data-taux') || '',
+            dateVal: btn.getAttribute('data-date') || '',
+            statut: btn.getAttribute('data-statut') || 'approuvee',
+            description: btn.getAttribute('data-description') || ''
+        };
+
+        console.log('Edit heures - données stockées, date:', editHeuresData.dateVal);
+
+        const modalEl = document.getElementById('modalEditHeures');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+});
+
+// Auto-remplir le taux horaire quand on change d'employé (modal ajout)
+const selectUserAdd = document.querySelector('#modalHeures select[name="heures_user_id"]');
+if (selectUserAdd) {
+    selectUserAdd.addEventListener('change', function() {
+        const option = this.options[this.selectedIndex];
+        const taux = option.dataset.taux || '';
+        document.getElementById('heures_taux_add').placeholder = taux > 0 ? taux + ' $/h (auto)' : 'Auto';
+    });
+}
+
+// ===== SÉLECTION MULTIPLE EMPLOYÉS POUR LES HEURES =====
+var selectedEmployesHeures = [];
+
+document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', updateModalCountHeures);
+});
+
+function updateModalCountHeures() {
+    var count = document.querySelectorAll('.employe-heures-checkbox:checked').length;
+    document.getElementById('modalEmployeHeuresCount').textContent = count;
+}
+
+function selectAllEmployesHeures() {
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = true;
+    });
+    updateModalCountHeures();
+}
+
+function deselectAllEmployesHeures() {
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+    updateModalCountHeures();
+}
+
+function confirmerMultiEmployesHeures() {
+    var checkboxes = document.querySelectorAll('.employe-heures-checkbox:checked');
+    var hiddenDiv = document.getElementById('multiEmployesHeuresHidden');
+    var previewDiv = document.getElementById('multiEmployesHeuresPreview');
+    var countSpan = document.getElementById('multiEmployesHeuresCount');
+    var selectUnique = document.getElementById('selectEmployeHeures');
+
+    // Vider les hidden inputs précédents
+    if (hiddenDiv) hiddenDiv.innerHTML = '';
+    selectedEmployesHeures = [];
+
+    if (checkboxes.length > 1) {
+        // Mode multi-employés
+        checkboxes.forEach(function(cb) {
+            if (hiddenDiv) {
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'heures_user_ids[]';
+                input.value = cb.value;
+                hiddenDiv.appendChild(input);
+            }
+            selectedEmployesHeures.push(cb.dataset.nom);
+        });
+
+        // Désactiver le select unique et retirer le required
+        if (selectUnique) {
+            selectUnique.disabled = true;
+            selectUnique.name = '';
+            selectUnique.removeAttribute('required');
+        }
+        if (previewDiv) {
+            previewDiv.classList.remove('d-none');
+            countSpan.textContent = checkboxes.length;
+        }
+    } else if (checkboxes.length === 1) {
+        // Un seul sélectionné - utiliser le mode normal
+        if (selectUnique) {
+            selectUnique.disabled = false;
+            selectUnique.name = 'heures_user_id';
+            selectUnique.setAttribute('required', 'required');
+            selectUnique.value = checkboxes[0].value;
+        }
+        if (previewDiv) previewDiv.classList.add('d-none');
+    } else {
+        // Aucun sélectionné - réactiver le select
+        if (selectUnique) {
+            selectUnique.disabled = false;
+            selectUnique.name = 'heures_user_id';
+            selectUnique.setAttribute('required', 'required');
+        }
+        if (previewDiv) previewDiv.classList.add('d-none');
+    }
+
+    // Fermer le modal
+    bootstrap.Modal.getInstance(document.getElementById('modalMultiEmployesHeures')).hide();
+}
+
+// Réinitialiser quand on ouvre le modal de sélection
+document.getElementById('modalMultiEmployesHeures')?.addEventListener('show.bs.modal', function() {
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = selectedEmployesHeures.includes(cb.dataset.nom);
+    });
+    updateModalCountHeures();
+});
+
+// Réinitialiser quand on ferme le modal principal d'ajout d'heures
+document.getElementById('modalHeures')?.addEventListener('hidden.bs.modal', function() {
+    // Réinitialiser le formulaire
+    var hiddenDiv = document.getElementById('multiEmployesHeuresHidden');
+    var previewDiv = document.getElementById('multiEmployesHeuresPreview');
+    var selectUnique = document.getElementById('selectEmployeHeures');
+
+    if (hiddenDiv) hiddenDiv.innerHTML = '';
+    if (previewDiv) previewDiv.classList.add('d-none');
+    if (selectUnique) {
+        selectUnique.disabled = false;
+        selectUnique.name = 'heures_user_id';
+        selectUnique.setAttribute('required', 'required');
+        selectUnique.value = '';
+    }
+    selectedEmployesHeures = [];
+
+    // Décocher toutes les checkboxes
+    document.querySelectorAll('.employe-heures-checkbox').forEach(function(cb) {
+        cb.checked = false;
+    });
+});
+
+// ===== RÉORGANISATION DES ONGLETS =====
+(function() {
+    const tabsList = document.getElementById('projetTabs');
+    const btnToggle = document.getElementById('btnToggleTabsEdit');
+    const btnAddDivider = document.getElementById('btnAddDivider');
+    let isEditMode = false;
+    let sortableInstance = null;
+
+    // Données des onglets par défaut (pour référence)
+    const defaultTabsData = <?= json_encode($defaultTabs) ?>;
+
+    function getTabsConfig() {
+        const items = [];
+        tabsList.querySelectorAll('.nav-item').forEach(li => {
+            if (li.dataset.type === 'divider') {
+                items.push({ type: 'divider' });
+            } else if (li.dataset.tabId) {
+                const tabData = defaultTabsData.find(t => t.id === li.dataset.tabId);
+                if (tabData) {
+                    items.push(tabData);
+                }
+            }
+        });
+        return items;
+    }
+
+    function saveTabsConfig() {
+        const config = getTabsConfig();
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `ajax_action=save_tabs_config&tabs_order=${encodeURIComponent(JSON.stringify(config))}&csrf_token=<?= generateCSRFToken() ?>`
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Configuration sauvegardée', 'success');
+            }
+        })
+        .catch(err => console.error('Erreur sauvegarde onglets:', err));
+    }
+
+    function enterEditMode() {
+        isEditMode = true;
+        tabsList.classList.add('tabs-edit-mode');
+        btnToggle.classList.remove('btn-outline-primary');
+        btnToggle.classList.add('btn-primary');
+        btnToggle.innerHTML = '<i class="bi bi-check-lg"></i>';
+        btnAddDivider.style.display = 'inline-block';
+
+        // Afficher les boutons de suppression des séparateurs
+        tabsList.querySelectorAll('.btn-remove-divider').forEach(btn => btn.classList.remove('d-none'));
+
+        // Activer SortableJS
+        sortableInstance = new Sortable(tabsList, {
+            animation: 150,
+            ghostClass: 'tab-ghost',
+            chosenClass: 'tab-chosen',
+            dragClass: 'tab-drag',
+            handle: '.nav-item',
+            onEnd: function() {
+                saveTabsConfig();
+            }
+        });
+    }
+
+    function exitEditMode() {
+        isEditMode = false;
+        tabsList.classList.remove('tabs-edit-mode');
+        btnToggle.classList.remove('btn-primary');
+        btnToggle.classList.add('btn-outline-primary');
+        btnToggle.innerHTML = '<i class="bi bi-arrows-move"></i>';
+        btnAddDivider.style.display = 'none';
+
+        // Cacher les boutons de suppression
+        tabsList.querySelectorAll('.btn-remove-divider').forEach(btn => btn.classList.add('d-none'));
+
+        // Désactiver SortableJS
+        if (sortableInstance) {
+            sortableInstance.destroy();
+            sortableInstance = null;
+        }
+    }
+
+    btnToggle.addEventListener('click', function() {
+        if (isEditMode) {
+            exitEditMode();
+        } else {
+            enterEditMode();
+        }
+    });
+
+    btnAddDivider.addEventListener('click', function() {
+        const divider = document.createElement('li');
+        divider.className = 'nav-item tab-divider';
+        divider.dataset.type = 'divider';
+        divider.innerHTML = `
+            <span class="nav-divider"></span>
+            <button type="button" class="btn-remove-divider" title="Supprimer le séparateur">
+                <i class="bi bi-x"></i>
+            </button>
+        `;
+        tabsList.appendChild(divider);
+        saveTabsConfig();
+    });
+
+    // Supprimer un séparateur
+    tabsList.addEventListener('click', function(e) {
+        const btn = e.target.closest('.btn-remove-divider');
+        if (btn) {
+            btn.closest('.tab-divider').remove();
+            saveTabsConfig();
+        }
+    });
+})();
 </script>
+
+<style>
+/* Styles pour la réorganisation des onglets */
+.tabs-edit-mode .nav-item {
+    cursor: grab;
+}
+.tabs-edit-mode .nav-item:active {
+    cursor: grabbing;
+}
+.tab-ghost {
+    opacity: 0.4;
+}
+.tab-chosen {
+    background: rgba(13, 110, 253, 0.1);
+    border-radius: 0.375rem;
+}
+.tab-drag {
+    opacity: 0.9;
+}
+
+/* Séparateur d'onglets */
+.tab-divider {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    position: relative;
+}
+.nav-divider {
+    width: 2px;
+    height: 24px;
+    background: linear-gradient(to bottom, transparent, #6c757d, transparent);
+    margin: 0 2px;
+}
+.tabs-edit-mode .nav-divider {
+    background: linear-gradient(to bottom, transparent, #0d6efd, transparent);
+}
+.btn-remove-divider {
+    position: absolute;
+    top: -8px;
+    right: -4px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: none;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-remove-divider:hover {
+    background: #bb2d3b;
+}
+
+/* Animation mode édition */
+.tabs-edit-mode .nav-item {
+    transition: transform 0.15s;
+}
+.tabs-edit-mode .nav-item:hover {
+    transform: translateY(-2px);
+}
+</style>
 
 <?php include '../../includes/footer.php'; ?>

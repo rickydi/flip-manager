@@ -65,8 +65,8 @@ if ($wantThumb) {
                 $origWidth = imagesx($sourceImage);
                 $origHeight = imagesy($sourceImage);
 
-                // Taille cible de la miniature (max 300px)
-                $maxSize = 300;
+                // Taille cible de la miniature (max 500px pour meilleure qualité)
+                $maxSize = 500;
                 $ratio = min($maxSize / $origWidth, $maxSize / $origHeight);
 
                 // Si l'image est déjà petite, pas besoin de miniature
@@ -87,9 +87,9 @@ if ($wantThumb) {
 
                     imagecopyresampled($thumbImage, $sourceImage, 0, 0, 0, 0, $newWidth, $newHeight, $origWidth, $origHeight);
 
-                    // Sauvegarder en JPEG pour les miniatures (plus petit)
+                    // Sauvegarder en JPEG pour les miniatures (qualité améliorée)
                     $thumbPathJpg = preg_replace('/\.[^.]+$/', '.jpg', $thumbPath);
-                    if (imagejpeg($thumbImage, $thumbPathJpg, 75)) {
+                    if (imagejpeg($thumbImage, $thumbPathJpg, 85)) {
                         $thumbPath = $thumbPathJpg;
                         $thumbCreated = true;
                     }

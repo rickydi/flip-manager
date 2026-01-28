@@ -85,12 +85,12 @@ $employes = $stmt->fetchAll();
 
 // Construire la requête
 $sql = "
-    SELECT h.*, 
-           p.nom as projet_nom,
+    SELECT h.*,
+           COALESCE(p.nom, 'Projet supprimé') as projet_nom,
            CONCAT(u.prenom, ' ', u.nom) as employe_nom,
            CONCAT(a.prenom, ' ', a.nom) as approuve_par_nom
     FROM heures_travaillees h
-    JOIN projets p ON h.projet_id = p.id
+    LEFT JOIN projets p ON h.projet_id = p.id
     JOIN users u ON h.user_id = u.id
     LEFT JOIN users a ON h.approuve_par = a.id
     WHERE 1=1

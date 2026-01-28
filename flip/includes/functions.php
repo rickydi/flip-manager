@@ -153,6 +153,36 @@ function getUserActivity($pdo, $userId, $limit = 50) {
 }
 
 /**
+ * Récupère l'historique complet d'activité d'un utilisateur avec pagination
+ * L'historique est conservé indéfiniment (aucune purge automatique)
+ * @param PDO $pdo
+ * @param int $userId
+ * @param int $page
+ * @param int $perPage
+ * @return array ['data' => array, 'total' => int, 'pages' => int]
+ */
+function getUserActivityPaginated($pdo, $userId, $page = 1, $perPage = 100) {
+    // Compter le total
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM user_activity WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    $total = (int)$stmt->fetchColumn();
+
+    // Récupérer les données paginées
+    $offset = ($page - 1) * $perPage;
+    $stmt = $pdo->prepare("SELECT * FROM user_activity WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?");
+    $stmt->execute([$userId, $perPage, $offset]);
+    $data = $stmt->fetchAll();
+
+    return [
+        'data' => $data,
+        'total' => $total,
+        'pages' => ceil($total / $perPage),
+        'current_page' => $page,
+        'per_page' => $perPage
+    ];
+}
+
+/**
  * Formate le nom d'une action pour l'affichage
  * @param string $action
  * @return string

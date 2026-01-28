@@ -36,7 +36,7 @@ class ClaudeService {
             
             // Insérer les clés par défaut si création (vides par sécurité)
             $this->setConfiguration('ANTHROPIC_API_KEY', '', 'Clé API Claude', 1);
-            $this->setConfiguration('CLAUDE_MODEL', 'claude-3-5-sonnet-20241022', 'Modèle Claude', 0);
+            $this->setConfiguration('CLAUDE_MODEL', 'claude-sonnet-4-20250514', 'Modèle Claude', 0);
             $this->setConfiguration('PUSHOVER_APP_TOKEN', '', 'Token application Pushover (notifications)', 1);
             $this->setConfiguration('PUSHOVER_USER_KEY', '', 'Clé utilisateur Pushover', 1);
         }
@@ -45,7 +45,7 @@ class ClaudeService {
         $this->ensurePushoverConfig();
 
         $this->apiKey = $this->getConfiguration('ANTHROPIC_API_KEY');
-        $this->model = $this->getConfiguration('CLAUDE_MODEL') ?: 'claude-3-5-sonnet-20241022';
+        $this->model = $this->getConfiguration('CLAUDE_MODEL') ?: 'claude-sonnet-4-20250514';
     }
 
     private function getConfiguration($key) {
@@ -153,7 +153,248 @@ class ClaudeService {
         return $this->callApi($payload);
     }
 
-/**
+    /**
+     * Extrait les données structurées d'un chunk de texte PDF avec l'IA
+     * Étape 1: Extraction des champs (remplace le parsing regex)
+     * @param string $rawText Texte brut extrait du PDF
+     * @return array Données structurées extraites
+     */
+    public function extractChunkDataWithAI($rawText) {
+        $systemPrompt = "Tu es un assistant spécialisé dans l'extraction de données de fiches immobilières Centris (Québec). " .
+                       "Tu dois extraire TOUTES les informations disponibles du texte fourni avec précision. " .
+                       "Si une donnée n'est pas présente, utilise null. " .
+                       "ATTENTION: Superficie TERRAIN (grand, ex: 4000+ pc) ≠ Superficie HABITABLE (petit, ex: 800-2000 pc). " .
+                       "Réponds UNIQUEMENT en JSON valide, sans texte autour.";
+
+        $userMessage = "Extrait les données de cette fiche Centris:\n\n" .
+                      "=== TEXTE DE LA FICHE ===\n" .
+                      substr($rawText, 0, 12000) . "\n\n" .
+                      "=== CHAMPS À EXTRAIRE ===\n" .
+                      "Retourne un JSON avec ces champs (null si non trouvé):\n\n" .
+                      "{\n" .
+                      "  \"adresse\": \"Numéro + nom de rue complet\",\n" .
+                      "  \"ville\": \"Nom de la ville\",\n" .
+                      "  \"prix_vendu\": 0,\n" .
+                      "  \"date_vente\": \"YYYY-MM-DD (cherche Date PA acceptée ou Signature acte de vente)\",\n" .
+                      "  \"annee_construction\": 0,\n" .
+                      "  \"type_propriete\": \"Genre de propriété (Maison de plain-pied, Cottage, etc.)\",\n" .
+                      "  \"type_batiment\": \"Isolé, Jumelé, etc.\",\n" .
+                      "  \"chambres\": \"Nombre de chambres (Nbre chambres, PAS Nbre pièces)\",\n" .
+                      "  \"sdb\": \"Nombre de salles de bain (format: 2+1 si applicable)\",\n" .
+                      "  \"nb_pieces\": \"Nombre total de pièces\",\n" .
+                      "  \"superficie_terrain\": \"TERRAIN (lot). Cherche 'Superficie du terrain' ou 'Dimensions du terrain'. Si dimensions (ex: 47 X 92 p), calcule 47*92=4324 pc. Typiquement 3000-10000+ pc.\",\n" .
+                      "  \"superficie_habitable\": \"BÂTIMENT (maison). Cherche 'Superficie habitable' ou 'Dimensions du bâtiment'. Si dimensions (ex: 24 X 34 p), calcule 24*34=816 pc. Typiquement 800-2500 pc. TOUJOURS PLUS PETIT que le terrain!\",\n" .
+                      "  \"dimensions_terrain\": \"Format original du terrain (ex: 47 X 92 p)\",\n" .
+                      "  \"dimensions_batiment\": \"Format original du bâtiment (ex: 24 X 34 p)\",\n" .
+                      "  \"eval_terrain\": 0,\n" .
+                      "  \"eval_batiment\": 0,\n" .
+                      "  \"eval_total\": 0,\n" .
+                      "  \"taxe_municipale\": 0,\n" .
+                      "  \"taxe_scolaire\": 0,\n" .
+                      "  \"taxe_annee\": \"YYYY\",\n" .
+                      "  \"fondation\": \"Type de fondation\",\n" .
+                      "  \"toiture\": \"Revêtement de la toiture\",\n" .
+                      "  \"revetement\": \"Revêtement extérieur\",\n" .
+                      "  \"garage\": \"Attaché, Détaché, Simple, Double, etc.\",\n" .
+                      "  \"stationnement\": 0,\n" .
+                      "  \"piscine\": \"Type de piscine ou null\",\n" .
+                      "  \"sous_sol\": \"Type de sous-sol\",\n" .
+                      "  \"chauffage\": \"Mode de chauffage\",\n" .
+                      "  \"energie\": \"Source d'énergie\",\n" .
+                      "  \"renovations_total\": 0,\n" .
+                      "  \"renovations_texte\": \"Liste des rénovations avec années et coûts\",\n" .
+                      "  \"proximites\": \"Proximités mentionnées\",\n" .
+                      "  \"inclusions\": \"Inclusions\",\n" .
+                      "  \"exclusions\": \"Exclusions\",\n" .
+                      "  \"remarques\": \"Remarques importantes\"\n" .
+                      "}\n\n" .
+                      "RÈGLES IMPORTANTES:\n" .
+                      "- Les prix et évaluations sont des nombres entiers sans espaces ni $\n" .
+                      "- Les superficies doivent inclure l'unité (ex: \"4324 pc\" ou \"816 pc\")\n" .
+                      "- TERRAIN: 'Superficie du terrain' ou 'Dimensions du terrain' (47 X 92 = grand lot)\n" .
+                      "- BÂTIMENT: 'Superficie habitable' ou 'Dimensions du bâtiment' (24 X 34 = maison)\n" .
+                      "- Le bâtiment est TOUJOURS plus petit que le terrain!\n" .
+                      "- Cherche 'Nbre chambres' pas 'Nbre pièces' pour les chambres";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 2048,
+            'temperature' => 0, // Résultats consistants
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $userMessage
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+
+            // Normaliser les valeurs numériques
+            $numericFields = ['prix_vendu', 'annee_construction', 'eval_terrain', 'eval_batiment',
+                             'eval_total', 'taxe_municipale', 'taxe_scolaire', 'stationnement', 'renovations_total'];
+            foreach ($numericFields as $field) {
+                if (isset($result[$field])) {
+                    $result[$field] = (int) preg_replace('/[^\d]/', '', (string)$result[$field]);
+                }
+            }
+
+            return $result;
+        } catch (Exception $e) {
+            error_log("AI extraction error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Analyse approfondie d'un chunk basée sur les données texte extraites
+     * @param array $chunkData Toutes les données extraites du chunk
+     * @param array $projetInfo Infos du projet sujet pour comparaison
+     * @return array Analyse complète avec note et ajustement
+     */
+    public function analyzeChunkText($chunkData, $projetInfo) {
+        $systemPrompt = "Tu es un expert en évaluation immobilière au Québec spécialisé dans les flips immobiliers. " .
+                       "Tu analyses les données d'une propriété VENDUE (comparable) pour évaluer son état et calculer un ajustement par rapport au projet sujet. " .
+                       "Tu dois être PRÉCIS et CRITIQUE. Chaque élément (rénovations, caractéristiques, âge) doit influencer ton ajustement. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        // Construire le message détaillé avec toutes les données extraites
+        $comparable = "=== PROPRIÉTÉ COMPARABLE (VENDUE) ===\n";
+        $comparable .= "No Centris: " . ($chunkData['no_centris'] ?? 'N/A') . "\n";
+        $comparable .= "Adresse: " . ($chunkData['adresse'] ?? 'N/A') . "\n";
+        $comparable .= "Ville: " . ($chunkData['ville'] ?? 'N/A') . "\n";
+        $comparable .= "Prix vendu: " . number_format((float)($chunkData['prix_vendu'] ?? 0), 0, ',', ' ') . " $\n";
+        $comparable .= "Date de vente: " . ($chunkData['date_vente'] ?? 'N/A') . "\n";
+        $comparable .= "Jours sur le marché: " . ($chunkData['jours_marche'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Caractéristiques ---\n";
+        $comparable .= "Type: " . ($chunkData['type_propriete'] ?? 'N/A') . "\n";
+        $comparable .= "Année construction: " . ($chunkData['annee_construction'] ?? 'N/A') . "\n";
+        $comparable .= "Chambres: " . ($chunkData['chambres'] ?? 'N/A') . "\n";
+        $comparable .= "Salles de bain: " . ($chunkData['sdb'] ?? 'N/A') . "\n";
+        $comparable .= "Superficie terrain: " . ($chunkData['superficie_terrain'] ?? 'N/A') . "\n";
+        $comparable .= "Superficie bâtiment: " . ($chunkData['superficie_batiment'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Évaluation Municipale ---\n";
+        $comparable .= "Terrain: " . ($chunkData['eval_terrain'] ?? 'N/A') . "\n";
+        $comparable .= "Bâtiment: " . ($chunkData['eval_batiment'] ?? 'N/A') . "\n";
+        $comparable .= "Total: " . ($chunkData['eval_total'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Taxes ---\n";
+        $comparable .= "Municipale: " . ($chunkData['taxe_municipale'] ?? 'N/A') . "\n";
+        $comparable .= "Scolaire: " . ($chunkData['taxe_scolaire'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Construction & Finitions ---\n";
+        $comparable .= "Fondation: " . ($chunkData['fondation'] ?? 'N/A') . "\n";
+        $comparable .= "Toiture: " . ($chunkData['toiture'] ?? 'N/A') . "\n";
+        $comparable .= "Revêtement: " . ($chunkData['revetement'] ?? 'N/A') . "\n";
+        $comparable .= "Garage: " . ($chunkData['garage'] ?? 'N/A') . "\n";
+        $comparable .= "Stationnement: " . ($chunkData['stationnement'] ?? 'N/A') . "\n";
+        $comparable .= "Piscine: " . ($chunkData['piscine'] ?? 'N/A') . "\n";
+        $comparable .= "Sous-sol: " . ($chunkData['sous_sol'] ?? 'N/A') . "\n";
+        $comparable .= "Chauffage: " . ($chunkData['chauffage'] ?? 'N/A') . "\n";
+        $comparable .= "Énergie: " . ($chunkData['energie'] ?? 'N/A') . "\n\n";
+
+        $comparable .= "--- Rénovations ---\n";
+        $comparable .= "Total rénovations: " . ($chunkData['renovations_total'] ?? 'N/A') . "\n";
+        $comparable .= "Détail: " . ($chunkData['renovations_texte'] ?? 'Aucune info') . "\n\n";
+
+        $comparable .= "--- Autres ---\n";
+        $comparable .= "Proximités: " . ($chunkData['proximites'] ?? 'N/A') . "\n";
+        $comparable .= "Inclusions: " . ($chunkData['inclusions'] ?? 'N/A') . "\n";
+        $comparable .= "Exclusions: " . ($chunkData['exclusions'] ?? 'N/A') . "\n";
+        $comparable .= "Remarques: " . ($chunkData['remarques'] ?? 'N/A') . "\n";
+
+        // Construire les infos du projet sujet
+        $sujet = "=== PROJET SUJET (MA PROPRIÉTÉ À VENDRE) ===\n";
+        $sujet .= "Adresse: " . ($projetInfo['adresse'] ?? 'N/A') . "\n";
+        $sujet .= "Ville: " . ($projetInfo['ville'] ?? 'N/A') . "\n";
+        $sujet .= "Type: " . ($projetInfo['type'] ?? 'Maison unifamiliale') . "\n";
+        $sujet .= "Chambres: " . ($projetInfo['chambres'] ?? 'N/A') . "\n";
+        $sujet .= "Salles de bain: " . ($projetInfo['sdb'] ?? 'N/A') . "\n";
+        $sujet .= "Superficie: " . ($projetInfo['superficie'] ?? 'N/A') . "\n";
+        $sujet .= "Garage: " . ($projetInfo['garage'] ?? 'Non') . "\n";
+        $sujet .= "État prévu: ENTIÈREMENT RÉNOVÉ au goût du jour\n";
+        $sujet .= "- Cuisine: moderne avec comptoirs quartz, armoires neuves\n";
+        $sujet .= "- Salles de bain: rénovées modernes\n";
+        $sujet .= "- Planchers: neufs (bois franc ou vinyle de luxe)\n";
+        $sujet .= "- Peinture: fraîche partout\n";
+        $sujet .= "- Électricité: mise aux normes si nécessaire\n";
+        $sujet .= "- Plomberie: fonctionnelle et mise à jour\n";
+
+        $userMessage = $comparable . "\n" . $sujet . "\n\n";
+        $userMessage .= "=== ANALYSE DEMANDÉE ===\n";
+        $userMessage .= "1. Évalue l'ÉTAT GÉNÉRAL du comparable sur 10:\n";
+        $userMessage .= "   - 1-3: Délabré, à rénover complètement\n";
+        $userMessage .= "   - 4-5: Correct mais daté, rénovations partielles nécessaires\n";
+        $userMessage .= "   - 6-7: Bon état, quelques mises à jour récentes\n";
+        $userMessage .= "   - 8-9: Bien rénové, au goût du jour\n";
+        $userMessage .= "   - 10: Luxueux, finitions haut de gamme\n\n";
+        $userMessage .= "2. Calcule l'AJUSTEMENT en $ pour ramener ce comparable au niveau du sujet:\n";
+        $userMessage .= "   - Si comparable MIEUX rénové/équipé → ajustement NÉGATIF (ex: -25000)\n";
+        $userMessage .= "   - Si comparable MOINS rénové/équipé → ajustement POSITIF (ex: +35000)\n\n";
+        $userMessage .= "3. Facteurs à considérer pour l'ajustement:\n";
+        $userMessage .= "   - Différence d'état des rénovations (cuisine, SDB, planchers)\n";
+        $userMessage .= "   - Âge du bâtiment et état structurel\n";
+        $userMessage .= "   - Présence/absence de garage, piscine\n";
+        $userMessage .= "   - Superficie terrain et bâtiment\n";
+        $userMessage .= "   - Type de chauffage/énergie\n";
+        $userMessage .= "   - Sous-sol fini ou non\n\n";
+        $userMessage .= "4. Donne un POURCENTAGE DE CONFIANCE (0-100%) basé sur:\n";
+        $userMessage .= "   - Qualité des données disponibles\n";
+        $userMessage .= "   - Similarité avec le sujet (localisation, type, taille)\n";
+        $userMessage .= "   - Pertinence du comparable pour l'estimation\n\n";
+        $userMessage .= "Format JSON attendu:\n";
+        $userMessage .= "{\n";
+        $userMessage .= "  \"etat_note\": 7,\n";
+        $userMessage .= "  \"etat_analyse\": \"Description détaillée de l'état du comparable...\",\n";
+        $userMessage .= "  \"ajustement\": 15000,\n";
+        $userMessage .= "  \"ajustement_details\": {\n";
+        $userMessage .= "    \"renovations\": 10000,\n";
+        $userMessage .= "    \"caracteristiques\": 5000,\n";
+        $userMessage .= "    \"autres\": 0\n";
+        $userMessage .= "  },\n";
+        $userMessage .= "  \"confiance\": 85,\n";
+        $userMessage .= "  \"commentaire_ia\": \"Justification détaillée de l'ajustement...\"\n";
+        $userMessage .= "}";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 2048,
+            'temperature' => 0, // Résultats consistants
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $userMessage
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+            return [
+                'etat_note' => (float)($result['etat_note'] ?? 5),
+                'etat_analyse' => $result['etat_analyse'] ?? 'Analyse non disponible',
+                'ajustement' => (float)($result['ajustement'] ?? 0),
+                'ajustement_details' => $result['ajustement_details'] ?? null,
+                'confiance' => (int)($result['confiance'] ?? 50),
+                'commentaire_ia' => $result['commentaire_ia'] ?? ''
+            ];
+        } catch (Exception $e) {
+            return [
+                'etat_note' => 5,
+                'etat_analyse' => 'Erreur lors de l\'analyse',
+                'ajustement' => 0,
+                'confiance' => 0,
+                'commentaire_ia' => 'Erreur: ' . $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Analyse les photos d'une propriété (chunk) avec Claude Vision
      * @param array $photos Liste des chemins vers les photos
      * @param array $chunkData Données texte déjà extraites (adresse, prix, etc.)
@@ -460,16 +701,267 @@ class ClaudeService {
         return $this->callApiFacture($payload);
     }
 
-    private function callApiFacture($payload) {
+    /**
+     * Analyse détaillée d'une facture avec breakdown par étape de construction
+     * @param string $imageData Image en base64
+     * @param string $mimeType Type MIME de l'image
+     * @param array $etapes Liste des étapes de construction disponibles
+     * @param string|null $customPrompt Prompt personnalisé (optionnel)
+     * @return array Détails des lignes avec étapes assignées
+     */
+    public function analyserFactureDetails($imageData, $mimeType, $etapes = [], $customPrompt = null) {
+        $systemPrompt = "Tu es un expert en construction et rénovation au Québec. " .
+                       "Tu analyses des factures de quincaillerie (Home Depot, Réno Dépot, BMR, etc.) " .
+                       "et tu catégorises chaque article par étape de construction. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        // Construire la liste des étapes
+        $etapesListe = "";
+        if (!empty($etapes)) {
+            foreach ($etapes as $idx => $etape) {
+                $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
+            }
+        } else {
+            // Étapes par défaut si non fournies
+            $etapesListe = "- id: 1, nom: Démolition\n" .
+                          "- id: 2, nom: Structure/Charpente\n" .
+                          "- id: 3, nom: Plomberie\n" .
+                          "- id: 4, nom: Électricité\n" .
+                          "- id: 5, nom: Isolation\n" .
+                          "- id: 6, nom: Gypse/Plâtre\n" .
+                          "- id: 7, nom: Finition intérieure\n" .
+                          "- id: 8, nom: Peinture\n" .
+                          "- id: 9, nom: Revêtement extérieur\n" .
+                          "- id: 10, nom: Toiture\n" .
+                          "- id: 11, nom: Planchers\n" .
+                          "- id: 12, nom: Cuisine\n" .
+                          "- id: 13, nom: Salle de bain\n" .
+                          "- id: 14, nom: Portes et fenêtres\n" .
+                          "- id: 15, nom: Autre\n";
+        }
+
+        // Utiliser le prompt personnalisé si fourni
+        if (!empty($customPrompt)) {
+            $userMessage = $customPrompt;
+        } else {
+            $userMessage = "Analyse cette facture de quincaillerie et catégorise CHAQUE LIGNE par étape de construction.\n\n" .
+                      "FOURNISSEURS CONNUS: Home Depot, Réno Dépot, Rona, BMR, Patrick Morin, Canac, Canadian Tire, IKEA, Lowes.\n" .
+                      "IMPORTANT: Identifie le fournisseur depuis le LOGO ou le NOM DE L'ENTREPRISE visible sur la facture.\n\n" .
+                      "ÉTAPES DISPONIBLES (utilise EXACTEMENT ces noms et ids):\n{$etapesListe}\n" .
+                      "GUIDE DE CATÉGORISATION - associe les articles à l'étape la plus appropriée:\n" .
+                      "- Bois (2x4, 2x6, 2x8, etc.), clous charpente, équerres, étriers → étape contenant 'structure' ou 'division'\n" .
+                      "- Tuyaux, raccords, valves, robinets, drains → étape contenant 'plomberie'\n" .
+                      "- Fils, boîtes électriques, prises, interrupteurs, disjoncteurs → étape contenant 'électricité' ou 'electrique'\n" .
+                      "- Laine, styromousse, pare-vapeur, isolant → étape contenant 'isolation'\n" .
+                      "- Gypse, vis gypse, composé, ruban → étape contenant 'gypse'\n" .
+                      "- Moulures, trim, quincaillerie décorative → étape contenant 'finition'\n" .
+                      "- Peinture, primer, rouleaux, pinceaux, latex → étape contenant 'peinture' ou 'latex'\n" .
+                      "- Plancher, céramique, tuile, sous-couche → étape contenant 'plancher' ou 'ceramique'\n" .
+                      "- Armoires, comptoirs, éviers cuisine, vanités → étape contenant 'cuisine' ou 'vanité' ou 'ébénisterie'\n" .
+                      "- Portes, fenêtres, cadres → étape contenant 'porte' ou 'fenêtre'\n" .
+                      "- Escalier, marches, rampe → étape contenant 'escalier'\n" .
+                      "- Extérieur, revêtement, bardeau → étape contenant 'extérieur'\n\n" .
+                      "IMPORTANT: Tu DOIS utiliser les noms d'étapes EXACTEMENT comme fournis ci-dessus. Ne jamais inventer de nouvelles étapes.\n\n" .
+                      "Retourne un JSON avec:\n" .
+                      "{\n" .
+                      "  \"fournisseur\": \"Nom visible sur facture\",\n" .
+                      "  \"date_facture\": \"YYYY-MM-DD\",\n" .
+                      "  \"lignes\": [\n" .
+                      "    {\n" .
+                      "      \"description\": \"Description de l'article\",\n" .
+                      "      \"quantite\": 1,\n" .
+                      "      \"prix_unitaire\": 10.00,\n" .
+                      "      \"total\": 10.00,\n" .
+                      "      \"etape_id\": 4,\n" .
+                      "      \"etape_nom\": \"Structures et division\",\n" .
+                      "      \"raison\": \"Bois de construction\"\n" .
+                      "    }\n" .
+                      "  ],\n" .
+                      "  \"totaux_par_etape\": [\n" .
+                      "    {\"etape_id\": 4, \"etape_nom\": \"Structures et division\", \"montant\": 150.00}\n" .
+                      "  ],\n" .
+                      "  \"sous_total\": 500.00,\n" .
+                      "  \"tps\": 25.00,\n" .
+                      "  \"tvq\": 49.88,\n" .
+                      "  \"total\": 574.88\n" .
+                      "}\n\n" .
+                      "CRITIQUE: Utilise UNIQUEMENT les étapes listées ci-dessus avec leurs IDs exacts. Choisis l'étape la plus proche même si pas parfaite.";
+        }
+
+        // Construire le contenu selon le type de fichier (image ou PDF)
+        if ($mimeType === 'application/pdf') {
+            // PDF: utiliser le type 'document' (supporté nativement par Claude)
+            $fileContent = [
+                'type' => 'document',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => 'application/pdf',
+                    'data' => $imageData
+                ]
+            ];
+        } else {
+            // Image: utiliser le type 'image'
+            $fileContent = [
+                'type' => 'image',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => $mimeType,
+                    'data' => $imageData
+                ]
+            ];
+        }
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 4096,
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        $fileContent,
+                        [
+                            'type' => 'text',
+                            'text' => $userMessage
+                        ]
+                    ]
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        // Pour les PDF, utiliser l'API avec le header beta
+        $isPdf = ($mimeType === 'application/pdf');
+        return $this->callApiFacture($payload, $isPdf);
+    }
+
+    /**
+     * Analyse une image de soumission sous-traitant et extrait les informations
+     * @param string $imageData Base64 encoded image/PDF data
+     * @param string $mimeType Type MIME (image/png, image/jpeg, application/pdf)
+     * @param array $etapes Liste des étapes/catégories disponibles
+     * @return array Données extraites de la soumission
+     */
+    public function analyserSoumission($imageData, $mimeType, $etapes = []) {
+        $systemPrompt = "Tu es un assistant expert en extraction de données de soumissions et factures de sous-traitants " .
+                       "pour des projets de rénovation immobilière (Flip) au Québec. " .
+                       "Tu dois analyser le document fourni et extraire les informations clés sur l'entreprise et les montants. " .
+                       "Sois précis et utilise les valeurs exactes visibles sur le document. " .
+                       "Réponds UNIQUEMENT en JSON valide, sans texte autour.";
+
+        // Construire la liste des étapes
+        $etapesListe = "";
+        if (!empty($etapes)) {
+            foreach ($etapes as $etape) {
+                $etapesListe .= "- id: {$etape['id']}, nom: {$etape['nom']}\n";
+            }
+        } else {
+            $etapesListe = "- id: 1, nom: Démolition\n" .
+                          "- id: 2, nom: Structure/Charpente\n" .
+                          "- id: 3, nom: Plomberie\n" .
+                          "- id: 4, nom: Électricité\n" .
+                          "- id: 5, nom: Isolation\n" .
+                          "- id: 6, nom: Gypse/Plâtre\n" .
+                          "- id: 7, nom: Finition intérieure\n" .
+                          "- id: 8, nom: Peinture\n" .
+                          "- id: 9, nom: Revêtement extérieur\n" .
+                          "- id: 10, nom: Toiture\n" .
+                          "- id: 11, nom: Planchers\n" .
+                          "- id: 12, nom: Cuisine\n" .
+                          "- id: 13, nom: Salle de bain\n" .
+                          "- id: 14, nom: Portes et fenêtres\n" .
+                          "- id: 15, nom: Autre\n";
+        }
+
+        $userMessage = "Analyse cette soumission/facture de sous-traitant et extrais les informations.\n\n" .
+                      "CATÉGORIES DISPONIBLES (utilise l'id):\n{$etapesListe}\n" .
+                      "IMPORTANT:\n" .
+                      "- Les taxes au Québec sont TPS (5%) et TVQ (9.975%)\n" .
+                      "- Si tu vois un total TTC, calcule le montant avant taxes\n" .
+                      "- La date doit être au format YYYY-MM-DD\n" .
+                      "- Identifie le TYPE DE TRAVAUX pour suggérer la bonne catégorie\n" .
+                      "- Extrais toutes les infos de contact visibles (téléphone, email)\n\n" .
+                      "Format JSON attendu:\n" .
+                      "{\n" .
+                      "  \"nom_entreprise\": \"Nom de l'entreprise ou du sous-traitant\",\n" .
+                      "  \"contact\": \"Nom de la personne contact si visible\",\n" .
+                      "  \"telephone\": \"Numéro de téléphone\",\n" .
+                      "  \"email\": \"Adresse email\",\n" .
+                      "  \"date_facture\": \"YYYY-MM-DD\",\n" .
+                      "  \"description\": \"Description des travaux à effectuer\",\n" .
+                      "  \"montant_avant_taxes\": 1234.56,\n" .
+                      "  \"tps\": 61.73,\n" .
+                      "  \"tvq\": 123.15,\n" .
+                      "  \"montant_total\": 1419.44,\n" .
+                      "  \"etape_id\": 4,\n" .
+                      "  \"etape_suggestion\": \"Électricité\",\n" .
+                      "  \"notes\": \"Informations supplémentaires utiles (numéro de soumission, conditions, etc.)\",\n" .
+                      "  \"confiance\": 0.95\n" .
+                      "}";
+
+        // Construire le contenu selon le type de fichier
+        if ($mimeType === 'application/pdf') {
+            $fileContent = [
+                'type' => 'document',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => 'application/pdf',
+                    'data' => $imageData
+                ]
+            ];
+        } else {
+            $fileContent = [
+                'type' => 'image',
+                'source' => [
+                    'type' => 'base64',
+                    'media_type' => $mimeType,
+                    'data' => $imageData
+                ]
+            ];
+        }
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 2048,
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => [
+                        $fileContent,
+                        [
+                            'type' => 'text',
+                            'text' => $userMessage
+                        ]
+                    ]
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        $isPdf = ($mimeType === 'application/pdf');
+        return $this->callApiFacture($payload, $isPdf);
+    }
+
+    private function callApiFacture($payload, $isPdf = false) {
         $ch = curl_init($this->apiUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+
+        // Headers de base
+        $headers = [
             'x-api-key: ' . $this->apiKey,
             'anthropic-version: 2023-06-01',
             'content-type: application/json'
-        ]);
+        ];
+
+        // Ajouter le header beta pour les PDF
+        if ($isPdf) {
+            $headers[] = 'anthropic-beta: pdfs-2024-09-25';
+        }
+
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -633,6 +1125,117 @@ class ClaudeService {
 
         // Limiter la taille totale
         return substr($relevant, 0, 8000);
+    }
+
+    /**
+     * Compare sémantiquement un nouveau produit avec les items existants du catalogue
+     * Détecte si des noms différents font référence au même produit (ex: "vis gypse" vs "gypse vis")
+     *
+     * @param string $newItemName Nom du nouveau produit à vérifier
+     * @param array $catalogueItems Liste des items existants [['id' => x, 'nom' => '...', ...], ...]
+     * @param string|null $fournisseur Fournisseur (optionnel, pour contexte)
+     * @return array ['matches' => [['id' => x, 'nom' => '...', 'score' => 95, 'reason' => '...'], ...]]
+     */
+    public function findSemanticDuplicates($newItemName, $catalogueItems, $fournisseur = null) {
+        if (empty($this->apiKey)) {
+            return ['matches' => [], 'error' => 'API non configurée'];
+        }
+
+        if (empty($catalogueItems)) {
+            return ['matches' => []];
+        }
+
+        // Limiter à 30 items max pour ne pas surcharger le prompt
+        $itemsToCheck = array_slice($catalogueItems, 0, 30);
+
+        // Construire la liste des items du catalogue
+        $catalogueListe = "";
+        foreach ($itemsToCheck as $idx => $item) {
+            $catalogueListe .= sprintf("%d. [ID:%s] %s\n", $idx + 1, $item['id'], $item['nom']);
+        }
+
+        $systemPrompt = "Tu es un expert en matériaux de construction et quincaillerie au Québec. " .
+                       "Tu dois identifier si un nouveau produit correspond à un produit existant dans le catalogue, " .
+                       "même si les noms sont formulés différemment. " .
+                       "Par exemple: 'vis à gypse' = 'gypse vis' = 'vis gypse 1-1/4' = même type de produit. " .
+                       "Réponds UNIQUEMENT en JSON valide.";
+
+        $fournisseurContext = $fournisseur ? "Fournisseur: {$fournisseur}\n" : "";
+
+        $userMessage = "NOUVEAU PRODUIT À VÉRIFIER:\n" .
+                      "\"{$newItemName}\"\n" .
+                      "{$fournisseurContext}\n" .
+                      "CATALOGUE EXISTANT:\n{$catalogueListe}\n\n" .
+                      "TÂCHE: Trouve les produits du catalogue qui sont SÉMANTIQUEMENT ÉQUIVALENTS au nouveau produit.\n" .
+                      "- Même si les mots sont dans un ordre différent (vis gypse vs gypse vis)\n" .
+                      "- Même si un a plus de détails que l'autre (vis gypse vs vis à gypse 1-1/4 pouces)\n" .
+                      "- Même si les abréviations diffèrent (2x4 vs 2\"x4\" vs bois 2x4)\n\n" .
+                      "RETOURNE un JSON avec:\n" .
+                      "{\n" .
+                      "  \"matches\": [\n" .
+                      "    {\n" .
+                      "      \"id\": \"ID du produit correspondant\",\n" .
+                      "      \"nom\": \"Nom exact du produit\",\n" .
+                      "      \"score\": 95,  // 0-100, confiance que c'est le même produit\n" .
+                      "      \"reason\": \"Explication courte de pourquoi c'est le même\"\n" .
+                      "    }\n" .
+                      "  ]\n" .
+                      "}\n\n" .
+                      "- Ne retourne que les produits avec score >= 70\n" .
+                      "- Si aucune correspondance, retourne {\"matches\": []}\n" .
+                      "- Maximum 5 correspondances";
+
+        $payload = [
+            'model' => $this->model,
+            'max_tokens' => 1024,
+            'temperature' => 0,
+            'messages' => [
+                [
+                    'role' => 'user',
+                    'content' => $userMessage
+                ]
+            ],
+            'system' => $systemPrompt
+        ];
+
+        try {
+            $result = $this->callApiSimple($payload);
+
+            // Valider et enrichir les résultats
+            $matches = [];
+            if (isset($result['matches']) && is_array($result['matches'])) {
+                foreach ($result['matches'] as $match) {
+                    // Retrouver l'item complet du catalogue
+                    $fullItem = null;
+                    foreach ($itemsToCheck as $item) {
+                        if ((string)$item['id'] === (string)$match['id']) {
+                            $fullItem = $item;
+                            break;
+                        }
+                    }
+
+                    if ($fullItem) {
+                        $matches[] = [
+                            'id' => $fullItem['id'],
+                            'nom' => $fullItem['nom'],
+                            'prix' => $fullItem['prix'] ?? null,
+                            'fournisseur' => $fullItem['fournisseur'] ?? null,
+                            'sku' => $fullItem['sku'] ?? null,
+                            'image' => $fullItem['image'] ?? null,
+                            'match_type' => 'semantic_ai',
+                            'match_score' => (int)($match['score'] ?? 70),
+                            'reason' => $match['reason'] ?? 'Correspondance sémantique détectée par IA'
+                        ];
+                    }
+                }
+            }
+
+            return ['matches' => $matches];
+
+        } catch (Exception $e) {
+            error_log("Semantic duplicate check error: " . $e->getMessage());
+            return ['matches' => [], 'error' => $e->getMessage()];
+        }
     }
 
     /**

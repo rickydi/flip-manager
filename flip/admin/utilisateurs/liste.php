@@ -11,6 +11,13 @@ require_once '../../includes/functions.php';
 // Vérifier que l'utilisateur est admin
 requireAdmin();
 
+// S'assurer que la colonne password_plain existe
+try {
+    $pdo->query("SELECT password_plain FROM users LIMIT 1");
+} catch (PDOException $e) {
+    $pdo->exec("ALTER TABLE users ADD COLUMN password_plain VARCHAR(255) NULL AFTER password");
+}
+
 $pageTitle = 'Utilisateurs';
 
 $errors = [];
@@ -54,10 +61,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if (empty($errors)) {
                 $stmt = $pdo->prepare("
-                    INSERT INTO users (username, nom, prenom, email, password, role, taux_horaire, est_contremaitre)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO users (username, nom, prenom, email, password, password_plain, role, taux_horaire, est_contremaitre)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ");
-                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $tauxHoraire, $estContremaitre]);
+                $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $password, $role, $tauxHoraire, $estContremaitre]);
                 setFlashMessage('success', 'Utilisateur créé avec succès. Login: ' . $email);
                 redirect('/admin/utilisateurs/liste.php');
             }
@@ -93,10 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (empty($errors)) {
                 if (!empty($password)) {
                     $stmt = $pdo->prepare("
-                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
+                        UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, password = ?, password_plain = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
                         WHERE id = ?
                     ");
-                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $role, $actif, $tauxHoraire, $estContremaitre, $userId]);
+                    $stmt->execute([$username, $nom, $prenom, $email, password_hash($password, PASSWORD_DEFAULT), $password, $role, $actif, $tauxHoraire, $estContremaitre, $userId]);
                 } else {
                     $stmt = $pdo->prepare("
                         UPDATE users SET username = ?, nom = ?, prenom = ?, email = ?, role = ?, actif = ?, taux_horaire = ?, est_contremaitre = ?
@@ -211,6 +218,7 @@ include '../../includes/header.php';
                     <thead>
                         <tr>
                             <th>Email (login)</th>
+                            <th>Mot de passe</th>
                             <th>Nom</th>
                             <th>Rôle</th>
                             <th>Taux horaire</th>
@@ -225,6 +233,20 @@ include '../../includes/header.php';
                             <tr>
                                 <td>
                                     <code><?= e($user['email'] ?? '-') ?></code>
+                                </td>
+                                <td>
+                                    <?php if (!empty($user['password_plain'])): ?>
+                                        <span class="password-hidden-<?= $user['id'] ?>">********</span>
+                                        <span class="password-visible-<?= $user['id'] ?>" style="display: none;">
+                                            <code><?= e($user['password_plain']) ?></code>
+                                        </span>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm ms-1 btn-toggle-password"
+                                                data-user-id="<?= $user['id'] ?>" title="Afficher/Masquer">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
+                                    <?php else: ?>
+                                        <span class="text-muted">-</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <strong><?= e($user['prenom']) ?> <?= e($user['nom']) ?></strong>
@@ -335,13 +357,8 @@ include '../../includes/header.php';
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Nouveau mot de passe</label>
-                            <div class="input-group">
-                                <input type="password" class="form-control password-field" name="password"
-                                       placeholder="Laisser vide pour ne pas changer">
-                                <button class="btn btn-outline-secondary toggle-password" type="button" title="Afficher/Masquer">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                            </div>
+                            <input type="password" class="form-control" name="password"
+                                   placeholder="Laisser vide pour ne pas changer">
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -386,53 +403,52 @@ include '../../includes/header.php';
 
     <!-- Modal Activité -->
     <div class="modal fade" id="modalActivite<?= $user['id'] ?>" tabindex="-1">
-        <div class="modal-dialog modal-lg">
+        <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi bi-clock-history me-2"></i>Activité de <?= e($user['prenom']) ?> <?= e($user['nom']) ?>
+                        <i class="bi bi-clock-history me-2"></i>Historique complet - <?= e($user['prenom']) ?> <?= e($user['nom']) ?>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
-                    <?php
-                    $activities = getUserActivity($pdo, $user['id'], 50);
-                    if (empty($activities)): ?>
-                        <p class="text-muted text-center py-4">Aucune activité enregistrée</p>
-                    <?php else: ?>
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Action</th>
-                                    <th>Page</th>
-                                    <th>Détails</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($activities as $activity): ?>
-                                    <tr>
-                                        <td>
-                                            <small><?= formatDateTime($activity['created_at']) ?></small>
-                                        </td>
-                                        <td><?= formatActivityAction($activity['action']) ?></td>
-                                        <td>
-                                            <?php if ($activity['page']): ?>
-                                                <code><?= e($activity['page']) ?></code>
-                                            <?php else: ?>
-                                                <span class="text-muted">-</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <small class="text-muted"><?= e($activity['details'] ?? '') ?></small>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php endif; ?>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3 py-2">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Registre permanent:</strong> L'historique des activités est conservé indéfiniment.
+                    </div>
+                    <!-- Filtre par date -->
+                    <div class="row mb-3 align-items-end">
+                        <div class="col-auto">
+                            <label class="form-label mb-1 small">Filtrer par jour</label>
+                            <input type="date" class="form-control form-control-sm" id="dateFilter<?= $user['id'] ?>"
+                                   onchange="loadActivity(<?= $user['id'] ?>, 1, this.value)">
+                        </div>
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearDateFilter(<?= $user['id'] ?>)">
+                                <i class="bi bi-x-lg"></i> Effacer
+                            </button>
+                        </div>
+                        <div class="col-auto ms-auto" id="activityStats<?= $user['id'] ?>">
+                        </div>
+                    </div>
+                    <div id="activityContainer<?= $user['id'] ?>" data-user-id="<?= $user['id'] ?>">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Bouton Voir plus -->
+                    <div id="loadMoreContainer<?= $user['id'] ?>" class="text-center mt-3" style="display: none;">
+                        <button type="button" class="btn btn-outline-primary" onclick="loadMoreActivity(<?= $user['id'] ?>)">
+                            <i class="bi bi-arrow-down-circle me-1"></i>Voir plus
+                        </button>
+                    </div>
                 </div>
                 <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportActivity(<?= $user['id'] ?>, '<?= e($user['prenom']) ?> <?= e($user['nom']) ?>')">
+                        <i class="bi bi-download me-1"></i>Exporter CSV
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
                 </div>
             </div>
@@ -471,12 +487,7 @@ include '../../includes/header.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Mot de passe *</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control password-field" name="password" required minlength="4">
-                            <button class="btn btn-outline-secondary toggle-password" type="button" title="Afficher/Masquer">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                        </div>
+                        <input type="password" class="form-control" name="password" required minlength="4">
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
@@ -512,20 +523,198 @@ include '../../includes/header.php';
 </div>
 
 <script>
-// Toggle password visibility
-document.querySelectorAll('.toggle-password').forEach(function(button) {
-    button.addEventListener('click', function() {
-        const input = this.parentElement.querySelector('.password-field');
+// Toggle affichage mot de passe
+document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const userId = this.dataset.userId;
+        const hiddenEl = document.querySelector('.password-hidden-' + userId);
+        const visibleEl = document.querySelector('.password-visible-' + userId);
         const icon = this.querySelector('i');
 
-        if (input.type === 'password') {
-            input.type = 'text';
+        if (hiddenEl.style.display !== 'none') {
+            hiddenEl.style.display = 'none';
+            visibleEl.style.display = 'inline';
             icon.classList.remove('bi-eye');
             icon.classList.add('bi-eye-slash');
         } else {
-            input.type = 'password';
+            hiddenEl.style.display = 'inline';
+            visibleEl.style.display = 'none';
             icon.classList.remove('bi-eye-slash');
             icon.classList.add('bi-eye');
+        }
+    });
+});
+
+// État des activités par utilisateur
+const activityState = {};
+
+// Charger l'activité d'un utilisateur
+function loadActivity(userId, page = 1, dateFilter = null) {
+    const container = document.getElementById('activityContainer' + userId);
+    const statsContainer = document.getElementById('activityStats' + userId);
+    const loadMoreContainer = document.getElementById('loadMoreContainer' + userId);
+    if (!container) return;
+
+    // Réinitialiser l'état si page 1
+    if (page === 1) {
+        activityState[userId] = { page: 1, dateFilter: dateFilter || '', data: [] };
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+            </div>
+        `;
+    }
+
+    const state = activityState[userId];
+    let url = `<?= url('/api/user-activity.php') ?>?user_id=${userId}&page=${page}&per_page=50`;
+    if (state.dateFilter) {
+        url += `&date=${state.dateFilter}`;
+    }
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                container.innerHTML = `<div class="alert alert-danger">${data.error || 'Erreur de chargement'}</div>`;
+                return;
+            }
+
+            // Mettre à jour les stats
+            if (statsContainer) {
+                const filterText = data.filter.date ? ` pour le ${formatDateFr(data.filter.date)}` : '';
+                statsContainer.innerHTML = `
+                    <small class="text-muted">
+                        <i class="bi bi-database me-1"></i>
+                        <strong>${data.pagination.total}</strong> entrées${filterText}
+                    </small>
+                `;
+            }
+
+            if (data.data.length === 0 && page === 1) {
+                container.innerHTML = '<p class="text-muted text-center py-4">Aucune activité enregistrée</p>';
+                loadMoreContainer.style.display = 'none';
+                return;
+            }
+
+            // Ajouter les données à l'état
+            state.data = state.data.concat(data.data);
+            state.page = data.pagination.current_page;
+
+            // Générer le HTML du tableau
+            let html = `
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;" id="activityTable${userId}">
+                    <table class="table table-sm table-striped table-hover">
+                        <thead class="sticky-top bg-white">
+                            <tr>
+                                <th style="width: 140px;">Date</th>
+                                <th style="width: 140px;">Action</th>
+                                <th>Page</th>
+                                <th>Détails</th>
+                                <th style="width: 120px;">IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            state.data.forEach(activity => {
+                html += `
+                    <tr>
+                        <td><small>${activity.date}</small></td>
+                        <td>${activity.action_formatted}</td>
+                        <td>${activity.page ? `<code>${escapeHtml(activity.page)}</code>` : '<span class="text-muted">-</span>'}</td>
+                        <td><small class="text-muted">${escapeHtml(activity.details || '')}</small></td>
+                        <td><small class="text-muted font-monospace">${activity.ip_address || '-'}</small></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+
+            // Afficher/masquer le bouton "Voir plus"
+            if (data.pagination.has_more) {
+                loadMoreContainer.style.display = 'block';
+                loadMoreContainer.innerHTML = `
+                    <button type="button" class="btn btn-outline-primary" onclick="loadMoreActivity(${userId})">
+                        <i class="bi bi-arrow-down-circle me-1"></i>Voir plus
+                        <span class="badge bg-secondary ms-2">${data.pagination.loaded} / ${data.pagination.total}</span>
+                    </button>
+                `;
+            } else {
+                loadMoreContainer.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            container.innerHTML = `<div class="alert alert-danger">Erreur: ${error.message}</div>`;
+        });
+}
+
+// Charger plus d'activités
+function loadMoreActivity(userId) {
+    const state = activityState[userId];
+    if (!state) return;
+
+    const loadMoreContainer = document.getElementById('loadMoreContainer' + userId);
+    loadMoreContainer.innerHTML = `
+        <button type="button" class="btn btn-outline-primary" disabled>
+            <span class="spinner-border spinner-border-sm me-1"></span>Chargement...
+        </button>
+    `;
+
+    loadActivity(userId, state.page + 1, state.dateFilter);
+}
+
+// Effacer le filtre de date
+function clearDateFilter(userId) {
+    const dateInput = document.getElementById('dateFilter' + userId);
+    if (dateInput) {
+        dateInput.value = '';
+    }
+    loadActivity(userId, 1, '');
+}
+
+// Formater une date en français
+function formatDateFr(dateStr) {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('fr-CA', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// Exporter l'activité en CSV
+function exportActivity(userId, userName) {
+    const state = activityState[userId];
+    let url = `<?= url('/api/user-activity.php') ?>?user_id=${userId}&export=csv`;
+    if (state && state.dateFilter) {
+        url += `&date=${state.dateFilter}`;
+    }
+    window.location.href = url;
+}
+
+// Échapper le HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Charger l'activité quand le modal s'ouvre
+document.querySelectorAll('[id^="modalActivite"]').forEach(modal => {
+    modal.addEventListener('shown.bs.modal', function() {
+        const container = this.querySelector('[id^="activityContainer"]');
+        if (container) {
+            const userId = container.dataset.userId;
+            // Réinitialiser le filtre de date
+            const dateInput = document.getElementById('dateFilter' + userId);
+            if (dateInput) dateInput.value = '';
+            loadActivity(userId, 1, '');
         }
     });
 });

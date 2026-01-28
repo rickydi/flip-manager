@@ -20,7 +20,7 @@
     --bg-card-header: #ffffff;
     --bg-table-hover: #f8fafc;
     --bg-input: #ffffff;
-    --bg-navbar: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    --bg-navbar: #1e293b;
     --bg-navbar-solid: #1e293b;
     --text-primary: #1e293b;
     --text-secondary: #64748b;
@@ -125,7 +125,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--dark-color) 0%, #334155 100%);
+    background: var(--dark-color);
 }
 
 .login-card {
@@ -1933,6 +1933,22 @@ body {
 .user-avatar:hover {
     transform: scale(1.08);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Version mini pour footer */
+.user-avatar-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 .navbar .dropdown-toggle::after {

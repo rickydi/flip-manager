@@ -7,13 +7,13 @@
 require_once '../../config.php';
 require_once '../../includes/auth.php';
 require_once '../../includes/functions.php';
-require_once '../../includes/ClaudeService.php';
+require_once '../../includes/AIServiceFactory.php';
 
 requireAdmin();
 header('Content-Type: application/json');
 
 $action = $_POST['action'] ?? '';
-$claudeService = new ClaudeService($pdo);
+$aiService = AIServiceFactory::create($pdo);
 
 try {
     if ($action === 'init') {
@@ -54,7 +54,7 @@ try {
         ];
 
         // Appel IA (Mode Texte)
-        $resultats = $claudeService->analyserComparablesTexte($fullText, $projetInfo);
+        $resultats = $aiService->analyserComparablesTexte($fullText, $projetInfo);
         
         // Sauvegarder les items trouvés
         $stmtItem = $pdo->prepare("

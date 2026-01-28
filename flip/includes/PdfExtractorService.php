@@ -15,13 +15,27 @@ class PdfExtractorService {
     private $pdo;
     private $uploadDir;
     private $useNativeExtraction = false;
+    private $claudeService = null;
+    private $useAiExtraction = true; // Par défaut, utiliser l'IA pour l'étape 1
 
-    public function __construct($pdo) {
+    public function __construct($pdo, $claudeService = null) {
         $this->pdo = $pdo;
         $this->uploadDir = dirname(__DIR__) . '/uploads/comparables/';
 
         // Vérifier si la librairie PHP est disponible
         $this->useNativeExtraction = class_exists('\\Smalot\\PdfParser\\Parser');
+
+        // Service Claude pour extraction AI
+        if ($claudeService) {
+            $this->claudeService = $claudeService;
+        }
+    }
+
+    /**
+     * Configure si on utilise l'extraction AI ou regex pour l'étape 1
+     */
+    public function setUseAiExtraction($useAi) {
+        $this->useAiExtraction = $useAi;
     }
 
     /**
@@ -221,7 +235,12 @@ class PdfExtractorService {
             }
 
             // Extraire les données structurées du texte
-            $data = $this->parseChunkData($chunkText);
+            // Utiliser l'IA si disponible pour l'étape 1 (extraction des champs)
+            if ($this->useAiExtraction && $this->claudeService) {
+                $data = $this->parseChunkDataWithAI($chunkText);
+            } else {
+                $data = $this->parseChunkData($chunkText);
+            }
 
             $chunks[] = [
                 'no_centris' => $noCentris,
@@ -237,7 +256,28 @@ class PdfExtractorService {
     }
 
     /**
-     * Parse les données structurées d'un chunk de texte - Version complète
+     * Parse les données avec l'IA Claude - Étape 1: Extraction intelligente
+     */
+    private function parseChunkDataWithAI($text) {
+        try {
+            $aiData = $this->claudeService->extractChunkDataWithAI($text);
+
+            // Si l'AI retourne des données, les utiliser
+            if (!empty($aiData)) {
+                return $aiData;
+            }
+
+            // Fallback vers regex si AI retourne vide
+            return $this->parseChunkData($text);
+        } catch (Exception $e) {
+            // Fallback vers regex si AI échoue
+            error_log("AI extraction failed, falling back to regex: " . $e->getMessage());
+            return $this->parseChunkData($text);
+        }
+    }
+
+    /**
+     * Parse les données structurées d'un chunk de texte - Version complète (fallback regex)
      */
     private function parseChunkData($text) {
         $data = [];
@@ -259,8 +299,12 @@ class PdfExtractorService {
             $data['ville'] = $m[1];
         }
 
-        // Année de construction
-        if (preg_match('/Année de construction\s*(\d{4})/i', $text, $m)) {
+        // Année de construction - plusieurs formats
+        if (preg_match('/Année\s*(?:de\s*)?construction[:\s]*(\d{4})/iu', $text, $m)) {
+            $data['annee_construction'] = (int)$m[1];
+        } elseif (preg_match('/Construit(?:e)?\s*(?:en\s*)?(\d{4})/iu', $text, $m)) {
+            $data['annee_construction'] = (int)$m[1];
+        } elseif (preg_match('/(\d{4})\s*(?:année|construction)/iu', $text, $m)) {
             $data['annee_construction'] = (int)$m[1];
         }
 
@@ -274,44 +318,90 @@ class PdfExtractorService {
             $data['type_batiment'] = trim($m[1]);
         }
 
-        // Chambres (format: "2+3" ou "5")
-        if (preg_match('/Nbre\s*chambres[^\d]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+        // Chambres - ATTENTION: ne pas confondre avec Nbre pièces
+        // Format Centris: "Nbre chambres c-c 3" ou "Chambres: 3+1" ou "3 chambres"
+        if (preg_match('/Nbre\s*chambres\s*(?:c-c|au\s*s-s)?\s*(\d+)/iu', $text, $m)) {
+            $data['chambres'] = $m[1];
+        } elseif (preg_match('/Chambres?\s*[:\s]*(\d+(?:\+\d+)?)/iu', $text, $m)) {
+            $data['chambres'] = $m[1];
+        } elseif (preg_match('/(\d+)\s*chambres?\s*(?:à\s*coucher)?/iu', $text, $m)) {
             $data['chambres'] = $m[1];
         }
 
         // Salles de bain (format: "2+3" ou "2")
-        if (preg_match('/salles?\s*de\s*bains?[^\d]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+        if (preg_match('/Nbre\s*salles?\s*(?:de\s*)?bains?\s*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['sdb'] = $m[1];
+        } elseif (preg_match('/salles?\s*(?:de\s*)?bains?\s*[:\s]*(\d+\+\d+|\d+)/iu', $text, $m)) {
+            $data['sdb'] = $m[1];
+        } elseif (preg_match('/(\d+\+\d+|\d+)\s*salles?\s*(?:de\s*)?bains?/iu', $text, $m)) {
             $data['sdb'] = $m[1];
         }
 
-        // Nombre de pièces
-        if (preg_match('/Nbre\s*pièces\s*(\d+\+\d+|\d+)/iu', $text, $m)) {
+        // Nombre de pièces (total) - distinct des chambres
+        if (preg_match('/Nbre\s*pièces\s*(\d+\+?\d*)/iu', $text, $m)) {
             $data['nb_pieces'] = $m[1];
         }
 
-        // Superficie terrain (en pc ou pi²)
-        if (preg_match('/Superficie du terrain\s*([\d\s,\.]+)\s*(?:pc|pi)/iu', $text, $m)) {
-            $data['superficie_terrain'] = trim(preg_replace('/\s/', '', $m[1]));
+        // === SUPERFICIE TERRAIN ===
+        // Format Centris: "Superficie du terrain    4 400 pc" (avec espaces/tabs)
+        // Pattern très permissif pour capturer la valeur
+        if (preg_match('/Superficie\s+(?:du\s+)?terrain[^\d]*([\d][\d\s]*)\s*(pc|pi|p|m)/iu', $text, $m)) {
+            $val = preg_replace('/\s/', '', $m[1]);
+            $data['superficie_terrain'] = $val . ' ' . $m[2];
         }
 
-        // Superficie habitable
-        if (preg_match('/Superficie habitable\s*([\d\s,\.]+)/iu', $text, $m)) {
-            $data['superficie_habitable'] = trim(preg_replace('/\s/', '', $m[1]));
+        // === DIMENSIONS TERRAIN === (pour calculer si pas de superficie)
+        // Format: "Dimensions du terrain    47 X 92 p"
+        if (preg_match('/Dimensions?\s+(?:du\s+)?terrain[^\d]*([\d]+(?:[,\.]\d+)?)\s*[xX×]\s*([\d]+(?:[,\.]\d+)?)\s*(p|pi|m)?/iu', $text, $m)) {
+            $dim1 = (float)str_replace(',', '.', $m[1]);
+            $dim2 = (float)str_replace(',', '.', $m[2]);
+            $unit = $m[3] ?? 'p';
+            $data['dimensions_terrain'] = round($dim1) . 'x' . round($dim2) . ' ' . $unit;
+
+            // Calculer superficie si pas déjà trouvée
+            if (empty($data['superficie_terrain']) && $dim1 > 0 && $dim2 > 0) {
+                $calcul = round($dim1 * $dim2);
+                $data['superficie_terrain'] = $calcul . ' pc (' . round($dim1) . 'x' . round($dim2) . ')';
+            }
         }
 
-        // Dimensions terrain
-        if (preg_match('/Dimensions du terrain\s*([\d\s,\.]+\s*[xX]\s*[\d\s,\.]+)/iu', $text, $m)) {
-            $data['dimensions_terrain'] = trim($m[1]);
+        // === SUPERFICIE HABITABLE/BÂTIMENT ===
+        // Format: "Superficie habitable    1 200 pc"
+        if (preg_match('/Superficie\s+habitable[^\d]*([\d][\d\s]*)\s*(pc|pi|p|m)/iu', $text, $m)) {
+            $val = preg_replace('/\s/', '', $m[1]);
+            $data['superficie_habitable'] = $val . ' ' . $m[2];
+        } elseif (preg_match('/Superficie\s+(?:du\s+)?b[âa]timent[^\d]*([\d][\d\s]*)\s*(pc|pi|p|m)/iu', $text, $m)) {
+            $val = preg_replace('/\s/', '', $m[1]);
+            $data['superficie_habitable'] = $val . ' ' . $m[2];
+        }
+
+        // === DIMENSIONS BÂTIMENT === (pour calculer si pas de superficie)
+        // Format: "Dimensions du bâtiment    24 X 34 p irr"
+        if (preg_match('/Dimensions?\s+(?:du\s+)?b[âa]timent[^\d]*([\d]+(?:[,\.]\d+)?)\s*[xX×]\s*([\d]+(?:[,\.]\d+)?)\s*(p|pi|m)?/iu', $text, $m)) {
+            $dim1 = (float)str_replace(',', '.', $m[1]);
+            $dim2 = (float)str_replace(',', '.', $m[2]);
+            $unit = $m[3] ?? 'p';
+            $data['dimensions_batiment'] = round($dim1) . 'x' . round($dim2) . ' ' . $unit;
+
+            // Calculer superficie si pas déjà trouvée
+            if (empty($data['superficie_habitable']) && $dim1 > 0 && $dim2 > 0) {
+                $calcul = round($dim1 * $dim2);
+                $data['superficie_habitable'] = $calcul . ' pc (' . round($dim1) . 'x' . round($dim2) . ')';
+            }
         }
 
         // === ÉVALUATION MUNICIPALE ===
-        if (preg_match('/Terrain\s*([\d\s]+)\s*\$/iu', $text, $m)) {
+        // Format Centris: "Terrain 150 000 $" ou "Éval. terrain: 150000$"
+        if (preg_match('/(?:Éval(?:uation)?\.?\s*)?Terrain\s*[:\s]*([\d\s]+)\s*\$/iu', $text, $m)) {
             $data['eval_terrain'] = (int)preg_replace('/\s/', '', $m[1]);
         }
-        if (preg_match('/Bâtiment\s*([\d\s]+)\s*\$/iu', $text, $m)) {
+        if (preg_match('/(?:Éval(?:uation)?\.?\s*)?Bâtiment\s*[:\s]*([\d\s]+)\s*\$/iu', $text, $m)) {
             $data['eval_batiment'] = (int)preg_replace('/\s/', '', $m[1]);
         }
-        if (preg_match('/Total\s*([\d\s]+)\s*\$\s*\([\d,\.]+\s*%\)/iu', $text, $m)) {
+        // Total avec ou sans pourcentage
+        if (preg_match('/(?:Éval(?:uation)?\.?\s*)?Total\s*[:\s]*([\d\s]+)\s*\$(?:\s*\([\d,\.]+\s*%\))?/iu', $text, $m)) {
+            $data['eval_total'] = (int)preg_replace('/\s/', '', $m[1]);
+        } elseif (preg_match('/Évaluation\s*(?:municipale|mun\.?)?\s*[:\s]*([\d\s]+)\s*\$/iu', $text, $m)) {
             $data['eval_total'] = (int)preg_replace('/\s/', '', $m[1]);
         }
 
@@ -361,12 +451,19 @@ class PdfExtractorService {
             $data['revetement'] = trim($m[1]);
         }
 
-        // Garage / Stationnement
-        if (preg_match('/Stat\.\s*\(total\)\s*(\d+)/iu', $text, $m)) {
+        // Garage / Stationnement - plus précis pour éviter faux positifs
+        if (preg_match('/Stat(?:ionnement)?\.?\s*\(?total\)?\s*(\d+)/iu', $text, $m)) {
             $data['stationnement'] = (int)$m[1];
         }
-        if (preg_match('/Garage\s*([^\n\t]*)/iu', $text, $m)) {
-            $data['garage'] = trim($m[1]);
+        // Garage: Attaché, Détaché, Simple, Double, etc. - limiter aux valeurs typiques
+        if (preg_match('/Garage\s*[:\s]*((?:Attaché|Détaché|Simple|Double|Triple|Intégré|Non|Oui|Aucun|\d+)[^\n\t]*)/iu', $text, $m)) {
+            $garage = trim($m[1]);
+            // Nettoyer si contient "Fenestration" ou autres textes parasites
+            $garage = preg_replace('/Fenestration.*$/i', '', $garage);
+            $garage = preg_replace('/Revêtement.*$/i', '', $garage);
+            $data['garage'] = trim($garage) ?: null;
+        } elseif (preg_match('/(\d+)\s*garage/iu', $text, $m)) {
+            $data['garage'] = $m[1] . ' garage(s)';
         }
 
         // Piscine
@@ -408,14 +505,27 @@ class PdfExtractorService {
             $data['remarques'] = trim(substr($m[1], 0, 2000));
         }
 
-        // Date PA acceptée (date de vente)
-        if (preg_match('/Date PA acceptée\s*(\d{4}-\d{2}-\d{2})/i', $text, $m)) {
+        // Date de vente - plusieurs formats possibles
+        // Format Centris: "Date PA acceptée    2025-11-07" (avec tabs/espaces)
+        if (preg_match('/Date\s*PA\s*accept[ée]+[\s\t]+(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Date\s*PA\s*accept[ée]+[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Date\s*(?:de\s*)?vente[\s\t:]+(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Vendu(?:e)?\s*(?:le\s*)?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        } elseif (preg_match('/Signature\s*(?:de\s*)?l\'?acte[\s\t]+(?:de\s*)?vente[\s\t]+(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
             $data['date_vente'] = $m[1];
         }
 
-        // Date signature acte de vente
-        if (preg_match('/Signature de l\'acte de vente\s*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
-            $data['date_signature'] = $m[1];
+        // Date signature acte de vente (backup) - chercher n'importe quelle date après "Signature"
+        if (empty($data['date_vente']) && preg_match('/Signature[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
+        }
+        // Backup: chercher date après "acceptée"
+        if (empty($data['date_vente']) && preg_match('/accept[ée]+[^\d]*(\d{4}-\d{2}-\d{2})/iu', $text, $m)) {
+            $data['date_vente'] = $m[1];
         }
 
         return $data;
@@ -459,15 +569,20 @@ class PdfExtractorService {
     }
 
     /**
-     * Sauvegarde les chunks en base de données
+     * Sauvegarde les chunks en base de données - Version complète avec tous les champs
      */
     public function saveChunksToDb($analyseId, $chunks, $basePath) {
         $stmt = $this->pdo->prepare("
             INSERT INTO comparables_chunks
             (analyse_id, no_centris, page_debut, page_fin, chunk_text, photos_path,
              adresse, ville, prix_vendu, date_vente, jours_marche, chambres, sdb,
-             superficie_terrain, annee_construction, type_propriete, renovations_texte, remarques)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             superficie_terrain, superficie_batiment, annee_construction, type_propriete,
+             eval_terrain, eval_batiment, eval_total,
+             taxe_municipale, taxe_scolaire, taxe_annee,
+             fondation, toiture, revetement, garage, stationnement, piscine, sous_sol,
+             chauffage, energie, proximites, inclusions, exclusions,
+             renovations_total, renovations_texte, remarques)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $savedChunks = [];
@@ -490,9 +605,29 @@ class PdfExtractorService {
                 $data['chambres'] ?? null,
                 $data['sdb'] ?? null,
                 $data['superficie_terrain'] ?? null,
+                $data['superficie_habitable'] ?? null,
                 $data['annee_construction'] ?? null,
                 $data['type_propriete'] ?? null,
-                $data['renovations'] ?? null,
+                $data['eval_terrain'] ?? null,
+                $data['eval_batiment'] ?? null,
+                $data['eval_total'] ?? null,
+                $data['taxe_municipale'] ?? null,
+                $data['taxe_scolaire'] ?? null,
+                $data['taxe_annee'] ?? null,
+                $data['fondation'] ?? null,
+                $data['toiture'] ?? null,
+                $data['revetement'] ?? null,
+                $data['garage'] ?? null,
+                $data['stationnement'] ?? null,
+                $data['piscine'] ?? null,
+                $data['sous_sol'] ?? null,
+                $data['chauffage'] ?? null,
+                $data['energie'] ?? null,
+                $data['proximites'] ?? null,
+                $data['inclusions'] ?? null,
+                $data['exclusions'] ?? null,
+                $data['renovations_total'] ?? 0,
+                $data['renovations_texte'] ?? null,
                 $data['remarques'] ?? null
             ]);
 

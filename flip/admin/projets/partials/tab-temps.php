@@ -7,6 +7,37 @@
             $totalCoutTab += $h['heures'] * $taux;
         }
         $totalAvancesActives = array_sum(array_column($avancesListe, 'montant'));
+
+        // Calculer les journées travaillées (dates distinctes où des heures ont été enregistrées)
+        $datesDistinctes = array_unique(array_column($heuresProjet, 'date_travail'));
+        $journeesTravaillees = count($datesDistinctes);
+
+        // Calculer tous les jours du projet (incluant samedi et dimanche)
+        $dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+        $dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+        $joursTotaux = 0;
+        $journeesNonTravaillees = 0;
+
+        if ($dateDebutTravaux && $dateFinPrevue) {
+            $debut = new DateTime($dateDebutTravaux);
+            $fin = new DateTime($dateFinPrevue);
+            $aujourdhui = new DateTime();
+
+            // Utiliser la date la plus petite entre aujourd'hui et la fin prévue
+            $finCalcul = $fin < $aujourdhui ? $fin : $aujourdhui;
+
+            if ($debut <= $finCalcul) {
+                $interval = new DateInterval('P1D');
+                $periode = new DatePeriod($debut, $interval, $finCalcul->modify('+1 day'));
+
+                foreach ($periode as $date) {
+                    // Compter tous les jours (lundi à dimanche)
+                    $joursTotaux++;
+                }
+            }
+
+            $journeesNonTravaillees = max(0, $joursTotaux - $journeesTravaillees);
+        }
         ?>
 
         <!-- Barre compacte : Stats -->
@@ -28,9 +59,27 @@
                 <strong class="text-danger"><?= formatMoney($totalAvancesActives) ?></strong>
             </div>
             <?php endif; ?>
+            <?php if ($joursTotaux > 0): ?>
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,202,240,0.15);">
+                <i class="bi bi-calendar-week text-info me-2"></i>
+                <span class="text-muted me-1">Jours:</span>
+                <strong class="text-info"><?= $journeesTravaillees ?></strong>
+                <span class="text-muted mx-1">/</span>
+                <span class="text-muted"><?= $joursTotaux ?></span>
+            </div>
+            <?php else: ?>
+            <div class="d-flex align-items-center px-3 py-1 rounded" style="background: rgba(13,202,240,0.15);">
+                <i class="bi bi-calendar-check text-info me-2"></i>
+                <span class="text-muted me-1">Jours travaillés:</span>
+                <strong class="text-info"><?= $journeesTravaillees ?></strong>
+            </div>
+            <?php endif; ?>
             <div class="ms-auto d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalHeures">
+                    <i class="bi bi-clock me-1"></i>Ajouter des heures
+                </button>
                 <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalAvance">
-                    <i class="bi bi-plus-circle me-1"></i>Nouvelle avance
+                    <i class="bi bi-wallet2 me-1"></i>Nouvelle avance
                 </button>
                 <span class="badge bg-secondary align-self-center"><?= count($heuresProjet) ?> entrées</span>
             </div>
@@ -170,6 +219,7 @@
                                     <th class="text-end">Montant</th>
                                     <th>Statut</th>
                                     <th>Description</th>
+                                    <th class="text-center" style="width: 80px;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -188,7 +238,7 @@
                                         $statusClass = match($h['statut']) {
                                             'approuvee' => 'bg-success',
                                             'rejetee' => 'bg-danger',
-                                            default => 'bg-warning'
+                                            default => 'bg-warning text-dark'
                                         };
                                         $statusLabel = match($h['statut']) {
                                             'approuvee' => 'Approuvée',
@@ -196,9 +246,78 @@
                                             default => 'En attente'
                                         };
                                         ?>
+                                        <?php if ($h['statut'] === 'en_attente'): ?>
+                                        <div class="dropdown">
+                                            <span class="badge <?= $statusClass ?> dropdown-toggle" role="button" data-bs-toggle="dropdown" style="cursor: pointer;">
+                                                <?= $statusLabel ?>
+                                            </span>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                <li>
+                                                    <form method="POST" class="d-inline">
+                                                        <?php csrfField(); ?>
+                                                        <input type="hidden" name="action" value="approuver_heures">
+                                                        <input type="hidden" name="heures_id" value="<?= $h['id'] ?>">
+                                                        <button type="submit" class="dropdown-item text-success">
+                                                            <i class="bi bi-check-circle me-2"></i>Approuver
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form method="POST" class="d-inline">
+                                                        <?php csrfField(); ?>
+                                                        <input type="hidden" name="action" value="rejeter_heures">
+                                                        <input type="hidden" name="heures_id" value="<?= $h['id'] ?>">
+                                                        <button type="submit" class="dropdown-item text-danger">
+                                                            <i class="bi bi-x-circle me-2"></i>Rejeter
+                                                        </button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <?php else: ?>
                                         <span class="badge <?= $statusClass ?>"><?= $statusLabel ?></span>
+                                        <?php endif; ?>
                                     </td>
                                     <td><small class="text-muted"><?= e($h['description'] ?? '') ?></small></td>
+                                    <td class="text-center">
+                                        <?php
+                                        // Formater la date pour l'input type="date" (YYYY-MM-DD)
+                                        $dateForInput = '';
+                                        if (!empty($h['date_travail'])) {
+                                            // Si c'est déjà au format YYYY-MM-DD, l'utiliser directement
+                                            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $h['date_travail'])) {
+                                                $dateForInput = substr($h['date_travail'], 0, 10);
+                                            } else {
+                                                $ts = strtotime($h['date_travail']);
+                                                if ($ts !== false) {
+                                                    $dateForInput = date('Y-m-d', $ts);
+                                                }
+                                            }
+                                        }
+                                        if (empty($dateForInput)) {
+                                            $dateForInput = date('Y-m-d');
+                                        }
+                                        ?>
+                                        <button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 btn-edit-heures"
+                                                data-id="<?= $h['id'] ?>"
+                                                data-user="<?= $h['user_id'] ?>"
+                                                data-date="<?= $dateForInput ?>"
+                                                data-heures="<?= $h['heures'] ?>"
+                                                data-taux="<?= $taux ?>"
+                                                data-statut="<?= $h['statut'] ?>"
+                                                data-description="<?= e($h['description'] ?? '') ?>"
+                                                title="Modifier">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <form method="POST" class="d-inline" onsubmit="return confirm('Supprimer cette entrée?');">
+                                            <?php csrfField(); ?>
+                                            <input type="hidden" name="action" value="supprimer_heures">
+                                            <input type="hidden" name="heures_id" value="<?= $h['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Supprimer">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>

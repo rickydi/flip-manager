@@ -1,0 +1,122 @@
+<?php
+/**
+ * API: Actions en masse sur les factures
+ * Actions supportées: payer, non_payer, approuver, en_attente, rejeter, supprimer
+ */
+
+header('Content-Type: application/json');
+
+// Lire les données UNE SEULE FOIS (php://input ne peut être lu qu'une fois)
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true);
+
+require_once '../../config.php';
+require_once '../../includes/auth.php';
+require_once '../../includes/functions.php';
+
+// Vérifier authentification
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['success' => false, 'error' => 'Non authentifié']);
+    exit;
+}
+
+if (!$input || empty($input['action']) || empty($input['ids']) || !is_array($input['ids'])) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Données invalides']);
+    exit;
+}
+
+$action = $input['action'];
+$ids = array_map('intval', $input['ids']);
+
+// Valider les IDs
+$ids = array_filter($ids, fn($id) => $id > 0);
+if (empty($ids)) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'error' => 'Aucun ID valide']);
+    exit;
+}
+
+$placeholders = implode(',', array_fill(0, count($ids), '?'));
+
+try {
+    global $pdo;
+    $affected = 0;
+
+    switch ($action) {
+        case 'payer':
+            $stmt = $pdo->prepare("UPDATE factures SET est_payee = 1 WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $affected = $stmt->rowCount();
+            break;
+
+        case 'non_payer':
+            $stmt = $pdo->prepare("UPDATE factures SET est_payee = 0 WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $affected = count($ids);
+            break;
+
+        case 'approuver':
+            $stmt = $pdo->prepare("UPDATE factures SET statut = 'approuvee' WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $affected = $stmt->rowCount();
+            break;
+
+        case 'en_attente':
+            $stmt = $pdo->prepare("UPDATE factures SET statut = 'en_attente' WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $affected = $stmt->rowCount();
+            break;
+
+        case 'rejeter':
+            $stmt = $pdo->prepare("UPDATE factures SET statut = 'rejetee' WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $affected = $stmt->rowCount();
+            break;
+
+        case 'supprimer':
+            // Vérifier que l'utilisateur est admin pour la suppression
+            if (!isAdmin()) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Permission refusée']);
+                exit;
+            }
+
+            // Récupérer les fichiers à supprimer
+            $stmt = $pdo->prepare("SELECT fichier FROM factures WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $fichiers = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+            // Supprimer les factures
+            $stmt = $pdo->prepare("DELETE FROM factures WHERE id IN ($placeholders)");
+            $stmt->execute($ids);
+            $affected = $stmt->rowCount();
+
+            // Supprimer les fichiers physiques
+            foreach ($fichiers as $fichier) {
+                if ($fichier) {
+                    $path = UPLOAD_DIR . '/factures/' . $fichier;
+                    if (file_exists($path)) {
+                        @unlink($path);
+                    }
+                }
+            }
+            break;
+
+        default:
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Action non reconnue']);
+            exit;
+    }
+
+    echo json_encode([
+        'success' => true,
+        'affected' => $affected,
+        'message' => "$affected facture(s) modifiée(s)"
+    ]);
+
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Erreur serveur: ' . $e->getMessage()]);
+}

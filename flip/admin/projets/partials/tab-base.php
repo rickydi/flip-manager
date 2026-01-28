@@ -3,6 +3,34 @@ $isPartialBase = isset($_GET['partial']) && $_GET['partial'] === 'base';
 if ($isPartialBase) {
     ob_start();
 }
+
+// Stats heures travaillées pour le graphique
+$nbJoursTravailles = count(array_unique(array_column($heuresProjet ?? [], 'date_travail')));
+$totalHeuresProjet = array_sum(array_column($heuresProjet ?? [], 'heures'));
+$nbPersonnesTravail = count(array_unique(array_column($heuresProjet ?? [], 'user_id')));
+$moyenneHeuresParJour = ($nbJoursTravailles > 0 && $nbPersonnesTravail > 0)
+    ? round($totalHeuresProjet / $nbJoursTravailles / $nbPersonnesTravail, 1)
+    : 0;
+
+// Calculer les jours non travaillés
+$nbJoursNonTravailles = 0;
+$dateDebutTravaux = $projet['date_debut_travaux'] ?? $projet['date_acquisition'] ?? null;
+$dateFinPrevue = $projet['date_fin_prevue'] ?? null;
+if ($dateDebutTravaux && $nbJoursTravailles > 0) {
+    $debut = new DateTime($dateDebutTravaux);
+    $aujourdhui = new DateTime();
+    $fin = $dateFinPrevue ? new DateTime($dateFinPrevue) : $aujourdhui;
+    $finCalcul = $fin < $aujourdhui ? $fin : $aujourdhui;
+    if ($debut <= $finCalcul) {
+        $joursTotaux = $debut->diff($finCalcul)->days + 1;
+        $nbJoursNonTravailles = max(0, $joursTotaux - $nbJoursTravailles);
+    }
+}
+
+// Stats achats pour le graphique
+$nbJoursAchats = count(array_unique(array_column($facturesProjet ?? [], 'date_facture')));
+$totalAchatsProjet = array_sum(array_column($facturesProjet ?? [], 'montant_total'));
+$moyenneAchatsParJour = $nbJoursAchats > 0 ? round($totalAchatsProjet / $nbJoursAchats, 0) : 0;
 ?>
     <div class="tab-pane fade <?= $tab === 'base' ? 'show active' : '' ?>" id="base" role="tabpanel">
 
@@ -195,6 +223,13 @@ if ($isPartialBase) {
                         <div class="chart-title">Heures travaillées</div>
                         <div class="chart-subtitle">Par jour de la semaine</div>
                     </div>
+                    <div class="ms-auto d-flex gap-2 align-items-center">
+                        <span class="badge bg-primary" title="Jours travaillés"><?= $nbJoursTravailles ?> j</span>
+                        <?php if ($nbJoursNonTravailles > 0): ?>
+                        <span class="badge bg-danger bg-opacity-50" title="Jours non travaillés"><?= $nbJoursNonTravailles ?> j</span>
+                        <?php endif; ?>
+                        <span class="badge bg-primary" title="Moyenne heures/jour/personne"><?= $moyenneHeuresParJour ?> h/j</span>
+                    </div>
                 </div>
                 <div class="chart-body"><canvas id="chartBudget" height="150"></canvas></div>
             </div>
@@ -208,6 +243,10 @@ if ($isPartialBase) {
                     <div>
                         <div class="chart-title">Achats par jour</div>
                         <div class="chart-subtitle">Montant des factures</div>
+                    </div>
+                    <div class="ms-auto d-flex gap-2 align-items-center">
+                        <span class="badge bg-success" title="Jours d'achats"><?= $nbJoursAchats ?> j</span>
+                        <span class="badge bg-success" title="Moyenne par jour"><?= formatMoney($moyenneAchatsParJour) ?>/j</span>
                     </div>
                 </div>
                 <div class="chart-body"><canvas id="chartProfits" height="150"></canvas></div>
@@ -290,6 +329,36 @@ if ($isPartialBase) {
                             <div class="col-2">
                                 <label class="form-label">Code</label>
                                 <input type="text" class="form-control" name="code_postal" value="<?= e($projet['code_postal']) ?>">
+                            </div>
+                            <!-- GPS pour pointage automatique -->
+                            <div class="col-12 mt-2">
+                                <div class="border rounded p-2 bg-light">
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-auto">
+                                            <label class="form-label small mb-1"><i class="bi bi-geo-alt text-primary"></i> GPS Pointage</label>
+                                        </div>
+                                        <div class="col-3">
+                                            <input type="text" class="form-control form-control-sm" name="latitude" id="gps_latitude"
+                                                   value="<?= e($projet['latitude'] ?? '') ?>" placeholder="Latitude">
+                                        </div>
+                                        <div class="col-3">
+                                            <input type="text" class="form-control form-control-sm" name="longitude" id="gps_longitude"
+                                                   value="<?= e($projet['longitude'] ?? '') ?>" placeholder="Longitude">
+                                        </div>
+                                        <div class="col-2">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" class="form-control" name="rayon_gps" id="gps_rayon"
+                                                       value="<?= e($projet['rayon_gps'] ?? 100) ?>" min="50" max="500">
+                                                <span class="input-group-text">m</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-auto">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="detecterGPS()">
+                                                <i class="bi bi-crosshair"></i> Detecter
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-3">
                                 <label class="form-label">Achat</label>
@@ -564,6 +633,49 @@ if ($isPartialBase) {
             });
         });
     })();
+
+    // Fonction GPS pour detecter les coordonnees du projet
+    function detecterGPS() {
+        if (!navigator.geolocation) {
+            alert('GPS non supporte sur cet appareil');
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        btn.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                document.getElementById('gps_latitude').value = position.coords.latitude.toFixed(8);
+                document.getElementById('gps_longitude').value = position.coords.longitude.toFixed(8);
+                btn.innerHTML = '<i class="bi bi-check-lg"></i>';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                    btn.disabled = false;
+                }, 2000);
+
+                // Declencher le changement pour l'auto-save
+                document.getElementById('gps_latitude').dispatchEvent(new Event('change'));
+            },
+            function(error) {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                alert('Erreur GPS: ' + error.message);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    }
     </script>
     </form>
     </div><!-- Fin col-xxl-6 -->
