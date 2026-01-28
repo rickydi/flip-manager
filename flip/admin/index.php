@@ -1291,7 +1291,7 @@ include '../includes/header.php';
 }
 
 .notes-header {
-    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
     color: white;
     padding: 0.6rem 1rem;
     display: flex;
@@ -1332,22 +1332,22 @@ include '../includes/header.php';
 
 .notes-form input:focus {
     outline: none;
-    border-color: #7c3aed;
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
 }
 
 .notes-form button {
     padding: 0.4rem 0.6rem;
     border: none;
     border-radius: 0.4rem;
-    background: #7c3aed;
+    background: #f59e0b;
     color: white;
     cursor: pointer;
     transition: background 0.2s;
 }
 
 .notes-form button:hover {
-    background: #6d28d9;
+    background: #d97706;
 }
 
 .notes-list {
@@ -1364,9 +1364,9 @@ include '../includes/header.php';
     align-items: center;
     gap: 0.4rem;
     padding: 0.4rem 0.6rem;
-    background: rgba(124, 58, 237, 0.05);
+    background: rgba(245, 158, 11, 0.05);
     border-radius: 0.4rem;
-    border-left: 3px solid #7c3aed;
+    border-left: 3px solid #f59e0b;
 }
 
 .note-item.terminee {
@@ -1387,7 +1387,7 @@ include '../includes/header.php';
     width: 14px;
     height: 14px;
     cursor: pointer;
-    accent-color: #7c3aed;
+    accent-color: #f59e0b;
 }
 
 .note-text {
@@ -1497,20 +1497,20 @@ include '../includes/header.php';
             <svg style="position:absolute;width:0;height:0;">
                 <defs>
                     <linearGradient id="minuteGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#ef4444"/>
-                        <stop offset="100%" style="stop-color:#f87171"/>
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                     <linearGradient id="hourGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:#f59e0b"/>
                         <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                     <linearGradient id="weekGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#10b981"/>
-                        <stop offset="100%" style="stop-color:#06b6d4"/>
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                     <linearGradient id="monthGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:#8b5cf6"/>
-                        <stop offset="100%" style="stop-color:#a78bfa"/>
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#fbbf24"/>
                     </linearGradient>
                 </defs>
             </svg>
@@ -1531,7 +1531,7 @@ include '../includes/header.php';
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
                         <!-- Point % sur l'arc -->
-                        <circle class="gauge-percent-dot" cx="<?= $posMinute['x'] ?>" cy="<?= $posMinute['y'] ?>" r="12" fill="#ef4444" id="gauge-dot-minute"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posMinute['x'] ?>" cy="<?= $posMinute['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-minute"/>
                         <text class="gauge-percent-arc" x="<?= $posMinute['x'] ?>" y="<?= $posMinute['y'] ?>" id="gauge-percent-minute"><?= number_format($pctMinute, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
@@ -1581,7 +1581,7 @@ include '../includes/header.php';
                               stroke-dashoffset="<?= $offsetWeek ?>"
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
-                        <circle class="gauge-percent-dot" cx="<?= $posWeek['x'] ?>" cy="<?= $posWeek['y'] ?>" r="12" fill="#10b981" id="gauge-dot-week"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posWeek['x'] ?>" cy="<?= $posWeek['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-week"/>
                         <text class="gauge-percent-arc" x="<?= $posWeek['x'] ?>" y="<?= $posWeek['y'] ?>" id="gauge-percent-week"><?= number_format($pctWeek, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
@@ -1606,7 +1606,7 @@ include '../includes/header.php';
                               stroke-dashoffset="<?= $offsetMonth ?>"
                               data-circumference="<?= $arcCircum ?>"
                               data-centerx="70" data-centery="75" data-radius="60"/>
-                        <circle class="gauge-percent-dot" cx="<?= $posMonth['x'] ?>" cy="<?= $posMonth['y'] ?>" r="12" fill="#8b5cf6" id="gauge-dot-month"/>
+                        <circle class="gauge-percent-dot" cx="<?= $posMonth['x'] ?>" cy="<?= $posMonth['y'] ?>" r="12" fill="#f59e0b" id="gauge-dot-month"/>
                         <text class="gauge-percent-arc" x="<?= $posMonth['x'] ?>" y="<?= $posMonth['y'] ?>" id="gauge-percent-month"><?= number_format($pctMonth, 0) ?>%</text>
                     </svg>
                     <div class="gauge-center">
