@@ -335,8 +335,13 @@ include '../../includes/header.php';
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Nouveau mot de passe</label>
-                            <input type="password" class="form-control" name="password"
-                                   placeholder="Laisser vide pour ne pas changer">
+                            <div class="input-group">
+                                <input type="password" class="form-control password-field" name="password"
+                                       placeholder="Laisser vide pour ne pas changer">
+                                <button class="btn btn-outline-secondary toggle-password" type="button" title="Afficher/Masquer">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -466,7 +471,12 @@ include '../../includes/header.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Mot de passe *</label>
-                        <input type="password" class="form-control" name="password" required minlength="4">
+                        <div class="input-group">
+                            <input type="password" class="form-control password-field" name="password" required minlength="4">
+                            <button class="btn btn-outline-secondary toggle-password" type="button" title="Afficher/Masquer">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
@@ -500,5 +510,25 @@ include '../../includes/header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Toggle password visibility
+document.querySelectorAll('.toggle-password').forEach(function(button) {
+    button.addEventListener('click', function() {
+        const input = this.parentElement.querySelector('.password-field');
+        const icon = this.querySelector('i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+});
+</script>
 
 <?php include '../../includes/footer.php'; ?>
