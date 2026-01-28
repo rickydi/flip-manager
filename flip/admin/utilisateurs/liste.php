@@ -357,8 +357,13 @@ include '../../includes/header.php';
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Nouveau mot de passe</label>
-                            <input type="password" class="form-control" name="password"
-                                   placeholder="Laisser vide pour ne pas changer">
+                            <div class="input-group">
+                                <input type="password" class="form-control password-toggle-field" name="password"
+                                       placeholder="Laisser vide pour ne pas changer">
+                                <button class="btn btn-outline-secondary btn-toggle-pwd" type="button" title="Afficher/Masquer">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -487,7 +492,12 @@ include '../../includes/header.php';
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Mot de passe *</label>
-                        <input type="password" class="form-control" name="password" required minlength="4">
+                        <div class="input-group">
+                            <input type="password" class="form-control password-toggle-field" name="password" required minlength="4">
+                            <button class="btn btn-outline-secondary btn-toggle-pwd" type="button" title="Afficher/Masquer">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
@@ -523,7 +533,25 @@ include '../../includes/header.php';
 </div>
 
 <script>
-// Toggle affichage mot de passe
+// Toggle affichage mot de passe dans les modals (champs input)
+document.querySelectorAll('.btn-toggle-pwd').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const input = this.closest('.input-group').querySelector('.password-toggle-field');
+        const icon = this.querySelector('i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+});
+
+// Toggle affichage mot de passe dans la liste
 document.querySelectorAll('.btn-toggle-password').forEach(btn => {
     btn.addEventListener('click', function() {
         const userId = this.dataset.userId;
