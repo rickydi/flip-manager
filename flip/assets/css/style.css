@@ -1935,6 +1935,22 @@ body {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* Version mini pour footer */
+.user-avatar-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
 .navbar .dropdown-toggle::after {
     display: none;
 }
