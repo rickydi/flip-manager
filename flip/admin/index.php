@@ -213,6 +213,57 @@ $profitExtrapolParSemaine = $profitExtrapolAnnuel / 52;
 $profitExtrapolParHeure = $profitExtrapolAnnuel / (52 * 40);
 $profitExtrapolParMinute = $profitExtrapolAnnuel / (52 * 40 * 60);
 
+// === Notes d'amélioration de l'app ===
+// Créer la table si elle n'existe pas
+try {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS app_notes (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            contenu TEXT NOT NULL,
+            terminee TINYINT(1) DEFAULT 0,
+            priorite INT DEFAULT 0,
+            user_id INT NULL,
+            date_creation DATETIME DEFAULT CURRENT_TIMESTAMP,
+            date_modification DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+} catch (Exception $e) {
+    // Table existe déjà
+}
+
+// Gestion des actions sur les notes
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['note_action'])) {
+    $action = $_POST['note_action'];
+
+    if ($action === 'add' && !empty(trim($_POST['note_contenu'] ?? ''))) {
+        $stmt = $pdo->prepare("INSERT INTO app_notes (contenu, user_id) VALUES (?, ?)");
+        $stmt->execute([trim($_POST['note_contenu']), $_SESSION['user_id']]);
+    }
+
+    if ($action === 'toggle' && !empty($_POST['note_id'])) {
+        $stmt = $pdo->prepare("UPDATE app_notes SET terminee = NOT terminee, date_modification = NOW() WHERE id = ?");
+        $stmt->execute([(int)$_POST['note_id']]);
+    }
+
+    if ($action === 'delete' && !empty($_POST['note_id'])) {
+        $stmt = $pdo->prepare("DELETE FROM app_notes WHERE id = ?");
+        $stmt->execute([(int)$_POST['note_id']]);
+    }
+
+    // Redirect pour éviter resoumission
+    header('Location: ' . $_SERVER['REQUEST_URI']);
+    exit;
+}
+
+// Récupérer les notes
+$appNotes = [];
+try {
+    $stmt = $pdo->query("SELECT * FROM app_notes ORDER BY terminee ASC, priorite DESC, date_creation DESC");
+    $appNotes = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Table n'existe pas
+}
+
 include '../includes/header.php';
 ?>
 
@@ -1189,6 +1240,181 @@ include '../includes/header.php';
 
 .fiscal-summary-row .label { color: var(--text-secondary); }
 .fiscal-summary-row .value { font-weight: 600; color: var(--text-primary); }
+
+/* === Section Fiscalité compacte === */
+.fiscal-section.compact .fiscal-body {
+    padding: 1rem;
+}
+
+.fiscal-section.compact .fiscal-numbers {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.fiscal-section.compact .fiscal-number {
+    padding: 0.5rem;
+}
+
+.fiscal-section.compact .fiscal-number .num {
+    font-size: 1rem;
+}
+
+.fiscal-section.compact .fiscal-projects {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.fiscal-section.compact .fiscal-project-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.fiscal-section.compact .fiscal-gauge {
+    height: 8px;
+}
+
+/* === Section Notes d'amélioration === */
+.notes-section {
+    background: var(--bg-card);
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--shadow-color);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.notes-header {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+    color: white;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notes-header h5 {
+    margin: 0;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.notes-body {
+    padding: 1rem;
+    flex: 1;
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.notes-form {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.notes-form input {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    background: var(--bg-input);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.notes-form input:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+.notes-form button {
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: #7c3aed;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.notes-form button:hover {
+    background: #6d28d9;
+}
+
+.notes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.note-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.note-item:last-child {
+    border-bottom: none;
+}
+
+.note-item.terminee .note-text {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+.note-checkbox {
+    flex-shrink: 0;
+}
+
+.note-checkbox input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: #7c3aed;
+}
+
+.note-text {
+    flex: 1;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    word-break: break-word;
+}
+
+.note-delete {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    opacity: 0.5;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.note-delete:hover {
+    opacity: 1;
+    color: #ef4444;
+}
+
+.notes-empty {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+.notes-empty i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
 </style>
 
 <div class="container-fluid">
@@ -1454,10 +1680,59 @@ include '../includes/header.php';
         </a>
     </div>
 
-    <!-- Section Fiscalité -->
+    <!-- Section Fiscalité + Notes -->
     <div class="row mb-4">
-        <div class="col-12">
-            <div class="fiscal-section">
+        <!-- Notes d'amélioration (2/3 de la largeur) -->
+        <div class="col-md-8 mb-3 mb-md-0">
+            <div class="notes-section">
+                <div class="notes-header">
+                    <h5>
+                        <i class="bi bi-lightbulb"></i>
+                        App à améliorer
+                    </h5>
+                    <span class="badge bg-light text-dark"><?= count(array_filter($appNotes, fn($n) => !$n['terminee'])) ?> en cours</span>
+                </div>
+                <div class="notes-body">
+                    <form method="POST" class="notes-form">
+                        <input type="hidden" name="note_action" value="add">
+                        <input type="text" name="note_contenu" placeholder="Nouvelle idée d'amélioration..." required>
+                        <button type="submit"><i class="bi bi-plus-lg"></i></button>
+                    </form>
+
+                    <?php if (empty($appNotes)): ?>
+                    <div class="notes-empty">
+                        <i class="bi bi-lightbulb"></i>
+                        <div>Aucune note pour le moment</div>
+                        <small>Ajoutez vos idées d'amélioration</small>
+                    </div>
+                    <?php else: ?>
+                    <ul class="notes-list">
+                        <?php foreach ($appNotes as $note): ?>
+                        <li class="note-item <?= $note['terminee'] ? 'terminee' : '' ?>">
+                            <form method="POST" class="note-checkbox">
+                                <input type="hidden" name="note_action" value="toggle">
+                                <input type="hidden" name="note_id" value="<?= $note['id'] ?>">
+                                <input type="checkbox" <?= $note['terminee'] ? 'checked' : '' ?> onchange="this.form.submit()" title="Marquer comme terminé">
+                            </form>
+                            <span class="note-text"><?= e($note['contenu']) ?></span>
+                            <form method="POST" style="display: inline;">
+                                <input type="hidden" name="note_action" value="delete">
+                                <input type="hidden" name="note_id" value="<?= $note['id'] ?>">
+                                <button type="submit" class="note-delete" title="Supprimer" onclick="return confirm('Supprimer cette note ?')">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fiscalité (1/3 de la largeur) -->
+        <div class="col-md-4">
+            <div class="fiscal-section compact">
                 <!-- Header avec gradient -->
                 <div class="fiscal-header">
                     <h5>
