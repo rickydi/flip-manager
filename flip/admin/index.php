@@ -1019,12 +1019,12 @@ include '../includes/header.php';
 .fiscal-header {
     background: linear-gradient(135deg, #1e3a5f 0%, #2d5a87 100%);
     color: white;
-    padding: 1rem 1.25rem;
+    padding: 0.6rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .fiscal-header h5 {
@@ -1067,7 +1067,7 @@ include '../includes/header.php';
 }
 
 .fiscal-dpe-value {
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 700;
 }
 
@@ -1164,12 +1164,12 @@ include '../includes/header.php';
 }
 
 .fiscal-project-list h6 {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
+    padding-bottom: 0.3rem;
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -1177,7 +1177,7 @@ include '../includes/header.php';
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.6rem 0;
+    padding: 0.35rem 0;
     border-bottom: 1px dashed var(--border-color);
 }
 
@@ -1185,6 +1185,7 @@ include '../includes/header.php';
 
 .fiscal-project-item .name {
     font-weight: 500;
+    font-size: 0.8rem;
     color: var(--text-primary);
 }
 
@@ -1198,44 +1199,44 @@ include '../includes/header.php';
 }
 
 .fiscal-project-item .date {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--text-muted);
 }
 
 .fiscal-project-item .amount {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
 }
 
 .fiscal-project-item .amount.positive { color: #10b981; }
 .fiscal-project-item .amount.negative { color: #ef4444; }
 
 .fiscal-project-item .tax-rate {
-    font-size: 0.7rem;
-    padding: 0.15rem 0.4rem;
-    border-radius: 0.25rem;
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
     background: rgba(100, 116, 139, 0.1);
     color: var(--text-secondary);
 }
 
 .fiscal-empty {
     text-align: center;
-    padding: 2rem;
+    padding: 1rem;
     color: var(--text-muted);
 }
 
 .fiscal-summary {
-    margin-top: 1rem;
-    padding: 1rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
     background: rgba(59, 130, 246, 0.08);
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     border: 1px dashed rgba(59, 130, 246, 0.3);
 }
 
 .fiscal-summary-row {
     display: flex;
     justify-content: space-between;
-    font-size: 0.85rem;
+    font-size: 0.7rem;
 }
 
 .fiscal-summary-row .label { color: var(--text-secondary); }
@@ -1243,36 +1244,39 @@ include '../includes/header.php';
 
 /* === Section Fiscalité compacte === */
 .fiscal-section.compact .fiscal-body {
-    padding: 1rem;
+    padding: 0.75rem;
 }
 
 .fiscal-section.compact .fiscal-numbers {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.5rem;
-    margin-top: 1rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.4rem;
+    margin-top: 0.6rem;
 }
 
 .fiscal-section.compact .fiscal-number {
-    padding: 0.5rem;
+    padding: 0.35rem;
 }
 
 .fiscal-section.compact .fiscal-number .num {
-    font-size: 1rem;
+    font-size: 0.85rem;
+}
+
+.fiscal-section.compact .fiscal-number .lbl {
+    font-size: 0.55rem;
 }
 
 .fiscal-section.compact .fiscal-projects {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-top: 1rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    margin-top: 0.6rem;
 }
 
 .fiscal-section.compact .fiscal-project-list {
-    max-height: 150px;
-    overflow-y: auto;
+    /* Pas de scroll - affichage complet */
 }
 
 .fiscal-section.compact .fiscal-gauge {
-    height: 8px;
+    height: 6px;
 }
 
 /* === Section Notes d'amélioration === */
@@ -1289,7 +1293,7 @@ include '../includes/header.php';
 .notes-header {
     background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
     color: white;
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 1rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1298,33 +1302,32 @@ include '../includes/header.php';
 .notes-header h5 {
     margin: 0;
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .notes-body {
-    padding: 1rem;
+    padding: 0.75rem;
     flex: 1;
-    overflow-y: auto;
-    max-height: 400px;
+    /* Pas de scroll - affichage complet */
 }
 
 .notes-form {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .notes-form input {
     flex: 1;
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.6rem;
     border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
+    border-radius: 0.4rem;
     background: var(--bg-input);
     color: var(--text-primary);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
 .notes-form input:focus {
@@ -1334,9 +1337,9 @@ include '../includes/header.php';
 }
 
 .notes-form button {
-    padding: 0.5rem 0.75rem;
+    padding: 0.4rem 0.6rem;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: 0.4rem;
     background: #7c3aed;
     color: white;
     cursor: pointer;
@@ -1351,18 +1354,24 @@ include '../includes/header.php';
     list-style: none;
     padding: 0;
     margin: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.4rem;
 }
 
 .note-item {
     display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px dashed var(--border-color);
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(124, 58, 237, 0.05);
+    border-radius: 0.4rem;
+    border-left: 3px solid #7c3aed;
 }
 
-.note-item:last-child {
-    border-bottom: none;
+.note-item.terminee {
+    background: rgba(100, 116, 139, 0.05);
+    border-left-color: var(--text-muted);
 }
 
 .note-item.terminee .note-text {
@@ -1375,17 +1384,18 @@ include '../includes/header.php';
 }
 
 .note-checkbox input {
-    width: 18px;
-    height: 18px;
+    width: 14px;
+    height: 14px;
     cursor: pointer;
     accent-color: #7c3aed;
 }
 
 .note-text {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--text-primary);
     word-break: break-word;
+    line-height: 1.3;
 }
 
 .note-delete {
@@ -1394,9 +1404,10 @@ include '../includes/header.php';
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 0.2rem;
-    opacity: 0.5;
+    padding: 0.15rem;
+    opacity: 0.4;
     transition: opacity 0.2s, color 0.2s;
+    font-size: 0.7rem;
 }
 
 .note-delete:hover {
