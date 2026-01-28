@@ -1693,8 +1693,8 @@ include '../includes/header.php';
 
     <!-- Section Fiscalité + Notes -->
     <div class="row mb-4">
-        <!-- Notes d'amélioration (2/3 de la largeur) -->
-        <div class="col-md-8 mb-3 mb-md-0">
+        <!-- Notes d'amélioration (50%) -->
+        <div class="col-md-6 mb-3 mb-md-0">
             <div class="notes-section">
                 <div class="notes-header">
                     <h5>
@@ -1729,7 +1729,7 @@ include '../includes/header.php';
                             <form method="POST" style="display: inline;">
                                 <input type="hidden" name="note_action" value="delete">
                                 <input type="hidden" name="note_id" value="<?= $note['id'] ?>">
-                                <button type="submit" class="note-delete" title="Supprimer" onclick="return confirm('Supprimer cette note ?')">
+                                <button type="submit" class="note-delete" title="Supprimer">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </form>
@@ -1741,8 +1741,8 @@ include '../includes/header.php';
             </div>
         </div>
 
-        <!-- Fiscalité (1/3 de la largeur) -->
-        <div class="col-md-4">
+        <!-- Fiscalité (50%) -->
+        <div class="col-md-6">
             <div class="fiscal-section compact">
                 <!-- Header avec gradient -->
                 <div class="fiscal-header">
