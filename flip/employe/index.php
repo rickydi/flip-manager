@@ -759,12 +759,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 projetEl?.classList.add('d-none');
                 photoContainer?.classList.add('d-none');
 
-                if (!this.session) {
-                    // Pas de session - afficher Punch In
+                if (!this.session || this.session.statut === 'terminee') {
+                    // Pas de session ou session terminée - afficher Punch In
+                    this.stopTimer();
                     statusEl.innerHTML = '<span class="badge bg-secondary">Pret a travailler</span>';
                     timerDisplay.textContent = '00:00:00';
                     btnPunchIn?.classList.remove('d-none');
                     selectContainer?.classList.remove('d-none');
+                    // Réinitialiser la session pour permettre un nouveau punch in
+                    this.session = null;
                 } else if (this.session.statut === 'en_cours') {
                     // En cours - afficher Break et Punch Out
                     statusEl.innerHTML = '<span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size:0.5rem"></i> En cours</span>';
