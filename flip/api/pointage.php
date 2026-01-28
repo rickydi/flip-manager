@@ -382,13 +382,29 @@ if ($method === 'POST') {
                     INSERT INTO heures_travaillees (projet_id, user_id, date_travail, heures, taux_horaire, description, statut)
                     VALUES (?, ?, ?, ?, ?, ?, 'approuvee')
                 ");
+                // Construire la description avec les pauses si applicable
+                $tempsStr = floor($totalMinutes / 60) . 'h' . str_pad($totalMinutes % 60, 2, '0', STR_PAD_LEFT);
+                $description = 'Pointage automatique (' . $tempsStr;
+
+                // Ajouter la durée des pauses si > 0
+                $dureePause = intval($sessionActive['duree_pause'] ?? 0);
+                if ($dureePause > 0) {
+                    if ($dureePause >= 60) {
+                        $pauseStr = floor($dureePause / 60) . 'h' . str_pad($dureePause % 60, 2, '0', STR_PAD_LEFT);
+                    } else {
+                        $pauseStr = $dureePause . ' min';
+                    }
+                    $description .= ' - ' . $pauseStr . ' pause';
+                }
+                $description .= ')';
+
                 $stmtHeures->execute([
                     $sessionActive['projet_id'],
                     $userId,
                     $sessionActive['date_travail'],
                     $heuresDecimal,
                     $tauxHoraire,
-                    'Pointage automatique (' . floor($totalMinutes / 60) . 'h' . str_pad($totalMinutes % 60, 2, '0', STR_PAD_LEFT) . ')'
+                    $description
                 ]);
             }
         }
