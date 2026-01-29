@@ -118,6 +118,7 @@ include '../includes/header.php';
                         </div>
                         <div class="pointage-projet mt-2 d-none" id="pointageProjetMobile">
                             <i class="bi bi-geo-alt-fill"></i> <span id="projetNomMobile"></span>
+                            <div class="small opacity-75" id="projetAdresseActiveMobile"></div>
                         </div>
                         <div class="pointage-status mt-2" id="pointageStatusMobile"></div>
                     </div>
@@ -127,9 +128,10 @@ include '../includes/header.php';
                         <select class="form-select form-select-lg text-center" id="projetSelectMobile">
                             <option value="">-- Choisir un projet --</option>
                             <?php foreach ($projets as $p): ?>
-                                <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
+                                <option value="<?= $p['id'] ?>" data-adresse="<?= e($p['adresse'] ?? '') ?>, <?= e($p['ville'] ?? '') ?>"><?= e($p['nom']) ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <div class="text-center mt-2 text-white-50 small" id="projetAdresseMobile"></div>
                     </div>
 
                     <!-- Boutons principaux -->
@@ -295,20 +297,22 @@ include '../includes/header.php';
                             <div class="pointage-status" id="pointageStatusDesktop"></div>
                             <div class="pointage-projet text-muted small d-none" id="pointageProjetDesktop">
                                 <i class="bi bi-geo-alt-fill"></i> <span id="projetNomDesktop"></span>
+                                <span class="ms-2" id="projetAdresseActiveDesktop"></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Sélection projet -->
-                <div class="col-md-3 mb-3 mb-md-0">
+                <div class="col-md-4 mb-3 mb-md-0">
                     <div class="d-none" id="projetSelectContainerDesktop">
                         <select class="form-select" id="projetSelectDesktop">
                             <option value="">-- Choisir un projet --</option>
                             <?php foreach ($projets as $p): ?>
-                                <option value="<?= $p['id'] ?>"><?= e($p['nom']) ?></option>
+                                <option value="<?= $p['id'] ?>" data-adresse="<?= e($p['adresse'] ?? '') ?>, <?= e($p['ville'] ?? '') ?>"><?= e($p['nom']) ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <div class="small text-muted mt-1" id="projetAdresseDesktop"></div>
                     </div>
                 </div>
 
@@ -684,6 +688,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 const mobile = document.getElementById('gpsToggleMobile');
                 if (mobile) mobile.checked = e.target.checked;
             });
+
+            // Afficher l'adresse quand on sélectionne un projet
+            document.getElementById('projetSelectMobile')?.addEventListener('change', (e) => {
+                this.showProjetAdresse('Mobile', e.target);
+                // Sync avec desktop
+                const desktop = document.getElementById('projetSelectDesktop');
+                if (desktop) {
+                    desktop.value = e.target.value;
+                    this.showProjetAdresse('Desktop', desktop);
+                }
+            });
+            document.getElementById('projetSelectDesktop')?.addEventListener('change', (e) => {
+                this.showProjetAdresse('Desktop', e.target);
+                // Sync avec mobile
+                const mobile = document.getElementById('projetSelectMobile');
+                if (mobile) {
+                    mobile.value = e.target.value;
+                    this.showProjetAdresse('Mobile', mobile);
+                }
+            });
+        },
+
+        showProjetAdresse: function(view, selectEl) {
+            const adresseEl = document.getElementById('projetAdresse' + view);
+            if (!adresseEl) return;
+
+            const selectedOption = selectEl.options[selectEl.selectedIndex];
+            const adresse = selectedOption?.dataset?.adresse || '';
+
+            if (adresse && adresse !== ', ') {
+                adresseEl.innerHTML = '<i class="bi bi-geo-alt me-1"></i>' + adresse;
+            } else {
+                adresseEl.textContent = '';
+            }
         },
 
         // Toggle Break: si en cours -> pause, si en pause -> resume
@@ -743,6 +781,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const timerDisplay = document.getElementById('timerDisplay' + view);
                 const projetEl = document.getElementById('pointageProjet' + view);
                 const projetNomEl = document.getElementById('projetNom' + view);
+                const projetAdresseActiveEl = document.getElementById('projetAdresseActive' + view);
                 const selectContainer = document.getElementById('projetSelectContainer' + view);
                 const btnPunchIn = document.getElementById('btnPunchIn' + view);
                 const btnBreak = document.getElementById('btnBreak' + view);
@@ -778,6 +817,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     photoContainer?.classList.remove('d-none');
                     projetEl?.classList.remove('d-none');
                     if (projetNomEl) projetNomEl.textContent = this.session.projet_nom || '';
+                    if (projetAdresseActiveEl) projetAdresseActiveEl.textContent = this.session.projet_adresse || '';
                     // Changer texte du bouton Break
                     const breakBtnMobile = document.getElementById('btnBreakMobile');
                     const breakBtnDesktop = document.getElementById('btnBreakDesktop');
@@ -795,6 +835,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     photoContainer?.classList.remove('d-none');
                     projetEl?.classList.remove('d-none');
                     if (projetNomEl) projetNomEl.textContent = this.session.projet_nom || '';
+                    if (projetAdresseActiveEl) projetAdresseActiveEl.textContent = this.session.projet_adresse || '';
                     // Changer texte du bouton Break -> Reprendre
                     const breakBtnMobile = document.getElementById('btnBreakMobile');
                     const breakBtnDesktop = document.getElementById('btnBreakDesktop');
